@@ -1,0 +1,3 @@
+final class BooleanType extends Type {
+  static BooleanType instance = new BooleanType();
+}
