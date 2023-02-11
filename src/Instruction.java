@@ -1,9 +1,15 @@
 import java.util.AbstractCollection;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 
 abstract class Instruction extends AbstractCollection<Object> {
+  static void walk(Consumer<Object> f, Object a0) {
+    f.accept(a0);
+    if (a0 instanceof Instruction a) for (var b : a) walk(f, b);
+  }
+
   static Object replace(Map<?, Object> map, Object a) {
     return mapLeaves(
         b -> {
