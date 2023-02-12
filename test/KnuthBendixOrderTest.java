@@ -56,7 +56,7 @@ public class KnuthBendixOrderTest {
     return order.compare(true, a, true, b) == PartialOrder.GT;
   }
 
-  public void randomTest() {
+  static void randomTest() {
     makeRandomOrder();
     for (var i = 0; i < ITERATIONS; i++) {
       var a = randomIndividualTerm(4);
@@ -66,7 +66,7 @@ public class KnuthBendixOrderTest {
     }
   }
 
-  public void greater() {
+  static void greater() {
     var red = new DistinctObject("red");
     var green = new DistinctObject("green");
     var a = new Fn(IndividualType.instance, "a");
@@ -141,7 +141,7 @@ public class KnuthBendixOrderTest {
     return false;
   }
 
-  public void totalOnGroundTerms() {
+  static void totalOnGroundTerms() {
     makeRandomOrder();
     vars.clear();
     for (var i = 0; i < ITERATIONS; i++) {
@@ -151,19 +151,19 @@ public class KnuthBendixOrderTest {
     }
   }
 
-  public void containsSubtermRelation() {
+  static void containsSubtermRelation() {
     makeRandomOrder();
     for (var i = 0; i < ITERATIONS; i++) {
       var a = randomIndividualTerm(4);
       var b = randomIndividualTerm(4);
       if (a.equals(b)) continue;
-      if (containsSubterm(a, b)) assert (greater(a, b));
-      if (containsSubterm(b, a)) assert (greater(b, a));
+      assert !containsSubterm(a, b) || (greater(a, b));
+      assert !containsSubterm(b, a) || (greater(b, a));
     }
   }
 
   /*
-  public void cast() {
+   void cast() {
     var negative = new ArrayList<>();
     var positive = new ArrayList<>();
     var a = new GlobalVar("a", Type.REAL);
@@ -180,7 +180,7 @@ public class KnuthBendixOrderTest {
   }
      */
 
-  public void eqlEquations() {
+  static void eqlEquations() {
     makeRandomOrder();
     for (var i = 0; i < ITERATIONS; i++) {
       var a = randomIndividualTerm(4);
@@ -192,7 +192,7 @@ public class KnuthBendixOrderTest {
     }
   }
 
-  public void totalOnGroundEquations() {
+  static void totalOnGroundEquations() {
     makeRandomOrder();
     vars.clear();
     for (var i = 0; i < ITERATIONS; i++) {
@@ -202,7 +202,11 @@ public class KnuthBendixOrderTest {
     }
   }
 
-  static void assertEquals(Object a, Object b) {
+  private static void assertEquals(Object a, Object b) {
     assert a.equals(b);
+  }
+
+  public static void main(String[] args) {
+    greater();
   }
 }
