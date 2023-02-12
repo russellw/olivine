@@ -208,5 +208,9 @@ public class KnuthBendixOrderTest {
 
   public static void main(String[] args) {
     greater();
+    eqlEquations();
+    totalOnGroundTerms();
+    totalOnGroundEquations();
+    containsSubtermRelation();
   }
 }

@@ -44,6 +44,7 @@ final class KnuthBendixOrder {
       case Var ignored -> {
         return 1;
       }
+      case Integer ignored -> {}
       case Call a1 -> a = a1.fn;
       case Fn ignored -> {}
       case BigInteger ignored -> {}
