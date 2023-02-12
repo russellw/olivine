@@ -80,7 +80,8 @@ final class KnuthBendixOrder {
         maybeGt = false;
         break;
       }
-    if (!maybeLt && !maybeGt) return a0.equals(b0) ? PartialOrder.EQ : PartialOrder.UNORDERED;
+    if (!maybeLt && !maybeGt)
+      return Instruction.eq(a0, b0) ? PartialOrder.EQ : PartialOrder.UNORDERED;
 
     // total weight
     var atotalWeight = totalWeight(a0);
@@ -135,7 +136,7 @@ final class KnuthBendixOrder {
       var b = (Call) b0;
       var n = a.size();
       var i = 0;
-      while (i < a.size() && a.get(i).equals(b.get(i))) i++;
+      while (i < a.size() && Instruction.eq(a.get(i), b.get(i))) i++;
       if (i == n) return PartialOrder.EQ;
       return compare(a.get(i), b.get(i));
     }
@@ -146,12 +147,12 @@ final class KnuthBendixOrder {
       assert n == b.size();
 
       var i = 0;
-      while (i < a.size() && a.get(i).equals(b.get(i))) i++;
+      while (i < a.size() && Instruction.eq(a.get(i), b.get(i))) i++;
 
       if (i == n) return PartialOrder.EQ;
       return compare(a.get(i), b.get(i));
     }
-    assert a0.equals(b0);
+    assert Instruction.eq(a0, b0);
     return PartialOrder.EQ;
   }
 
