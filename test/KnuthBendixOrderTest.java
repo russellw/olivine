@@ -22,6 +22,7 @@ public class KnuthBendixOrderTest {
     return new Call(f, args);
   }
 
+  @SuppressWarnings("SameParameterValue")
   private static Equation randomIndividualEquation(int depth) {
     return new Equation(randomIndividualTerm(depth), randomIndividualTerm(depth));
   }
@@ -212,5 +213,6 @@ public class KnuthBendixOrderTest {
     totalOnGroundTerms();
     totalOnGroundEquations();
     containsSubtermRelation();
+    randomTest();
   }
 }
