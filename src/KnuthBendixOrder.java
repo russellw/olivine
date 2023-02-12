@@ -8,6 +8,7 @@ final class KnuthBendixOrder {
   private final Map<Object, Integer> weights = new HashMap<>();
 
   KnuthBendixOrder(List<Clause> clauses) {
+    // TODO remove the clauses parameter
     var symbols = new LinkedHashSet<>();
     for (var c : clauses)
       for (var a : c.literals)
@@ -34,14 +35,24 @@ final class KnuthBendixOrder {
     return map;
   }
 
-  private int symbolWeight(Object a0) {
-    return switch (a0) {
-      case Boolean a -> 1;
-      case Var a -> 1;
-      case Call a -> weights.get(a.fn);
-      case Fn a -> weights.get(a);
-      default -> weights.get(a0.getClass());
-    };
+  @SuppressWarnings("DuplicateBranchesInSwitch")
+  private int symbolWeight(Object a) {
+    switch (a) {
+      case Boolean ignored -> {
+        return 1;
+      }
+      case Var ignored -> {
+        return 1;
+      }
+      case Call a1 -> a = a1.fn;
+      case Fn ignored -> {}
+      case BigInteger ignored -> {}
+      case BigRational ignored -> {}
+      case Real ignored -> {}
+      case DistinctObject ignored -> {}
+      default -> a = a.getClass();
+    }
+    return weights.computeIfAbsent(a, k -> weights.size() + 2);
   }
 
   private long totalWeight(Object a0) {

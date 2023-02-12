@@ -82,9 +82,9 @@ final class Etc {
     return a.subtract(divFloor(a, b).multiply(b));
   }
 
-  static Object get(Map<Object, Object> map, Object key) {
-    if (constant(key)) return key;
-    var val = map.get(key);
+  static Object get(Map<Object, Object> map, Object k) {
+    if (constant(k)) return k;
+    var val = map.get(k);
     assert val != null;
     return val;
   }

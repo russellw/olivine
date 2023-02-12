@@ -40,24 +40,6 @@ abstract class Instruction extends AbstractCollection<Object> {
     return a0.equals(b0);
   }
 
-  static String string(Object a0) {
-    if (a0 instanceof Instruction a) return a.string();
-    return a0.toString();
-  }
-
-  String string() {
-    var sb = new StringBuilder(getClass().getSimpleName());
-    if (size() > 0) {
-      sb.append('(');
-      for (var i = 0; i < size(); i++) {
-        if (i > 0) sb.append(',');
-        sb.append(string(get(i)));
-      }
-      sb.append(')');
-    }
-    return sb.toString();
-  }
-
   static Object mapLeaves(UnaryOperator<Object> f, Object a0) {
     // TODO should this be just mapVars?
     if (a0 instanceof Instruction a) return a.mapLeaves(f);
@@ -86,7 +68,16 @@ abstract class Instruction extends AbstractCollection<Object> {
   }
 
   public String toString() {
-    return getClass().getSimpleName();
+    var sb = new StringBuilder(getClass().getSimpleName());
+    if (size() > 0) {
+      sb.append('(');
+      for (var i = 0; i < size(); i++) {
+        if (i > 0) sb.append(',');
+        sb.append(get(i));
+      }
+      sb.append(')');
+    }
+    return sb.toString();
   }
 
   public Iterator<Object> iterator() {

@@ -18,19 +18,19 @@ final class Cast extends Unary {
       case IntegerType ignored -> switch (a0) {
         case BigRational a -> Etc.divFloor(a.num, a.den);
         case Real a -> Etc.divFloor(a.val().num, a.val().den);
-        default -> throw new IllegalArgumentException(string());
+        default -> throw new IllegalArgumentException(toString());
       };
       case RationalType ignored -> switch (a0) {
         case BigInteger a -> new BigRational(a);
         case Real a -> a.val();
-        default -> throw new IllegalArgumentException(string());
+        default -> throw new IllegalArgumentException(toString());
       };
       case RealType ignored -> switch (a0) {
         case BigInteger a -> new Real(new BigRational(a));
         case BigRational a -> new Real(a);
-        default -> throw new IllegalArgumentException(string());
+        default -> throw new IllegalArgumentException(toString());
       };
-      default -> throw new IllegalArgumentException(string());
+      default -> throw new IllegalArgumentException(toString());
     };
   }
 

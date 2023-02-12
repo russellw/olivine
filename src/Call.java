@@ -14,13 +14,13 @@ final class Call extends Nary {
     return fn.rtype;
   }
 
-  String string() {
+  public String toString() {
     var sb = new StringBuilder(fn.toString());
     if (size() > 0) {
       sb.append('(');
       for (var i = 0; i < size(); i++) {
         if (i > 0) sb.append(',');
-        sb.append(string(get(i)));
+        sb.append(get(i));
       }
       sb.append(')');
     }

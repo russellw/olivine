@@ -73,7 +73,7 @@ abstract class Binary extends Instruction {
         if (r0 instanceof BigRational r) yield new Real(r);
         yield r0;
       }
-      default -> throw new IllegalArgumentException(string());
+      default -> throw new IllegalArgumentException(toString());
     };
   }
 
