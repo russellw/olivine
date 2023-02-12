@@ -265,6 +265,7 @@ def gen(ps):
 
 
 print("// AUTO GENERATED CODE - DO NOT MODIFY")
+print('@SuppressWarnings("DuplicateBranchesInSwitch")')
 print("final class EquationComparison {")
 
 for p in ps:
