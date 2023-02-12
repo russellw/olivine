@@ -69,14 +69,12 @@ abstract class Instruction extends AbstractCollection<Object> {
 
   public String toString() {
     var sb = new StringBuilder(getClass().getSimpleName());
-    if (size() > 0) {
-      sb.append('(');
-      for (var i = 0; i < size(); i++) {
-        if (i > 0) sb.append(',');
-        sb.append(get(i));
-      }
-      sb.append(')');
+    sb.append('(');
+    for (var i = 0; i < size(); i++) {
+      if (i > 0) sb.append(',');
+      sb.append(get(i));
     }
+    sb.append(')');
     return sb.toString();
   }
 
