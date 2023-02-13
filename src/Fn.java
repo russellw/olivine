@@ -38,14 +38,14 @@ final class Fn {
       var a0 = block.get(i++);
       switch (a0) {
         case Return a -> {
-          return Etc.get(map, a.arg);
+          return Etc.get(map, a.args[0]);
         }
         case Goto a -> {
           block = a.target;
           i = 0;
         }
         case If a -> {
-          block = ((boolean) Etc.get(map, a.arg)) ? a.yes : a.no;
+          block = ((boolean) Etc.get(map, a.args[0])) ? a.yes : a.no;
           i = 0;
         }
         default -> map.put(a0, a0.eval(map));

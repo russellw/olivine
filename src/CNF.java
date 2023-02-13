@@ -33,7 +33,7 @@ final class CNF {
   private static int clauseCount(boolean pol, Object a0) {
     return switch (a0) {
       case Quantifier a -> clauseCount(pol, a.body);
-      case Not a -> clauseCount(!pol, a.arg);
+      case Not a -> clauseCount(!pol, a.args[0]);
       case Or a -> pol ? clauseCountMultiply(true, a) : clauseCountAdd(false, a);
       case And a -> pol ? clauseCountAdd(true, a) : clauseCountMultiply(false, a);
       case Eqv a -> {
@@ -149,7 +149,7 @@ final class CNF {
     return switch (a0) {
       case All a -> new All(a.vars, maybeRename(pol, a.body));
       case Exists a -> new Exists(a.vars, maybeRename(pol, a.body));
-      case Not a -> new Not(maybeRename(-pol, a.arg));
+      case Not a -> new Not(maybeRename(-pol, a.args[0]));
       case Or a -> {
         var v = new Object[a.size()];
         for (var i = 0; i < v.length; i++) v[i] = maybeRename(pol, a.get(i));
@@ -233,7 +233,7 @@ final class CNF {
         var v = nnf1(map, pol, a);
         yield pol ? new Or(v) : new And(v);
       }
-      case Not a -> nnf(map, !pol, a.arg);
+      case Not a -> nnf(map, !pol, a.args[0]);
       case Var a -> {
         var a1 = map.get(a);
         assert a1 != null;
@@ -333,7 +333,7 @@ final class CNF {
   // Convert a suitably rearranged term into actual clauses.
   private void literals(Object a0) {
     switch (a0) {
-      case Not a -> negative.add(a.arg);
+      case Not a -> negative.add(a.args[0]);
       case Or a -> {
         for (var b : a) literals(b);
       }

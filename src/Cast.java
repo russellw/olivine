@@ -6,7 +6,7 @@ final class Cast extends Unary {
   private final Type type;
 
   Object eval(Map<Object, Object> map) {
-    var a0 = Etc.get(map, this.arg);
+    var a0 = Etc.get(map, args[0]);
     if (type.equals(Type.of(a0))) return a0;
 
     // Different languages have different conventions on the default rounding mode for
@@ -35,7 +35,7 @@ final class Cast extends Unary {
   }
 
   Object mapLeaves(UnaryOperator<Object> f) {
-    return new Cast(type, mapLeaves(f, arg));
+    return new Cast(type, mapLeaves(f, args[0]));
   }
 
   Type type() {

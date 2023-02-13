@@ -4,7 +4,7 @@ final class Store extends Unary {
   final Var to;
 
   Object eval(Map<Object, Object> map) {
-    map.put(to, Etc.get(map, arg));
+    map.put(to, Etc.get(map, args[0]));
     return null;
   }
 
