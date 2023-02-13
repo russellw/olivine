@@ -7,10 +7,6 @@ abstract class Nary extends Term {
     this.args = args;
   }
 
-  void set(int i, Object a) {
-    args[i] = a;
-  }
-
   public int size() {
     return args.length;
   }

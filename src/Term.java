@@ -57,10 +57,6 @@ abstract class Term extends AbstractCollection<Object> {
     return a0;
   }
 
-  void set(int i, Object a) {
-    throw new UnsupportedOperationException(toString());
-  }
-
   Object eval(Map<Object, Object> map) {
     throw new UnsupportedOperationException(toString());
   }

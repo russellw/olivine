@@ -31,11 +31,6 @@ abstract class Unary extends Term {
     return 1;
   }
 
-  void set(int i, Object a) {
-    assert i == 0;
-    arg = a;
-  }
-
   Object get(int i) {
     assert i == 0;
     return arg;

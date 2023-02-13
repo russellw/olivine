@@ -12,16 +12,6 @@ abstract class Binary extends Term {
     this.arg1 = arg1;
   }
 
-  void set(int i, Object a) {
-    assert i >= 0;
-    assert i < 2;
-    if (i == 0) {
-      arg0 = a;
-      return;
-    }
-    arg1 = a;
-  }
-
   Object get(int i) {
     assert i >= 0;
     assert i < 2;
