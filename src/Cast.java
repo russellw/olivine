@@ -2,7 +2,7 @@ import java.math.BigInteger;
 import java.util.Map;
 import java.util.function.UnaryOperator;
 
-final class Cast extends Unary {
+final class Cast extends Term {
   private final Type type;
 
   Object eval(Map<Object, Object> map) {

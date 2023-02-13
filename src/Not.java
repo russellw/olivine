@@ -1,4 +1,4 @@
-final class Not extends Unary {
+final class Not extends Term {
   Not(Object a) {
     super(a);
   }

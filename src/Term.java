@@ -77,18 +77,36 @@ abstract class Term extends AbstractCollection<Object> {
 
   Object eval(Map<Object, Object> map) {
     var a0 = Etc.get(map, this.args[0]);
-    var b = Etc.get(map, this.args[1]);
-    return switch (a0) {
-      case Integer a -> apply(a, (Integer) b);
-      case BigInteger a -> apply(a, (BigInteger) b);
-      case BigRational a -> apply(a, (BigRational) b);
-      case Real a -> {
-        var r0 = apply(a.val(), ((Real) b).val());
-        if (r0 instanceof BigRational r) yield new Real(r);
-        yield r0;
+    switch (args.length) {
+      case 1 -> {
+        return switch (a0) {
+          case Integer a -> apply(a);
+          case BigInteger a -> apply(a);
+          case BigRational a -> apply(a);
+          case Real a -> {
+            var r0 = apply(a.val());
+            if (r0 instanceof BigRational r) yield new Real(r);
+            yield r0;
+          }
+          default -> throw new IllegalArgumentException(toString());
+        };
       }
-      default -> throw new IllegalArgumentException(toString());
-    };
+      case 2 -> {
+        var b = Etc.get(map, this.args[1]);
+        return switch (a0) {
+          case Integer a -> apply(a, (Integer) b);
+          case BigInteger a -> apply(a, (BigInteger) b);
+          case BigRational a -> apply(a, (BigRational) b);
+          case Real a -> {
+            var r0 = apply(a.val(), ((Real) b).val());
+            if (r0 instanceof BigRational r) yield new Real(r);
+            yield r0;
+          }
+          default -> throw new IllegalArgumentException(toString());
+        };
+      }
+    }
+    throw new UnsupportedOperationException(toString());
   }
 
   static boolean eq(Object a0, Object b0) {

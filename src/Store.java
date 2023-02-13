@@ -1,6 +1,6 @@
 import java.util.Map;
 
-final class Store extends Unary {
+final class Store extends Term {
   final Var to;
 
   Object eval(Map<Object, Object> map) {

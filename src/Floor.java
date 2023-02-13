@@ -1,6 +1,6 @@
 import java.math.BigInteger;
 
-final class Floor extends Unary {
+final class Floor extends Term {
   Floor(Object a) {
     super(a);
   }

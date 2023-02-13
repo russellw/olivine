@@ -1,6 +1,6 @@
 import java.math.BigInteger;
 
-final class Neg extends Unary {
+final class Neg extends Term {
   Neg(Object a) {
     super(a);
   }
