@@ -45,7 +45,7 @@ final class Etc {
   static boolean constant(Object a0) {
     return switch (a0) {
       case Term a -> false;
-      case Var a -> false;
+      case Variable a -> false;
       default -> true;
     };
   }

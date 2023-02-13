@@ -87,9 +87,9 @@ final class CNF {
   // avoid exponential expansion.
   private static Object skolem(Type rtype, Collection<?> args) {
     if (args.isEmpty()) return new Fn(rtype, null);
-    var params = new Var[args.size()];
+    var params = new Variable[args.size()];
     var i = 0;
-    for (var a : args) params[i++] = new Var(Type.of(a));
+    for (var a : args) params[i++] = new Variable(Type.of(a));
     return new Call(new Fn(rtype, null, params), args);
   }
 
@@ -97,7 +97,7 @@ final class CNF {
   // doing other things, easier to
   // be sure of the logic if it's done as a separate pass first.
   private Object rename(int pol, Object a) {
-    var b = skolem(Type.of(a), Var.freeVars(a));
+    var b = skolem(Type.of(a), Variable.freeVariables(a));
     if (pol > 0)
       // If this formula is only being used with positive polarity, the new name only needs to imply
       // the original formula.
@@ -147,8 +147,8 @@ final class CNF {
   // and of the memory traffic for the extra iteration through the formula set)
   private Object maybeRename(int pol, Object a0) {
     return switch (a0) {
-      case All a -> new All(a.vars, maybeRename(pol, a.body));
-      case Exists a -> new Exists(a.vars, maybeRename(pol, a.body));
+      case All a -> new All(a.variables, maybeRename(pol, a.body));
+      case Exists a -> new Exists(a.variables, maybeRename(pol, a.body));
       case Not a -> new Not(maybeRename(-pol, a.args[0]));
       case Or a -> {
         var v = new Object[a.size()];
@@ -186,10 +186,10 @@ final class CNF {
   // binds variables to local scope, so the same variable name used in two for-all's corresponds to
   // two different logical
   // variables. So we rename each quantified variable to a new variable of the same type.
-  private Map<Var, Object> all(Map<Var, Object> map, Quantifier a) {
+  private Map<Variable, Object> all(Map<Variable, Object> map, Quantifier a) {
     map = new LinkedHashMap<>(map);
-    for (var x : a.vars) {
-      var y = new Var(x.type);
+    for (var x : a.variables) {
+      var y = new Variable(x.type);
       map.put(x, y);
     }
     return map;
@@ -198,15 +198,15 @@ final class CNF {
   // Each existentially quantified variable is replaced with a Skolem function whose parameters are
   // all the surrounding
   // universally quantified variables.
-  private Map<Var, Object> exists(Map<Var, Object> map, Quantifier a) {
+  private Map<Variable, Object> exists(Map<Variable, Object> map, Quantifier a) {
     // Get the surrounding universally quantified variables that will be arguments to the Skolem
     // functions.
     var args = new ArrayList<>();
-    for (var x : map.values()) if (x instanceof Var) args.add(x);
+    for (var x : map.values()) if (x instanceof Variable) args.add(x);
 
     // Make a replacement for each existentially quantified variable.
     map = new LinkedHashMap<>(map);
-    for (var x : a.vars) {
+    for (var x : a.variables) {
       var y = skolem(x.type, args);
       map.put(x, y);
     }
@@ -216,13 +216,13 @@ final class CNF {
   // Negation normal form consists of several transformations that are as easy to do at the same
   // time: Move NOTs inward to the
   // literal layer, flipping things around on the way, while simultaneously resolving quantifiers.
-  private Object[] nnf1(Map<Var, Object> map, boolean pol, Term a) {
+  private Object[] nnf1(Map<Variable, Object> map, boolean pol, Term a) {
     var v = new Object[a.size()];
     for (var i = 0; i < v.length; i++) v[i] = nnf(map, pol, a.get(i));
     return v;
   }
 
-  private Object nnf(Map<Var, Object> map, boolean pol, Object a0) {
+  private Object nnf(Map<Variable, Object> map, boolean pol, Object a0) {
     return switch (a0) {
       case Boolean a -> pol == a;
       case And a -> {
@@ -234,7 +234,7 @@ final class CNF {
         yield pol ? new Or(v) : new And(v);
       }
       case Not a -> nnf(map, !pol, a.args[0]);
-      case Var a -> {
+      case Variable a -> {
         var a1 = map.get(a);
         assert a1 != null;
         yield a1;
@@ -278,7 +278,7 @@ final class CNF {
         a0 =
             Term.mapLeaves(
                 b0 -> {
-                  if (b0 instanceof Var b) {
+                  if (b0 instanceof Variable b) {
                     b0 = map.get(b);
                     assert b0 != null;
                   }

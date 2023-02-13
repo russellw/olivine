@@ -1,5 +1,5 @@
 final class Exists extends Quantifier {
-  Exists(Var[] vars, Object body) {
-    super(vars, body);
+  Exists(Variable[] variables, Object body) {
+    super(variables, body);
   }
 }

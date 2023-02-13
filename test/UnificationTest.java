@@ -8,10 +8,10 @@ class UnificationTest {
     var b = new Fn(IndividualType.instance, "b");
     var f = new Fn(IndividualType.instance, "f");
     var g = new Fn(IndividualType.instance, "g");
-    var x = new Var(IndividualType.instance);
-    var y = new Var(IndividualType.instance);
-    var z = new Var(IndividualType.instance);
-    Map<Var, Object> map;
+    var x = new Variable(IndividualType.instance);
+    var y = new Variable(IndividualType.instance);
+    var z = new Variable(IndividualType.instance);
+    Map<Variable, Object> map;
 
     // Succeeds. (tautology)
     map = new HashMap<>();

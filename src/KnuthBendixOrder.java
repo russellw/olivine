@@ -25,11 +25,11 @@ final class KnuthBendixOrder {
     for (var a : symbols) weights.put(a, i++);
   }
 
-  private static Map<Var, Integer> vars(Object a) {
-    var map = new HashMap<Var, Integer>();
+  private static Map<Variable, Integer> variables(Object a) {
+    var map = new HashMap<Variable, Integer>();
     Term.walk(
         b -> {
-          if (b instanceof Var b1) map.put(b1, map.getOrDefault(b1, 0) + 1);
+          if (b instanceof Variable b1) map.put(b1, map.getOrDefault(b1, 0) + 1);
         },
         a);
     return map;
@@ -41,7 +41,7 @@ final class KnuthBendixOrder {
       case Boolean ignored -> {
         return 1;
       }
-      case Var ignored -> {
+      case Variable ignored -> {
         return 1;
       }
       case Integer ignored -> {}
@@ -66,17 +66,17 @@ final class KnuthBendixOrder {
   // TODO: pacman lemma?
   PartialOrder compare(Object a0, Object b0) {
     // variables
-    var avars = vars(a0);
-    var bvars = vars(b0);
+    var avariables = variables(a0);
+    var bvariables = variables(b0);
     var maybeLt = true;
     var maybeGt = true;
-    for (var kv : avars.entrySet())
-      if (kv.getValue() > bvars.getOrDefault(kv.getKey(), 0)) {
+    for (var kv : avariables.entrySet())
+      if (kv.getValue() > bvariables.getOrDefault(kv.getKey(), 0)) {
         maybeLt = false;
         break;
       }
-    for (var kv : bvars.entrySet())
-      if (kv.getValue() > avars.getOrDefault(kv.getKey(), 0)) {
+    for (var kv : bvariables.entrySet())
+      if (kv.getValue() > avariables.getOrDefault(kv.getKey(), 0)) {
         maybeGt = false;
         break;
       }

@@ -10,7 +10,7 @@ class TermTest {
   }
 
   public static void main(String[] args) {
-    var x = new Var(null);
+    var x = new Variable(null);
     assert Term.mapLeaves(TermTest::succ, x) == x;
     assert Term.mapLeaves(TermTest::succ, 5).equals(6);
     var a = (Add) Term.mapLeaves(TermTest::succ, new Add(10, 20));

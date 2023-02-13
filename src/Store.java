@@ -1,14 +1,14 @@
 import java.util.Map;
 
 final class Store extends Term {
-  final Var to;
+  final Variable to;
 
   Object eval(Map<Object, Object> map) {
     map.put(to, Etc.get(map, args[0]));
     return null;
   }
 
-  Store(Var to, Object a) {
+  Store(Variable to, Object a) {
     super(a);
     this.to = to;
   }

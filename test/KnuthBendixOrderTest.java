@@ -6,15 +6,15 @@ public class KnuthBendixOrderTest {
   private static final int ITERATIONS = 10000;
   private static final List<Fn> funcs = new ArrayList<>();
   private static final List<Fn> globalVars = new ArrayList<>();
-  private static final List<Var> vars = new ArrayList<>();
+  private static final List<Variable> VARIABLES = new ArrayList<>();
   private static final Random random = new Random(0);
   private static KnuthBendixOrder order;
 
   private static Object randomIndividualTerm(int depth) {
     if (depth == 0 || random.nextInt(100) < 40)
-      if (vars.isEmpty() || random.nextInt(100) < 30)
+      if (VARIABLES.isEmpty() || random.nextInt(100) < 30)
         return globalVars.get(random.nextInt(globalVars.size()));
-      else return vars.get(random.nextInt(vars.size()));
+      else return VARIABLES.get(random.nextInt(VARIABLES.size()));
 
     var f = funcs.get(random.nextInt(funcs.size()));
     var args = new Object[f.params.length];
@@ -32,10 +32,10 @@ public class KnuthBendixOrderTest {
     var positive = new ArrayList<>();
     for (var f : funcs) {
       var args = new Object[f.params.length];
-      for (var i = 0; i < args.length; i++) args[i] = vars.get(0);
-      positive.add(new Eq(new Call(f, args), vars.get(0)));
+      for (var i = 0; i < args.length; i++) args[i] = VARIABLES.get(0);
+      positive.add(new Eq(new Call(f, args), VARIABLES.get(0)));
     }
-    for (var a : globalVars) positive.add(new Eq(a, vars.get(0)));
+    for (var a : globalVars) positive.add(new Eq(a, VARIABLES.get(0)));
     var clauses = new ArrayList<Clause>();
     clauses.add(new Clause(negative, positive));
     order = new KnuthBendixOrder(clauses);
@@ -45,7 +45,7 @@ public class KnuthBendixOrderTest {
     for (var i = 0; i < 4; i++) funcs.add(new Fn(IndividualType.instance, String.format("f%d", i)));
     for (var i = 0; i < 4; i++)
       globalVars.add(new Fn(IndividualType.instance, String.format("a%d", i)));
-    for (var i = 0; i < 4; i++) vars.add(new Var(IndividualType.instance));
+    for (var i = 0; i < 4; i++) VARIABLES.add(new Variable(IndividualType.instance));
     makeOrder();
   }
 
@@ -74,8 +74,8 @@ public class KnuthBendixOrderTest {
     var b = new Fn(IndividualType.instance, "b");
     var p1 = new Fn(BooleanType.instance, "p1");
     var q1 = new Fn(BooleanType.instance, "q1");
-    var x = new Var(IndividualType.instance);
-    var y = new Var(IndividualType.instance);
+    var x = new Variable(IndividualType.instance);
+    var y = new Variable(IndividualType.instance);
     var negative = new ArrayList<>();
     var positive = new ArrayList<>();
     var clauses = new ArrayList<Clause>();
@@ -144,7 +144,7 @@ public class KnuthBendixOrderTest {
 
   static void totalOnGroundTerms() {
     makeRandomOrder();
-    vars.clear();
+    VARIABLES.clear();
     for (var i = 0; i < ITERATIONS; i++) {
       var a = randomIndividualTerm(4);
       var b = randomIndividualTerm(4);
@@ -195,7 +195,7 @@ public class KnuthBendixOrderTest {
 
   static void totalOnGroundEquations() {
     makeRandomOrder();
-    vars.clear();
+    VARIABLES.clear();
     for (var i = 0; i < ITERATIONS; i++) {
       var a = randomIndividualEquation(4);
       var b = randomIndividualEquation(4);

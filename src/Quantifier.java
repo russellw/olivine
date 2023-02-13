@@ -1,9 +1,9 @@
 abstract class Quantifier {
-  final Var[] vars;
+  final Variable[] variables;
   final Object body;
 
-  Quantifier(Var[] vars, Object body) {
-    this.vars = vars;
+  Quantifier(Variable[] variables, Object body) {
+    this.variables = variables;
     this.body = body;
   }
 }

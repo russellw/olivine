@@ -4,32 +4,31 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 @SuppressWarnings("ClassCanBeRecord")
-final class Var {
-  // TODO class name?
+final class Variable {
   final Type type;
 
-  Var(Type type) {
+  Variable(Type type) {
     this.type = type;
   }
 
-  static Set<Var> freeVars(Object a) {
-    var free = new LinkedHashSet<Var>();
-    freeVars(a, Set.of(), free);
+  static Set<Variable> freeVariables(Object a) {
+    var free = new LinkedHashSet<Variable>();
+    freeVariables(a, Set.of(), free);
     return free;
   }
 
-  static void freeVars(Object a0, Set<Var> bound, Set<Var> free) {
+  static void freeVariables(Object a0, Set<Variable> bound, Set<Variable> free) {
     switch (a0) {
-      case Var a -> {
+      case Variable a -> {
         if (!bound.contains(a)) free.add(a);
       }
       case Quantifier a -> {
         bound = new HashSet<>(bound);
-        bound.addAll(Arrays.asList(a.vars));
-        freeVars(a.body, bound, free);
+        bound.addAll(Arrays.asList(a.variables));
+        freeVariables(a.body, bound, free);
       }
       case Term a -> {
-        for (var b : a) freeVars(b, bound, free);
+        for (var b : a) freeVariables(b, bound, free);
       }
       default -> {}
     }

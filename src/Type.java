@@ -9,7 +9,7 @@ abstract class Type {
       case BigRational ignored -> RationalType.instance;
       case Real ignored -> RealType.instance;
       case DistinctObject ignored -> IndividualType.instance;
-      case Var a -> a.type;
+      case Variable a -> a.type;
       case Fn a -> a.type();
       case Term a -> a.type();
       default -> throw new IllegalArgumentException(a0.toString());

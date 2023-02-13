@@ -7,9 +7,9 @@ public class SubsumptionTest {
     var b = new Fn(IntegerType.instance, "b");
     var p = new Fn(BooleanType.instance, "p");
     var q = new Fn(BooleanType.instance, "q");
-    var x = new Var(IntegerType.instance);
-    var y = new Var(IntegerType.instance);
-    var z = new Var(IntegerType.instance);
+    var x = new Variable(IntegerType.instance);
+    var y = new Variable(IntegerType.instance);
+    var z = new Variable(IntegerType.instance);
     var negative = new ArrayList<>();
     var positive = new ArrayList<>();
     Clause c, d;

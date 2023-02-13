@@ -4,8 +4,8 @@ final class Subsumption {
   // Time limit
   private int steps;
 
-  private Map<Var, Object> search(
-      Map<Var, Object> map, Object[] c, Object[] c2, Object[] d, Object[] d2) {
+  private Map<Variable, Object> search(
+      Map<Variable, Object> map, Object[] c, Object[] c2, Object[] d, Object[] d2) {
     if (steps-- == 0) throw new Fail();
 
     // Matched everything in one polarity
@@ -28,7 +28,7 @@ final class Subsumption {
         // Search means preserve the original map
         // in case the search fails
         // and need to backtrack
-        Map<Var, Object> m;
+        Map<Variable, Object> m;
 
         // Try orienting equation one way
         m = new HashMap<>(map);
@@ -55,7 +55,7 @@ final class Subsumption {
   }
 
   boolean subsumes(Clause c, Clause d) {
-    assert Collections.disjoint(c.freeVars(), d.freeVars());
+    assert Collections.disjoint(c.freeVariables(), d.freeVariables());
 
     // Negative and positive literals must subsume separately
     var c1 = c.negative();

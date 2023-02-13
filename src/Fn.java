@@ -5,10 +5,10 @@ import java.util.List;
 final class Fn {
   Type rtype;
   String name;
-  Var[] params;
+  Variable[] params;
   List<List<Term>> blocks;
 
-  Fn(Type rtype, String name, Var... params) {
+  Fn(Type rtype, String name, Variable... params) {
     this.rtype = rtype;
     this.name = name;
     this.params = params;

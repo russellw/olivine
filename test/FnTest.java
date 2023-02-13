@@ -17,7 +17,7 @@ class FnTest {
     assert f.interpret(new Object[0]).equals(30);
 
     // square
-    var x = new Var(null);
+    var x = new Variable(null);
     var square = new Fn(null, "square", x);
     square.initBlocks();
     block = square.blocks.get(0);
@@ -53,7 +53,7 @@ class FnTest {
 
     // store
     block.clear();
-    var r = new Var(null);
+    var r = new Variable(null);
     a = new Store(r, 123);
     block.add(a);
     block.add(new Return(r));

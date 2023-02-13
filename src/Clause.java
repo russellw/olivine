@@ -29,17 +29,17 @@ final class Clause {
     return new Clause(negative, positive);
   }
 
-  Clause renameVars() {
-    var map = new HashMap<Var, Var>();
+  Clause renameVariables() {
+    var map = new HashMap<Variable, Variable>();
     var v = new Object[literals.length];
     for (var i = 0; i < v.length; i++) {
       v[i] =
           Term.mapLeaves(
               a0 -> {
-                if (a0 instanceof Var a) {
+                if (a0 instanceof Variable a) {
                   var b = map.get(a);
                   if (b == null) {
-                    b = new Var(a.type);
+                    b = new Variable(a.type);
                     map.put(a, b);
                   }
                   return b;
@@ -55,9 +55,9 @@ final class Clause {
     return String.format("%s => %s", Arrays.toString(negative()), Arrays.toString(positive()));
   }
 
-  Set<Var> freeVars() {
-    var free = new LinkedHashSet<Var>();
-    for (var a : literals) Var.freeVars(a, Set.of(), free);
+  Set<Variable> freeVariables() {
+    var free = new LinkedHashSet<Variable>();
+    for (var a : literals) Variable.freeVariables(a, Set.of(), free);
     return free;
   }
 

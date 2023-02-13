@@ -1,11 +1,11 @@
 final class All extends Quantifier {
-  All(Var[] vars, Object body) {
-    super(vars, body);
+  All(Variable[] variables, Object body) {
+    super(variables, body);
   }
 
   static Object quantify(Object a) {
-    var free = Var.freeVars(a);
+    var free = Variable.freeVariables(a);
     if (free.isEmpty()) return a;
-    return new All(free.toArray(new Var[0]), a);
+    return new All(free.toArray(new Variable[0]), a);
   }
 }

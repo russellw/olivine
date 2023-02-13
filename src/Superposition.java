@@ -82,7 +82,7 @@ public final class Superposition {
 
   // unify, substitute and make new clause
   private void resolvem() {
-    var map = new HashMap<Var, Object>();
+    var map = new HashMap<Variable, Object>();
     if (!Unification.unify(c0, c1, map)) return;
 
     var c0m = Term.replace(map, c0);
@@ -129,7 +129,7 @@ public final class Superposition {
   private void factorm() {
     // in tests, the unification check failed more often than the equatable
     // check,  so putting it first may save a little time
-    var map = new HashMap<Var, Object>();
+    var map = new HashMap<Variable, Object>();
     if (!Unification.unify(c0, c2, map)) return;
 
     // the test for c1=c3 being a valid equation, would strictly speaking fail if c1=True and c3
@@ -228,7 +228,7 @@ public final class Superposition {
 
   // unify, substitute and make new clause
   private void spm(Object a) {
-    var map = new HashMap<Var, Object>();
+    var map = new HashMap<Variable, Object>();
     if (!Unification.unify(c0, a, map)) return;
 
     var d0c1 = d0;
@@ -281,7 +281,7 @@ public final class Superposition {
 
   // recur into subterms
   private void spr(Object a0) {
-    if (a0 instanceof Var) return;
+    if (a0 instanceof Variable) return;
     spm(a0);
     if (!(a0 instanceof Term a)) return;
     for (var i = 0; i < a.size(); i++) {
@@ -369,7 +369,7 @@ public final class Superposition {
 
       // Rename variables, because subsumption and superposition both assume
       // clauses have disjoint variable names
-      var g1 = g.renameVars();
+      var g1 = g.renameVariables();
 
       // Discount loop, which only subsumes against active clauses, performed slightly better in
       // tests.

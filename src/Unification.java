@@ -1,7 +1,7 @@
 import java.util.Map;
 
 final class Unification {
-  static boolean match(Object a0, Object b0, Map<Var, Object> map) {
+  static boolean match(Object a0, Object b0, Map<Variable, Object> map) {
     // fast check for a common case
     if (a0 == b0) return true;
 
@@ -9,7 +9,7 @@ final class Unification {
     if (!Type.of(a0).equals(Type.of(b0))) return false;
 
     // Variable
-    if (a0 instanceof Var a) {
+    if (a0 instanceof Variable a) {
       // Existing mapping
       var a1 = map.get(a);
       if (a1 != null) return Term.eq(a1, b0);
@@ -33,7 +33,7 @@ final class Unification {
     return a0.equals(b0);
   }
 
-  static boolean unify(Object a0, Object b0, Map<Var, Object> map) {
+  static boolean unify(Object a0, Object b0, Map<Variable, Object> map) {
     assert !(a0 instanceof Eq);
     assert !(b0 instanceof Eq);
 
@@ -44,8 +44,8 @@ final class Unification {
     if (!Type.of(a0).equals(Type.of(b0))) return false;
 
     // Variable
-    if (a0 instanceof Var a) return unifyVar(a, b0, map);
-    if (b0 instanceof Var b) return unifyVar(b, a0, map);
+    if (a0 instanceof Variable a) return unifyVar(a, b0, map);
+    if (b0 instanceof Variable b) return unifyVar(b, a0, map);
 
     // compound
     if (a0 instanceof Term a && b0 instanceof Term b) {
@@ -61,13 +61,13 @@ final class Unification {
     return a0.equals(b0);
   }
 
-  private static boolean unifyVar(Var a, Object b, Map<Var, Object> map) {
+  private static boolean unifyVar(Variable a, Object b, Map<Variable, Object> map) {
     // Existing mapping
     var a1 = map.get(a);
     if (a1 != null) return unify(a1, b, map);
 
     // Variable
-    if (b instanceof Var) {
+    if (b instanceof Variable) {
       var b1 = map.get(b);
       if (b1 != null) return unify(a, b1, map);
     }
@@ -80,10 +80,10 @@ final class Unification {
     return true;
   }
 
-  private static boolean occurs(Var a, Object b0, Map<Var, Object> map) {
+  private static boolean occurs(Variable a, Object b0, Map<Variable, Object> map) {
     if (a == b0) return true;
     switch (b0) {
-      case Var b -> {
+      case Variable b -> {
         var b1 = map.get(b);
         if (b1 != null) return occurs(a, b1, map);
       }
