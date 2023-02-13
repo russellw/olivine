@@ -1,12 +1,10 @@
 import java.util.Map;
-import java.util.function.UnaryOperator;
 
 final class Call extends Term {
   final Fn fn;
 
-  Term mapLeaves(UnaryOperator<Object> f) {
-    var v = new Object[args.length];
-    for (var i = 0; i < v.length; i++) v[i] = mapLeaves(f, args[i]);
+  @Override
+  Term remake(Object[] v) {
     return new Call(fn, v);
   }
 

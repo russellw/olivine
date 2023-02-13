@@ -1,6 +1,5 @@
 import java.math.BigInteger;
 import java.util.Map;
-import java.util.function.UnaryOperator;
 
 final class Cast extends Term {
   private final Type type;
@@ -34,8 +33,9 @@ final class Cast extends Term {
     };
   }
 
-  Term mapLeaves(UnaryOperator<Object> f) {
-    return new Cast(type, mapLeaves(f, args[0]));
+  @Override
+  Term remake(Object[] v) {
+    return new Cast(type, v[0]);
   }
 
   Type type() {

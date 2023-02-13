@@ -43,9 +43,7 @@ abstract class Term extends AbstractCollection<Object> {
     throw new UnsupportedOperationException(toString());
   }
 
-  Term mapLeaves(UnaryOperator<Object> f) {
-    var v = new Object[args.length];
-    for (var i = 0; i < v.length; i++) v[i] = mapLeaves(f, args[i]);
+  Term remake(Object[] v) {
     var params = new Class[v.length];
     Arrays.fill(params, Object.class);
     try {
@@ -57,6 +55,12 @@ abstract class Term extends AbstractCollection<Object> {
         | NoSuchMethodException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  final Term mapLeaves(UnaryOperator<Object> f) {
+    var v = new Object[args.length];
+    for (var i = 0; i < v.length; i++) v[i] = mapLeaves(f, args[i]);
+    return remake(v);
   }
 
   Type type() {
