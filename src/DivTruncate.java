@@ -1,8 +1,8 @@
 import java.math.BigInteger;
 
 final class DivTruncate extends Binary {
-  DivTruncate(Object arg0, Object arg1) {
-    super(arg0, arg1);
+  DivTruncate(Object a, Object b) {
+    super(a, b);
   }
 
   Object apply(int a, int b) {

@@ -16,8 +16,8 @@ final class Equation {
   Equation(Object a0) {
     assert Type.of(a0) == BooleanType.instance;
     if (a0 instanceof Eq a) {
-      left = a.arg0;
-      right = a.arg1;
+      left = a.args[0];
+      right = a.args[1];
       return;
     }
     left = a0;

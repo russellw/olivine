@@ -33,7 +33,7 @@ abstract class Term extends AbstractCollection<Object> {
   }
 
   Type type() {
-    throw new UnsupportedOperationException(toString());
+    return Type.of(args[0]);
   }
 
   static boolean eq(Object a0, Object b0) {

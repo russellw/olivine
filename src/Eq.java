@@ -3,7 +3,7 @@ final class Eq extends Binary {
     return BooleanType.instance;
   }
 
-  Eq(Object arg0, Object arg1) {
-    super(arg0, arg1);
+  Eq(Object a, Object b) {
+    super(a, b);
   }
 }

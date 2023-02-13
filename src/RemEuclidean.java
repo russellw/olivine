@@ -1,8 +1,8 @@
 import java.math.BigInteger;
 
 final class RemEuclidean extends Binary {
-  RemEuclidean(Object arg0, Object arg1) {
-    super(arg0, arg1);
+  RemEuclidean(Object a, Object b) {
+    super(a, b);
   }
 
   Object apply(BigInteger a, BigInteger b) {

@@ -362,8 +362,8 @@ public final class Superposition {
       for (var i = 0; i < g.literals.length; i++) {
         var a0 = g.literals[i];
         if (!(a0 instanceof Eq a)) continue;
-        var x = a.arg0;
-        var y = a.arg1;
+        var x = a.args[0];
+        var y = a.args[1];
         if (order.compare(x, y) == PartialOrder.LT) g.literals[i] = new Eq(y, x);
       }
 

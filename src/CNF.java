@@ -37,8 +37,8 @@ final class CNF {
       case Or a -> pol ? clauseCountMultiply(true, a) : clauseCountAdd(false, a);
       case And a -> pol ? clauseCountAdd(true, a) : clauseCountMultiply(false, a);
       case Eqv a -> {
-        var x = a.arg0;
-        var y = a.arg1;
+        var x = a.args[0];
+        var y = a.args[1];
 
         // Recur twice into each argument. This would cause a problem of exponential blowup in the
         // time taken to calculate the
@@ -171,8 +171,8 @@ final class CNF {
         yield new And(v);
       }
       case Eqv a -> {
-        var x = maybeRename(0, a.arg0);
-        var y = maybeRename(0, a.arg1);
+        var x = maybeRename(0, a.args[0]);
+        var y = maybeRename(0, a.args[1]);
         if (clauseCountApprox(0, x) >= MANY) x = rename(0, x);
         if (clauseCountApprox(0, y) >= MANY) y = rename(0, y);
         yield new Eqv(x, y);
@@ -242,8 +242,8 @@ final class CNF {
       case All a -> nnf(pol ? all(map, a) : exists(map, a), pol, a.body);
       case Exists a -> nnf(pol ? exists(map, a) : all(map, a), pol, a.body);
       case Eqv a -> {
-        var x = a.arg0;
-        var y = a.arg1;
+        var x = a.args[0];
+        var y = a.args[1];
         var x0 = nnf(map, false, x);
         var x1 = nnf(map, true, x);
         var y0 = nnf(map, false, y);

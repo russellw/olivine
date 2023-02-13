@@ -1,6 +1,6 @@
 final class Div extends Binary {
-  Div(Object arg0, Object arg1) {
-    super(arg0, arg1);
+  Div(Object a, Object b) {
+    super(a, b);
   }
 
   Object apply(BigRational a, BigRational b) {

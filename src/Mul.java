@@ -1,8 +1,8 @@
 import java.math.BigInteger;
 
 final class Mul extends Binary {
-  Mul(Object arg0, Object arg1) {
-    super(arg0, arg1);
+  Mul(Object a, Object b) {
+    super(a, b);
   }
 
   Object apply(int a, int b) {

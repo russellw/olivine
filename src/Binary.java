@@ -1,26 +1,12 @@
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.function.UnaryOperator;
 
 abstract class Binary extends Term {
-  Object arg0, arg1;
 
-  Binary(Object arg0, Object arg1) {
-    this.arg0 = arg0;
-    this.arg1 = arg1;
-  }
-
-  Object get(int i) {
-    assert i >= 0;
-    assert i < 2;
-    if (i == 0) return arg0;
-    return arg1;
-  }
-
-  public int size() {
-    return 2;
+  Binary(Object a, Object b) {
+    super(a, b);
   }
 
   Object apply(int a, int b) {
@@ -35,14 +21,10 @@ abstract class Binary extends Term {
     throw new UnsupportedOperationException(toString());
   }
 
-  Type type() {
-    return Type.of(arg0);
-  }
-
   Object mapLeaves(UnaryOperator<Object> f) {
     try {
       var ctor = getClass().getDeclaredConstructor(Object.class, Object.class);
-      return ctor.newInstance(mapLeaves(f, arg0), mapLeaves(f, arg1));
+      return ctor.newInstance(mapLeaves(f, args[0]), mapLeaves(f, args[1]));
     } catch (IllegalAccessException
         | InstantiationException
         | InvocationTargetException
@@ -52,8 +34,8 @@ abstract class Binary extends Term {
   }
 
   Object eval(Map<Object, Object> map) {
-    var a0 = Etc.get(map, this.arg0);
-    var b = Etc.get(map, this.arg1);
+    var a0 = Etc.get(map, this.args[0]);
+    var b = Etc.get(map, this.args[1]);
     return switch (a0) {
       case Integer a -> apply(a, (Integer) b);
       case BigInteger a -> apply(a, (BigInteger) b);
@@ -64,21 +46,6 @@ abstract class Binary extends Term {
         yield r0;
       }
       default -> throw new IllegalArgumentException(toString());
-    };
-  }
-
-  public final Iterator<Object> iterator() {
-    return new Iterator<>() {
-      private int i;
-
-      public boolean hasNext() {
-        assert i >= 0;
-        return i < 2;
-      }
-
-      public Object next() {
-        return get(i++);
-      }
     };
   }
 }

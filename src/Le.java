@@ -1,8 +1,8 @@
 import java.math.BigInteger;
 
 final class Le extends Binary {
-  Le(Object arg0, Object arg1) {
-    super(arg0, arg1);
+  Le(Object a, Object b) {
+    super(a, b);
   }
 
   Object apply(int a, int b) {
