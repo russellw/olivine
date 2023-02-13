@@ -3,8 +3,8 @@ import java.util.Map;
 
 abstract class Unary extends Term {
 
-  Unary(Object arg) {
-    super(arg);
+  Unary(Object a) {
+    super(a);
   }
 
   Object eval(Map<Object, Object> map) {

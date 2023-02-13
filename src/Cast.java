@@ -42,8 +42,8 @@ final class Cast extends Unary {
     return type;
   }
 
-  Cast(Type type, Object arg) {
-    super(arg);
+  Cast(Type type, Object a) {
+    super(a);
     this.type = type;
   }
 }

@@ -1,8 +1,8 @@
 import java.math.BigInteger;
 
 final class Truncate extends Unary {
-  Truncate(Object arg) {
-    super(arg);
+  Truncate(Object a) {
+    super(a);
   }
 
   Object apply(BigInteger a) {

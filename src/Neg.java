@@ -1,8 +1,8 @@
 import java.math.BigInteger;
 
 final class Neg extends Unary {
-  Neg(Object arg) {
-    super(arg);
+  Neg(Object a) {
+    super(a);
   }
 
   int apply(int a) {

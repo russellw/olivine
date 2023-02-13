@@ -1,8 +1,8 @@
 import java.math.BigInteger;
 
 final class Round extends Unary {
-  Round(Object arg) {
-    super(arg);
+  Round(Object a) {
+    super(a);
   }
 
   Object apply(BigInteger a) {

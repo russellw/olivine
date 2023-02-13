@@ -1,8 +1,8 @@
 import java.math.BigInteger;
 
 final class Floor extends Unary {
-  Floor(Object arg) {
-    super(arg);
+  Floor(Object a) {
+    super(a);
   }
 
   Object apply(BigInteger a) {

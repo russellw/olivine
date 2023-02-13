@@ -1,8 +1,8 @@
 import java.math.BigInteger;
 
 final class Ceil extends Unary {
-  Ceil(Object arg) {
-    super(arg);
+  Ceil(Object a) {
+    super(a);
   }
 
   Object apply(BigInteger a) {

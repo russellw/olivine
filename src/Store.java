@@ -8,8 +8,8 @@ final class Store extends Unary {
     return null;
   }
 
-  Store(Var to, Object arg) {
-    super(arg);
+  Store(Var to, Object a) {
+    super(a);
     this.to = to;
   }
 }

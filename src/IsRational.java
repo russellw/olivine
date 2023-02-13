@@ -1,8 +1,8 @@
 import java.math.BigInteger;
 
 final class IsRational extends Unary {
-  IsRational(Object arg) {
-    super(arg);
+  IsRational(Object a) {
+    super(a);
   }
 
   Object apply(BigRational a) {
