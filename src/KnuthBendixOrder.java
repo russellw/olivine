@@ -37,23 +37,11 @@ final class KnuthBendixOrder {
 
   @SuppressWarnings("DuplicateBranchesInSwitch")
   private int symbolWeight(Object a) {
-    switch (a) {
-      case Boolean ignored -> {
-        return 1;
-      }
-      case Variable ignored -> {
-        return 1;
-      }
-      case Integer ignored -> {}
-      case Call a1 -> a = a1.fn;
-      case Fn ignored -> {}
-      case BigInteger ignored -> {}
-      case BigRational ignored -> {}
-      case Real ignored -> {}
-      case DistinctObject ignored -> {}
-      default -> a = a.getClass();
-    }
-    return weights.computeIfAbsent(a, k -> weights.size() + 2);
+    return switch (a) {
+      case Boolean ignored -> 1;
+      case Variable ignored -> 1;
+      default -> weights.computeIfAbsent(Term.symbol(a), k -> weights.size() + 2);
+    };
   }
 
   private long totalWeight(Object a) {

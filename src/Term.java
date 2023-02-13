@@ -126,6 +126,14 @@ abstract class Term extends AbstractCollection<Object> {
     return a0.equals(b0);
   }
 
+  static Object symbol(Object a0) {
+    return switch (a0) {
+      case Call a -> a.fn;
+      case Term a -> a.getClass();
+      default -> a0;
+    };
+  }
+
   static Object mapLeaves(UnaryOperator<Object> f, Object a0) {
     // TODO should this be just mapVars?
     if (a0 instanceof Term a) return a.mapLeaves(f);
