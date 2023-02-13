@@ -2,6 +2,10 @@ import java.util.Map;
 
 final class Unification {
   static boolean match(Object a0, Object b0, Map<Variable, Object> map) {
+    // equations would need to be matched both ways, which is handled separately in calling code
+    assert !(a0 instanceof Eq);
+    assert !(b0 instanceof Eq);
+
     // fast check for a common case
     if (a0 == b0) return true;
 
@@ -34,6 +38,7 @@ final class Unification {
   }
 
   static boolean unify(Object a0, Object b0, Map<Variable, Object> map) {
+    // equations would need to be matched both ways, which is handled separately in calling code
     assert !(a0 instanceof Eq);
     assert !(b0 instanceof Eq);
 
