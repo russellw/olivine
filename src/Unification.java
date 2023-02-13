@@ -23,18 +23,17 @@ final class Unification {
       return true;
     }
 
-    // compound
-    if (a0 instanceof Term a && b0 instanceof Term b) {
-      if (a.getClass() != b.getClass()) return false;
-      if (a instanceof Call a1 && a1.fn != ((Call) b).fn) return false;
-      var n = a.size();
-      if (n != b.size()) return false;
-      for (var i = 0; i < n; i++) if (!match(a.get(i), b.get(i), map)) return false;
-      return true;
-    }
+    // symbols must match
+    if (!Term.symbol(a0).equals(Term.symbol(b0))) return false;
 
-    // might be e.g. equal integers
-    return a0.equals(b0);
+    // and subterms
+    if (a0 instanceof Term a) {
+      var av = a.args;
+      var bv = ((Term) b0).args;
+      if (av.length != bv.length) return false;
+      for (var i = 0; i < av.length; i++) if (!match(av[i], bv[i], map)) return false;
+    }
+    return true;
   }
 
   static boolean unify(Object a0, Object b0, Map<Variable, Object> map) {
@@ -52,18 +51,17 @@ final class Unification {
     if (a0 instanceof Variable a) return unifyVariable(a, b0, map);
     if (b0 instanceof Variable b) return unifyVariable(b, a0, map);
 
-    // compound
-    if (a0 instanceof Term a && b0 instanceof Term b) {
-      if (a.getClass() != b.getClass()) return false;
-      if (a instanceof Call a1 && a1.fn != ((Call) b).fn) return false;
-      var n = a.size();
-      if (n != b.size()) return false;
-      for (var i = 0; i < n; i++) if (!unify(a.get(i), b.get(i), map)) return false;
-      return true;
-    }
+    // symbols must match
+    if (!Term.symbol(a0).equals(Term.symbol(b0))) return false;
 
-    // might be e.g. equal integers
-    return a0.equals(b0);
+    // and subterms
+    if (a0 instanceof Term a) {
+      var av = a.args;
+      var bv = ((Term) b0).args;
+      if (av.length != bv.length) return false;
+      for (var i = 0; i < av.length; i++) if (!unify(av[i], bv[i], map)) return false;
+    }
+    return true;
   }
 
   private static boolean unifyVariable(Variable a, Object b, Map<Variable, Object> map) {
