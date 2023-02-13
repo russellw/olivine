@@ -15,4 +15,15 @@ abstract class Type {
       default -> throw new IllegalArgumentException(a0.toString());
     };
   }
+
+  @SuppressWarnings("DuplicateBranchesInSwitch")
+  static boolean numeric(Type type) {
+    return switch (type) {
+      case IntType ignored -> true;
+      case IntegerType ignored -> true;
+      case RationalType ignored -> true;
+      case RealType ignored -> true;
+      default -> false;
+    };
+  }
 }

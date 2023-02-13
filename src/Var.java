@@ -5,6 +5,7 @@ import java.util.Set;
 
 @SuppressWarnings("ClassCanBeRecord")
 final class Var {
+  // TODO class name?
   final Type type;
 
   Var(Type type) {

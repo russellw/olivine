@@ -5,9 +5,16 @@ import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 
 abstract class Instruction extends AbstractCollection<Object> {
+  // TODO would Term be a better name?
   static void walk(Consumer<Object> f, Object a0) {
     f.accept(a0);
     if (a0 instanceof Instruction a) for (var b : a) walk(f, b);
+  }
+
+  static long symbolCount(Object a0) {
+    long n = 1;
+    if (a0 instanceof Instruction a) for (var b : a) n += symbolCount(b);
+    return n;
   }
 
   static Object replace(Map<?, Object> map, Object a) {
