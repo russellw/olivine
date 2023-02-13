@@ -79,7 +79,6 @@ class CNFTest {
     assert clauses.size() == 0;
 
     // p & q
-    // TODO do we still need GlobalVar?
     var p = new Fn(BooleanType.instance, "p");
     var q = new Fn(BooleanType.instance, "q");
     a = new And(p, q);

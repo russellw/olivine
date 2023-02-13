@@ -4,19 +4,19 @@ import java.util.Random;
 
 public class KnuthBendixOrderTest {
   private static final int ITERATIONS = 10000;
-  private static final List<Fn> funcs = new ArrayList<>();
-  private static final List<Fn> globalVars = new ArrayList<>();
-  private static final List<Variable> VARIABLES = new ArrayList<>();
+  private static final List<Fn> fns = new ArrayList<>();
+  private static final List<Fn> nullaryFns = new ArrayList<>();
+  private static final List<Variable> variables = new ArrayList<>();
   private static final Random random = new Random(0);
   private static KnuthBendixOrder order;
 
   private static Object randomIndividualTerm(int depth) {
     if (depth == 0 || random.nextInt(100) < 40)
-      if (VARIABLES.isEmpty() || random.nextInt(100) < 30)
-        return globalVars.get(random.nextInt(globalVars.size()));
-      else return VARIABLES.get(random.nextInt(VARIABLES.size()));
+      if (variables.isEmpty() || random.nextInt(100) < 30)
+        return nullaryFns.get(random.nextInt(nullaryFns.size()));
+      else return variables.get(random.nextInt(variables.size()));
 
-    var f = funcs.get(random.nextInt(funcs.size()));
+    var f = fns.get(random.nextInt(fns.size()));
     var args = new Object[f.params.length];
     for (var i = 0; i < args.length; i++) args[i] = randomIndividualTerm(depth - 1);
     return new Call(f, args);
@@ -30,22 +30,22 @@ public class KnuthBendixOrderTest {
   private static void makeOrder() {
     var negative = new ArrayList<>();
     var positive = new ArrayList<>();
-    for (var f : funcs) {
+    for (var f : fns) {
       var args = new Object[f.params.length];
-      for (var i = 0; i < args.length; i++) args[i] = VARIABLES.get(0);
-      positive.add(new Eq(new Call(f, args), VARIABLES.get(0)));
+      for (var i = 0; i < args.length; i++) args[i] = variables.get(0);
+      positive.add(new Eq(new Call(f, args), variables.get(0)));
     }
-    for (var a : globalVars) positive.add(new Eq(a, VARIABLES.get(0)));
+    for (var a : nullaryFns) positive.add(new Eq(a, variables.get(0)));
     var clauses = new ArrayList<Clause>();
     clauses.add(new Clause(negative, positive));
     order = new KnuthBendixOrder(clauses);
   }
 
   private static void makeRandomOrder() {
-    for (var i = 0; i < 4; i++) funcs.add(new Fn(IndividualType.instance, String.format("f%d", i)));
+    for (var i = 0; i < 4; i++) fns.add(new Fn(IndividualType.instance, String.format("f%d", i)));
     for (var i = 0; i < 4; i++)
-      globalVars.add(new Fn(IndividualType.instance, String.format("a%d", i)));
-    for (var i = 0; i < 4; i++) VARIABLES.add(new Variable(IndividualType.instance));
+      nullaryFns.add(new Fn(IndividualType.instance, String.format("a%d", i)));
+    for (var i = 0; i < 4; i++) variables.add(new Variable(IndividualType.instance));
     makeOrder();
   }
 
@@ -144,7 +144,7 @@ public class KnuthBendixOrderTest {
 
   static void totalOnGroundTerms() {
     makeRandomOrder();
-    VARIABLES.clear();
+    variables.clear();
     for (var i = 0; i < ITERATIONS; i++) {
       var a = randomIndividualTerm(4);
       var b = randomIndividualTerm(4);
@@ -195,7 +195,7 @@ public class KnuthBendixOrderTest {
 
   static void totalOnGroundEquations() {
     makeRandomOrder();
-    VARIABLES.clear();
+    variables.clear();
     for (var i = 0; i < ITERATIONS; i++) {
       var a = randomIndividualEquation(4);
       var b = randomIndividualEquation(4);
