@@ -28,7 +28,7 @@ final class Var {
         bound.addAll(Arrays.asList(a.vars));
         freeVars(a.body, bound, free);
       }
-      case Instruction a -> {
+      case Term a -> {
         for (var b : a) freeVars(b, bound, free);
       }
       default -> {}

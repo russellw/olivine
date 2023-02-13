@@ -11,7 +11,7 @@ abstract class Type {
       case DistinctObject ignored -> IndividualType.instance;
       case Var a -> a.type;
       case Fn a -> a.type();
-      case Instruction a -> a.type();
+      case Term a -> a.type();
       default -> throw new IllegalArgumentException(a0.toString());
     };
   }

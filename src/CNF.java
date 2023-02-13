@@ -101,14 +101,14 @@ final class CNF {
     if (pol > 0)
       // If this formula is only being used with positive polarity, the new name only needs to imply
       // the original formula.
-      a = Instruction.implies(b, a);
+      a = Term.implies(b, a);
     else if (pol < 0)
       // And the reverse for negative polarity.
-      a = Instruction.implies(a, b);
+      a = Term.implies(a, b);
     else
       // In the general case, full equivalence is needed; the new name implies and is implied by the
       // original formula.
-      a = new And(Instruction.implies(b, a), Instruction.implies(a, b));
+      a = new And(Term.implies(b, a), Term.implies(a, b));
     defs.add(All.quantify(a));
     return b;
   }
@@ -276,7 +276,7 @@ final class CNF {
         // recursive calls
         // are all made with positive polarity.
         a0 =
-            Instruction.mapLeaves(
+            Term.mapLeaves(
                 b0 -> {
                   if (b0 instanceof Var b) {
                     b0 = map.get(b);

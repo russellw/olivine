@@ -62,7 +62,7 @@ public class KnuthBendixOrderTest {
     for (var i = 0; i < ITERATIONS; i++) {
       var a = randomIndividualTerm(4);
       var b = randomIndividualTerm(4);
-      assert !(greater(a, b) && Instruction.eq(a, b));
+      assert !(greater(a, b) && Term.eq(a, b));
       assert !(greater(a, b) && greater(b, a));
     }
   }
@@ -119,8 +119,8 @@ public class KnuthBendixOrderTest {
   }
 
   private static boolean eql(Equation a, Equation b) {
-    if (Instruction.eq(a.left, b.left) && Instruction.eq(a.right, b.right)) return true;
-    return Instruction.eq(a.left, b.right) && Instruction.eq(a.right, b.left);
+    if (Term.eq(a.left, b.left) && Term.eq(a.right, b.right)) return true;
+    return Term.eq(a.left, b.right) && Term.eq(a.right, b.left);
   }
 
   private static void checkOrdered(Equation a, Equation b) {
@@ -137,8 +137,8 @@ public class KnuthBendixOrderTest {
   }
 
   private static boolean containsSubterm(Object a0, Object b) {
-    if (Instruction.eq(a0, b)) return true;
-    if (a0 instanceof Instruction a) for (var ai : a) if (containsSubterm(ai, b)) return true;
+    if (Term.eq(a0, b)) return true;
+    if (a0 instanceof Term a) for (var ai : a) if (containsSubterm(ai, b)) return true;
     return false;
   }
 
@@ -148,7 +148,7 @@ public class KnuthBendixOrderTest {
     for (var i = 0; i < ITERATIONS; i++) {
       var a = randomIndividualTerm(4);
       var b = randomIndividualTerm(4);
-      if (!Instruction.eq(a, b)) checkOrdered(a, b);
+      if (!Term.eq(a, b)) checkOrdered(a, b);
     }
   }
 
@@ -157,7 +157,7 @@ public class KnuthBendixOrderTest {
     for (var i = 0; i < ITERATIONS; i++) {
       var a = randomIndividualTerm(4);
       var b = randomIndividualTerm(4);
-      if (Instruction.eq(a, b)) continue;
+      if (Term.eq(a, b)) continue;
       assert !containsSubterm(a, b) || (greater(a, b));
       assert !containsSubterm(b, a) || (greater(b, a));
     }

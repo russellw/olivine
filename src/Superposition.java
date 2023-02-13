@@ -19,7 +19,7 @@ public final class Superposition {
 
   private static long volume(Clause c) {
     var n = c.literals.length * 2L;
-    for (var a : c.literals) n += Instruction.symbolCount(a);
+    for (var a : c.literals) n += Term.symbolCount(a);
     return n;
   }
 
@@ -85,12 +85,11 @@ public final class Superposition {
     var map = new HashMap<Var, Object>();
     if (!Unification.unify(c0, c1, map)) return;
 
-    var c0m = Instruction.replace(map, c0);
-    var c1m = Instruction.replace(map, c1);
+    var c0m = Term.replace(map, c0);
+    var c1m = Term.replace(map, c1);
 
     var cliterals = new Object[c.literals.length];
-    for (var i = 0; i < c.literals.length; i++)
-      cliterals[i] = Instruction.replace(map, c.literals[i]);
+    for (var i = 0; i < c.literals.length; i++) cliterals[i] = Term.replace(map, c.literals[i]);
     if (notMaximal(cliterals, c.negativeSize, ci, new Equation(c0m, c1m))) return;
 
     // Negative literals
@@ -152,8 +151,8 @@ public final class Superposition {
     // substituting terms for variables would not make them become so.
     if (!Equation.equatable(c1, c3)) return;
 
-    var c0m = Instruction.replace(map, c0);
-    var c1m = Instruction.replace(map, c1);
+    var c0m = Term.replace(map, c0);
+    var c1m = Term.replace(map, c1);
 
     // the superposition calculus condition on the orienting of equations,
     // actually applies after the map. We already applied it before, to avoid spending time
@@ -165,15 +164,14 @@ public final class Superposition {
 
     // ditto for the condition on equation being maximal within clause
     var cliterals = new Object[c.literals.length];
-    for (var i = 0; i < c.literals.length; i++)
-      cliterals[i] = Instruction.replace(map, c.literals[i]);
+    for (var i = 0; i < c.literals.length; i++) cliterals[i] = Term.replace(map, c.literals[i]);
     if (notMaximal(cliterals, c.negativeSize, ci, new Equation(c0m, c1m))) return;
 
     // Negative literals
     var negative = new ArrayList<Object>(c.negativeSize + 1);
     //noinspection ManualArrayToCollectionCopy
     for (var i = 0; i < c.negativeSize; i++) negative.add(cliterals[i]);
-    negative.add(new Equation(c1m, Instruction.replace(map, c3)).extract());
+    negative.add(new Equation(c1m, Term.replace(map, c3)).extract());
 
     // Positive literals
     var positive = new ArrayList<Object>(c.positiveSize() - 1);
@@ -248,21 +246,19 @@ public final class Superposition {
     assert !(d0c1 == Boolean.TRUE && d1 != Boolean.TRUE);
     if (!Equation.equatable(d0c1, d1)) return;
 
-    var c0m = Instruction.replace(map, c0);
-    var c1m = Instruction.replace(map, c1);
-    var d0m = Instruction.replace(map, d0);
-    var d1m = Instruction.replace(map, d1);
+    var c0m = Term.replace(map, c0);
+    var c1m = Term.replace(map, c1);
+    var d0m = Term.replace(map, d0);
+    var d1m = Term.replace(map, d1);
 
     if (order.compare(c0m, c1m) == PartialOrder.LT) return;
     if (order.compare(d0m, d1m) == PartialOrder.LT) return;
 
     var cliterals = new Object[c.literals.length];
-    for (var i = 0; i < c.literals.length; i++)
-      cliterals[i] = Instruction.replace(map, c.literals[i]);
+    for (var i = 0; i < c.literals.length; i++) cliterals[i] = Term.replace(map, c.literals[i]);
 
     var dliterals = new Object[d.literals.length];
-    for (var i = 0; i < d.literals.length; i++)
-      dliterals[i] = Instruction.replace(map, d.literals[i]);
+    for (var i = 0; i < d.literals.length; i++) dliterals[i] = Term.replace(map, d.literals[i]);
 
     // Negative literals
     var negative = new ArrayList<Object>(c.negativeSize + d.negativeSize);
@@ -277,7 +273,7 @@ public final class Superposition {
 
     // Negative and positive superposition
     (di < d.negativeSize ? negative : positive)
-        .add(new Equation(Instruction.replace(map, d0c1), d1m).extract());
+        .add(new Equation(Term.replace(map, d0c1), d1m).extract());
 
     // Make new clause
     clause(new Clause(negative, positive));
@@ -287,7 +283,7 @@ public final class Superposition {
   private void spr(Object a0) {
     if (a0 instanceof Var) return;
     spm(a0);
-    if (!(a0 instanceof Instruction a)) return;
+    if (!(a0 instanceof Term a)) return;
     for (var i = 0; i < a.size(); i++) {
       position.add(i);
       spr(a.get(i));
@@ -342,7 +338,7 @@ public final class Superposition {
       // arithmetic;
       // if it does, running out of inferences will not prove anything
       for (var a : c.literals)
-        Instruction.walk(
+        Term.walk(
             b -> {
               if (Type.numeric(Type.of(b))) complete = false;
             },

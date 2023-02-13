@@ -31,19 +31,19 @@ class UnificationTest {
     map = new HashMap<>();
     assert Unification.unify(a, x, map);
     assert map.size() == 1;
-    assert Instruction.eq(Instruction.replace(map, x), a);
+    assert Term.eq(Term.replace(map, x), a);
 
     // x and y are aliased
     map = new HashMap<>();
     assert Unification.unify(x, y, map);
     assert map.size() == 1;
-    assert Instruction.eq(Instruction.replace(map, x), Instruction.replace(map, y));
+    assert Term.eq(Term.replace(map, x), Term.replace(map, y));
 
     // function and constant symbols match, x is unified with the constant b
     map = new HashMap<>();
     assert Unification.unify(new Call(f, a, x), new Call(f, a, b), map);
     assert map.size() == 1;
-    assert Instruction.eq(Instruction.replace(map, x), b);
+    assert Term.eq(Term.replace(map, x), b);
 
     // f and g do not match
     map = new HashMap<>();
@@ -53,7 +53,7 @@ class UnificationTest {
     map = new HashMap<>();
     assert Unification.unify(new Call(f, x), new Call(f, y), map);
     assert map.size() == 1;
-    assert Instruction.eq(Instruction.replace(map, x), Instruction.replace(map, y));
+    assert Term.eq(Term.replace(map, x), Term.replace(map, y));
 
     // f and g do not match
     map = new HashMap<>();
@@ -67,14 +67,14 @@ class UnificationTest {
     map = new HashMap<>();
     assert Unification.unify(new Call(f, new Call(g, x)), new Call(f, y), map);
     assert map.size() == 1;
-    assert Instruction.eq(Instruction.replace(map, y), new Call(g, x));
+    assert Term.eq(Term.replace(map, y), new Call(g, x));
 
     // Unifies x with constant a, and y with the term g(a)
     map = new HashMap<>();
     assert Unification.unify(new Call(f, new Call(g, x), x), new Call(f, y, a), map);
     assert map.size() == 2;
-    assert Instruction.eq(Instruction.replace(map, x), a);
-    assert Instruction.eq(Instruction.replace(map, y), new Call(g, a));
+    assert Term.eq(Term.replace(map, x), a);
+    assert Term.eq(Term.replace(map, y), new Call(g, a));
 
     // Returns false in first-order logic and many modern Prolog dialects (enforced by the occurs
     // check).
@@ -86,16 +86,16 @@ class UnificationTest {
     assert Unification.unify(x, y, map);
     assert Unification.unify(y, a, map);
     assert map.size() == 2;
-    assert Instruction.eq(Instruction.replace(map, x), a);
-    assert Instruction.eq(Instruction.replace(map, y), a);
+    assert Term.eq(Term.replace(map, x), a);
+    assert Term.eq(Term.replace(map, y), a);
 
     // As above (order of equations in set doesn't matter)
     map = new HashMap<>();
     assert Unification.unify(a, y, map);
     assert Unification.unify(x, y, map);
     assert map.size() == 2;
-    assert Instruction.eq(Instruction.replace(map, x), a);
-    assert Instruction.eq(Instruction.replace(map, y), a);
+    assert Term.eq(Term.replace(map, x), a);
+    assert Term.eq(Term.replace(map, y), a);
 
     // Fails. a and b do not match, so x can't be unified with both
     map = new HashMap<>();
@@ -129,13 +129,13 @@ class UnificationTest {
     map = new HashMap<>();
     assert Unification.match(x, y, map);
     assert map.size() == 1;
-    assert Instruction.eq(Instruction.replace(map, x), Instruction.replace(map, y));
+    assert Term.eq(Term.replace(map, x), Term.replace(map, y));
 
     // function and constant symbols match, x is unified with the constant b
     map = new HashMap<>();
     assert Unification.match(new Call(f, a, x), new Call(f, a, b), map);
     assert map.size() == 1;
-    assert Instruction.eq(Instruction.replace(map, x), b);
+    assert Term.eq(Term.replace(map, x), b);
 
     // f and g do not match
     map = new HashMap<>();
@@ -145,7 +145,7 @@ class UnificationTest {
     map = new HashMap<>();
     assert Unification.match(new Call(f, x), new Call(f, y), map);
     assert map.size() == 1;
-    assert Instruction.eq(Instruction.replace(map, x), Instruction.replace(map, y));
+    assert Term.eq(Term.replace(map, x), Term.replace(map, y));
 
     // f and g do not match
     map = new HashMap<>();

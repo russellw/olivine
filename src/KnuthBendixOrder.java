@@ -12,7 +12,7 @@ final class KnuthBendixOrder {
     var symbols = new LinkedHashSet<>();
     for (var c : clauses)
       for (var a : c.literals)
-        Instruction.walk(
+        Term.walk(
             b0 -> {
               switch (b0) {
                 case Call b -> symbols.add(b.fn);
@@ -27,7 +27,7 @@ final class KnuthBendixOrder {
 
   private static Map<Var, Integer> vars(Object a) {
     var map = new HashMap<Var, Integer>();
-    Instruction.walk(
+    Term.walk(
         b -> {
           if (b instanceof Var b1) map.put(b1, map.getOrDefault(b1, 0) + 1);
         },
@@ -58,7 +58,7 @@ final class KnuthBendixOrder {
 
   private long totalWeight(Object a0) {
     long n = symbolWeight(a0);
-    if (a0 instanceof Instruction a) for (var b : a) n += totalWeight(b);
+    if (a0 instanceof Term a) for (var b : a) n += totalWeight(b);
     return n;
   }
 
@@ -80,8 +80,7 @@ final class KnuthBendixOrder {
         maybeGt = false;
         break;
       }
-    if (!maybeLt && !maybeGt)
-      return Instruction.eq(a0, b0) ? PartialOrder.EQ : PartialOrder.UNORDERED;
+    if (!maybeLt && !maybeGt) return Term.eq(a0, b0) ? PartialOrder.EQ : PartialOrder.UNORDERED;
 
     // total weight
     var atotalWeight = totalWeight(a0);
@@ -136,23 +135,23 @@ final class KnuthBendixOrder {
       var b = (Call) b0;
       var n = a.size();
       var i = 0;
-      while (i < a.size() && Instruction.eq(a.get(i), b.get(i))) i++;
+      while (i < a.size() && Term.eq(a.get(i), b.get(i))) i++;
       if (i == n) return PartialOrder.EQ;
       return compare(a.get(i), b.get(i));
     }
-    if (a0 instanceof Instruction a) {
-      var b = (Instruction) b0;
+    if (a0 instanceof Term a) {
+      var b = (Term) b0;
 
       var n = a.size();
       assert n == b.size();
 
       var i = 0;
-      while (i < a.size() && Instruction.eq(a.get(i), b.get(i))) i++;
+      while (i < a.size() && Term.eq(a.get(i), b.get(i))) i++;
 
       if (i == n) return PartialOrder.EQ;
       return compare(a.get(i), b.get(i));
     }
-    assert Instruction.eq(a0, b0);
+    assert Term.eq(a0, b0);
     return PartialOrder.EQ;
   }
 

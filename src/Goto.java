@@ -1,9 +1,9 @@
 import java.util.List;
 
-final class Goto extends Instruction {
-  final List<Instruction> target;
+final class Goto extends Term {
+  final List<Term> target;
 
-  Goto(List<Instruction> target) {
+  Goto(List<Term> target) {
     this.target = target;
   }
 }

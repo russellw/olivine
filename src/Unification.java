@@ -12,7 +12,7 @@ final class Unification {
     if (a0 instanceof Var a) {
       // Existing mapping
       var a1 = map.get(a);
-      if (a1 != null) return Instruction.eq(a1, b0);
+      if (a1 != null) return Term.eq(a1, b0);
 
       // New mapping
       map.put(a, b0);
@@ -20,7 +20,7 @@ final class Unification {
     }
 
     // compound
-    if (a0 instanceof Instruction a && b0 instanceof Instruction b) {
+    if (a0 instanceof Term a && b0 instanceof Term b) {
       if (a.getClass() != b.getClass()) return false;
       if (a instanceof Call a1 && a1.fn != ((Call) b).fn) return false;
       var n = a.size();
@@ -48,7 +48,7 @@ final class Unification {
     if (b0 instanceof Var b) return unifyVar(b, a0, map);
 
     // compound
-    if (a0 instanceof Instruction a && b0 instanceof Instruction b) {
+    if (a0 instanceof Term a && b0 instanceof Term b) {
       if (a.getClass() != b.getClass()) return false;
       if (a instanceof Call a1 && a1.fn != ((Call) b).fn) return false;
       var n = a.size();
@@ -87,7 +87,7 @@ final class Unification {
         var b1 = map.get(b);
         if (b1 != null) return occurs(a, b1, map);
       }
-      case Instruction b -> {
+      case Term b -> {
         for (var bi : b) if (occurs(a, bi, map)) return true;
       }
       default -> {}

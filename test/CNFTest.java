@@ -109,7 +109,7 @@ class CNFTest {
   }
 
   private static void assertEquals(Object a, Object b) {
-    assert Instruction.eq(a, b);
+    assert Term.eq(a, b);
   }
 
   private static void assertEql(Clause c, Object... q) {

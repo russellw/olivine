@@ -4,7 +4,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.function.UnaryOperator;
 
-abstract class Unary extends Instruction {
+abstract class Unary extends Term {
   Object arg;
 
   Unary(Object arg) {

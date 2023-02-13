@@ -1,6 +1,6 @@
 import java.util.Iterator;
 
-abstract class Nary extends Instruction {
+abstract class Nary extends Term {
   final Object[] args;
 
   Nary(Object[] args) {

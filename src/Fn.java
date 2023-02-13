@@ -6,7 +6,7 @@ final class Fn {
   Type rtype;
   String name;
   Var[] params;
-  List<List<Instruction>> blocks;
+  List<List<Term>> blocks;
 
   Fn(Type rtype, String name, Var... params) {
     this.rtype = rtype;

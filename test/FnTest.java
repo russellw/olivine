@@ -11,7 +11,7 @@ class FnTest {
     assert f.interpret(new Object[0]).equals(10);
 
     block.clear();
-    Instruction a = new Add(10, 20);
+    Term a = new Add(10, 20);
     block.add(a);
     block.add(new Return(a));
     assert f.interpret(new Object[0]).equals(30);
@@ -41,7 +41,7 @@ class FnTest {
     block = f.blocks.get(0);
     block.clear();
 
-    var block1 = new ArrayList<Instruction>();
+    var block1 = new ArrayList<Term>();
     f.blocks.add(block1);
 
     block.add(new Goto(block1));

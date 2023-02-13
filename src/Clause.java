@@ -20,11 +20,11 @@ final class Clause {
 
   public Clause replace(Map<Object, Object> map) {
     var negative = new ArrayList<>(negativeSize);
-    for (var i = 0; i < negativeSize; i++) negative.add(Instruction.replace(map, literals[i]));
+    for (var i = 0; i < negativeSize; i++) negative.add(Term.replace(map, literals[i]));
 
     var positive = new ArrayList<>(positiveSize());
     for (var i = negativeSize; i < literals.length; i++)
-      positive.add(Instruction.replace(map, literals[i]));
+      positive.add(Term.replace(map, literals[i]));
 
     return new Clause(negative, positive);
   }
@@ -34,7 +34,7 @@ final class Clause {
     var v = new Object[literals.length];
     for (var i = 0; i < v.length; i++) {
       v[i] =
-          Instruction.mapLeaves(
+          Term.mapLeaves(
               a0 -> {
                 if (a0 instanceof Var a) {
                   var b = map.get(a);
@@ -68,8 +68,8 @@ final class Clause {
 
   Clause(List<Object> negative, List<Object> positive) {
     // Simplify
-    negative.replaceAll(Instruction::simplify);
-    positive.replaceAll(Instruction::simplify);
+    negative.replaceAll(Term::simplify);
+    positive.replaceAll(Term::simplify);
 
     // Redundancy
     negative.removeIf(a -> a == Boolean.TRUE);

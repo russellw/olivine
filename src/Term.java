@@ -4,16 +4,15 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 
-abstract class Instruction extends AbstractCollection<Object> {
-  // TODO would Term be a better name?
+abstract class Term extends AbstractCollection<Object> {
   static void walk(Consumer<Object> f, Object a0) {
     f.accept(a0);
-    if (a0 instanceof Instruction a) for (var b : a) walk(f, b);
+    if (a0 instanceof Term a) for (var b : a) walk(f, b);
   }
 
   static long symbolCount(Object a0) {
     long n = 1;
-    if (a0 instanceof Instruction a) for (var b : a) n += symbolCount(b);
+    if (a0 instanceof Term a) for (var b : a) n += symbolCount(b);
     return n;
   }
 
@@ -36,7 +35,7 @@ abstract class Instruction extends AbstractCollection<Object> {
   }
 
   static boolean eq(Object a0, Object b0) {
-    if (a0 instanceof Instruction a && b0 instanceof Instruction b) {
+    if (a0 instanceof Term a && b0 instanceof Term b) {
       if (a.getClass() != b.getClass()) return false;
       if (a instanceof Call a1 && a1.fn != ((Call) b).fn) return false;
       var n = a.size();
@@ -49,7 +48,7 @@ abstract class Instruction extends AbstractCollection<Object> {
 
   static Object mapLeaves(UnaryOperator<Object> f, Object a0) {
     // TODO should this be just mapVars?
-    if (a0 instanceof Instruction a) return a.mapLeaves(f);
+    if (a0 instanceof Term a) return a.mapLeaves(f);
     return f.apply(a0);
   }
 

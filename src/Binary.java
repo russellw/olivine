@@ -4,7 +4,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.function.UnaryOperator;
 
-abstract class Binary extends Instruction {
+abstract class Binary extends Term {
   Object arg0, arg1;
 
   Binary(Object arg0, Object arg1) {

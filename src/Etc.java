@@ -44,7 +44,7 @@ final class Etc {
   @SuppressWarnings("DuplicateBranchesInSwitch")
   static boolean constant(Object a0) {
     return switch (a0) {
-      case Instruction a -> false;
+      case Term a -> false;
       case Var a -> false;
       default -> true;
     };
