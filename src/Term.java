@@ -172,8 +172,7 @@ abstract class Term extends AbstractCollection<Object> {
     return args[i];
   }
 
-  public Iterator<Object> iterator() {
-    // TODO final method
+  public final Iterator<Object> iterator() {
     return new Iterator<>() {
       private int i;
 
