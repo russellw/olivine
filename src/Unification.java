@@ -44,8 +44,8 @@ final class Unification {
     if (!Type.of(a0).equals(Type.of(b0))) return false;
 
     // Variable
-    if (a0 instanceof Variable a) return unifyVar(a, b0, map);
-    if (b0 instanceof Variable b) return unifyVar(b, a0, map);
+    if (a0 instanceof Variable a) return unifyVariable(a, b0, map);
+    if (b0 instanceof Variable b) return unifyVariable(b, a0, map);
 
     // compound
     if (a0 instanceof Term a && b0 instanceof Term b) {
@@ -61,7 +61,7 @@ final class Unification {
     return a0.equals(b0);
   }
 
-  private static boolean unifyVar(Variable a, Object b, Map<Variable, Object> map) {
+  private static boolean unifyVariable(Variable a, Object b, Map<Variable, Object> map) {
     // Existing mapping
     var a1 = map.get(a);
     if (a1 != null) return unify(a1, b, map);

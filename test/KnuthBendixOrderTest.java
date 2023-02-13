@@ -136,9 +136,9 @@ public class KnuthBendixOrderTest {
     assertEquals(order.compare(a, b), PartialOrder.EQ);
   }
 
-  private static boolean containsSubterm(Object a0, Object b) {
-    if (Term.eq(a0, b)) return true;
-    if (a0 instanceof Term a) for (var ai : a) if (containsSubterm(ai, b)) return true;
+  private static boolean containsSubterm(Object a, Object b) {
+    if (Term.eq(a, b)) return true;
+    for (var ai : Term.args(a)) if (containsSubterm(ai, b)) return true;
     return false;
   }
 

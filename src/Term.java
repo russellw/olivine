@@ -10,14 +10,14 @@ import java.util.function.UnaryOperator;
 abstract class Term extends AbstractCollection<Object> {
   final Object[] args;
 
-  static void walk(Consumer<Object> f, Object a0) {
-    f.accept(a0);
-    if (a0 instanceof Term a) for (var b : a) walk(f, b);
+  static void walk(Consumer<Object> f, Object a) {
+    f.accept(a);
+    for (var b : args(a)) walk(f, b);
   }
 
-  static long symbolCount(Object a0) {
+  static long symbolCount(Object a) {
     long n = 1;
-    if (a0 instanceof Term a) for (var b : a) n += symbolCount(b);
+    for (var b : args(a)) n += symbolCount(b);
     return n;
   }
 
@@ -73,6 +73,11 @@ abstract class Term extends AbstractCollection<Object> {
 
   Object apply(BigRational a, BigRational b) {
     throw new UnsupportedOperationException(toString());
+  }
+
+  static Object[] args(Object a0) {
+    if (a0 instanceof Term a) return a.args;
+    return new Object[0];
   }
 
   Object eval(Map<Object, Object> map) {

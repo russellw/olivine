@@ -280,13 +280,13 @@ public final class Superposition {
   }
 
   // recur into subterms
-  private void spr(Object a0) {
-    if (a0 instanceof Variable) return;
-    spm(a0);
-    if (!(a0 instanceof Term a)) return;
-    for (var i = 0; i < a.size(); i++) {
+  private void spr(Object a) {
+    if (a instanceof Variable) return;
+    spm(a);
+    var args = Term.args(a);
+    for (var i = 0; i < args.length; i++) {
       position.add(i);
-      spr(a.get(i));
+      spr(args[i]);
       position.remove(position.size() - 1);
     }
   }

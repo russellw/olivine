@@ -56,9 +56,9 @@ final class KnuthBendixOrder {
     return weights.computeIfAbsent(a, k -> weights.size() + 2);
   }
 
-  private long totalWeight(Object a0) {
-    long n = symbolWeight(a0);
-    if (a0 instanceof Term a) for (var b : a) n += totalWeight(b);
+  private long totalWeight(Object a) {
+    long n = symbolWeight(a);
+    for (var b : Term.args(a)) n += totalWeight(b);
     return n;
   }
 
