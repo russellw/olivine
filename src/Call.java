@@ -4,7 +4,7 @@ import java.util.function.UnaryOperator;
 final class Call extends Term {
   final Fn fn;
 
-  Object mapLeaves(UnaryOperator<Object> f) {
+  Term mapLeaves(UnaryOperator<Object> f) {
     var v = new Object[args.length];
     for (var i = 0; i < v.length; i++) v[i] = mapLeaves(f, args[i]);
     return new Call(fn, v);

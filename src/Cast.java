@@ -34,7 +34,7 @@ final class Cast extends Term {
     };
   }
 
-  Object mapLeaves(UnaryOperator<Object> f) {
+  Term mapLeaves(UnaryOperator<Object> f) {
     return new Cast(type, mapLeaves(f, args[0]));
   }
 
