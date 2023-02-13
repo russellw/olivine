@@ -327,7 +327,7 @@ public final class Superposition {
   }
 
   private Superposition(List<Clause> clauses, long steps) {
-    order = new KnuthBendixOrder(clauses);
+    order = new KnuthBendixOrder();
     List<Clause> active = new ArrayList<>();
     var subsumption = new Subsumption();
     for (var c : clauses) {

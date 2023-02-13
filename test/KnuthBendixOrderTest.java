@@ -38,7 +38,7 @@ public class KnuthBendixOrderTest {
     for (var a : nullaryFns) positive.add(new Eq(a, variables.get(0)));
     var clauses = new ArrayList<Clause>();
     clauses.add(new Clause(negative, positive));
-    order = new KnuthBendixOrder(clauses);
+    order = new KnuthBendixOrder();
   }
 
   private static void makeRandomOrder() {
@@ -87,7 +87,7 @@ public class KnuthBendixOrderTest {
     positive.add(new Call(p1, red));
     positive.add(new Call(q1, red));
     clauses.add(new Clause(negative, positive));
-    order = new KnuthBendixOrder(clauses);
+    order = new KnuthBendixOrder();
 
     checkUnordered(x, y);
     checkUnordered(1, 1);

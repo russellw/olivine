@@ -1,29 +1,9 @@
 import java.math.BigInteger;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
 
 final class KnuthBendixOrder {
   private final Map<Object, Integer> weights = new HashMap<>();
-
-  KnuthBendixOrder(List<Clause> clauses) {
-    // TODO remove the clauses parameter
-    var symbols = new LinkedHashSet<>();
-    for (var c : clauses)
-      for (var a : c.literals)
-        Term.walk(
-            b0 -> {
-              switch (b0) {
-                case Call b -> symbols.add(b.fn);
-                case Fn b -> symbols.add(b);
-                default -> symbols.add(b0.getClass());
-              }
-            },
-            a);
-    var i = 2;
-    for (var a : symbols) weights.put(a, i++);
-  }
 
   private static Map<Variable, Integer> variables(Object a) {
     var map = new HashMap<Variable, Integer>();
