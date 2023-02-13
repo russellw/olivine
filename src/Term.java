@@ -57,12 +57,6 @@ abstract class Term extends AbstractCollection<Object> {
     }
   }
 
-  final Term mapLeaves(UnaryOperator<Object> f) {
-    var v = new Object[args.length];
-    for (var i = 0; i < v.length; i++) v[i] = mapLeaves(f, args[i]);
-    return remake(v);
-  }
-
   Type type() {
     return Type.of(args[0]);
   }
@@ -139,8 +133,11 @@ abstract class Term extends AbstractCollection<Object> {
   }
 
   static Object mapLeaves(UnaryOperator<Object> f, Object a0) {
-    // TODO should this be just mapVars?
-    if (a0 instanceof Term a) return a.mapLeaves(f);
+    if (a0 instanceof Term a) {
+      var v = new Object[a.args.length];
+      for (var i = 0; i < v.length; i++) v[i] = mapLeaves(f, a.args[i]);
+      return a.remake(v);
+    }
     return f.apply(a0);
   }
 
