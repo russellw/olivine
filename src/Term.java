@@ -59,12 +59,8 @@ abstract class Term extends AbstractCollection<Object> {
     return a0;
   }
 
-  Term(Object[] args) {
+  Term(Object... args) {
     this.args = args;
-  }
-
-  Term() {
-    args = new Object[0];
   }
 
   Object eval(Map<Object, Object> map) {
