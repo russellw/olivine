@@ -1,3 +1,4 @@
+import java.math.BigInteger;
 import java.util.AbstractCollection;
 import java.util.Iterator;
 import java.util.Map;
@@ -36,6 +37,34 @@ abstract class Term extends AbstractCollection<Object> {
     return Type.of(args[0]);
   }
 
+  Object apply(int a, int b) {
+    throw new UnsupportedOperationException(toString());
+  }
+
+  Object apply(BigInteger a, BigInteger b) {
+    throw new UnsupportedOperationException(toString());
+  }
+
+  Object apply(BigRational a, BigRational b) {
+    throw new UnsupportedOperationException(toString());
+  }
+
+  Object eval(Map<Object, Object> map) {
+    var a0 = Etc.get(map, this.args[0]);
+    var b = Etc.get(map, this.args[1]);
+    return switch (a0) {
+      case Integer a -> apply(a, (Integer) b);
+      case BigInteger a -> apply(a, (BigInteger) b);
+      case BigRational a -> apply(a, (BigRational) b);
+      case Real a -> {
+        var r0 = apply(a.val(), ((Real) b).val());
+        if (r0 instanceof BigRational r) yield new Real(r);
+        yield r0;
+      }
+      default -> throw new IllegalArgumentException(toString());
+    };
+  }
+
   static boolean eq(Object a0, Object b0) {
     if (a0 instanceof Term a && b0 instanceof Term b) {
       if (a.getClass() != b.getClass()) return false;
@@ -61,10 +90,6 @@ abstract class Term extends AbstractCollection<Object> {
 
   Term(Object... args) {
     this.args = args;
-  }
-
-  Object eval(Map<Object, Object> map) {
-    throw new UnsupportedOperationException(toString());
   }
 
   static Or implies(Object a, Object b) {
