@@ -1,5 +1,7 @@
+import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
 import java.util.AbstractCollection;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -30,7 +32,19 @@ abstract class Term extends AbstractCollection<Object> {
   }
 
   Object mapLeaves(UnaryOperator<Object> f) {
-    throw new UnsupportedOperationException(toString());
+    var v = new Object[args.length];
+    for (var i = 0; i < v.length; i++) v[i] = mapLeaves(f, args[i]);
+    var params = new Class[v.length];
+    Arrays.fill(params, Object.class);
+    try {
+      var ctor = getClass().getDeclaredConstructor(params);
+      return ctor.newInstance(v);
+    } catch (IllegalAccessException
+        | InstantiationException
+        | InvocationTargetException
+        | NoSuchMethodException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   Type type() {

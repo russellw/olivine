@@ -1,4 +1,4 @@
-final class Div extends Binary {
+final class Div extends Term {
   Div(Object a, Object b) {
     super(a, b);
   }

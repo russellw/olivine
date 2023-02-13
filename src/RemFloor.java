@@ -1,6 +1,6 @@
 import java.math.BigInteger;
 
-final class RemFloor extends Binary {
+final class RemFloor extends Term {
   RemFloor(Object a, Object b) {
     super(a, b);
   }

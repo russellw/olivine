@@ -1,6 +1,6 @@
 import java.math.BigInteger;
 
-final class RemEuclidean extends Binary {
+final class RemEuclidean extends Term {
   RemEuclidean(Object a, Object b) {
     super(a, b);
   }

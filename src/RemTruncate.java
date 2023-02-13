@@ -1,6 +1,6 @@
 import java.math.BigInteger;
 
-final class RemTruncate extends Binary {
+final class RemTruncate extends Term {
   RemTruncate(Object a, Object b) {
     super(a, b);
   }

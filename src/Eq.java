@@ -1,4 +1,4 @@
-final class Eq extends Binary {
+final class Eq extends Term {
   Type type() {
     return BooleanType.instance;
   }

@@ -1,6 +1,6 @@
 import java.math.BigInteger;
 
-final class Add extends Binary {
+final class Add extends Term {
   Add(Object a, Object b) {
     super(a, b);
   }
