@@ -1,7 +1,7 @@
 import java.util.Map;
 import java.util.function.UnaryOperator;
 
-final class Call extends Nary {
+final class Call extends Term {
   final Fn fn;
 
   Object mapLeaves(UnaryOperator<Object> f) {

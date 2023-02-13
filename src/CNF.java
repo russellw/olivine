@@ -12,7 +12,7 @@ final class CNF {
   // exceed the range of a fixed-size integer, but then we don't actually need the number, we only
   // need to know whether it went over
   // the threshold.
-  private static int clauseCountAdd(boolean pol, Nary a) {
+  private static int clauseCountAdd(boolean pol, Term a) {
     var n = 0;
     for (var b : a) {
       n += clauseCount(pol, b);
@@ -21,7 +21,7 @@ final class CNF {
     return n;
   }
 
-  private static int clauseCountMultiply(boolean pol, Nary a) {
+  private static int clauseCountMultiply(boolean pol, Term a) {
     var n = 1;
     for (var b : a) {
       n *= clauseCount(pol, b);
@@ -216,7 +216,7 @@ final class CNF {
   // Negation normal form consists of several transformations that are as easy to do at the same
   // time: Move NOTs inward to the
   // literal layer, flipping things around on the way, while simultaneously resolving quantifiers.
-  private Object[] nnf1(Map<Var, Object> map, boolean pol, Nary a) {
+  private Object[] nnf1(Map<Var, Object> map, boolean pol, Term a) {
     var v = new Object[a.size()];
     for (var i = 0; i < v.length; i++) v[i] = nnf(map, pol, a.get(i));
     return v;

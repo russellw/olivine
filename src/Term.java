@@ -5,6 +5,8 @@ import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 
 abstract class Term extends AbstractCollection<Object> {
+  final Object[] args;
+
   static void walk(Consumer<Object> f, Object a0) {
     f.accept(a0);
     if (a0 instanceof Term a) for (var b : a) walk(f, b);
@@ -57,11 +59,15 @@ abstract class Term extends AbstractCollection<Object> {
     return a0;
   }
 
-  Object eval(Map<Object, Object> map) {
-    throw new UnsupportedOperationException(toString());
+  Term(Object[] args) {
+    this.args = args;
   }
 
-  Object get(int i) {
+  Term() {
+    args = new Object[0];
+  }
+
+  Object eval(Map<Object, Object> map) {
     throw new UnsupportedOperationException(toString());
   }
 
@@ -80,19 +86,26 @@ abstract class Term extends AbstractCollection<Object> {
     return sb.toString();
   }
 
+  public int size() {
+    return args.length;
+  }
+
+  Object get(int i) {
+    return args[i];
+  }
+
   public Iterator<Object> iterator() {
+    // TODO final method
     return new Iterator<>() {
+      private int i;
+
       public boolean hasNext() {
-        return false;
+        return i < args.length;
       }
 
       public Object next() {
-        throw new UnsupportedOperationException();
+        return args[i++];
       }
     };
-  }
-
-  public int size() {
-    return 0;
   }
 }

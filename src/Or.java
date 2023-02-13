@@ -1,4 +1,4 @@
-final class Or extends Nary {
+final class Or extends Term {
   Or(Object... args) {
     super(args);
   }

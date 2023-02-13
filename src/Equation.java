@@ -1,4 +1,5 @@
 final class Equation {
+  // TODO reduce to Eq?
   final Object left, right;
 
   Equation(Object left, Object right) {
