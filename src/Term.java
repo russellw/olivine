@@ -31,6 +31,18 @@ abstract class Term extends AbstractCollection<Object> {
         a);
   }
 
+  int apply(int a) {
+    throw new UnsupportedOperationException(toString());
+  }
+
+  Object apply(BigInteger a) {
+    throw new UnsupportedOperationException(toString());
+  }
+
+  Object apply(BigRational a) {
+    throw new UnsupportedOperationException(toString());
+  }
+
   Object mapLeaves(UnaryOperator<Object> f) {
     var v = new Object[args.length];
     for (var i = 0; i < v.length; i++) v[i] = mapLeaves(f, args[i]);

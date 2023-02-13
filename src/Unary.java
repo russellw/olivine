@@ -21,16 +21,4 @@ abstract class Unary extends Term {
       default -> throw new IllegalArgumentException(toString());
     };
   }
-
-  int apply(int a) {
-    throw new UnsupportedOperationException(toString());
-  }
-
-  Object apply(BigInteger a) {
-    throw new UnsupportedOperationException(toString());
-  }
-
-  Object apply(BigRational a) {
-    throw new UnsupportedOperationException(toString());
-  }
 }
