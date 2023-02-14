@@ -163,7 +163,7 @@ public class KnuthBendixOrderTest {
     }
   }
 
-  void cast() {
+  static void cast() {
     var a = new Fn(RealType.instance, "a");
     var b = new Fn(RealType.instance, "b");
     order = new KnuthBendixOrder();
@@ -206,5 +206,6 @@ public class KnuthBendixOrderTest {
     totalOnGroundEquations();
     containsSubtermRelation();
     randomTest();
+    cast();
   }
 }
