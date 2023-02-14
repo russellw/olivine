@@ -350,6 +350,13 @@ final class TptpParser {
     return a;
   }
 
+  private Object arg0(Map<String, Variable> bound) throws IOException {
+    expect('(');
+    var a = atomicTerm(bound);
+    expect(',');
+    return a;
+  }
+
   private Object[] args(Map<String, Variable> bound) throws IOException {
     expect('(');
     var v = new ArrayList<>();
@@ -369,9 +376,7 @@ final class TptpParser {
         case "ceiling" -> new Ceil(arg(bound));
         case "difference" -> {
           // TODO refactor
-          expect('(');
-          var a = atomicTerm(bound);
-          expect(',');
+          var a = arg0(bound);
           var b = atomicTerm(bound);
           expect(')');
           yield new Sub(a, b);
@@ -388,17 +393,13 @@ final class TptpParser {
         case "false" -> false;
         case "floor" -> new Floor(arg(bound));
         case "greater" -> {
-          expect('(');
-          var a = atomicTerm(bound);
-          expect(',');
+          var a = arg0(bound);
           var b = atomicTerm(bound);
           expect(')');
           yield new Lt(b, a);
         }
         case "greatereq" -> {
-          expect('(');
-          var a = atomicTerm(bound);
-          expect(',');
+          var a = arg0(bound);
           var b = atomicTerm(bound);
           expect(')');
           yield new Le(b, a);
@@ -406,90 +407,68 @@ final class TptpParser {
         case "is_int" -> new IsInteger(arg(bound));
         case "is_rat" -> new IsRational(arg(bound));
         case "less" -> {
-          expect('(');
-          var a = atomicTerm(bound);
-          expect(',');
+          var a = arg0(bound);
           var b = atomicTerm(bound);
           expect(')');
           yield new Lt(a, b);
         }
         case "lesseq" -> {
-          expect('(');
-          var a = atomicTerm(bound);
-          expect(',');
+          var a = arg0(bound);
           var b = atomicTerm(bound);
           expect(')');
           yield new Le(a, b);
         }
         case "product" -> {
-          expect('(');
-          var a = atomicTerm(bound);
-          expect(',');
+          var a = arg0(bound);
           var b = atomicTerm(bound);
           expect(')');
           yield new Mul(a, b);
         }
         case "quotient" -> {
-          expect('(');
-          var a = atomicTerm(bound);
-          expect(',');
+          var a = arg0(bound);
           var b = atomicTerm(bound);
           expect(')');
           yield new Div(a, b);
         }
         case "quotient_e" -> {
-          expect('(');
-          var a = atomicTerm(bound);
-          expect(',');
+          var a = arg0(bound);
           var b = atomicTerm(bound);
           expect(')');
           yield new DivEuclidean(a, b);
         }
         case "quotient_f" -> {
-          expect('(');
-          var a = atomicTerm(bound);
-          expect(',');
+          var a = arg0(bound);
           var b = atomicTerm(bound);
           expect(')');
           yield new DivFloor(a, b);
         }
         case "quotient_t" -> {
-          expect('(');
-          var a = atomicTerm(bound);
-          expect(',');
+          var a = arg0(bound);
           var b = atomicTerm(bound);
           expect(')');
           yield new DivTruncate(a, b);
         }
         case "remainder_e" -> {
-          expect('(');
-          var a = atomicTerm(bound);
-          expect(',');
+          var a = arg0(bound);
           var b = atomicTerm(bound);
           expect(')');
           yield new RemEuclidean(a, b);
         }
         case "remainder_f" -> {
-          expect('(');
-          var a = atomicTerm(bound);
-          expect(',');
+          var a = arg0(bound);
           var b = atomicTerm(bound);
           expect(')');
           yield new RemFloor(a, b);
         }
         case "remainder_t" -> {
-          expect('(');
-          var a = atomicTerm(bound);
-          expect(',');
+          var a = arg0(bound);
           var b = atomicTerm(bound);
           expect(')');
           yield new RemTruncate(a, b);
         }
         case "round" -> new Round(arg(bound));
         case "sum" -> {
-          expect('(');
-          var a = atomicTerm(bound);
-          expect(',');
+          var a = arg0(bound);
           var b = atomicTerm(bound);
           expect(')');
           yield new Add(a, b);
