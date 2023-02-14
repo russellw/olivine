@@ -16,6 +16,21 @@ abstract class Type {
     };
   }
 
+  final void setDefault(Object a) {
+    switch (a) {
+      case Fn a1 -> {
+        if (a1.rtype == null) a1.rtype = this;
+      }
+      case Call a1 -> setDefault(a1.fn);
+      default -> {}
+    }
+  }
+
+  final void setRequired(Object a) {
+    setDefault(a);
+    if (!equals(of(a))) throw new TypeError(String.format("%s does not have type %s", a, this));
+  }
+
   @SuppressWarnings("DuplicateBranchesInSwitch")
   static boolean numeric(Type type) {
     return switch (type) {

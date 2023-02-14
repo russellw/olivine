@@ -101,10 +101,6 @@ final class Etc {
     return isLower(c) || isUpper(c);
   }
 
-  static boolean isIdPart(int c) {
-    return isAlnum(c) || c == '_';
-  }
-
   static boolean isAlnum(int c) {
     return isAlpha(c) || isDigit(c);
   }

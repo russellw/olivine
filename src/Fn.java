@@ -15,6 +15,7 @@ final class Fn {
   }
 
   Type type() {
+    // TODO is this method needed?
     return rtype;
   }
 
