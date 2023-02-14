@@ -343,18 +343,22 @@ final class TptpParser {
     return a;
   }
 
-  private Object arg(Map<String, Variable> bound) throws IOException {
-    expect('(');
-    var a = atomicTerm(bound);
-    expect(')');
-    return a;
-  }
-
   private Object arg0(Map<String, Variable> bound) throws IOException {
     expect('(');
     var a = atomicTerm(bound);
     expect(',');
     return a;
+  }
+
+  private Object argN(Map<String, Variable> bound) throws IOException {
+    var a = atomicTerm(bound);
+    expect(')');
+    return a;
+  }
+
+  private Object arg(Map<String, Variable> bound) throws IOException {
+    expect('(');
+    return argN(bound);
   }
 
   private Object[] args(Map<String, Variable> bound) throws IOException {
@@ -375,11 +379,8 @@ final class TptpParser {
       case DEFINED_WORD -> switch (s) {
         case "ceiling" -> new Ceil(arg(bound));
         case "difference" -> {
-          // TODO refactor
           var a = arg0(bound);
-          var b = atomicTerm(bound);
-          expect(')');
-          yield new Sub(a, b);
+          yield new Sub(a, argN(bound));
         }
         case "distinct" -> {
           var v = args(bound);
@@ -394,84 +395,58 @@ final class TptpParser {
         case "floor" -> new Floor(arg(bound));
         case "greater" -> {
           var a = arg0(bound);
-          var b = atomicTerm(bound);
-          expect(')');
-          yield new Lt(b, a);
+          yield new Lt(argN(bound), a);
         }
         case "greatereq" -> {
           var a = arg0(bound);
-          var b = atomicTerm(bound);
-          expect(')');
-          yield new Le(b, a);
+          yield new Le(argN(bound), a);
         }
         case "is_int" -> new IsInteger(arg(bound));
         case "is_rat" -> new IsRational(arg(bound));
         case "less" -> {
           var a = arg0(bound);
-          var b = atomicTerm(bound);
-          expect(')');
-          yield new Lt(a, b);
+          yield new Lt(a, argN(bound));
         }
         case "lesseq" -> {
           var a = arg0(bound);
-          var b = atomicTerm(bound);
-          expect(')');
-          yield new Le(a, b);
+          yield new Le(a, argN(bound));
         }
         case "product" -> {
           var a = arg0(bound);
-          var b = atomicTerm(bound);
-          expect(')');
-          yield new Mul(a, b);
+          yield new Mul(a, argN(bound));
         }
         case "quotient" -> {
           var a = arg0(bound);
-          var b = atomicTerm(bound);
-          expect(')');
-          yield new Div(a, b);
+          yield new Div(a, argN(bound));
         }
         case "quotient_e" -> {
           var a = arg0(bound);
-          var b = atomicTerm(bound);
-          expect(')');
-          yield new DivEuclidean(a, b);
+          yield new DivEuclidean(a, argN(bound));
         }
         case "quotient_f" -> {
           var a = arg0(bound);
-          var b = atomicTerm(bound);
-          expect(')');
-          yield new DivFloor(a, b);
+          yield new DivFloor(a, argN(bound));
         }
         case "quotient_t" -> {
           var a = arg0(bound);
-          var b = atomicTerm(bound);
-          expect(')');
-          yield new DivTruncate(a, b);
+          yield new DivTruncate(a, argN(bound));
         }
         case "remainder_e" -> {
           var a = arg0(bound);
-          var b = atomicTerm(bound);
-          expect(')');
-          yield new RemEuclidean(a, b);
+          yield new RemEuclidean(a, argN(bound));
         }
         case "remainder_f" -> {
           var a = arg0(bound);
-          var b = atomicTerm(bound);
-          expect(')');
-          yield new RemFloor(a, b);
+          yield new RemFloor(a, argN(bound));
         }
         case "remainder_t" -> {
           var a = arg0(bound);
-          var b = atomicTerm(bound);
-          expect(')');
-          yield new RemTruncate(a, b);
+          yield new RemTruncate(a, argN(bound));
         }
         case "round" -> new Round(arg(bound));
         case "sum" -> {
           var a = arg0(bound);
-          var b = atomicTerm(bound);
-          expect(')');
-          yield new Add(a, b);
+          yield new Add(a, argN(bound));
         }
         case "to_int" -> new Cast(IntegerType.instance, arg(bound));
         case "to_rat" -> new Cast(RationalType.instance, arg(bound));
