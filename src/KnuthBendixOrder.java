@@ -31,10 +31,10 @@ final class KnuthBendixOrder {
 
   // TODO: shortcut comparison of identical terms?
   // TODO: pacman lemma?
-  PartialOrder compare(Object a0, Object b0) {
+  PartialOrder compare(Object a, Object b) {
     // variables
-    var avariables = variables(a0);
-    var bvariables = variables(b0);
+    var avariables = variables(a);
+    var bvariables = variables(b);
     var maybeLt = true;
     var maybeGt = true;
     for (var kv : avariables.entrySet())
@@ -47,27 +47,27 @@ final class KnuthBendixOrder {
         maybeGt = false;
         break;
       }
-    if (!maybeLt && !maybeGt) return Term.eq(a0, b0) ? PartialOrder.EQ : PartialOrder.UNORDERED;
+    if (!maybeLt && !maybeGt) return Term.eq(a, b) ? PartialOrder.EQ : PartialOrder.UNORDERED;
 
     // total weight
-    var atotalWeight = totalWeight(a0);
-    var btotalWeight = totalWeight(b0);
+    var atotalWeight = totalWeight(a);
+    var btotalWeight = totalWeight(b);
     if (atotalWeight < btotalWeight) return maybeLt ? PartialOrder.LT : PartialOrder.UNORDERED;
     if (atotalWeight > btotalWeight) return maybeGt ? PartialOrder.GT : PartialOrder.UNORDERED;
 
     // symbol weight
-    var asymbolWeight = symbolWeight(a0);
-    var bsymbolWeight = symbolWeight(b0);
+    var asymbolWeight = symbolWeight(a);
+    var bsymbolWeight = symbolWeight(b);
     if (asymbolWeight < bsymbolWeight) return maybeLt ? PartialOrder.LT : PartialOrder.UNORDERED;
     if (asymbolWeight > bsymbolWeight) return maybeGt ? PartialOrder.GT : PartialOrder.UNORDERED;
 
     // symbol weights are the same, so either the symbols are the same, or they
     // are different variables. The latter case would already have been caught by the variable check
-    assert Term.symbol(a0).equals(Term.symbol(b0));
+    assert Term.symbol(a).equals(Term.symbol(b));
 
     // recur
-    var av = Term.args(a0);
-    var bv = Term.args(b0);
+    var av = Term.args(a);
+    var bv = Term.args(b);
     for (var i = 0; ; i++) {
       if (i == av.length || i == bv.length)
         return PartialOrder.of(Integer.compare(av.length, bv.length));

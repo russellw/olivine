@@ -1,62 +1,60 @@
 import java.util.Map;
 
 final class Unification {
-  static boolean match(Object a0, Object b0, Map<Variable, Object> map) {
+  static boolean match(Object a, Object b, Map<Variable, Object> map) {
     // equations would need to be matched both ways, which is handled separately in calling code
-    assert !(a0 instanceof Eq);
-    assert !(b0 instanceof Eq);
+    assert !(a instanceof Eq);
+    assert !(b instanceof Eq);
 
     // fast check for a common case
-    if (a0 == b0) return true;
+    if (a == b) return true;
 
     // Type mismatch
-    if (!Type.of(a0).equals(Type.of(b0))) return false;
+    if (!Type.of(a).equals(Type.of(b))) return false;
 
     // Variable
-    if (a0 instanceof Variable a) {
+    if (a instanceof Variable a1) {
       // Existing mapping
-      var a1 = map.get(a);
-      if (a1 != null) return Term.eq(a1, b0);
+      var aval = map.get(a1);
+      if (aval != null) return Term.eq(aval, b);
 
       // New mapping
-      map.put(a, b0);
+      map.put(a1, b);
       return true;
     }
 
     // symbols must match
-    if (!Term.symbol(a0).equals(Term.symbol(b0))) return false;
+    if (!Term.symbol(a).equals(Term.symbol(b))) return false;
 
     // and subterms
-    if (a0 instanceof Term a) {
-      var av = a.args;
-      var bv = ((Term) b0).args;
-      if (av.length != bv.length) return false;
-      for (var i = 0; i < av.length; i++) if (!match(av[i], bv[i], map)) return false;
-    }
+    var av = Term.args(a);
+    var bv = Term.args(b);
+    if (av.length != bv.length) return false;
+    for (var i = 0; i < av.length; i++) if (!match(av[i], bv[i], map)) return false;
     return true;
   }
 
-  static boolean unify(Object a0, Object b0, Map<Variable, Object> map) {
+  static boolean unify(Object a, Object b, Map<Variable, Object> map) {
     // equations would need to be matched both ways, which is handled separately in calling code
-    assert !(a0 instanceof Eq);
-    assert !(b0 instanceof Eq);
+    assert !(a instanceof Eq);
+    assert !(b instanceof Eq);
 
     // fast check for a common case
-    if (a0 == b0) return true;
+    if (a == b) return true;
 
     // Type mismatch
-    if (!Type.of(a0).equals(Type.of(b0))) return false;
+    if (!Type.of(a).equals(Type.of(b))) return false;
 
     // Variable
-    if (a0 instanceof Variable a) return unifyVariable(a, b0, map);
-    if (b0 instanceof Variable b) return unifyVariable(b, a0, map);
+    if (a instanceof Variable a1) return unifyVariable(a1, b, map);
+    if (b instanceof Variable b1) return unifyVariable(b1, a, map);
 
     // symbols must match
-    if (!Term.symbol(a0).equals(Term.symbol(b0))) return false;
+    if (!Term.symbol(a).equals(Term.symbol(b))) return false;
 
     // and subterms
-    var av = Term.args(a0);
-    var bv = Term.args(b0);
+    var av = Term.args(a);
+    var bv = Term.args(b);
     if (av.length != bv.length) return false;
     for (var i = 0; i < av.length; i++) if (!unify(av[i], bv[i], map)) return false;
     return true;
@@ -64,13 +62,13 @@ final class Unification {
 
   private static boolean unifyVariable(Variable a, Object b, Map<Variable, Object> map) {
     // Existing mapping
-    var a1 = map.get(a);
-    if (a1 != null) return unify(a1, b, map);
+    var aval = map.get(a);
+    if (aval != null) return unify(aval, b, map);
 
     // Variable
     if (b instanceof Variable) {
-      var b1 = map.get(b);
-      if (b1 != null) return unify(a, b1, map);
+      var bval = map.get(b);
+      if (bval != null) return unify(a, bval, map);
     }
 
     // Occurs check
@@ -81,18 +79,13 @@ final class Unification {
     return true;
   }
 
-  private static boolean occurs(Variable a, Object b0, Map<Variable, Object> map) {
-    if (a == b0) return true;
-    switch (b0) {
-      case Variable b -> {
-        var b1 = map.get(b);
-        if (b1 != null) return occurs(a, b1, map);
-      }
-      case Term b -> {
-        for (var bi : b.args) if (occurs(a, bi, map)) return true;
-      }
-      default -> {}
+  private static boolean occurs(Variable a, Object b, Map<Variable, Object> map) {
+    if (a == b) return true;
+    if (b instanceof Variable) {
+      var bval = map.get(b);
+      if (bval != null) return occurs(a, bval, map);
     }
+    for (var bi : Term.args(b)) if (occurs(a, bi, map)) return true;
     return false;
   }
 }

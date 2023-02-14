@@ -47,11 +47,11 @@ final class BigRational extends Number implements Comparable<BigRational> {
     return new BigRational(Etc.divEuclidean(num.multiply(b.den), den.multiply(b.num)));
   }
 
-  public boolean equals(Object b0) {
-    if (this == b0) return true;
-    if (b0 == null || getClass() != b0.getClass()) return false;
-    var b = (BigRational) b0;
-    return num.equals(b.num) && den.equals(b.den);
+  public boolean equals(Object b) {
+    if (this == b) return true;
+    if (b == null || getClass() != b.getClass()) return false;
+    var b1 = (BigRational) b;
+    return num.equals(b1.num) && den.equals(b1.den);
   }
 
   public int hashCode() {

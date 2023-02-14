@@ -277,12 +277,12 @@ final class CNF {
         // are all made with positive polarity.
         a0 =
             Term.mapLeaves(
-                b0 -> {
-                  if (b0 instanceof Variable b) {
-                    b0 = map.get(b);
-                    assert b0 != null;
+                b -> {
+                  if (b instanceof Variable) {
+                    b = map.get(b);
+                    assert b != null;
                   }
-                  return b0;
+                  return b;
                 },
                 a0);
         yield pol ? a0 : new Not(a0);
