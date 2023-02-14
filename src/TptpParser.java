@@ -280,7 +280,7 @@ final class TptpParser {
   }
 
   private void expect(int k) throws IOException {
-    if (!eat(k)) throw err(String.format("expected %c", k));
+    if (!eat(k)) throw err(String.format("expected '%c'", k));
   }
 
   private String word() throws IOException {
@@ -478,7 +478,6 @@ final class TptpParser {
           yield a;
         }
         var a = bound.get(s);
-        // TODO are the quotes desirable?
         if (a == null) throw err(String.format("'%s': unknown variable", s));
         yield a;
       }
