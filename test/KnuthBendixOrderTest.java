@@ -163,23 +163,15 @@ public class KnuthBendixOrderTest {
     }
   }
 
-  /*
-   void cast() {
-    var negative = new ArrayList<>();
-    var positive = new ArrayList<>();
-    var a = new GlobalVar("a", Type.REAL);
-    var b = new GlobalVar("b", Type.REAL);
-    positive.add(new Eq( a, b));
-    var clauses = new ArrayList<Clause>();
-    clauses.add(new Clause(negative, positive));
-    order = new KnuthBendixOrder(clauses);
+  void cast() {
+    var a = new Fn(RealType.instance, "a");
+    var b = new Fn(RealType.instance, "b");
+    order = new KnuthBendixOrder();
 
-    TODO
-    checkOrdered(Term.cast(Type.REAL, a), Term.cast(Type.RATIONAL, a));
-    checkOrdered(Term.cast(Type.REAL, a), Term.cast(Type.REAL, b));
-    checkEqual(Term.cast(Type.REAL, a), Term.cast(Type.REAL, a));
+    checkOrdered(new Cast(RealType.instance, a), new Cast(RationalType.instance, a));
+    checkOrdered(new Cast(RealType.instance, a), new Cast(RealType.instance, b));
+    checkEqual(new Cast(RealType.instance, a), new Cast(RealType.instance, a));
   }
-     */
 
   static void eqlEquations() {
     makeRandomOrder();
