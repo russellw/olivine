@@ -1,4 +1,5 @@
 import java.math.BigInteger;
+import java.util.List;
 
 class TermTest {
   static Object succ(Object a0) {
@@ -16,5 +17,9 @@ class TermTest {
     var a = (Add) Term.mapLeaves(TermTest::succ, new Add(10, 20));
     assert a.args[0].equals(11);
     assert a.args[1].equals(21);
+
+    assert Term.eq(Term.splice(a, List.of(), 0, 9), 9);
+    assert Term.eq(Term.splice(a, List.of(0), 0, 9), new Add(9, 21));
+    assert Term.eq(Term.splice(a, List.of(1), 0, 9), new Add(11, 9));
   }
 }

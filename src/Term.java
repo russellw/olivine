@@ -1,6 +1,7 @@
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
@@ -140,6 +141,15 @@ abstract class Term {
   static Object simplify(Object a) {
     // TODO
     return a;
+  }
+
+  static Object splice(Object a, List<Integer> position, int i, Object b) {
+    if (i == position.size()) return b;
+    var a1 = (Term) a;
+    var v = a1.args.clone();
+    var j = position.get(i);
+    v[j] = splice(v[j], position, i + 1, b);
+    return a1.remake(v);
   }
 
   Term(Object... args) {

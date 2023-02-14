@@ -231,8 +231,7 @@ public final class Superposition {
     var map = new HashMap<Variable, Object>();
     if (!Unification.unify(c0, a, map)) return;
 
-    var d0c1 = d0;
-    // TODO    var d0c1 = d0.splice(position, 0, c1);
+    var d0c1 = Term.splice(d0, position, 0, c1);
 
     // the test for d0c1=d1 being a valid equation, would strictly speaking fail if d0c1=True and d1
     // is some other predicate. But if d0c1=True, c1=True, c0 is a predicate
