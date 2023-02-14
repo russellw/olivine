@@ -30,15 +30,15 @@ final class CNF {
     return n;
   }
 
-  private static int clauseCount(boolean pol, Object a0) {
-    return switch (a0) {
-      case Quantifier a -> clauseCount(pol, a.body);
-      case Not a -> clauseCount(!pol, a.args[0]);
-      case Or a -> pol ? clauseCountMultiply(true, a) : clauseCountAdd(false, a);
-      case And a -> pol ? clauseCountAdd(true, a) : clauseCountMultiply(false, a);
-      case Eqv a -> {
-        var x = a.args[0];
-        var y = a.args[1];
+  private static int clauseCount(boolean pol, Object a) {
+    return switch (a) {
+      case Quantifier a1 -> clauseCount(pol, a1.body);
+      case Not a1 -> clauseCount(!pol, a1.args[0]);
+      case Or a1 -> pol ? clauseCountMultiply(true, a1) : clauseCountAdd(false, a1);
+      case And a1 -> pol ? clauseCountAdd(true, a1) : clauseCountMultiply(false, a1);
+      case Eqv a1 -> {
+        var x = a1.args[0];
+        var y = a1.args[1];
 
         // Recur twice into each argument. This would cause a problem of exponential blowup in the
         // time taken to calculate the
@@ -145,14 +145,14 @@ final class CNF {
   // the nontrivial formulas in the TPTP), so this is probably not worth doing (in terms of code
   // complexity
   // and of the memory traffic for the extra iteration through the formula set)
-  private Object maybeRename(int pol, Object a0) {
-    return switch (a0) {
-      case All a -> new All(a.variables, maybeRename(pol, a.body));
-      case Exists a -> new Exists(a.variables, maybeRename(pol, a.body));
-      case Not a -> new Not(maybeRename(-pol, a.args[0]));
-      case Or a -> {
-        var v = new Object[a.args.length];
-        for (var i = 0; i < v.length; i++) v[i] = maybeRename(pol, a.args[i]);
+  private Object maybeRename(int pol, Object a) {
+    return switch (a) {
+      case All a1 -> new All(a1.variables, maybeRename(pol, a1.body));
+      case Exists a1 -> new Exists(a1.variables, maybeRename(pol, a1.body));
+      case Not a1 -> new Not(maybeRename(-pol, a1.args[0]));
+      case Or a1 -> {
+        var v = new Object[a1.args.length];
+        for (var i = 0; i < v.length; i++) v[i] = maybeRename(pol, a1.args[i]);
 
         // If this formula will be used with positive polarity (including the case where it will be
         // used both ways), we are
@@ -162,22 +162,22 @@ final class CNF {
         if (pol >= 0) maybeRenames(pol, v);
         yield new Or(v);
       }
-      case And a -> {
-        var v = new Object[a.args.length];
-        for (var i = 0; i < v.length; i++) v[i] = maybeRename(pol, a.args[i]);
+      case And a1 -> {
+        var v = new Object[a1.args.length];
+        for (var i = 0; i < v.length; i++) v[i] = maybeRename(pol, a1.args[i]);
 
         // NOT-AND yields OR, so mirror the OR case.
         if (pol <= 0) maybeRenames(pol, v);
         yield new And(v);
       }
-      case Eqv a -> {
-        var x = maybeRename(0, a.args[0]);
-        var y = maybeRename(0, a.args[1]);
+      case Eqv a1 -> {
+        var x = maybeRename(0, a1.args[0]);
+        var y = maybeRename(0, a1.args[1]);
         if (clauseCountApprox(0, x) >= MANY) x = rename(0, x);
         if (clauseCountApprox(0, y) >= MANY) y = rename(0, y);
         yield new Eqv(x, y);
       }
-      default -> a0;
+      default -> a;
     };
   }
 
@@ -222,28 +222,28 @@ final class CNF {
     return v;
   }
 
-  private Object nnf(Map<Variable, Object> map, boolean pol, Object a0) {
-    return switch (a0) {
-      case Boolean a -> pol == a;
-      case And a -> {
-        var v = nnf1(map, pol, a);
+  private Object nnf(Map<Variable, Object> map, boolean pol, Object a) {
+    return switch (a) {
+      case Boolean a1 -> pol == a1;
+      case And a1 -> {
+        var v = nnf1(map, pol, a1);
         yield pol ? new And(v) : new Or(v);
       }
-      case Or a -> {
-        var v = nnf1(map, pol, a);
+      case Or a1 -> {
+        var v = nnf1(map, pol, a1);
         yield pol ? new Or(v) : new And(v);
       }
-      case Not a -> nnf(map, !pol, a.args[0]);
-      case Variable a -> {
+      case Not a1 -> nnf(map, !pol, a1.args[0]);
+      case Variable ignored -> {
         var aval = map.get(a);
         assert aval != null;
         yield aval;
       }
-      case All a -> nnf(pol ? all(map, a) : exists(map, a), pol, a.body);
-      case Exists a -> nnf(pol ? exists(map, a) : all(map, a), pol, a.body);
-      case Eqv a -> {
-        var x = a.args[0];
-        var y = a.args[1];
+      case All a1 -> nnf(pol ? all(map, a1) : exists(map, a1), pol, a1.body);
+      case Exists a1 -> nnf(pol ? exists(map, a1) : all(map, a1), pol, a1.body);
+      case Eqv a1 -> {
+        var x = a1.args[0];
+        var y = a1.args[1];
         var x0 = nnf(map, false, x);
         var x1 = nnf(map, true, x);
         var y0 = nnf(map, false, y);
@@ -275,7 +275,7 @@ final class CNF {
         // the
         // recursive calls
         // are all made with positive polarity.
-        a0 =
+        a =
             Term.mapLeaves(
                 b -> {
                   if (b instanceof Variable) {
@@ -284,36 +284,36 @@ final class CNF {
                   }
                   return b;
                 },
-                a0);
-        yield pol ? a0 : new Not(a0);
+                a);
+        yield pol ? a : new Not(a);
       }
     };
   }
 
   // AND is associative, so several layers thereof are equivalent to a single layer.
   // For distribution of OR, it is useful to do this
-  private static void flattenAnd(Object a0, List<Object> v) {
-    if (a0 instanceof And a) {
-      for (var b : a.args) flattenAnd(b, v);
+  private static void flattenAnd(Object a, List<Object> v) {
+    if (a instanceof And a1) {
+      for (var b : a1.args) flattenAnd(b, v);
       return;
     }
-    v.add(a0);
+    v.add(a);
   }
 
   // Distribute OR down into AND, completing the layering of the operators for CNF. This is the
   // second place where exponential
   // expansion would occur, had selected formulas not already been renamed.
-  private Object distribute(Object a0) {
-    return switch (a0) {
-      case And a -> {
-        var v = new Object[a.args.length];
-        for (var i = 0; i < v.length; i++) v[i] = distribute(a.args[i]);
+  private Object distribute(Object a) {
+    return switch (a) {
+      case And a1 -> {
+        var v = new Object[a1.args.length];
+        for (var i = 0; i < v.length; i++) v[i] = distribute(a1.args[i]);
         yield new And(v);
       }
-      case Or a -> {
+      case Or a1 -> {
         // Flat layer of ANDs
-        var ands = new ArrayList<List<Object>>(a.args.length);
-        for (var b : a.args) {
+        var ands = new ArrayList<List<Object>>(a1.args.length);
+        for (var b : a1.args) {
           b = distribute(b);
           var v = new ArrayList<>();
           flattenAnd(b, v);
@@ -326,29 +326,29 @@ final class CNF {
         for (var i = 0; i < and.length; i++) and[i] = new Or(ors.get(i).toArray());
         yield new And(and);
       }
-      default -> a0;
+      default -> a;
     };
   }
 
   // Convert a suitably rearranged term into actual clauses.
-  private void literals(Object a0) {
-    switch (a0) {
-      case Not a -> negative.add(a.args[0]);
-      case Or a -> {
-        for (var b : a.args) literals(b);
+  private void literals(Object a) {
+    switch (a) {
+      case Not a1 -> negative.add(a1.args[0]);
+      case Or a1 -> {
+        for (var b : a1.args) literals(b);
       }
-      default -> positive.add(a0);
+      default -> positive.add(a);
     }
   }
 
-  private void clausify(Object a0) {
-    if (a0 instanceof And a) {
-      for (var b : a.args) clausify(b);
+  private void clausify(Object a) {
+    if (a instanceof And a1) {
+      for (var b : a1.args) clausify(b);
       return;
     }
     negative.clear();
     positive.clear();
-    literals(a0);
+    literals(a);
     // TODO: eliminate duplicate literals here?
     var c = new Clause(negative, positive);
     if (c.isTrue()) return;

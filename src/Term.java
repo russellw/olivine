@@ -71,21 +71,21 @@ abstract class Term {
     throw new UnsupportedOperationException(toString());
   }
 
-  static Object[] args(Object a0) {
-    if (a0 instanceof Term a) return a.args;
+  static Object[] args(Object a) {
+    if (a instanceof Term a1) return a1.args;
     return new Object[0];
   }
 
   Object eval(Map<Object, Object> map) {
-    var a0 = Etc.get(map, this.args[0]);
+    var a = Etc.get(map, this.args[0]);
     switch (args.length) {
       case 1 -> {
-        return switch (a0) {
-          case Integer a -> apply(a);
-          case BigInteger a -> apply(a);
-          case BigRational a -> apply(a);
-          case Real a -> {
-            var r0 = apply(a.val());
+        return switch (a) {
+          case Integer a1 -> apply(a1);
+          case BigInteger a1 -> apply(a1);
+          case BigRational a1 -> apply(a1);
+          case Real a1 -> {
+            var r0 = apply(a1.val());
             if (r0 instanceof BigRational r) yield new Real(r);
             yield r0;
           }
@@ -94,14 +94,14 @@ abstract class Term {
       }
       case 2 -> {
         var b = Etc.get(map, this.args[1]);
-        return switch (a0) {
-          case Integer a -> apply(a, (Integer) b);
-          case BigInteger a -> apply(a, (BigInteger) b);
-          case BigRational a -> apply(a, (BigRational) b);
-          case Real a -> {
-            var r0 = apply(a.val(), ((Real) b).val());
-            if (r0 instanceof BigRational r) yield new Real(r);
-            yield r0;
+        return switch (a) {
+          case Integer a1 -> apply(a1, (Integer) b);
+          case BigInteger a1 -> apply(a1, (BigInteger) b);
+          case BigRational a1 -> apply(a1, (BigRational) b);
+          case Real a1 -> {
+            var r = apply(a1.val(), ((Real) b).val());
+            if (r instanceof BigRational r1) yield new Real(r1);
+            yield r;
           }
           default -> throw new IllegalArgumentException(toString());
         };
@@ -119,27 +119,27 @@ abstract class Term {
     return true;
   }
 
-  static Object symbol(Object a0) {
-    return switch (a0) {
-      case Call a -> a.fn;
-      case Cast a -> a.type();
-      case Term a -> a.getClass();
-      default -> a0;
+  static Object symbol(Object a) {
+    return switch (a) {
+      case Call a1 -> a1.fn;
+      case Cast a1 -> a1.type();
+      case Term a1 -> a1.getClass();
+      default -> a;
     };
   }
 
-  static Object mapLeaves(UnaryOperator<Object> f, Object a0) {
-    if (a0 instanceof Term a) {
-      var v = new Object[a.args.length];
-      for (var i = 0; i < v.length; i++) v[i] = mapLeaves(f, a.args[i]);
-      return a.remake(v);
+  static Object mapLeaves(UnaryOperator<Object> f, Object a) {
+    if (a instanceof Term a1) {
+      var v = new Object[a1.args.length];
+      for (var i = 0; i < v.length; i++) v[i] = mapLeaves(f, a1.args[i]);
+      return a1.remake(v);
     }
-    return f.apply(a0);
+    return f.apply(a);
   }
 
-  static Object simplify(Object a0) {
+  static Object simplify(Object a) {
     // TODO
-    return a0;
+    return a;
   }
 
   Term(Object... args) {

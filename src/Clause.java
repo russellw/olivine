@@ -35,16 +35,16 @@ final class Clause {
     for (var i = 0; i < v.length; i++) {
       v[i] =
           Term.mapLeaves(
-              a0 -> {
-                if (a0 instanceof Variable a) {
+              a -> {
+                if (a instanceof Variable a1) {
                   var b = map.get(a);
                   if (b == null) {
-                    b = new Variable(a.type);
-                    map.put(a, b);
+                    b = new Variable(a1.type);
+                    map.put(a1, b);
                   }
                   return b;
                 }
-                return a0;
+                return a;
               },
               literals[i]);
     }

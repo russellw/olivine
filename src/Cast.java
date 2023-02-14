@@ -5,8 +5,8 @@ final class Cast extends Term {
   private final Type type;
 
   Object eval(Map<Object, Object> map) {
-    var a0 = Etc.get(map, args[0]);
-    if (type.equals(Type.of(a0))) return a0;
+    var a = Etc.get(map, args[0]);
+    if (type.equals(Type.of(a))) return a;
 
     // Different languages have different conventions on the default rounding mode for
     // converting fractions to integers. TPTP
@@ -14,19 +14,19 @@ final class Cast extends Term {
     // explicity round the rational number first,
     // and then convert to integer.
     return switch (type) {
-      case IntegerType ignored -> switch (a0) {
-        case BigRational a -> Etc.divFloor(a.num, a.den);
-        case Real a -> Etc.divFloor(a.val().num, a.val().den);
+      case IntegerType ignored -> switch (a) {
+        case BigRational a1 -> Etc.divFloor(a1.num, a1.den);
+        case Real a1 -> Etc.divFloor(a1.val().num, a1.val().den);
         default -> throw new IllegalArgumentException(toString());
       };
-      case RationalType ignored -> switch (a0) {
-        case BigInteger a -> new BigRational(a);
-        case Real a -> a.val();
+      case RationalType ignored -> switch (a) {
+        case BigInteger a1 -> new BigRational(a1);
+        case Real a1 -> a1.val();
         default -> throw new IllegalArgumentException(toString());
       };
-      case RealType ignored -> switch (a0) {
-        case BigInteger a -> new Real(new BigRational(a));
-        case BigRational a -> new Real(a);
+      case RealType ignored -> switch (a) {
+        case BigInteger a1 -> new Real(new BigRational(a1));
+        case BigRational a1 -> new Real(a1);
         default -> throw new IllegalArgumentException(toString());
       };
       default -> throw new IllegalArgumentException(toString());

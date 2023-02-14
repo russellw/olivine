@@ -13,14 +13,14 @@ final class Equation {
     return Type.of(b) != BooleanType.instance || b == Boolean.TRUE;
   }
 
-  Equation(Object a0) {
-    assert Type.of(a0) == BooleanType.instance;
-    if (a0 instanceof Eq a) {
-      left = a.args[0];
-      right = a.args[1];
+  Equation(Object a) {
+    assert Type.of(a) == BooleanType.instance;
+    if (a instanceof Eq a1) {
+      left = a1.args[0];
+      right = a1.args[1];
       return;
     }
-    left = a0;
+    left = a;
     right = Boolean.TRUE;
   }
 

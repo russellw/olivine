@@ -17,18 +17,18 @@ final class Variable {
     return free;
   }
 
-  static void freeVariables(Object a0, Set<Variable> bound, Set<Variable> free) {
-    switch (a0) {
-      case Variable a -> {
-        if (!bound.contains(a)) free.add(a);
+  static void freeVariables(Object a, Set<Variable> bound, Set<Variable> free) {
+    switch (a) {
+      case Variable a1 -> {
+        if (!bound.contains(a)) free.add(a1);
       }
-      case Quantifier a -> {
+      case Quantifier a1 -> {
         bound = new HashSet<>(bound);
-        bound.addAll(Arrays.asList(a.variables));
-        freeVariables(a.body, bound, free);
+        bound.addAll(Arrays.asList(a1.variables));
+        freeVariables(a1.body, bound, free);
       }
-      case Term a -> {
-        for (var b : a.args) freeVariables(b, bound, free);
+      case Term a1 -> {
+        for (var b : a1.args) freeVariables(b, bound, free);
       }
       default -> {}
     }
