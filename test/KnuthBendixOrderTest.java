@@ -27,26 +27,12 @@ public class KnuthBendixOrderTest {
     return new Equation(randomIndividualTerm(depth), randomIndividualTerm(depth));
   }
 
-  private static void makeOrder() {
-    var negative = new ArrayList<>();
-    var positive = new ArrayList<>();
-    for (var f : fns) {
-      var args = new Object[f.params.length];
-      for (var i = 0; i < args.length; i++) args[i] = variables.get(0);
-      positive.add(new Eq(new Call(f, args), variables.get(0)));
-    }
-    for (var a : nullaryFns) positive.add(new Eq(a, variables.get(0)));
-    var clauses = new ArrayList<Clause>();
-    clauses.add(new Clause(negative, positive));
-    order = new KnuthBendixOrder();
-  }
-
   private static void makeRandomOrder() {
     for (var i = 0; i < 4; i++) fns.add(new Fn(IndividualType.instance, String.format("f%d", i)));
     for (var i = 0; i < 4; i++)
       nullaryFns.add(new Fn(IndividualType.instance, String.format("a%d", i)));
     for (var i = 0; i < 4; i++) variables.add(new Variable(IndividualType.instance));
-    makeOrder();
+    order = new KnuthBendixOrder();
   }
 
   private static boolean greater(Object a, Object b) {
@@ -76,17 +62,6 @@ public class KnuthBendixOrderTest {
     var q1 = new Fn(BooleanType.instance, "q1");
     var x = new Variable(IndividualType.instance);
     var y = new Variable(IndividualType.instance);
-    var negative = new ArrayList<>();
-    var positive = new ArrayList<>();
-    var clauses = new ArrayList<Clause>();
-
-    // order can depend on the contents of the initial clauses. in particular,
-    // it can reasonably expect that all functions and global variables will be shown up front
-    positive.add(new Eq(red, green));
-    positive.add(new Eq(a, b));
-    positive.add(new Call(p1, red));
-    positive.add(new Call(q1, red));
-    clauses.add(new Clause(negative, positive));
     order = new KnuthBendixOrder();
 
     checkUnordered(x, y);
