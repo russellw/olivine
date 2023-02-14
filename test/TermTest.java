@@ -14,7 +14,7 @@ class TermTest {
     assert Term.mapLeaves(TermTest::succ, x) == x;
     assert Term.mapLeaves(TermTest::succ, 5).equals(6);
     var a = (Add) Term.mapLeaves(TermTest::succ, new Add(10, 20));
-    assert a.get(0).equals(11);
-    assert a.get(1).equals(21);
+    assert a.args[0].equals(11);
+    assert a.args[1].equals(21);
   }
 }

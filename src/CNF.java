@@ -14,7 +14,7 @@ final class CNF {
   // the threshold.
   private static int clauseCountAdd(boolean pol, Term a) {
     var n = 0;
-    for (var b : a) {
+    for (var b : a.args) {
       n += clauseCount(pol, b);
       if (n >= MANY) return MANY;
     }
@@ -23,7 +23,7 @@ final class CNF {
 
   private static int clauseCountMultiply(boolean pol, Term a) {
     var n = 1;
-    for (var b : a) {
+    for (var b : a.args) {
       n *= clauseCount(pol, b);
       if (n >= MANY) return MANY;
     }
@@ -151,20 +151,20 @@ final class CNF {
       case Exists a -> new Exists(a.variables, maybeRename(pol, a.body));
       case Not a -> new Not(maybeRename(-pol, a.args[0]));
       case Or a -> {
-        var v = new Object[a.size()];
-        for (var i = 0; i < v.length; i++) v[i] = maybeRename(pol, a.get(i));
+        var v = new Object[a.args.length];
+        for (var i = 0; i < v.length; i++) v[i] = maybeRename(pol, a.args[i]);
 
         // If this formula will be used with positive polarity (including the case where it will be
         // used both ways), we are
         // looking at OR over possible ANDs, which would produce exponential expansion at the
         // distribution stage, so may need to
-        // rename some of the arguments.
+        // rename some arguments.
         if (pol >= 0) maybeRenames(pol, v);
         yield new Or(v);
       }
       case And a -> {
-        var v = new Object[a.size()];
-        for (var i = 0; i < v.length; i++) v[i] = maybeRename(pol, a.get(i));
+        var v = new Object[a.args.length];
+        for (var i = 0; i < v.length; i++) v[i] = maybeRename(pol, a.args[i]);
 
         // NOT-AND yields OR, so mirror the OR case.
         if (pol <= 0) maybeRenames(pol, v);
@@ -217,8 +217,8 @@ final class CNF {
   // time: Move NOTs inward to the
   // literal layer, flipping things around on the way, while simultaneously resolving quantifiers.
   private Object[] nnf1(Map<Variable, Object> map, boolean pol, Term a) {
-    var v = new Object[a.size()];
-    for (var i = 0; i < v.length; i++) v[i] = nnf(map, pol, a.get(i));
+    var v = new Object[a.args.length];
+    for (var i = 0; i < v.length; i++) v[i] = nnf(map, pol, a.args[i]);
     return v;
   }
 
@@ -294,7 +294,7 @@ final class CNF {
   // For distribution of OR, it is useful to do this
   private static void flattenAnd(Object a0, List<Object> v) {
     if (a0 instanceof And a) {
-      for (var b : a) flattenAnd(b, v);
+      for (var b : a.args) flattenAnd(b, v);
       return;
     }
     v.add(a0);
@@ -306,14 +306,14 @@ final class CNF {
   private Object distribute(Object a0) {
     return switch (a0) {
       case And a -> {
-        var v = new Object[a.size()];
-        for (var i = 0; i < v.length; i++) v[i] = distribute(a.get(i));
+        var v = new Object[a.args.length];
+        for (var i = 0; i < v.length; i++) v[i] = distribute(a.args[i]);
         yield new And(v);
       }
       case Or a -> {
         // Flat layer of ANDs
-        var ands = new ArrayList<List<Object>>(a.size());
-        for (var b : a) {
+        var ands = new ArrayList<List<Object>>(a.args.length);
+        for (var b : a.args) {
           b = distribute(b);
           var v = new ArrayList<>();
           flattenAnd(b, v);
@@ -335,7 +335,7 @@ final class CNF {
     switch (a0) {
       case Not a -> negative.add(a.args[0]);
       case Or a -> {
-        for (var b : a) literals(b);
+        for (var b : a.args) literals(b);
       }
       default -> positive.add(a0);
     }
@@ -343,7 +343,7 @@ final class CNF {
 
   private void clausify(Object a0) {
     if (a0 instanceof And a) {
-      for (var b : a) clausify(b);
+      for (var b : a.args) clausify(b);
       return;
     }
     negative.clear();

@@ -1,4 +1,3 @@
-import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -20,7 +19,7 @@ final class KnuthBendixOrder {
     return switch (a) {
       case Boolean ignored -> 1;
       case Variable ignored -> 1;
-      default -> weights.computeIfAbsent(Term.symbol(a), k -> weights.size() + 2);
+      default -> weights.computeIfAbsent(Term.symbol(a), key -> weights.size() + 2);
     };
   }
 
@@ -56,71 +55,24 @@ final class KnuthBendixOrder {
     if (atotalWeight < btotalWeight) return maybeLt ? PartialOrder.LT : PartialOrder.UNORDERED;
     if (atotalWeight > btotalWeight) return maybeGt ? PartialOrder.GT : PartialOrder.UNORDERED;
 
-    // different tags or functions mean different symbols
+    // symbol weight
     var asymbolWeight = symbolWeight(a0);
     var bsymbolWeight = symbolWeight(b0);
     if (asymbolWeight < bsymbolWeight) return maybeLt ? PartialOrder.LT : PartialOrder.UNORDERED;
     if (asymbolWeight > bsymbolWeight) return maybeGt ? PartialOrder.GT : PartialOrder.UNORDERED;
-    // TODO why?
-    assert asymbolWeight == 1 || a0.getClass() == b0.getClass();
 
-    // in some cases, the same tags can still mean different symbols, e.g. constants
-    // with different values, or casts to different types
-    switch (a0) {
-      case Cast a -> {
-        // TODO It is possible to order casts by type
-        // but are they frequent enough for it to matter?
-        return PartialOrder.UNORDERED;
-      }
-      case BigInteger a -> {
-        return PartialOrder.of(a.compareTo((BigInteger) b0));
-      }
-      case BigRational a -> {
-        return PartialOrder.of(a.compareTo((BigRational) b0));
-      }
-      case Real a -> {
-        return PartialOrder.of(a.val().compareTo(((Real) b0).val()));
-      }
-      case DistinctObject a -> {
-        if (!(b0 instanceof DistinctObject b)) throw new IllegalStateException(b0.toString());
-
-        // here, we rely on distinct objects being ordered by their names, in other words behaving
-        // as though they had
-        // value semantics. Strictly speaking, this is only guaranteed by the TPTP parser; it is not
-        // guaranteed by the
-        // DistinctObject class itself, which doesn't enforce unique names, and is happy to allow
-        // distinct objects
-        // to be compared by reference for efficiency in other contexts. so assert that
-        // the precondition holds here, i.e. different objects have different names
-        assert a == b || !(a.name.equals(b.name));
-        return PartialOrder.of(a.name.compareTo(b.name));
-      }
-      default -> {}
-    }
+    // symbol weights are the same, so either the symbols are the same, or they
+    // are different variables. The latter case would already have been caught by the variable check
+    assert Term.symbol(a0).equals(Term.symbol(b0));
 
     // recur
-    if (a0 instanceof Call a) {
-      var b = (Call) b0;
-      var n = a.size();
-      var i = 0;
-      while (i < a.size() && Term.eq(a.get(i), b.get(i))) i++;
-      if (i == n) return PartialOrder.EQ;
-      return compare(a.get(i), b.get(i));
+    var av = Term.args(a0);
+    var bv = Term.args(b0);
+    for (var i = 0; ; i++) {
+      if (i == av.length || i == bv.length)
+        return PartialOrder.of(Integer.compare(av.length, bv.length));
+      if (!Term.eq(av[i], bv[i])) return compare(av[i], bv[i]);
     }
-    if (a0 instanceof Term a) {
-      var b = (Term) b0;
-
-      var n = a.size();
-      assert n == b.size();
-
-      var i = 0;
-      while (i < a.size() && Term.eq(a.get(i), b.get(i))) i++;
-
-      if (i == n) return PartialOrder.EQ;
-      return compare(a.get(i), b.get(i));
-    }
-    assert Term.eq(a0, b0);
-    return PartialOrder.EQ;
   }
 
   PartialOrder compare(boolean apol, Equation a, boolean bpol, Equation b) {

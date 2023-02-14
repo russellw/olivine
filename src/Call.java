@@ -15,9 +15,9 @@ final class Call extends Term {
   public String toString() {
     var sb = new StringBuilder(fn.toString());
     sb.append('(');
-    for (var i = 0; i < size(); i++) {
+    for (var i = 0; i < args.length; i++) {
       if (i > 0) sb.append(',');
-      sb.append(get(i));
+      sb.append(args[i]);
     }
     sb.append(')');
     return sb.toString();

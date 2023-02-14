@@ -28,7 +28,7 @@ final class Variable {
         freeVariables(a.body, bound, free);
       }
       case Term a -> {
-        for (var b : a) freeVariables(b, bound, free);
+        for (var b : a.args) freeVariables(b, bound, free);
       }
       default -> {}
     }

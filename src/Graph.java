@@ -18,7 +18,7 @@ final class Graph<T> {
   }
 
   void add(T a, T b) {
-    var v = arcs.computeIfAbsent(a, k -> new HashSet<>());
+    var v = arcs.computeIfAbsent(a, key -> new HashSet<>());
     v.add(b);
   }
 

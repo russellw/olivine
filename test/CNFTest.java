@@ -115,7 +115,7 @@ class CNFTest {
     var negativeIndex = 0;
     var positiveIndex = 0;
     for (var a0 : q) {
-      if (a0 instanceof Not a) assertEquals(c.negative()[negativeIndex++], a.get(0));
+      if (a0 instanceof Not a) assertEquals(c.negative()[negativeIndex++], a.args[0]);
       else assertEquals(c.positive()[positiveIndex++], a0);
     }
   }

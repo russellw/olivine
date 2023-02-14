@@ -19,7 +19,7 @@ public final class Superposition {
 
   private static long volume(Clause c) {
     var n = c.literals.length * 2L;
-    for (var a : c.literals) n += Term.symbolCount(a);
+    for (var a : c.literals) n += Term.treeSize(a);
     return n;
   }
 

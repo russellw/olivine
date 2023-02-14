@@ -1,13 +1,11 @@
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
-import java.util.AbstractCollection;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 
-abstract class Term extends AbstractCollection<Object> {
+abstract class Term {
   final Object[] args;
 
   static void walk(Consumer<Object> f, Object a) {
@@ -15,9 +13,9 @@ abstract class Term extends AbstractCollection<Object> {
     for (var b : args(a)) walk(f, b);
   }
 
-  static long symbolCount(Object a) {
+  static long treeSize(Object a) {
     long n = 1;
-    for (var b : args(a)) n += symbolCount(b);
+    for (var b : args(a)) n += treeSize(b);
     return n;
   }
 
@@ -112,21 +110,19 @@ abstract class Term extends AbstractCollection<Object> {
     throw new UnsupportedOperationException(toString());
   }
 
-  static boolean eq(Object a0, Object b0) {
-    if (a0 instanceof Term a && b0 instanceof Term b) {
-      if (a.getClass() != b.getClass()) return false;
-      if (a instanceof Call a1 && a1.fn != ((Call) b).fn) return false;
-      var n = a.size();
-      if (n != b.size()) return false;
-      for (var i = 0; i < n; i++) if (!eq(a.get(i), b.get(i))) return false;
-      return true;
-    }
-    return a0.equals(b0);
+  static boolean eq(Object a, Object b) {
+    if (!(symbol(a).equals(symbol(b)))) return false;
+    var av = args(a);
+    var bv = args(b);
+    if (av.length != bv.length) return false;
+    for (var i = 0; i < av.length; i++) if (!eq(av[i], bv[i])) return false;
+    return true;
   }
 
   static Object symbol(Object a0) {
     return switch (a0) {
       case Call a -> a.fn;
+      case Cast a -> a.type();
       case Term a -> a.getClass();
       default -> a0;
     };
@@ -157,33 +153,11 @@ abstract class Term extends AbstractCollection<Object> {
   public String toString() {
     var sb = new StringBuilder(getClass().getSimpleName());
     sb.append('(');
-    for (var i = 0; i < size(); i++) {
+    for (var i = 0; i < args.length; i++) {
       if (i > 0) sb.append(',');
-      sb.append(get(i));
+      sb.append(args[i]);
     }
     sb.append(')');
     return sb.toString();
-  }
-
-  public int size() {
-    return args.length;
-  }
-
-  Object get(int i) {
-    return args[i];
-  }
-
-  public final Iterator<Object> iterator() {
-    return new Iterator<>() {
-      private int i;
-
-      public boolean hasNext() {
-        return i < args.length;
-      }
-
-      public Object next() {
-        return args[i++];
-      }
-    };
   }
 }

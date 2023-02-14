@@ -55,12 +55,10 @@ final class Unification {
     if (!Term.symbol(a0).equals(Term.symbol(b0))) return false;
 
     // and subterms
-    if (a0 instanceof Term a) {
-      var av = a.args;
-      var bv = ((Term) b0).args;
-      if (av.length != bv.length) return false;
-      for (var i = 0; i < av.length; i++) if (!unify(av[i], bv[i], map)) return false;
-    }
+    var av = Term.args(a0);
+    var bv = Term.args(b0);
+    if (av.length != bv.length) return false;
+    for (var i = 0; i < av.length; i++) if (!unify(av[i], bv[i], map)) return false;
     return true;
   }
 
@@ -91,7 +89,7 @@ final class Unification {
         if (b1 != null) return occurs(a, b1, map);
       }
       case Term b -> {
-        for (var bi : b) if (occurs(a, bi, map)) return true;
+        for (var bi : b.args) if (occurs(a, bi, map)) return true;
       }
       default -> {}
     }
