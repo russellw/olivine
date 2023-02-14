@@ -1,7 +1,7 @@
 import java.util.List;
 import java.util.Map;
 
-public final class Dpll {
+final class Dpll {
   private long steps;
   private final boolean result;
 
@@ -36,7 +36,7 @@ public final class Dpll {
     result = sat(clauses);
   }
 
-  public static boolean sat(List<Clause> clauses, long steps) {
+  static boolean sat(List<Clause> clauses, long steps) {
     assert Clause.propositional(clauses);
     for (var c : clauses) assert !c.isTrue();
     return new Dpll(clauses, steps).result;

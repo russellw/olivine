@@ -18,7 +18,7 @@ final class Clause {
     return v;
   }
 
-  public Clause replace(Map<Object, Object> map) {
+  Clause replace(Map<Object, Object> map) {
     var negative = new ArrayList<>(negativeSize);
     for (var i = 0; i < negativeSize; i++) negative.add(Term.replace(map, literals[i]));
 

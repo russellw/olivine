@@ -741,7 +741,7 @@ final class TptpParser {
     }
   }
 
-  public static void parse(String file, InputStream stream, CNF cnf) throws IOException {
+  static void parse(String file, InputStream stream, CNF cnf) throws IOException {
     new TptpParser(file, stream, cnf, new HashMap<>(), new HashMap<>(), new HashMap<>(), null);
   }
 }

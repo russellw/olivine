@@ -1,6 +1,6 @@
 import java.util.*;
 
-public final class Superposition {
+final class Superposition {
   private final KnuthBendixOrder order;
   private PriorityQueue<Clause> passive =
       new PriorityQueue<>(Comparator.comparingLong(Superposition::volume));
@@ -399,7 +399,7 @@ public final class Superposition {
     result = true;
   }
 
-  public static boolean sat(List<Clause> clauses, long steps) {
+  static boolean sat(List<Clause> clauses, long steps) {
     return new Superposition(clauses, steps).result;
   }
 }
