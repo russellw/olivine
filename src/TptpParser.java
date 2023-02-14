@@ -741,11 +741,9 @@ final class TptpParser {
                 // Otherwise, the symbol will be simply used as the name of a type. No particular
                 // action is
                 // required at this point, so accept this and move on.
-              } else {
-                // TODO fmt
+              } else
                 // The symbol is the name of a global  with the specified type.
                 topLevelType().setRequired(fn(name));
-              }
 
               while (parens-- > 0) expect(')');
               break;
