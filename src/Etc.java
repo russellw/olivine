@@ -3,7 +3,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-@SuppressWarnings("unused")
 final class Etc {
   private static long startTime;
 
@@ -42,10 +41,10 @@ final class Etc {
   }
 
   @SuppressWarnings("DuplicateBranchesInSwitch")
-  static boolean constant(Object a0) {
-    return switch (a0) {
-      case Term a -> false;
-      case Variable a -> false;
+  static boolean constant(Object a) {
+    return switch (a) {
+      case Term ignored -> false;
+      case Variable ignored -> false;
       default -> true;
     };
   }
@@ -54,6 +53,7 @@ final class Etc {
     System.out.printf("%10.3f\n", (System.currentTimeMillis() - startTime) * 0.001);
   }
 
+  @SuppressWarnings("unused")
   static void dbg(Object a) {
     System.out.printf("%s: %s\n", Thread.currentThread().getStackTrace()[2], a);
   }

@@ -1,18 +1,18 @@
 import java.math.BigInteger;
 
 abstract class Type {
-  static Type of(Object a0) {
-    return switch (a0) {
+  static Type of(Object a) {
+    return switch (a) {
       case Boolean ignored -> BooleanType.instance;
       case BigInteger ignored -> IntegerType.instance;
       case Integer ignored -> IntType.instance;
       case BigRational ignored -> RationalType.instance;
       case Real ignored -> RealType.instance;
       case DistinctObject ignored -> IndividualType.instance;
-      case Variable a -> a.type;
-      case Fn a -> a.type();
-      case Term a -> a.type();
-      default -> throw new IllegalArgumentException(a0.toString());
+      case Variable a1 -> a1.type;
+      case Fn a1 -> a1.type();
+      case Term a1 -> a1.type();
+      default -> throw new IllegalArgumentException(a.toString());
     };
   }
 

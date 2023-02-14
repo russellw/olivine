@@ -360,10 +360,10 @@ public final class Superposition {
       // late enough that we know we are actually going to use this clause,
       // but early enough that we can do it just once
       for (var i = 0; i < g.literals.length; i++) {
-        var a0 = g.literals[i];
-        if (!(a0 instanceof Eq a)) continue;
-        var x = a.args[0];
-        var y = a.args[1];
+        var a = g.literals[i];
+        if (!(a instanceof Eq a1)) continue;
+        var x = a1.args[0];
+        var y = a1.args[1];
         if (order.compare(x, y) == PartialOrder.LT) g.literals[i] = new Eq(y, x);
       }
 

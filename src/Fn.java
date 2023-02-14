@@ -35,20 +35,20 @@ final class Fn {
     var block = blocks.get(0);
     var i = 0;
     for (; ; ) {
-      var a0 = block.get(i++);
-      switch (a0) {
-        case Return a -> {
+      var a = block.get(i++);
+      switch (a) {
+        case Return ignored -> {
           return Etc.get(map, a.args[0]);
         }
-        case Goto a -> {
-          block = a.target;
+        case Goto a1 -> {
+          block = a1.target;
           i = 0;
         }
-        case If a -> {
-          block = ((boolean) Etc.get(map, a.args[0])) ? a.yes : a.no;
+        case If a1 -> {
+          block = ((boolean) Etc.get(map, a1.args[0])) ? a1.yes : a1.no;
           i = 0;
         }
-        default -> map.put(a0, a0.eval(map));
+        default -> map.put(a, a.eval(map));
       }
     }
   }

@@ -235,9 +235,9 @@ final class CNF {
       }
       case Not a -> nnf(map, !pol, a.args[0]);
       case Variable a -> {
-        var a1 = map.get(a);
-        assert a1 != null;
-        yield a1;
+        var aval = map.get(a);
+        assert aval != null;
+        yield aval;
       }
       case All a -> nnf(pol ? all(map, a) : exists(map, a), pol, a.body);
       case Exists a -> nnf(pol ? exists(map, a) : all(map, a), pol, a.body);
