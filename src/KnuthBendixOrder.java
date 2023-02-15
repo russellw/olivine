@@ -14,12 +14,14 @@ final class KnuthBendixOrder {
     return map;
   }
 
-  @SuppressWarnings("DuplicateBranchesInSwitch")
   private int symbolWeight(Object a) {
     return switch (a) {
-      case Boolean ignored -> 1;
+      case Boolean a1 -> {
+        assert a1;
+        yield 2;
+      }
       case Variable ignored -> 1;
-      default -> weights.computeIfAbsent(Term.symbol(a), key -> weights.size() + 2);
+      default -> weights.computeIfAbsent(Term.symbol(a), key -> weights.size() + 3);
     };
   }
 
@@ -60,10 +62,6 @@ final class KnuthBendixOrder {
     var bsymbolWeight = symbolWeight(b);
     if (asymbolWeight < bsymbolWeight) return maybeLt ? PartialOrder.LT : PartialOrder.UNORDERED;
     if (asymbolWeight > bsymbolWeight) return maybeGt ? PartialOrder.GT : PartialOrder.UNORDERED;
-
-    // symbol weights are the same, so either the symbols are the same, or they
-    // are different variables. The latter case would already have been caught by the variable check
-    assert Term.symbol(a).equals(Term.symbol(b)) : String.format("%s != %s", a, b);
 
     // recur
     var av = Term.args(a);
