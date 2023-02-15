@@ -1,6 +1,7 @@
 import java.math.BigInteger;
 
 abstract class Type {
+  @SuppressWarnings("DuplicateBranchesInSwitch")
   static Type of(Object a) {
     return switch (a) {
       case Boolean ignored -> BooleanType.instance;
@@ -12,6 +13,7 @@ abstract class Type {
       case Variable a1 -> a1.type;
       case Fn a1 -> a1.type();
       case Term a1 -> a1.type();
+      case Quantifier ignored -> BooleanType.instance;
       default -> throw new IllegalArgumentException(a.toString());
     };
   }

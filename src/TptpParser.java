@@ -558,8 +558,7 @@ final class TptpParser {
     var k = tok;
     var v = new ArrayList<>();
     v.add(a);
-    do v.add(unary(bound));
-    while (eat(k));
+    while (eat(k)) v.add(unary(bound));
     return v.toArray();
   }
 
