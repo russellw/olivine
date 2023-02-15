@@ -18,6 +18,7 @@ class ProverTest {
   }
 
   private static final Pattern DIMACS_PATTERN = Pattern.compile(".* (SAT|UNSAT) .*");
+  private static final Pattern TPTP_PATTERN = Pattern.compile("\\s*Status\\s*:\\s*(\\w+)");
 
   private static final Option[] OPTIONS =
       new Option[] {
@@ -49,10 +50,18 @@ class ProverTest {
     return SZS.Unknown;
   }
 
+  private static SZS statusTptp(String file) throws IOException {
+    for (var s : Files.readAllLines(Path.of(file), StandardCharsets.UTF_8)) {
+      var matcher = TPTP_PATTERN.matcher(s);
+      if (matcher.matches()) return SZS.valueOf(matcher.group(1));
+    }
+    return SZS.Unknown;
+  }
+
   private static SZS status(String file) throws IOException {
     return switch (language(file)) {
       case DIMACS -> statusDimacs(file);
-      default -> throw new IllegalStateException(file);
+      case TPTP -> statusTptp(file);
     };
   }
 
@@ -88,17 +97,13 @@ class ProverTest {
     try {
       Option.parse(OPTIONS, args);
       for (var file : Option.positionalArgs) {
+        if (file.equalsIgnoreCase("tptp")) {
+          dir(Path.of(Etc.tptp()));
+          continue;
+        }
         var path = Path.of(file);
         if (Files.isDirectory(path)) {
-          Files.walkFileTree(
-              path,
-              new SimpleFileVisitor<>() {
-                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
-                    throws IOException {
-                  test(file.toString());
-                  return FileVisitResult.CONTINUE;
-                }
-              });
+          dir(path);
           continue;
         }
         if (file.endsWith(".lst")) {
@@ -112,5 +117,17 @@ class ProverTest {
       System.exit(1);
     }
     System.exit(0);
+  }
+
+  private static void dir(Path path) throws IOException {
+    Files.walkFileTree(
+        path,
+        new SimpleFileVisitor<>() {
+          public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
+              throws IOException {
+            test(file.toString());
+            return FileVisitResult.CONTINUE;
+          }
+        });
   }
 }

@@ -57,15 +57,12 @@ final class Prover {
     var cnf = new CNF();
     switch (language(file)) {
       case DIMACS -> DimacsParser.parse(file, stream, cnf);
-        // case TPTP -> TptpParser.parse(file, stream, cnf);
+      case TPTP -> TptpParser.parse(file, stream, cnf);
     }
     var clauses = cnf.clauses;
-    /*
     return Clause.propositional(clauses)
-            ? Dpll.sat(clauses, steps)
-            : Superposition.sat(clauses, steps);
-     */
-    return Dpll.sat(clauses, steps);
+        ? Dpll.sat(clauses, steps)
+        : Superposition.sat(clauses, steps);
   }
 
   static boolean solve(String file, long steps) throws IOException {

@@ -108,4 +108,10 @@ final class Etc {
   static boolean isLower(int c) {
     return 'a' <= c && c <= 'z';
   }
+
+  static String tptp() {
+    var s = System.getenv("TPTP");
+    if (s == null) throw new IllegalStateException("TPTP environment variable not set");
+    return s;
+  }
 }

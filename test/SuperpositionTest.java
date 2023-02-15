@@ -29,5 +29,8 @@ class SuperpositionTest {
 
     test(new Eqv(p, p), true);
     test(new Eqv(p, new Not(p)), false);
+
+    test(new And(p, q), true);
+    test(new Or(p, q), true);
   }
 }

@@ -40,12 +40,6 @@ final class TptpParser {
     return Etc.isAlnum(c) || c == '_';
   }
 
-  private static String tptp() {
-    var s = System.getenv("TPTP");
-    if (s == null) throw new IllegalStateException("TPTP environment variable not set");
-    return s;
-  }
-
   private ParseError err(String s) {
     return new ParseError(file, line, s);
   }
@@ -712,7 +706,7 @@ final class TptpParser {
           }
           case "thf" -> throw new Inappropriate();
           case "include" -> {
-            var file1 = Path.of(tptp(), name).toString();
+            var file1 = Path.of(Etc.tptp(), name).toString();
             var select1 = select;
             if (eat(',')) {
               if (tok == WORD && tokString.equals("all")) lex();
