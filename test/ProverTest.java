@@ -18,7 +18,7 @@ class ProverTest {
   }
 
   private static final Pattern DIMACS_PATTERN = Pattern.compile(".* (SAT|UNSAT) .*");
-  private static final Pattern TPTP_PATTERN = Pattern.compile("\\s*Status\\s*:\\s*(\\w+)");
+  private static final Pattern TPTP_PATTERN = Pattern.compile("%\\s*Status\\s*:\\s*(\\w+)");
 
   private static final Option[] OPTIONS =
       new Option[] {
@@ -73,6 +73,14 @@ class ProverTest {
     };
   }
 
+  private static SZS norm(SZS szs) {
+    return switch (szs) {
+      case Theorem, ContradictoryAxioms -> SZS.Unsatisfiable;
+      case CounterSatisfiable -> SZS.Satisfiable;
+      default -> szs;
+    };
+  }
+
   private static void test(String file) throws IOException {
     var lang = language(file);
     if (lang == null) return;
@@ -86,7 +94,7 @@ class ProverTest {
     try {
       var result = Prover.solve(file, Long.MAX_VALUE) ? SZS.Satisfiable : SZS.Unsatisfiable;
       System.out.printf(" %-19s", result);
-      if (result != expected) throw new IllegalStateException();
+      if (norm(result) != norm(expected)) throw new IllegalStateException();
     } catch (Fail ignored) {
       System.out.printf(" %-19s", "");
     }
