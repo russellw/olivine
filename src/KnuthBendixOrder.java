@@ -63,7 +63,7 @@ final class KnuthBendixOrder {
 
     // symbol weights are the same, so either the symbols are the same, or they
     // are different variables. The latter case would already have been caught by the variable check
-    assert Term.symbol(a).equals(Term.symbol(b));
+    assert Term.symbol(a).equals(Term.symbol(b)) : String.format("%s != %s", a, b);
 
     // recur
     var av = Term.args(a);

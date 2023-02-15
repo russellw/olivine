@@ -35,6 +35,6 @@ final class Variable {
   }
 
   public String toString() {
-    return String.format("%s@%x", type, hashCode());
+    return String.format("%s#%x", type, hashCode());
   }
 }
