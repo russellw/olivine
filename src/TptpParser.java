@@ -485,7 +485,7 @@ final class TptpParser {
             v.add(a);
           } while (eat(','));
           expect(')');
-          yield new Call(f, v);
+          yield new Call(f, v.toArray());
         }
         yield f;
       }
