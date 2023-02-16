@@ -15,12 +15,12 @@ class ASMTest1 implements Opcodes {
     MethodVisitor methodVisitor;
     AnnotationVisitor annotationVisitor0;
 
-    classWriter.visit(V18, ACC_SUPER, "Test", null, "java/lang/Object", null);
+    classWriter.visit(V18, ACC_PUBLIC | ACC_SUPER, "Test", null, "java/lang/Object", null);
 
     classWriter.visitSource("Test.java", null);
 
     {
-      methodVisitor = classWriter.visitMethod(0, "<init>", "()V", null, null);
+      methodVisitor = classWriter.visitMethod(ACC_PUBLIC, "<init>", "()V", null, null);
       methodVisitor.visitCode();
       Label label0 = new Label();
       methodVisitor.visitLabel(label0);
