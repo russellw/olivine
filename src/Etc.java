@@ -3,7 +3,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-final class Etc {
+public final class Etc {
   private static long startTime;
 
   static Object[] remove(Object[] v, int i) {
@@ -93,7 +93,7 @@ final class Etc {
     return '0' <= c && c <= '9';
   }
 
-  static boolean isUpper(int c) {
+  public static boolean isUpper(int c) {
     return 'A' <= c && c <= 'Z';
   }
 
