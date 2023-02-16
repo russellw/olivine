@@ -1,3 +1,4 @@
+import java.lang.reflect.InvocationTargetException;
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.FieldVisitor;
@@ -58,5 +59,17 @@ class ASMTest implements Opcodes {
     }
     classWriter.visitEnd();
     var bytes = classWriter.toByteArray();
+
+    ByteArrayClassLoader.map.put("Test", bytes);
+    var c = new ByteArrayClassLoader().findClass("Test");
+    try {
+      var x = c.getConstructor().newInstance();
+      assert c.getMethod("entry").invoke(x).equals(81);
+    } catch (NoSuchMethodException
+        | IllegalAccessException
+        | InvocationTargetException
+        | InstantiationException e) {
+      throw new RuntimeException(e);
+    }
   }
 }
