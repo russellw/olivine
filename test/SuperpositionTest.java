@@ -1,4 +1,4 @@
-class SuperpositionTest {
+public class SuperpositionTest {
   static void test(Object a, boolean expected) {
     var cnf = new CNF();
     cnf.add(a);

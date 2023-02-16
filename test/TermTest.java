@@ -1,7 +1,7 @@
 import java.math.BigInteger;
 import java.util.List;
 
-class TermTest {
+public class TermTest {
   static Object succ(Object a0) {
     return switch (a0) {
       case Integer a -> a + 1;

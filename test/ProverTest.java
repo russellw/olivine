@@ -6,7 +6,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.regex.Pattern;
 
-class ProverTest {
+public class ProverTest {
   private enum SZS {
     Theorem,
     Satisfiable,

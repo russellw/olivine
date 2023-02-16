@@ -1,6 +1,6 @@
 import java.math.BigInteger;
 
-class TypeTest {
+public class TypeTest {
   public static void main(String[] args) {
     assert Type.of(true) == BooleanType.instance;
     assert Type.of(BigInteger.ONE) == IntegerType.instance;

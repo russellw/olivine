@@ -1,6 +1,6 @@
 import java.math.BigInteger;
 
-class BigRationalTest {
+public class BigRationalTest {
   public static void main(String[] args) {
     assert BigRational.of("123").equals(new BigRational(BigInteger.valueOf(123), BigInteger.ONE));
     assert BigRational.of("+123").equals(new BigRational(BigInteger.valueOf(123), BigInteger.ONE));

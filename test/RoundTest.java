@@ -1,7 +1,7 @@
 import java.math.BigInteger;
 import java.util.HashMap;
 
-class RoundTest {
+public class RoundTest {
   static void test(Object a, Object r) {
     var b = new Round(a);
     assert b.eval(new HashMap<>()).equals(r);

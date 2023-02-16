@@ -1,6 +1,6 @@
 import java.util.List;
 
-class CNFTest {
+public class CNFTest {
   private static List<Clause> convert(Object a) {
     var cnf = new CNF();
     cnf.add(a);

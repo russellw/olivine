@@ -2,7 +2,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-class KnuthBendixOrderTest {
+public class KnuthBendixOrderTest {
   private static final int ITERATIONS = 10000;
   private static final List<Fn> fns = new ArrayList<>();
   private static final List<Fn> nullaryFns = new ArrayList<>();

@@ -1,6 +1,6 @@
 import java.util.HashSet;
 
-class GraphTest {
+public class GraphTest {
   static void idom() {
     // https://tanujkhattar.wordpress.com/2016/01/11/dominator-tree-of-a-directed-graph/
     var s = new HashSet<Character>();

@@ -4,7 +4,7 @@ import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
-class ASMTest implements Opcodes {
+public class ASMTest implements Opcodes {
   public static void main(String[] args) {
     ClassWriter classWriter = new ClassWriter(0);
     MethodVisitor methodVisitor;

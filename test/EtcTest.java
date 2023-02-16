@@ -2,7 +2,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 
-class EtcTest {
+public class EtcTest {
   public static void main(String[] args) {
     assert Etc.divEuclidean(BigInteger.valueOf(0), BigInteger.valueOf(1))
         .equals(BigInteger.valueOf(0));

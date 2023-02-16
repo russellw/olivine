@@ -1,7 +1,7 @@
 import java.math.BigInteger;
 import java.util.ArrayList;
 
-class FnTest {
+public class FnTest {
   public static void main(String[] args) {
     var f = new Fn(null, "f");
     f.initBlocks();

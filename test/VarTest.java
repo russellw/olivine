@@ -1,6 +1,6 @@
 import java.util.Set;
 
-class VarTest {
+public class VarTest {
   public static void main(String[] args) {
     var x = new Variable(IndividualType.instance);
     assert Variable.freeVariables(7).equals(Set.of());

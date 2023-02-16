@@ -1,7 +1,7 @@
 import java.util.HashMap;
 import java.util.Map;
 
-class UnificationTest {
+public class UnificationTest {
   public static void main(String[] args) {
     // https://en.wikipedia.org/wiki/Unification_(computer_science)#Examples_of_syntactic_unification_of_first-order_terms
     var a = new Fn(IndividualType.instance, "a");

@@ -1,6 +1,6 @@
 import java.util.*;
 
-class CdclTest {
+public class CdclTest {
   private record Assignment(Object atom, boolean value, Clause reason) {
     public String toString() {
       return atom.toString();

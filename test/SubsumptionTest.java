@@ -1,6 +1,6 @@
 import java.util.ArrayList;
 
-class SubsumptionTest {
+public class SubsumptionTest {
   @SuppressWarnings("AssertWithSideEffects")
   public static void main(String[] args) {
     var a = new Fn(IntegerType.instance, "a");
