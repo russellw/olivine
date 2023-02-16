@@ -1,6 +1,13 @@
+import java.util.Arrays;
+
 abstract class Quantifier {
   final Variable[] variables;
   final Object body;
+
+  @Override
+  public String toString() {
+    return getClass().getSimpleName() + Arrays.toString(variables) + body;
+  }
 
   Quantifier(Variable[] variables, Object body) {
     this.variables = variables;
