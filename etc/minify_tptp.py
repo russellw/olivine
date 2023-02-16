@@ -568,6 +568,19 @@ def simplify(x):
 assert simplify(("&", ("&", "a"))) == "a"
 
 
+def delete_range(v, x):
+    assert isinstance(x, tuple)
+    y = list(x)
+    if len(v) == 1:
+        del y[v[0][0] : v[0][1]]
+    else:
+        y[v[0]] = delete_range(v[1:], y[v[0]])
+    return tuple(y)
+
+
+assert delete_range([1, (1, 2)], ("&", ("&", "a", "b"), "c")) == ("&", ("&", "b"), "c")
+
+
 def delete(v, x):
     assert isinstance(x, tuple)
     y = list(x)
@@ -610,6 +623,9 @@ def remove_param(fn, i, x):
 
 def apply_shrink(s, x):
     print(s)
+    if s[0] == "delete_range":
+        v = s[1]
+        return simplify(delete_range(v, x))
     if s[0] == "delete":
         v = s[1]
         return simplify(delete(v, x))
@@ -625,6 +641,23 @@ def apply_shrink(s, x):
 
 
 shrinks = []
+
+
+def find_delete_ranges(v, x):
+    if isinstance(x, tuple):
+        if x[0] in ("&", "|") and len(x) >= 10:
+            i = 1
+            j = len(x) // 2
+            v1 = v + [(i, j)]
+            shrinks.append(("delete_range", v1))
+
+            i = len(x) // 2
+            j = len(x)
+            v1 = v + [(i, j)]
+            shrinks.append(("delete_range", v1))
+        for i in range(1, len(x)):
+            v1 = v + [i]
+            find_delete_ranges(v1, x[i])
 
 
 def find_deletes(v, x):
@@ -661,6 +694,7 @@ def find_remove_params(x):
 def find_shrinks(x):
     global shrinks
     shrinks = []
+    find_delete_ranges([], x)
     find_deletes([], x)
     find_subst_bools([], x)
     find_remove_params(x)

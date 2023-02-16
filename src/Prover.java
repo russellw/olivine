@@ -26,7 +26,7 @@ final class Prover {
                 .schedule(
                     new TimerTask() {
                       public void run() {
-                        System.exit(1);
+                        System.exit(0);
                       }
                     },
                     (long) (seconds * 1000));
