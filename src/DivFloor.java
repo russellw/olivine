@@ -1,6 +1,6 @@
 import java.math.BigInteger;
 
-final class DivFloor extends Term {
+public final class DivFloor extends Term {
   DivFloor(Object a, Object b) {
     super(a, b);
   }

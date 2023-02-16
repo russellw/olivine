@@ -1,7 +1,7 @@
 import java.util.*;
 import java.util.function.Consumer;
 
-final class Graph<T> {
+public final class Graph<T> {
   private final Map<T, Set<T>> arcs = new HashMap<>();
 
   public String toString() {

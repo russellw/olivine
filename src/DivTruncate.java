@@ -1,6 +1,6 @@
 import java.math.BigInteger;
 
-final class DivTruncate extends Term {
+public final class DivTruncate extends Term {
   DivTruncate(Object a, Object b) {
     super(a, b);
   }

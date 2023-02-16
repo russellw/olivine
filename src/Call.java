@@ -1,6 +1,6 @@
 import java.util.Map;
 
-final class Call extends Term {
+public final class Call extends Term {
   final Fn fn;
 
   @Override

@@ -1,4 +1,4 @@
-final class All extends Quantifier {
+public final class All extends Quantifier {
   All(Variable[] variables, Object body) {
     super(variables, body);
   }

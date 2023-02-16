@@ -1,6 +1,6 @@
 import java.util.*;
 
-final class Superposition {
+public final class Superposition {
   private final KnuthBendixOrder order;
   private PriorityQueue<Clause> passive =
       new PriorityQueue<>(Comparator.comparingLong(Superposition::volume));

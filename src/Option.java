@@ -4,7 +4,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 
-abstract class Option {
+public abstract class Option {
   private final String description;
   private final String argName;
   private final String[] names;

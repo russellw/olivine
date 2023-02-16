@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-final class DimacsParser {
+public final class DimacsParser {
   // Problem state
   private final Map<String, Fn> variables = new HashMap<>();
 

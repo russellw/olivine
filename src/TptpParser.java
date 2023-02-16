@@ -3,7 +3,7 @@ import java.math.BigInteger;
 import java.nio.file.Path;
 import java.util.*;
 
-final class TptpParser {
+public final class TptpParser {
   // Tokens
   private static final int DEFINED_WORD = -2;
   private static final int DISTINCT_OBJECT = -3;

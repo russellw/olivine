@@ -1,6 +1,6 @@
 import java.util.*;
 
-final class CNF {
+public final class CNF {
   private static final int MANY = 50;
   private final List<Object> defs = new ArrayList<>();
   private final List<Object> negative = new ArrayList<>();

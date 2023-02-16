@@ -1,3 +1,3 @@
 import java.io.IOException;
 
-final class Inappropriate extends IOException {}
+public final class Inappropriate extends IOException {}

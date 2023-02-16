@@ -1,1 +1,1 @@
-final class Fail extends RuntimeException {}
+public final class Fail extends RuntimeException {}

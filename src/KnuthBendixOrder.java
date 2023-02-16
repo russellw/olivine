@@ -1,7 +1,7 @@
 import java.util.HashMap;
 import java.util.Map;
 
-final class KnuthBendixOrder {
+public final class KnuthBendixOrder {
   private final Map<Object, Integer> weights = new HashMap<>();
 
   private static Map<Variable, Integer> variables(Object a) {

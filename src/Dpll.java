@@ -1,7 +1,7 @@
 import java.util.List;
 import java.util.Map;
 
-final class Dpll {
+public final class Dpll {
   private long steps;
   private final boolean result;
 

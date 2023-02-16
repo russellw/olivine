@@ -1,6 +1,6 @@
 import java.math.BigInteger;
 
-final class Ceil extends Term {
+public final class Ceil extends Term {
   Ceil(Object a) {
     super(a);
   }

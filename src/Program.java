@@ -1,1 +1,1 @@
-final class Program {}
+public final class Program {}

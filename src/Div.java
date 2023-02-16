@@ -1,4 +1,4 @@
-final class Div extends Term {
+public final class Div extends Term {
   Div(Object a, Object b) {
     super(a, b);
   }

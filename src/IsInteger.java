@@ -1,6 +1,6 @@
 import java.math.BigInteger;
 
-final class IsInteger extends Term {
+public final class IsInteger extends Term {
   IsInteger(Object a) {
     super(a);
   }

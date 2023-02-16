@@ -1,6 +1,6 @@
 import java.util.Arrays;
 
-abstract class Quantifier {
+public abstract class Quantifier {
   final Variable[] variables;
   final Object body;
 

@@ -1,6 +1,6 @@
 import java.math.BigInteger;
 
-abstract class Type {
+public abstract class Type {
   @SuppressWarnings("DuplicateBranchesInSwitch")
   static Type of(Object a) {
     return switch (a) {

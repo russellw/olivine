@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 
-abstract class Term {
+public abstract class Term {
   final Object[] args;
 
   static void walk(Consumer<Object> f, Object a) {

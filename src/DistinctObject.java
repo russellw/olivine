@@ -1,5 +1,5 @@
 @SuppressWarnings("ClassCanBeRecord")
-final class DistinctObject {
+public final class DistinctObject {
   final String name;
 
   public String toString() {

@@ -1,4 +1,4 @@
-final class IndividualType extends Type {
+public final class IndividualType extends Type {
   static IndividualType instance = new IndividualType();
 
   @Override

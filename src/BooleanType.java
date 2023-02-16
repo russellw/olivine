@@ -1,3 +1,3 @@
-final class BooleanType extends Type {
+public final class BooleanType extends Type {
   static BooleanType instance = new BooleanType();
 }

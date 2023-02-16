@@ -1,6 +1,6 @@
 import java.util.*;
 
-final class Subsumption {
+public final class Subsumption {
   // Time limit
   private int steps;
 

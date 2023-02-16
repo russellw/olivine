@@ -1,6 +1,6 @@
 import java.util.Map;
 
-final class Unification {
+public final class Unification {
   static boolean match(Object a, Object b, Map<Variable, Object> map) {
     // equations would need to be matched both ways, which is handled separately in calling code
     assert !(a instanceof Eq);

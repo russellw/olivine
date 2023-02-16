@@ -1,6 +1,6 @@
 import java.math.BigInteger;
 
-final class Sub extends Term {
+public final class Sub extends Term {
   Sub(Object a, Object b) {
     super(a, b);
   }

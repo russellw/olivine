@@ -1,4 +1,4 @@
-final class TypeError extends RuntimeException {
+public final class TypeError extends RuntimeException {
   TypeError(String message) {
     super(message);
   }

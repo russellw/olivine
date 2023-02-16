@@ -2,7 +2,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Objects;
 
-final class BigRational extends Number implements Comparable<BigRational> {
+public final class BigRational extends Number implements Comparable<BigRational> {
   static final BigRational ZERO = new BigRational(BigInteger.ZERO);
   static final BigRational ONE = new BigRational(BigInteger.ONE);
   final BigInteger num, den;

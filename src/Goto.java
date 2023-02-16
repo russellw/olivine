@@ -1,6 +1,6 @@
 import java.util.List;
 
-final class Goto extends Term {
+public final class Goto extends Term {
   final List<Term> target;
 
   Goto(List<Term> target) {

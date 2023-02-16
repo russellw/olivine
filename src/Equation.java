@@ -1,4 +1,4 @@
-final class Equation {
+public final class Equation {
   // TODO reduce to Eq?
   final Object left, right;
 

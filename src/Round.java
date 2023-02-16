@@ -1,6 +1,6 @@
 import java.math.BigInteger;
 
-final class Round extends Term {
+public final class Round extends Term {
   Round(Object a) {
     super(a);
   }

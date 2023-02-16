@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
 
-final class Prover {
+public final class Prover {
   private static Language specified;
 
   private static final Option[] OPTIONS =

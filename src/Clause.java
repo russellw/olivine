@@ -1,6 +1,6 @@
 import java.util.*;
 
-final class Clause {
+public final class Clause {
   final Object[] literals;
   final int negativeSize;
 

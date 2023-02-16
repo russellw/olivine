@@ -1,6 +1,6 @@
 // AUTO GENERATED CODE - DO NOT MODIFY
 @SuppressWarnings("DuplicateBranchesInSwitch")
-final class EquationComparison {
+public final class EquationComparison {
   static PartialOrder compare(KnuthBendixOrder order, Equation a, Equation b) {
     switch (order.compare(a.left, a.right)) {
       case EQ -> {

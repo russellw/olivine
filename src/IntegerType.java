@@ -1,3 +1,3 @@
-final class IntegerType extends Type {
+public final class IntegerType extends Type {
   static IntegerType instance = new IntegerType();
 }

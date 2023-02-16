@@ -1,6 +1,6 @@
 import java.math.BigInteger;
 
-final class Truncate extends Term {
+public final class Truncate extends Term {
   Truncate(Object a) {
     super(a);
   }

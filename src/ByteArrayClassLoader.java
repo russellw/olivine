@@ -1,7 +1,7 @@
 import java.util.HashMap;
 import java.util.Map;
 
-final class ByteArrayClassLoader extends ClassLoader {
+public final class ByteArrayClassLoader extends ClassLoader {
   static final Map<String, byte[]> map = new HashMap<>();
 
   public Class<?> findClass(String name) {

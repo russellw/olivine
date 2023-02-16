@@ -4,7 +4,7 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 @SuppressWarnings("ClassCanBeRecord")
-final class Variable {
+public final class Variable {
   final Type type;
 
   Variable(Type type) {

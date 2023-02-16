@@ -1,7 +1,7 @@
 import java.math.BigInteger;
 import java.util.Map;
 
-final class Cast extends Term {
+public final class Cast extends Term {
   private final Type type;
 
   Object eval(Map<Object, Object> map) {

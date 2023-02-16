@@ -2,7 +2,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-final class Fn {
+public final class Fn {
   Type rtype;
   String name;
   Variable[] params;

@@ -1,4 +1,4 @@
-final class OpaqueType extends Type {
+public final class OpaqueType extends Type {
   final String name;
 
   @Override

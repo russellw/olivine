@@ -1,6 +1,6 @@
 import java.math.BigInteger;
 
-final class DivEuclidean extends Term {
+public final class DivEuclidean extends Term {
   DivEuclidean(Object a, Object b) {
     super(a, b);
   }

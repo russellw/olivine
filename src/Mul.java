@@ -1,6 +1,6 @@
 import java.math.BigInteger;
 
-final class Mul extends Term {
+public final class Mul extends Term {
   Mul(Object a, Object b) {
     super(a, b);
   }

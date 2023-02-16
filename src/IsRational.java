@@ -1,6 +1,6 @@
 import java.math.BigInteger;
 
-final class IsRational extends Term {
+public final class IsRational extends Term {
   IsRational(Object a) {
     super(a);
   }
