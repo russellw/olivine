@@ -15,8 +15,9 @@ if args.verbose:
 
 here = os.path.dirname(os.path.realpath(__file__))
 projectDir = os.path.join(here, "..")
+classpath = ".;" + os.path.join(projectDir, "lib", "asm-9.4.jar")
 
-compiler = ["javac", "-d", ".", "--enable-preview", "-source", "18"]
+compiler = ["javac", "-cp", classpath, "-d", ".", "--enable-preview", "-source", "18"]
 subprocess.check_call((compiler + [os.path.join(projectDir, "src", "*.java")]))
 subprocess.check_call((compiler + [os.path.join(projectDir, "test", "*.java")]))
 
@@ -25,7 +26,7 @@ def do(file):
     if verbose >= 1:
         print(file)
     subprocess.check_call(
-        ("java", "-ea", "--enable-preview", os.path.splitext(file)[0])
+        ("java", "-cp", classpath, "-ea", "--enable-preview", os.path.splitext(file)[0])
     )
 
 
