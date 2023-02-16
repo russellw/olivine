@@ -57,5 +57,6 @@ class ASMTest implements Opcodes {
       methodVisitor.visitEnd();
     }
     classWriter.visitEnd();
+    var bytes = classWriter.toByteArray();
   }
 }
