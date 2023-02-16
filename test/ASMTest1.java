@@ -1,19 +1,13 @@
 import java.lang.reflect.InvocationTargetException;
-import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.RecordComponentVisitor;
 
 class ASMTest1 implements Opcodes {
   public static void main(String[] args) {
     ClassWriter classWriter = new ClassWriter(0);
-    FieldVisitor fieldVisitor;
-    RecordComponentVisitor recordComponentVisitor;
     MethodVisitor methodVisitor;
-    AnnotationVisitor annotationVisitor0;
 
     classWriter.visit(V18, ACC_PUBLIC | ACC_SUPER, "Test", null, "java/lang/Object", null);
 
