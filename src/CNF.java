@@ -90,7 +90,7 @@ final class CNF {
     var params = new Variable[args.size()];
     var i = 0;
     for (var a : args) params[i++] = new Variable(Type.of(a));
-    return new Call(new Fn(rtype, null, params), args);
+    return new Call(new Fn(rtype, null, params), args.toArray());
   }
 
   // Rename formulas to avoid exponential expansion. It's tricky to do this while in the middle of
