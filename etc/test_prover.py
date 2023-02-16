@@ -153,10 +153,10 @@ for filename in problems:
         stdout, stderr = p.communicate(timeout=timeout)
         stdout = str(stdout, "utf-8")
         stderr = str(stderr, "utf-8")
-        stdout = stdout.split("\n")
+        stdouts = stdout.split("\n")
 
         result = "-"
-        for x in stdout:
+        for x in stdouts:
             x = x.strip()
             if x in ("sat", "unsat"):
                 result = x
@@ -174,10 +174,10 @@ for filename in problems:
         ):
             raise Exception(result)
 
-        if args.proof and hasProof(stdout):
+        if args.proof and hasProof(stdouts):
             print("*", end="")
             with open(pname + "-proof.p", "w") as f:
-                for x in stdout:
+                for x in stdouts:
                     f.write(x + "\n")
 
         if meaning(result):
@@ -195,5 +195,6 @@ for filename in problems:
         print("Timeout", end="\t")
     print("%.3f" % (time.time() - start))
     if stderr:
+        print(stdout, end="")
         print(stderr, end="")
 print("%d/%d" % (solved, attempted))
