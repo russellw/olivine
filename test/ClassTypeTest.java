@@ -6,16 +6,18 @@ public class ClassTypeTest {
   public static void main(String[] args) {
     // TODO
     System.exit(0);
-    var t = new ClassType();
+    var classType = new ClassType();
 
-    var x = new Variable(t);
+    var x = new Variable(classType);
     var f = new Fn(VoidType.instance, "<init>", x);
+    f.access = ACC_PUBLIC;
     f.initBlocks();
     f.lastBlock().add(new Call(INVOKESPECIAL, Fn.OBJECT_CTOR, x));
-    t.methods.add(f);
+    f.lastBlock().add(new ReturnVoid());
+    classType.methods.add(f);
 
-    t.write();
-    var c = new ByteArrayClassLoader().findClass(t.name());
+    classType.write();
+    var c = new ByteArrayClassLoader().findClass(classType.name());
     try {
       c.getDeclaredConstructor().newInstance();
     } catch (NoSuchMethodException

@@ -1,3 +1,5 @@
+import static org.objectweb.asm.Opcodes.*;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -7,8 +9,7 @@ public final class Fn {
   static final Fn OBJECT_CTOR =
       new Fn(VoidType.instance, "<init>", new Variable(ObjectType.instance));
 
-  // TODO or int flags?
-  boolean isInstance;
+  int access = ACC_PUBLIC | ACC_STATIC;
 
   Type rtype;
   String name;
@@ -30,7 +31,10 @@ public final class Fn {
     return blocks.get(blocks.size() - 1);
   }
 
-  void write(ClassType classType, ClassWriter classWriter) {}
+  void write(ClassType classType, ClassWriter classWriter) {
+    var methodVisitor = classWriter.visitMethod(access, name, "()V", null, null);
+    methodVisitor.visitCode();
+  }
 
   public String toString() {
     if (name != null) return name;
@@ -51,6 +55,9 @@ public final class Fn {
     for (; ; ) {
       var a = block.get(i++);
       switch (a) {
+        case ReturnVoid ignored -> {
+          return null;
+        }
         case Return ignored -> {
           return Etc.get(map, a.args[0]);
         }
