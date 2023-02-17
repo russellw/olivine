@@ -2,7 +2,9 @@ import argparse
 import os
 import re
 import subprocess
+import tempfile
 import time
+
 
 parser = argparse.ArgumentParser(description="Run test cases")
 parser.add_argument("-v", "--verbose", action="count", help="increase output verbosity")
@@ -15,11 +17,10 @@ if args.verbose:
 
 here = os.path.dirname(os.path.realpath(__file__))
 projectDir = os.path.join(here, "..")
-classpath = ".;" + os.path.join(projectDir, "lib", "asm-9.4.jar")
 
-compiler = ["javac", "-cp", classpath, "-d", ".", "--enable-preview", "-source", "18"]
-subprocess.check_call((compiler + [os.path.join(projectDir, "src", "*.java")]))
-subprocess.check_call((compiler + [os.path.join(projectDir, "test", "*.java")]))
+classpath = [tempfile.gettempdir()]
+classpath.append(os.path.join(projectDir, "lib", "asm-9.4.jar"))
+classpath = ";".join(classpath)
 
 
 def do(file):
