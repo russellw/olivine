@@ -369,7 +369,7 @@ public final class TptpParser {
     var s = tokString;
     lex();
     return switch (k) {
-      case '!', '?', '[' -> throw new Inappropriate();
+      case '!', '?', '[', '(' -> throw new Inappropriate();
       case DEFINED_WORD -> switch (s) {
         case "ceiling" -> new Ceil(arg(bound));
         case "difference" -> {
