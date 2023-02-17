@@ -19,7 +19,7 @@ public final class ClassType extends Type {
   }
 
   void write() {
-    var classWriter = new ClassWriter(0);
+    var classWriter = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
     classWriter.visit(VERSION, ACC_PUBLIC | ACC_SUPER, name(), null, "java/lang/Object", null);
     for (var f : methods) f.write(this, classWriter);
     ByteArrayClassLoader.map.put(name, classWriter.toByteArray());

@@ -18,6 +18,12 @@ public abstract class Type {
     };
   }
 
+  final String descriptor() {
+    var s = toString();
+    if (s.length() == 1) return s;
+    return 'L' + s + ';';
+  }
+
   final void setDefault(Object a) {
     switch (a) {
       case Fn a1 -> {

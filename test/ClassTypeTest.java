@@ -4,8 +4,6 @@ import java.lang.reflect.InvocationTargetException;
 
 public class ClassTypeTest {
   public static void main(String[] args) {
-    // TODO
-    System.exit(0);
     var classType = new ClassType();
 
     var x = new Variable(classType);

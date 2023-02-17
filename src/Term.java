@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
+import org.objectweb.asm.MethodVisitor;
 
 public abstract class Term {
   final Object[] args;
@@ -75,6 +76,10 @@ public abstract class Term {
   static Object[] args(Object a) {
     if (a instanceof Term a1) return a1.args;
     return new Object[0];
+  }
+
+  void write(MethodVisitor methodVisitor) {
+    throw new UnsupportedOperationException(toString());
   }
 
   Object eval(Map<Object, Object> map) {

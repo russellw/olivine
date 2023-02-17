@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.Label;
 
 public final class Fn {
   static final Fn OBJECT_CTOR =
@@ -22,6 +23,16 @@ public final class Fn {
     this.params = params;
   }
 
+  String descriptor() {
+    var sb = new StringBuilder("(");
+    var i = 0;
+    if ((access & ACC_STATIC) == 0) i++;
+    for (; i < params.length; i++) sb.append(params[i].type.descriptor());
+    sb.append(')');
+    sb.append(rtype);
+    return sb.toString();
+  }
+
   Type type() {
     // TODO is this method needed?
     return rtype;
@@ -32,8 +43,19 @@ public final class Fn {
   }
 
   void write(ClassType classType, ClassWriter classWriter) {
-    var methodVisitor = classWriter.visitMethod(access, name, "()V", null, null);
+    var methodVisitor = classWriter.visitMethod(access, name, descriptor(), null, null);
     methodVisitor.visitCode();
+
+    var labels = new HashMap<List<Term>, Label>();
+    for (var block : blocks) labels.put(block, new Label());
+
+    for (var block : blocks) {
+      methodVisitor.visitLabel(labels.get(block));
+      for (var a : block) a.write(methodVisitor);
+    }
+
+    methodVisitor.visitMaxs(0, 0);
+    methodVisitor.visitEnd();
   }
 
   public String toString() {

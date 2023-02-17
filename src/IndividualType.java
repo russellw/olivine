@@ -3,6 +3,6 @@ public final class IndividualType extends Type {
 
   @Override
   public String toString() {
-    return "$i";
+    return "i";
   }
 }
