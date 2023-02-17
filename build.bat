@@ -1,2 +1,2 @@
-del bin\*.class
-javac -d bin --enable-preview -source 18 C:\olivine\src\*.java
+del %tmp%\*.class
+javac -cp %~dp0\lib\asm-9.4.jar -d %tmp% --enable-preview -source 18 %~dp0\src\*.java
