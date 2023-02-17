@@ -1,11 +1,14 @@
+import static org.objectweb.asm.Opcodes.*;
+
 import java.util.Map;
 
 public final class Call extends Term {
+  final int opcode;
   final Fn fn;
 
   @Override
   Term remake(Object[] v) {
-    return new Call(fn, v);
+    return new Call(opcode, fn, v);
   }
 
   Type type() {
@@ -31,6 +34,13 @@ public final class Call extends Term {
 
   Call(Fn fn, Object... args) {
     super(args);
+    opcode = INVOKESTATIC;
+    this.fn = fn;
+  }
+
+  Call(int opcode, Fn fn, Object... args) {
+    super(args);
+    this.opcode = opcode;
     this.fn = fn;
   }
 }

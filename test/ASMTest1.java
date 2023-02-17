@@ -9,7 +9,8 @@ public class ASMTest1 implements Opcodes {
     ClassWriter classWriter = new ClassWriter(0);
     MethodVisitor methodVisitor;
 
-    classWriter.visit(V18, ACC_PUBLIC | ACC_SUPER, "Test", null, "java/lang/Object", null);
+    classWriter.visit(
+        ClassType.VERSION, ACC_PUBLIC | ACC_SUPER, "Test", null, "java/lang/Object", null);
 
     classWriter.visitSource("Test.java", null);
 

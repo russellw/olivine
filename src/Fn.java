@@ -1,8 +1,15 @@
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import org.objectweb.asm.ClassWriter;
 
 public final class Fn {
+  static final Fn OBJECT_CTOR =
+      new Fn(VoidType.instance, "<init>", new Variable(ObjectType.instance));
+
+  // TODO or int flags?
+  boolean isInstance;
+
   Type rtype;
   String name;
   Variable[] params;
@@ -18,6 +25,12 @@ public final class Fn {
     // TODO is this method needed?
     return rtype;
   }
+
+  List<Term> lastBlock() {
+    return blocks.get(blocks.size() - 1);
+  }
+
+  void write(ClassType classType, ClassWriter classWriter) {}
 
   public String toString() {
     if (name != null) return name;
