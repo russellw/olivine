@@ -11,6 +11,12 @@ public final class Call extends Term {
     return new Call(opcode, fn, v);
   }
 
+  Object simplify() {
+    var v = new Object[args.length];
+    for (var i = 0; i < v.length; i++) v[i] = simplify(args[i]);
+    return remake(v);
+  }
+
   Type type() {
     return fn.rtype;
   }

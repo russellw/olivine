@@ -138,8 +138,19 @@ public abstract class Term {
     return f.apply(a);
   }
 
+  Object simplify() {
+    // recur
+    var v = new Object[args.length];
+    for (var i = 0; i < v.length; i++) v[i] = simplify(args[i]);
+    var a = remake(v);
+
+    // if arguments are constant, evaluate
+    for (var b : v) if (!Etc.constant(b)) return a;
+    return a.eval(null);
+  }
+
   static Object simplify(Object a) {
-    // TODO
+    if (a instanceof Term a1) return a1.simplify();
     return a;
   }
 

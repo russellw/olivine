@@ -44,6 +44,7 @@ public final class Etc {
   static boolean constant(Object a) {
     return switch (a) {
       case Term ignored -> false;
+      case Fn ignored -> false;
       case Variable ignored -> false;
       default -> true;
     };
