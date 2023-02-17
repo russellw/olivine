@@ -519,7 +519,12 @@ public final class TptpParser {
       if (tok != VAR) throw err("expected variable");
       var name = tokString;
       lex();
-      var x = new Variable(eat(':') ? atomicType() : IndividualType.instance);
+      Type type = IndividualType.instance;
+      if (eat(':')) {
+        type = atomicType();
+        if (type == BooleanType.instance) throw new Inappropriate();
+      }
+      var x = new Variable(type);
       v.add(x);
       bound.put(name, x);
     } while (eat(','));
