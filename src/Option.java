@@ -32,7 +32,7 @@ public abstract class Option {
 
     // calculate width of the first column
     // so we know how much to indent the second
-    var width = 0;
+    var width = 5;
     for (var option : options) {
       var n = 1 + option.names[0].length();
       if (option.argName != null) {
