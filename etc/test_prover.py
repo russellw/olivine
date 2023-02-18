@@ -91,12 +91,12 @@ if problems.casefold() == "tptp".casefold():
                 problems.append(os.path.join(root, filename))
 elif re.match(r"[a-zA-Z][a-zA-Z][a-zA-Z]\d\d\d[\+\-_]\d.*", problems):
     tptp = os.getenv("TPTP")
-    problems = problems.upper()
-    domain = problems[:3]
-    if "." not in problems:
-        problems += ".p"
-    problems = tptp + "/Problems/" + domain + "/" + problems
-    problems = [problems]
+    p = problems.upper()
+    domain = p[:3]
+    if "." not in p or re.match(r".*\.\d\d\d$", p):
+        p += ".p"
+    p = tptp + "/Problems/" + domain + "/" + p
+    problems = [p]
 elif re.match(r"[a-zA-Z][a-zA-Z][a-zA-Z]", problems):
     tptp = os.getenv("TPTP")
     domain = problems.upper()

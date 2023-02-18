@@ -316,14 +316,17 @@ public final class TptpParser {
 
   private Type topLevelType() throws IOException {
     if (eat('(')) {
-      do atomicType();
+      do if (atomicType() == BooleanType.instance) throw new Inappropriate();
       while (eat('*'));
       expect(')');
       expect('>');
       return atomicType();
     }
     var type = atomicType();
-    if (eat('>')) return atomicType();
+    if (eat('>')) {
+      if (type == BooleanType.instance) throw new Inappropriate();
+      return atomicType();
+    }
     return type;
   }
 
