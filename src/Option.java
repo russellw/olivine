@@ -45,11 +45,11 @@ public abstract class Option {
     // print the list of options and exit
     System.out.print("@file");
     for (var i = 5; i < width; i++) System.out.print(' ');
-    System.out.println("read args from file");
+    System.out.print("read args from file\n");
 
     System.out.print('-');
     for (var i = 1; i < width; i++) System.out.print(' ');
-    System.out.println("read from stdin");
+    System.out.print("read from stdin\n");
 
     for (var option : options) {
       var n = 1 + option.names[0].length();
@@ -59,7 +59,8 @@ public abstract class Option {
         System.out.print(' ' + option.argName);
       }
       for (var i = n; i < width; i++) System.out.print(' ');
-      System.out.println(option.description);
+      System.out.print(option.description);
+      System.out.print('\n');
     }
     System.exit(0);
   }
@@ -162,7 +163,7 @@ public abstract class Option {
     System.out.print("Olivine version 0");
     var path = System.getProperty("java.class.path");
     if (!(".".equals(path))) System.out.print(", " + path);
-    System.out.println();
+    System.out.print('\n');
 
     System.out.printf(
         "%s, %s, %s\n",

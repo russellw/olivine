@@ -37,7 +37,7 @@ public final class Prover {
   private static Language language(String file) {
     if (specified != null) return specified;
     if (file == null) {
-      System.err.println("Language not specified");
+      System.err.print("Language not specified\n");
       System.exit(1);
     }
     switch (Etc.ext(file)) {
@@ -48,7 +48,7 @@ public final class Prover {
         return Language.TPTP;
       }
     }
-    System.err.println(file + ": language not specified");
+    System.err.print(file + ": language not specified\n");
     System.exit(1);
     throw new IllegalStateException();
   }
@@ -82,11 +82,12 @@ public final class Prover {
 
       // exactly one input source
       if (Option.positionalArgs.size() + (Option.readStdin ? 1 : 0) != 1) {
-        System.err.println("Expected one input source");
+        System.err.print("Expected one input source\n");
         System.exit(1);
       }
       var file = Option.readStdin ? null : Option.positionalArgs.get(0);
-      System.out.println(solve(file, Long.MAX_VALUE) ? "sat" : "unsat");
+      System.out.print(solve(file, Long.MAX_VALUE) ? "sat" : "unsat");
+      System.out.print('\n');
     } catch (Fail ignored) {
       System.exit(0);
     } catch (Throwable e) {
