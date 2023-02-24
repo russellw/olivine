@@ -6,7 +6,6 @@ import java.util.*;
 
 public final class Prover {
   private static Language specified;
-
   private static final Option[] OPTIONS =
       new Option[] {
         new Option("input language TPTP", null, "tptp") {
@@ -73,6 +72,7 @@ public final class Prover {
   }
 
   public static void main(String[] args) throws IOException {
+    // TODO SYN000-3 is reporting sat
     try {
       Option.parse(OPTIONS, args);
 
