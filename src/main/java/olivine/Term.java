@@ -7,7 +7,7 @@ import java.util.Objects;
 public abstract class Term extends AbstractList<Term> {
   static final Term NULL = new Null();
 
-  static Term of(Type type, long value) {
+  static Term intConstant(Type type, long value) {
     return new IntConstant(type, BigInteger.valueOf(value));
   }
 
