@@ -20,4 +20,5 @@ public enum Tag {
   AND,
   OR,
   XOR,
+  NULL,
 }
