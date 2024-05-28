@@ -12,6 +12,11 @@ class TermTest {
   }
 
   @Test
+  void identity() {
+    assertNotEquals(Term.NULL, Term.intConstant(Type.I64, 1));
+  }
+
+  @Test
   void intConstant() {
     var a = Term.intConstant(Type.I32, 123);
     assertEquals("123", a.toString());
