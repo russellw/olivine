@@ -27,6 +27,10 @@ public abstract class Term implements Iterable<Term> {
     return new FNeg(this);
   }
 
+  Term add(Term b) {
+    return new Add(this, b);
+  }
+
   public int size() {
     return 0;
   }
@@ -197,9 +201,7 @@ public abstract class Term implements Iterable<Term> {
 
       @Override
       public Term next() {
-        if (position == 1) throw new NoSuchElementException();
-        position = 1;
-        return term.arg;
+        return term.get(position++);
       }
     }
   }
@@ -234,10 +236,50 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      BinaryTerm terms = (BinaryTerm) o;
+      return Objects.equals(arg0, terms.arg0) && Objects.equals(arg1, terms.arg1);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(arg0, arg1);
+    }
+
+    @Override
     public Term get(int index) {
-      if (!(0 <= index && index < 2))
-        throw new IndexOutOfBoundsException(String.format("%s, %s", this, index));
-      return index == 0 ? arg0 : arg1;
+      return switch (index) {
+        case 0 -> arg0;
+        case 1 -> arg1;
+        default -> throw new IndexOutOfBoundsException(String.format("%s, %s", this, index));
+      };
+    }
+
+    @Override
+    public Iterator<Term> iterator() {
+      return new BinaryIterator(this);
+    }
+
+    private static final class BinaryIterator implements Iterator<Term> {
+      private final BinaryTerm term;
+      private int position;
+
+      public BinaryIterator(BinaryTerm term) {
+        this.term = term;
+        this.position = 0;
+      }
+
+      @Override
+      public boolean hasNext() {
+        return position < 2;
+      }
+
+      @Override
+      public Term next() {
+        return term.get(position++);
+      }
     }
   }
 

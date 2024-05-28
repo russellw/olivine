@@ -52,4 +52,20 @@ class TermTest {
   void type() {
     assertEquals(Type.PTR, Term.NULL.type());
   }
+
+  @Test
+  void add() {
+    var one = Term.intConstant(Type.I128, 1);
+    var two = Term.intConstant(Type.I128, 2);
+    var a = one.add(two);
+    assertEquals(one, a.get(0));
+    assertEquals(two, a.get(1));
+    assertEquals(a, one.add(two));
+    assertNotEquals(a, one.add(one));
+    assertEquals(Type.I128, a.type());
+
+    Term r = null;
+    for (var x : a) r = x;
+    assertEquals(two, r);
+  }
 }
