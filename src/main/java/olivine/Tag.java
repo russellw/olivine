@@ -21,6 +21,6 @@ public enum Tag {
   OR,
   XOR,
   NULL,
-  INTEGER,
+  INT,
   FLOAT,
 }

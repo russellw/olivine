@@ -7,8 +7,8 @@ import java.util.Objects;
 public abstract class Term extends AbstractList<Term> {
   static final Term NULL = new Null();
 
-  static Term of(long value) {
-    return new IntegerConstant(BigInteger.valueOf(value));
+  static Term of(Type type, long value) {
+    return new IntConstant(type, BigInteger.valueOf(value));
   }
 
   static Term floatConstant(Type type, String value) {
@@ -45,11 +45,18 @@ public abstract class Term extends AbstractList<Term> {
     }
   }
 
-  private static final class IntegerConstant extends Term {
+  private static final class IntConstant extends Term {
+    private final Type type;
     private final BigInteger value;
 
-    IntegerConstant(BigInteger value) {
+    private IntConstant(Type type, BigInteger value) {
+      this.type = type;
       this.value = value;
+    }
+
+    @Override
+    Type type() {
+      return type;
     }
 
     @Override
@@ -61,7 +68,7 @@ public abstract class Term extends AbstractList<Term> {
     public boolean equals(Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
-      IntegerConstant that = (IntegerConstant) o;
+      IntConstant that = (IntConstant) o;
       return Objects.equals(value, that.value);
     }
 
@@ -72,7 +79,7 @@ public abstract class Term extends AbstractList<Term> {
 
     @Override
     Tag tag() {
-      return Tag.INTEGER;
+      return Tag.INT;
     }
   }
 
@@ -96,12 +103,12 @@ public abstract class Term extends AbstractList<Term> {
       if (o == null || getClass() != o.getClass()) return false;
       if (!super.equals(o)) return false;
       FloatConstant terms = (FloatConstant) o;
-      return Objects.equals(type, terms.type) && Objects.equals(value, terms.value);
+      return Objects.equals(value, terms.value);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(super.hashCode(), type, value);
+      return Objects.hash(super.hashCode(), value);
     }
 
     @Override

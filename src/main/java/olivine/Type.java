@@ -121,6 +121,112 @@ public abstract class Type {
           return "ppc_fp128";
         }
       };
+  static final Type BOOL =
+      new Type() {
+        @Override
+        Kind kind() {
+          return Kind.INT;
+        }
+
+        @Override
+        int bits() {
+          return 1;
+        }
+
+        @Override
+        public String toString() {
+          return "i1";
+        }
+      };
+  static final Type I8 =
+      new Type() {
+        @Override
+        Kind kind() {
+          return Kind.INT;
+        }
+
+        @Override
+        int bits() {
+          return 8;
+        }
+
+        @Override
+        public String toString() {
+          return "i8";
+        }
+      };
+  static final Type I16 =
+      new Type() {
+        @Override
+        Kind kind() {
+          return Kind.INT;
+        }
+
+        @Override
+        int bits() {
+          return 16;
+        }
+
+        @Override
+        public String toString() {
+          return "i16";
+        }
+      };
+  static final Type I32 =
+      new Type() {
+        @Override
+        Kind kind() {
+          return Kind.INT;
+        }
+
+        @Override
+        int bits() {
+          return 32;
+        }
+
+        @Override
+        public String toString() {
+          return "i32";
+        }
+      };
+  static final Type I64 =
+      new Type() {
+        @Override
+        Kind kind() {
+          return Kind.INT;
+        }
+
+        @Override
+        int bits() {
+          return 64;
+        }
+
+        @Override
+        public String toString() {
+          return "i64";
+        }
+      };
+  static final Type I128 =
+      new Type() {
+        @Override
+        Kind kind() {
+          return Kind.INT;
+        }
+
+        @Override
+        int bits() {
+          return 128;
+        }
+
+        @Override
+        public String toString() {
+          return "i128";
+        }
+      };
+
+  int bits() {
+    throw new UnsupportedOperationException(toString());
+  }
 
   abstract Kind kind();
 }
