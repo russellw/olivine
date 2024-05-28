@@ -42,6 +42,10 @@ class TermTest {
     assertEquals(1, a.size());
     assertEquals(Term.floatConstant(Type.FLOAT, "1.0"), a.get(0));
     assertThrows(IndexOutOfBoundsException.class, () -> a.get(10));
+
+    Term r = null;
+    for (var x : a) r = x;
+    assertEquals(Term.floatConstant(Type.FLOAT, "1.0"), r);
   }
 
   @Test

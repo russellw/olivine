@@ -176,6 +176,11 @@ public abstract class Term implements Iterable<Term> {
       return arg;
     }
 
+    @Override
+    public Iterator<Term> iterator() {
+      return new UnaryIterator(this);
+    }
+
     private static final class UnaryIterator implements Iterator<Term> {
       private final UnaryTerm term;
       private int position;
