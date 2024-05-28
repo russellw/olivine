@@ -38,4 +38,9 @@ class TermTest {
     assertEquals("1.0", one.toString());
     assertEquals(one, Term.floatConstant(Type.FLOAT, "1.0"));
   }
+
+  @Test
+  void type() {
+    assertEquals(Type.PTR, Term.NULL.type());
+  }
 }

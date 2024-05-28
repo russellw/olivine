@@ -17,6 +17,8 @@ public abstract class Term extends AbstractList<Term> {
 
   abstract Tag tag();
 
+  abstract Type type();
+
   Term fneg() {
     return new FNeg(this);
   }
@@ -35,6 +37,11 @@ public abstract class Term extends AbstractList<Term> {
     @Override
     Tag tag() {
       return Tag.NULL;
+    }
+
+    @Override
+    Type type() {
+      return Type.PTR;
     }
   }
 
@@ -98,6 +105,11 @@ public abstract class Term extends AbstractList<Term> {
     }
 
     @Override
+    Type type() {
+      return type;
+    }
+
+    @Override
     Tag tag() {
       return Tag.FLOAT;
     }
@@ -108,6 +120,11 @@ public abstract class Term extends AbstractList<Term> {
 
     private UnaryTerm(Term arg) {
       this.arg = arg;
+    }
+
+    @Override
+    Type type() {
+      return arg.type();
     }
 
     @Override
@@ -139,6 +156,11 @@ public abstract class Term extends AbstractList<Term> {
     BinaryTerm(Term arg0, Term arg1) {
       this.arg0 = arg0;
       this.arg1 = arg1;
+    }
+
+    @Override
+    Type type() {
+      return arg0.type();
     }
 
     @Override
