@@ -20,4 +20,7 @@ class TermTest {
     var z = Term.of(-123);
     assertNotEquals(a, z);
   }
+
+  @Test
+  void fneg() {}
 }

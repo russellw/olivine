@@ -22,4 +22,5 @@ public enum Tag {
   XOR,
   NULL,
   INTEGER,
+  FLOAT,
 }
