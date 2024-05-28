@@ -1,15 +1,34 @@
 package olivine;
 
-public class Term {
-  static final Term NULL = new Term(Tag.NULL);
+public abstract class Term {
+  static final Term NULL = new Null();
 
-  private final Tag tag;
+  abstract Tag tag();
 
-  private Term(Tag tag) {
-    this.tag = tag;
+  private static final class Null extends Term {
+    @Override
+    Tag tag() {
+      return Tag.NULL;
+    }
   }
 
-  Tag tag() {
-    return tag;
+  private static final class IntegerConstant extends Term {
+    @Override
+    Tag tag() {
+      return Tag.INTEGER;
+    }
+  }
+
+  private static final class UnaryTerm extends Term {
+    private final Tag tag;
+
+    private UnaryTerm(Tag tag) {
+      this.tag = tag;
+    }
+
+    @Override
+    Tag tag() {
+      return tag;
+    }
   }
 }
