@@ -151,6 +151,19 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      UnaryTerm terms = (UnaryTerm) o;
+      return Objects.equals(arg, terms.arg);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(arg);
+    }
+
+    @Override
     public int size() {
       return 1;
     }
