@@ -11,8 +11,8 @@ public abstract class Term extends AbstractList<Term> {
     return new IntegerConstant(BigInteger.valueOf(value));
   }
 
-  static Term floatConstant(String value) {
-    return new FloatConstant(value);
+  static Term floatConstant(Type type, String value) {
+    return new FloatConstant(type, value);
   }
 
   abstract Tag tag();
@@ -70,9 +70,11 @@ public abstract class Term extends AbstractList<Term> {
   }
 
   private static final class FloatConstant extends Term {
+    private final Type type;
     private final String value;
 
-    FloatConstant(String value) {
+    private FloatConstant(Type type, String value) {
+      this.type = type;
       this.value = value;
     }
 
@@ -85,13 +87,14 @@ public abstract class Term extends AbstractList<Term> {
     public boolean equals(Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
-      FloatConstant that = (FloatConstant) o;
-      return Objects.equals(value, that.value);
+      if (!super.equals(o)) return false;
+      FloatConstant terms = (FloatConstant) o;
+      return Objects.equals(type, terms.type) && Objects.equals(value, terms.value);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hashCode(value);
+      return Objects.hash(super.hashCode(), type, value);
     }
 
     @Override

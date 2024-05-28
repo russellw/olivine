@@ -23,4 +23,11 @@ class TermTest {
 
   @Test
   void fneg() {}
+
+  @Test
+  void floatConstant() {
+    var one = Term.floatConstant(Type.FLOAT, "1.0");
+    assertEquals("1.0", one.toString());
+    assertEquals(one, Term.floatConstant(Type.FLOAT, "1.0"));
+  }
 }
