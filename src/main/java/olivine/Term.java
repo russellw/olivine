@@ -1,7 +1,14 @@
 package olivine;
 
+import java.math.BigInteger;
+import java.util.Objects;
+
 public abstract class Term {
   static final Term NULL = new Null();
+
+  static Term of(long value) {
+    return new IntegerConstant(BigInteger.valueOf(value));
+  }
 
   abstract Tag tag();
 
@@ -13,6 +20,30 @@ public abstract class Term {
   }
 
   private static final class IntegerConstant extends Term {
+    private final BigInteger value;
+
+    IntegerConstant(BigInteger value) {
+      this.value = value;
+    }
+
+    @Override
+    public String toString() {
+      return value.toString();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      IntegerConstant that = (IntegerConstant) o;
+      return Objects.equals(value, that.value);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(value);
+    }
+
     @Override
     Tag tag() {
       return Tag.INTEGER;
