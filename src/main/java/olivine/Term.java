@@ -1,10 +1,11 @@
 package olivine;
 
 import java.math.BigInteger;
-import java.util.AbstractList;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 
-public abstract class Term extends AbstractList<Term> {
+public abstract class Term implements Iterable<Term> {
   static final Term NULL = new Null();
 
   static Term intConstant(Type type, long value) {
@@ -24,14 +25,29 @@ public abstract class Term extends AbstractList<Term> {
     return new FNeg(this);
   }
 
-  @Override
   public int size() {
     return 0;
   }
 
   @Override
+  public Iterator<Term> iterator() {
+    return new NullaryIterator();
+  }
+
   public Term get(int index) {
     throw new IndexOutOfBoundsException(String.format("%s, %s", this, index));
+  }
+
+  private static class NullaryIterator implements Iterator<Term> {
+    @Override
+    public boolean hasNext() {
+      return false;
+    }
+
+    @Override
+    public Term next() {
+      throw new NoSuchElementException();
+    }
   }
 
   private static final class Null extends Term {
@@ -69,8 +85,8 @@ public abstract class Term extends AbstractList<Term> {
     public boolean equals(Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
-      IntConstant that = (IntConstant) o;
-      return Objects.equals(value, that.value);
+      IntConstant terms = (IntConstant) o;
+      return Objects.equals(value, terms.value);
     }
 
     @Override
@@ -102,14 +118,13 @@ public abstract class Term extends AbstractList<Term> {
     public boolean equals(Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
-      if (!super.equals(o)) return false;
       FloatConstant terms = (FloatConstant) o;
       return Objects.equals(value, terms.value);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(super.hashCode(), value);
+      return Objects.hashCode(value);
     }
 
     @Override
@@ -144,6 +159,28 @@ public abstract class Term extends AbstractList<Term> {
     public Term get(int index) {
       if (index != 0) throw new IndexOutOfBoundsException(String.format("%s, %s", this, index));
       return arg;
+    }
+
+    private static final class UnaryIterator implements Iterator<Term> {
+      private final UnaryTerm term;
+      private int position;
+
+      public UnaryIterator(UnaryTerm term) {
+        this.term = term;
+        this.position = 0;
+      }
+
+      @Override
+      public boolean hasNext() {
+        return position == 0;
+      }
+
+      @Override
+      public Term next() {
+        if (position == 1) throw new NoSuchElementException();
+        position = 1;
+        return term.arg;
+      }
     }
   }
 

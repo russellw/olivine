@@ -17,6 +17,13 @@ class TermTest {
   }
 
   @Test
+  void floatConstant() {
+    var one = Term.floatConstant(Type.FLOAT, "1.0");
+    assertEquals("1.0", one.toString());
+    assertEquals(one, Term.floatConstant(Type.FLOAT, "1.0"));
+  }
+
+  @Test
   void intConstant() {
     var a = Term.intConstant(Type.I32, 123);
     assertEquals("123", a.toString());
@@ -33,15 +40,8 @@ class TermTest {
     assertEquals(a, Term.floatConstant(Type.FLOAT, "1.0").fneg());
     assertNotEquals(a, Term.floatConstant(Type.FLOAT, "2.0").fneg());
     assertEquals(1, a.size());
-    assertEquals(Term.floatConstant(Type.FLOAT, "1.0"), a.getFirst());
+    assertEquals(Term.floatConstant(Type.FLOAT, "1.0"), a.get(0));
     assertThrows(IndexOutOfBoundsException.class, () -> a.get(10));
-  }
-
-  @Test
-  void floatConstant() {
-    var one = Term.floatConstant(Type.FLOAT, "1.0");
-    assertEquals("1.0", one.toString());
-    assertEquals(one, Term.floatConstant(Type.FLOAT, "1.0"));
   }
 
   @Test
