@@ -1,0 +1,23 @@
+package olivine;
+
+public enum Tag {
+  FNEG,
+  ADD,
+  FADD,
+  SUB,
+  FSUB,
+  MUL,
+  FMUL,
+  UDIV,
+  SDIV,
+  FDIV,
+  UREM,
+  SREM,
+  FREM,
+  SHL,
+  LSHR,
+  ASHR,
+  AND,
+  OR,
+  XOR,
+}
