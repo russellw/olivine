@@ -1,6 +1,9 @@
 package olivine;
 
-public abstract class Type {
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+
+public abstract class Type implements Iterable<Type> {
   static final Type PTR =
       new Type() {
         @Override
@@ -228,5 +231,26 @@ public abstract class Type {
     throw new UnsupportedOperationException(toString());
   }
 
+  public int size() {
+    return 0;
+  }
+
+  @Override
+  public Iterator<Type> iterator() {
+    return new NullaryIterator();
+  }
+
   abstract Kind kind();
+
+  private static class NullaryIterator implements Iterator<Type> {
+    @Override
+    public boolean hasNext() {
+      return false;
+    }
+
+    @Override
+    public Type next() {
+      throw new NoSuchElementException();
+    }
+  }
 }
