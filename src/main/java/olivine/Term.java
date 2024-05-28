@@ -28,7 +28,7 @@ public abstract class Term extends AbstractList<Term> {
 
   @Override
   public Term get(int index) {
-    throw new UnsupportedOperationException(toString());
+    throw new IndexOutOfBoundsException(String.format("%s, %s", this, index));
   }
 
   private static final class Null extends Term {
@@ -117,7 +117,7 @@ public abstract class Term extends AbstractList<Term> {
 
     @Override
     public Term get(int index) {
-      assert 0 <= index && index < size();
+      if (index != 0) throw new IndexOutOfBoundsException(String.format("%s, %s", this, index));
       return arg;
     }
   }
@@ -148,7 +148,8 @@ public abstract class Term extends AbstractList<Term> {
 
     @Override
     public Term get(int index) {
-      assert 0 <= index && index < size();
+      if (!(0 <= index && index < 2))
+        throw new IndexOutOfBoundsException(String.format("%s, %s", this, index));
       return index == 0 ? arg0 : arg1;
     }
   }

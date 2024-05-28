@@ -19,15 +19,17 @@ class TermTest {
     assertEquals(a, b);
     var z = Term.of(-123);
     assertNotEquals(a, z);
-    // assertThrows(IndexOutOfBoundsException.class, a::getFirst);
+    assertThrows(IndexOutOfBoundsException.class, () -> a.get(10));
   }
 
   @Test
   void fneg() {
     var a = Term.floatConstant(Type.FLOAT, "1.0").fneg();
     assertEquals(a, Term.floatConstant(Type.FLOAT, "1.0").fneg());
+    assertNotEquals(a, Term.floatConstant(Type.FLOAT, "2.0").fneg());
     assertEquals(1, a.size());
     assertEquals(Term.floatConstant(Type.FLOAT, "1.0"), a.getFirst());
+    assertThrows(IndexOutOfBoundsException.class, () -> a.get(10));
   }
 
   @Test
