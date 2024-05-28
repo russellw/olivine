@@ -8,6 +8,7 @@ public abstract class Term extends AbstractList<Term> {
   static final Term NULL = new Null();
 
   static Term intConstant(Type type, long value) {
+    assert value >= 0;
     return new IntConstant(type, BigInteger.valueOf(value));
   }
 
