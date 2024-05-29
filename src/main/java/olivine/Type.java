@@ -1,7 +1,6 @@
 package olivine;
 
-import java.util.Iterator;
-import java.util.NoSuchElementException;
+import java.util.*;
 
 public abstract class Type implements Iterable<Type> {
   static final Type PTR =
@@ -242,6 +241,14 @@ public abstract class Type implements Iterable<Type> {
 
   abstract Kind kind();
 
+  public Type get(int i) {
+    throw new IndexOutOfBoundsException(toString());
+  }
+
+  public static Type struct(Type... v) {
+    return new StructType(v);
+  }
+
   private static class Iterator0 implements Iterator<Type> {
     @Override
     public boolean hasNext() {
@@ -251,6 +258,62 @@ public abstract class Type implements Iterable<Type> {
     @Override
     public Type next() {
       throw new NoSuchElementException();
+    }
+  }
+
+  private abstract static class Types extends Type {
+    final Type[] v;
+
+    Types(Type[] v) {
+      this.v = v;
+    }
+
+    @Override
+    public Type get(int i) {
+      return v[i];
+    }
+
+    @Override
+    public int size() {
+      return v.length;
+    }
+  }
+
+  private static final class StructType extends Types {
+    StructType(Type[] v) {
+      super(v);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      StructType types = (StructType) o;
+      return Arrays.equals(v, types.v);
+    }
+
+    @Override
+    public int hashCode() {
+      return Arrays.hashCode(v);
+    }
+
+    @Override
+    public String toString() {
+      var sb = new StringBuilder();
+      sb.append('{');
+      var more = false;
+      for (var type : v) {
+        if (more) sb.append(',');
+        more = true;
+        sb.append(type);
+      }
+      sb.append('}');
+      return sb.toString();
+    }
+
+    @Override
+    public Kind kind() {
+      return Kind.STRUCT;
     }
   }
 }

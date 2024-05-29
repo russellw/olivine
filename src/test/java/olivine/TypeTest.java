@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 
 class TypeTest {
-
   @Test
   void bits() {
     assertEquals(16, Type.I16.bits());
@@ -26,5 +25,12 @@ class TypeTest {
   @Test
   void kind() {
     assertEquals(Kind.INT, Type.I16.kind());
+  }
+
+  @Test
+  void struct() {
+    var s = Type.struct(Type.I32, Type.I32, Type.I32);
+    assertEquals(s, Type.struct(Type.I32, Type.I32, Type.I32));
+    assertNotEquals(s, Type.struct(Type.I32, Type.I32, Type.I16));
   }
 }
