@@ -40,8 +40,8 @@ public abstract class Term implements Iterable<Term> {
     return new Iterator0();
   }
 
-  public Term get(int index) {
-    throw new IndexOutOfBoundsException("%s, %s".formatted(this, index));
+  public Term get(int i) {
+    throw new IndexOutOfBoundsException("%s, %s".formatted(this, i));
   }
 
   private static class Iterator0 implements Iterator<Term> {
@@ -175,8 +175,8 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
-    public Term get(int index) {
-      if (index != 0) throw new IndexOutOfBoundsException("%s, %s".formatted(this, index));
+    public Term get(int i) {
+      if (i != 0) throw new IndexOutOfBoundsException("%s, %s".formatted(this, i));
       return arg;
     }
 
@@ -187,21 +187,20 @@ public abstract class Term implements Iterable<Term> {
 
     private static final class Iterator1 implements Iterator<Term> {
       private final Term1 term;
-      private int position;
+      private int i;
 
       public Iterator1(Term1 term) {
         this.term = term;
-        this.position = 0;
       }
 
       @Override
       public boolean hasNext() {
-        return position == 0;
+        return i == 0;
       }
 
       @Override
       public Term next() {
-        return term.get(position++);
+        return term.get(i++);
       }
     }
   }
@@ -249,11 +248,11 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
-    public Term get(int index) {
-      return switch (index) {
+    public Term get(int i) {
+      return switch (i) {
         case 0 -> arg0;
         case 1 -> arg1;
-        default -> throw new IndexOutOfBoundsException("%s, %s".formatted(this, index));
+        default -> throw new IndexOutOfBoundsException("%s, %s".formatted(this, i));
       };
     }
 
@@ -264,21 +263,20 @@ public abstract class Term implements Iterable<Term> {
 
     private static final class Iterator2 implements Iterator<Term> {
       private final Term2 term;
-      private int position;
+      private int i;
 
       public Iterator2(Term2 term) {
         this.term = term;
-        this.position = 0;
       }
 
       @Override
       public boolean hasNext() {
-        return position < 2;
+        return i < 2;
       }
 
       @Override
       public Term next() {
-        return term.get(position++);
+        return term.get(i++);
       }
     }
   }
