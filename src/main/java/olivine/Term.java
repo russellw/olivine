@@ -37,14 +37,14 @@ public abstract class Term implements Iterable<Term> {
 
   @Override
   public Iterator<Term> iterator() {
-    return new NullaryIterator();
+    return new Iterator0();
   }
 
   public Term get(int index) {
     throw new IndexOutOfBoundsException("%s, %s".formatted(this, index));
   }
 
-  private static class NullaryIterator implements Iterator<Term> {
+  private static class Iterator0 implements Iterator<Term> {
     @Override
     public boolean hasNext() {
       return false;

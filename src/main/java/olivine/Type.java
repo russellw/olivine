@@ -237,12 +237,12 @@ public abstract class Type implements Iterable<Type> {
 
   @Override
   public Iterator<Type> iterator() {
-    return new NullaryIterator();
+    return new Iterator0();
   }
 
   abstract Kind kind();
 
-  private static class NullaryIterator implements Iterator<Type> {
+  private static class Iterator0 implements Iterator<Type> {
     @Override
     public boolean hasNext() {
       return false;
