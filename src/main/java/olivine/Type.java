@@ -316,4 +316,58 @@ public abstract class Type implements Iterable<Type> {
       return Kind.STRUCT;
     }
   }
+
+  public static Type fn(Type rtype, List<Type> params, boolean varargs) {
+    var v = new Type[1 + params.size()];
+    v[0] = rtype;
+    for (var i = 0; i < params.size(); i++) v[1 + i] = params.get(i);
+    return new FnType(v, varargs);
+  }
+
+  public static Type fn(Type[] v, boolean varargs) {
+    return new FnType(v, varargs);
+  }
+
+  private static final class FnType extends Types {
+    final boolean varargs;
+
+    FnType(Type[] v, boolean varargs) {
+      super(v);
+      this.varargs = varargs;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      FnType types = (FnType) o;
+      return varargs == types.varargs && Arrays.equals(v, types.v);
+    }
+
+    @Override
+    public int hashCode() {
+      int result = Objects.hash(varargs);
+      result = 31 * result + Arrays.hashCode(v);
+      return result;
+    }
+
+    @Override
+    public String toString() {
+      var sb = new StringBuilder();
+      sb.append(v[0]);
+      sb.append(" (");
+      for (int i = 1; i < v.length; i++) {
+        if (i > 1) sb.append(", ");
+        sb.append(v[i]);
+      }
+      if (varargs) sb.append(", ...");
+      sb.append(')');
+      return sb.toString();
+    }
+
+    @Override
+    public Kind kind() {
+      return Kind.FN;
+    }
+  }
 }
