@@ -41,7 +41,7 @@ public abstract class Term implements Iterable<Term> {
   }
 
   public Term get(int index) {
-    throw new IndexOutOfBoundsException(String.format("%s, %s", this, index));
+    throw new IndexOutOfBoundsException("%s, %s".formatted(this, index));
   }
 
   private static class NullaryIterator implements Iterator<Term> {
@@ -176,7 +176,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Term get(int index) {
-      if (index != 0) throw new IndexOutOfBoundsException(String.format("%s, %s", this, index));
+      if (index != 0) throw new IndexOutOfBoundsException("%s, %s".formatted(this, index));
       return arg;
     }
 
@@ -253,7 +253,7 @@ public abstract class Term implements Iterable<Term> {
       return switch (index) {
         case 0 -> arg0;
         case 1 -> arg1;
-        default -> throw new IndexOutOfBoundsException(String.format("%s, %s", this, index));
+        default -> throw new IndexOutOfBoundsException("%s, %s".formatted(this, index));
       };
     }
 
