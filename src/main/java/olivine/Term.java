@@ -144,10 +144,10 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private abstract static class UnaryTerm extends Term {
+  private abstract static class Term1 extends Term {
     private final Term arg;
 
-    private UnaryTerm(Term arg) {
+    private Term1(Term arg) {
       this.arg = arg;
     }
 
@@ -160,7 +160,7 @@ public abstract class Term implements Iterable<Term> {
     public boolean equals(Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
-      UnaryTerm terms = (UnaryTerm) o;
+      Term1 terms = (Term1) o;
       return Objects.equals(arg, terms.arg);
     }
 
@@ -182,14 +182,14 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Iterator<Term> iterator() {
-      return new UnaryIterator(this);
+      return new Iterator1(this);
     }
 
-    private static final class UnaryIterator implements Iterator<Term> {
-      private final UnaryTerm term;
+    private static final class Iterator1 implements Iterator<Term> {
+      private final Term1 term;
       private int position;
 
-      public UnaryIterator(UnaryTerm term) {
+      public Iterator1(Term1 term) {
         this.term = term;
         this.position = 0;
       }
@@ -206,7 +206,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class FNeg extends UnaryTerm {
+  private static final class FNeg extends Term1 {
     FNeg(Term arg) {
       super(arg);
     }
@@ -217,10 +217,10 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private abstract static class BinaryTerm extends Term {
+  private abstract static class Term2 extends Term {
     private final Term arg0, arg1;
 
-    BinaryTerm(Term arg0, Term arg1) {
+    Term2(Term arg0, Term arg1) {
       this.arg0 = arg0;
       this.arg1 = arg1;
     }
@@ -239,7 +239,7 @@ public abstract class Term implements Iterable<Term> {
     public boolean equals(Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
-      BinaryTerm terms = (BinaryTerm) o;
+      Term2 terms = (Term2) o;
       return Objects.equals(arg0, terms.arg0) && Objects.equals(arg1, terms.arg1);
     }
 
@@ -259,14 +259,14 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Iterator<Term> iterator() {
-      return new BinaryIterator(this);
+      return new Iterator2(this);
     }
 
-    private static final class BinaryIterator implements Iterator<Term> {
-      private final BinaryTerm term;
+    private static final class Iterator2 implements Iterator<Term> {
+      private final Term2 term;
       private int position;
 
-      public BinaryIterator(BinaryTerm term) {
+      public Iterator2(Term2 term) {
         this.term = term;
         this.position = 0;
       }
@@ -283,7 +283,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class Add extends BinaryTerm {
+  private static final class Add extends Term2 {
     Add(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
