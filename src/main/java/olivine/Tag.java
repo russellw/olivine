@@ -24,4 +24,6 @@ public enum Tag {
   INT,
   FLOAT,
   GLOBAL_VAR,
+  FN,
+  VAR,
 }
