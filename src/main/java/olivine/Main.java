@@ -64,7 +64,7 @@ final class Main {
     for (var file : Option.positionalArgs) {
       switch (Etc.extension(file)) {
         case "c", "m", "mm", "M", "cc", "cpp", "cppm", "cp", "cxx", "c++", "C", "CPP" -> {
-          run(new String[] {"clang", "-S", "-emit-llvm", "-mllvm", "--", file});
+          run(new String[] {"clang", "-S", "-emit-llvm", "--", file});
           file = Etc.baseName(file) + ".ll";
         }
         case "bc" -> {
