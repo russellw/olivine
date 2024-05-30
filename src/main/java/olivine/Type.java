@@ -261,7 +261,26 @@ public abstract class Type implements Iterable<Type> {
 
     @Override
     public Type next() {
-      throw new NoSuchElementException();
+      throw new UnsupportedOperationException();
+    }
+  }
+
+  private abstract static class Type1 extends Type {
+    final Type t0;
+
+    Type1(Type t0) {
+      this.t0 = t0;
+    }
+
+    @Override
+    public Type get(int i) {
+      if (i != 0) throw new IndexOutOfBoundsException("%s, %s".formatted(this, i));
+      return t0;
+    }
+
+    @Override
+    public int size() {
+      return 1;
     }
   }
 

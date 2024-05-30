@@ -1,6 +1,5 @@
 package olivine;
 
-
 public final class UnresolvedType extends Type {
   final String name;
 
