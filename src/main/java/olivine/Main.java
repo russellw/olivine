@@ -1,6 +1,9 @@
 package olivine;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Objects;
 import java.util.Properties;
 
@@ -22,12 +25,65 @@ final class Main {
         },
       };
 
-  public static void main(String[] args) throws IOException {
+  private static void run(String[] cmd) throws IOException, InterruptedException {
+    // Print the command we are about to run
+    var more = false;
+    for (var s : cmd) {
+      if (more) System.out.print(' ');
+      more = true;
+      System.out.print(s);
+    }
+    System.out.println();
+
+    // Setup
+    var builder = new ProcessBuilder(cmd);
+    builder.inheritIO();
+
+    // Run
+    var process = builder.start();
+    process.waitFor();
+
+    // Check for error
+    var e = process.exitValue();
+    if (e != 0) {
+      System.err.println("Process exit value: " + e);
+      System.exit(e);
+    }
+  }
+
+  public static void main(String[] args) throws IOException, InterruptedException {
     // Command line
     Option.parse(OPTIONS, args);
     if (Option.positionalArgs.isEmpty()) {
       System.err.println("No input files specified");
       System.exit(1);
+    }
+
+    // Input files
+    var modules = new ArrayList<Module>();
+    for (var file : Option.positionalArgs) {
+      switch (Etc.extension(file)) {
+        case "c", "m", "mm", "M", "cc", "cpp", "cppm", "cp", "cxx", "c++", "C", "CPP" -> {
+          run(new String[] {"clang", "-S", "-emit-llvm", "-mllvm", "-opaque-pointers", "--", file});
+          file = Etc.baseName(file) + ".ll";
+        }
+        case "bc" -> {
+          run(new String[] {"llvm-dis", "--", file});
+          file = Etc.baseName(file) + ".ll";
+        }
+        case "ll" -> {}
+        case "rs" -> {
+          run(new String[] {"rustc", "--emit", "llvm-ir", "--", file});
+          file = Etc.baseName(file) + ".ll";
+        }
+        default -> {
+          System.err.println(file + ": unknown extension");
+          System.exit(1);
+        }
+      }
+      var module = new Module();
+      modules.add(module);
+      new LlvmParser(file, Files.readAllBytes(Path.of(file)), module);
     }
   }
 

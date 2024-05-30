@@ -1,5 +1,7 @@
 package olivine;
 
+import java.nio.file.Path;
+
 public final class Etc {
   private Etc() {}
 
@@ -49,5 +51,17 @@ public final class Etc {
     var i = file.lastIndexOf('.');
     if (i < 0) return "";
     return file.substring(i + 1);
+  }
+
+  private static String withoutDirectory(String file) {
+    return Path.of(file).getFileName().toString();
+  }
+
+  private static String withoutExtension(String file) {
+    return file.split("\\.")[0];
+  }
+
+  public static String baseName(String file) {
+    return withoutExtension(withoutDirectory(file));
   }
 }
