@@ -77,7 +77,7 @@ public abstract class Option {
     System.exit(0);
   }
 
-  public abstract void accept(String arg);
+  public abstract void accept(String arg) throws IOException;
 
   private static boolean isSeparator(char c) {
     return switch (c) {

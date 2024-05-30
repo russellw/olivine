@@ -15,7 +15,7 @@ final class Main {
         },
         new Option('V', "version", null, "Show version") {
           @Override
-          public void accept(String arg) {
+          public void accept(String arg) throws IOException {
             printVersion();
             System.exit(0);
           }
@@ -31,23 +31,18 @@ final class Main {
     }
   }
 
-  private static String version() {
+  private static String version() throws IOException {
     var properties = new Properties();
     var stream =
         Etc.class
             .getClassLoader()
             .getResourceAsStream("META-INF/maven/olivine/olivine/pom.properties");
     if (stream == null) return null;
-    try {
-      properties.load(stream);
-    } catch (IOException e) {
-      e.printStackTrace();
-      System.exit(1);
-    }
+    properties.load(stream);
     return properties.getProperty("version");
   }
 
-  private static void printVersion() {
+  private static void printVersion() throws IOException {
     System.out.printf(
         "Olivine %s, %s\n",
         Objects.toString(version(), "[unknown version, not running from jar]"),
