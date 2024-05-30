@@ -12,7 +12,15 @@ public final class Block implements Iterable<Instruction> {
     return instructions.iterator();
   }
 
-  void add(Instruction instruction) {
+  public void add(Instruction instruction) {
     instructions.add(instruction);
+  }
+
+  public int size() {
+    return instructions.size();
+  }
+
+  public Instruction last() {
+    return instructions.getLast();
   }
 }
