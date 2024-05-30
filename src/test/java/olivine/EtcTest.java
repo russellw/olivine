@@ -76,4 +76,33 @@ class EtcTest {
   public void testExtension_withDotOnly() {
     assertEquals("", Etc.extension("."));
   }
+
+  @Test
+  void testWithoutDirectory() {
+    assertEquals("file.txt", Etc.withoutDirectory("/path/to/file.txt"));
+    assertEquals("file.txt", Etc.withoutDirectory("file.txt"));
+    assertEquals("file.txt", Etc.withoutDirectory("C:\\path\\to\\file.txt"));
+    assertEquals("file", Etc.withoutDirectory("/path/to/file"));
+    assertEquals("file", Etc.withoutDirectory("file"));
+  }
+
+  @Test
+  void testWithoutExtension() {
+    assertEquals("file", Etc.withoutExtension("file.txt"));
+    assertEquals("file", Etc.withoutExtension("file."));
+    assertEquals("file", Etc.withoutExtension("file"));
+    assertEquals("file.name", Etc.withoutExtension("file.name.txt"));
+    assertEquals("", Etc.withoutExtension(".hiddenfile"));
+  }
+
+  @Test
+  void testBaseName() {
+    assertEquals("file", Etc.baseName("/path/to/file.txt"));
+    assertEquals("file", Etc.baseName("file.txt"));
+    assertEquals("file", Etc.baseName("C:\\path\\to\\file.txt"));
+    assertEquals("file", Etc.baseName("/path/to/file"));
+    assertEquals("file", Etc.baseName("file"));
+    assertEquals("file.name", Etc.baseName("/path/to/file.name.txt"));
+    assertEquals("", Etc.baseName("/path/to/.hiddenfile"));
+  }
 }

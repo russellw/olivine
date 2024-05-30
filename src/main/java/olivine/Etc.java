@@ -53,12 +53,14 @@ public final class Etc {
     return file.substring(i + 1);
   }
 
-  private static String withoutDirectory(String file) {
+  public static String withoutDirectory(String file) {
     return Path.of(file).getFileName().toString();
   }
 
-  private static String withoutExtension(String file) {
-    return file.split("\\.")[0];
+  public static String withoutExtension(String file) {
+    var i = file.lastIndexOf('.');
+    if (i < 0) return file;
+    return file.substring(0, i);
   }
 
   public static String baseName(String file) {
