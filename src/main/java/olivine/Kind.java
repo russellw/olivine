@@ -16,4 +16,5 @@ public enum Kind {
   ARRAY,
   STRUCT,
   OPAQUE,
+  UNRESOLVED,
 }

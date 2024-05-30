@@ -7,8 +7,8 @@ import java.util.Objects;
 
 public abstract class Term implements Iterable<Term> {
   static final Term NULL = new Null();
-  static final Term TRUE = intConstant(Type.BOOL, 1);
-  static final Term FALSE = intConstant(Type.BOOL, 0);
+  static final Term TRUE = intConstant(Type.I1, 1);
+  static final Term FALSE = intConstant(Type.I1, 0);
 
   static Term intConstant(Type type, long value) {
     assert value >= 0;

@@ -1,9 +1,6 @@
 package olivine;
 
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public final class LlvmParser {
   private static final int EOF = 128;
@@ -32,11 +29,180 @@ public final class LlvmParser {
   public static String datalayout;
   public static String triple;
 
+  private IllegalArgumentException err(String msg) {
+    return new IllegalArgumentException("%s:%d: %s".formatted(file, line(), msg));
+  }
+
+  private IllegalArgumentException err(String s, String msg) {
+    return new IllegalArgumentException("%s:%d: %s: %s".formatted(file, line(), s, msg));
+  }
+
+  private boolean eat(int k) {
+    if (tok == k) {
+      lex();
+      return true;
+    }
+    return false;
+  }
+
+  private int line() {
+    var n = 1;
+    for (var i = 0; i < ti; i++) if (text[i] == '\n') n++;
+    return n;
+  }
+
+  private String expect(int k) {
+    if (tok == k) return lex1();
+    throw err(k < 128 ? "expected '%c'".formatted(k) : "syntax error");
+  }
+
+  private boolean eat(String s) {
+    if (tok == WORD && tokString.equals(s)) {
+      lex();
+      return true;
+    }
+    return false;
+  }
+
+  private void expect(String s) {
+    if (!eat(s)) throw err("expected '%s'".formatted(s));
+  }
+
+  private String lex1() {
+    var s = tokString;
+    lex();
+    return s;
+  }
+
+  private String idem(String s) {
+    if (s == null || s.equals(tokString)) return tokString;
+    throw err("does not match previous declaration");
+  }
+
+  private Type primaryType() {
+    switch (tok) {
+      case WORD -> {
+        return switch (expect(WORD)) {
+          case "void" -> Type.VOID;
+          case "ptr" -> Type.PTR;
+          case "half" -> Type.HALF;
+          case "bfloat" -> Type.BFLOAT;
+          case "float" -> Type.FLOAT;
+          case "double" -> Type.DOUBLE;
+          case "fp128" -> Type.FP128;
+          case "x86_fp80" -> Type.X86_FP80;
+          case "ppc_fp128" -> Type.PPC_FP128;
+          case "i1" -> Type.I1;
+          case "i8" -> Type.I8;
+          case "i16" -> Type.I16;
+          case "i32" -> Type.I32;
+          case "i64" -> Type.I64;
+          case "i128" -> Type.I128;
+          default -> throw err("unknown type");
+        };
+      }
+      case '[' -> {
+        lex();
+        var n = Integer.parseInt(expect(INT));
+        expect("x");
+        var x = type();
+        expect(']');
+        return Type.array(n, x);
+      }
+      case '<' -> {
+        lex();
+        var n = Integer.parseInt(expect(INT));
+        expect("x");
+        var x = type();
+        expect('>');
+        return Type.vec(n, x);
+      }
+      case '{' -> {
+        lex();
+        var v = new ArrayList<Type>();
+        do v.add(type());
+        while (eat(','));
+        expect('}');
+        return Type.struct(v);
+      }
+      case LOCAL_ID -> {
+        var type = types.get(tokString);
+        if (type == null) type = new UnresolvedType(tokString);
+        lex();
+        return type;
+      }
+    }
+    throw err("expected type");
+  }
+
+  private Type type() {
+    var type = primaryType();
+    switch (tok) {
+      case WORD -> {
+        if (eat("align")) expect(INT);
+      }
+      case '*' -> {
+        //noinspection StatementWithEmptyBody
+        do
+          ;
+        while (eat('*'));
+        return Type.PTR;
+      }
+      case '(' -> {
+        lex();
+        var params = new ArrayList<Type>();
+        var varargs = false;
+        if (tok != ')')
+          do {
+            if (eat(DOTS)) {
+              varargs = true;
+              continue;
+            }
+            params.add(type());
+          } while (eat(','));
+        expect(')');
+        return Type.fn(type, params, varargs);
+      }
+    }
+    return type;
+  }
+
   private LlvmParser(String file, byte[] text, Module module) {
     this.file = file;
     this.text = text;
 
+    // First pass, define types along with miscellaneous items that don't depend on other
+    // definitions
     reset();
+    while (tok != EOF) {
+      switch (tok) {
+        case LOCAL_ID -> {
+          var name = lex1();
+          expect('=');
+          if (eat("type")) types.put(name, type());
+        }
+        case WORD -> {
+          if (lex1().equals("target")) {
+            var t = expect(WORD);
+            expect('=');
+            if (tok != STRING) throw err("expected string");
+            switch (t) {
+              case "datalayout" -> datalayout = idem(datalayout);
+              case "triple" -> triple = idem(triple);
+              default -> throw err(t, "unknown target attribute");
+            }
+          }
+        }
+        case COMDAT_ID -> {
+          module.comdats.add(lex1());
+          expect('=');
+          expect("comdat");
+          expect("any");
+        }
+        default -> lex();
+      }
+      eol();
+    }
   }
 
   private void reset() {

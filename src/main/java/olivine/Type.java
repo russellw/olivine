@@ -123,7 +123,7 @@ public abstract class Type implements Iterable<Type> {
           return "ppc_fp128";
         }
       };
-  static final Type BOOL =
+  static final Type I1 =
       new Type() {
         @Override
         Kind kind() {
@@ -245,8 +245,12 @@ public abstract class Type implements Iterable<Type> {
     throw new IndexOutOfBoundsException(toString());
   }
 
-  public static Type struct(Type... v) {
-    return new StructType(v);
+  public static Type struct(Type... fields) {
+    return new StructType(fields);
+  }
+
+  public static Type struct(List<Type> fields) {
+    return new StructType(fields.toArray(new Type[0]));
   }
 
   private static class Iterator0 implements Iterator<Type> {
@@ -262,20 +266,20 @@ public abstract class Type implements Iterable<Type> {
   }
 
   private abstract static class Types extends Type {
-    final Type[] v;
+    final Type[] types;
 
-    Types(Type[] v) {
-      this.v = v;
+    Types(Type[] types) {
+      this.types = types;
     }
 
     @Override
     public Type get(int i) {
-      return v[i];
+      return types[i];
     }
 
     @Override
     public int size() {
-      return v.length;
+      return types.length;
     }
   }
 
@@ -289,12 +293,12 @@ public abstract class Type implements Iterable<Type> {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
       StructType types = (StructType) o;
-      return Arrays.equals(v, types.v);
+      return Arrays.equals(this.types, types.types);
     }
 
     @Override
     public int hashCode() {
-      return Arrays.hashCode(v);
+      return Arrays.hashCode(types);
     }
 
     @Override
@@ -302,7 +306,7 @@ public abstract class Type implements Iterable<Type> {
       var sb = new StringBuilder();
       sb.append('{');
       var more = false;
-      for (var type : v) {
+      for (var type : types) {
         if (more) sb.append(',');
         more = true;
         sb.append(type);
@@ -341,24 +345,24 @@ public abstract class Type implements Iterable<Type> {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
       FnType types = (FnType) o;
-      return varargs == types.varargs && Arrays.equals(v, types.v);
+      return varargs == types.varargs && Arrays.equals(this.types, types.types);
     }
 
     @Override
     public int hashCode() {
       int result = Objects.hash(varargs);
-      result = 31 * result + Arrays.hashCode(v);
+      result = 31 * result + Arrays.hashCode(types);
       return result;
     }
 
     @Override
     public String toString() {
       var sb = new StringBuilder();
-      sb.append(v[0]);
+      sb.append(types[0]);
       sb.append(" (");
-      for (int i = 1; i < v.length; i++) {
+      for (int i = 1; i < types.length; i++) {
         if (i > 1) sb.append(", ");
-        sb.append(v[i]);
+        sb.append(types[i]);
       }
       if (varargs) sb.append(", ...");
       sb.append(')');
