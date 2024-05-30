@@ -12,8 +12,8 @@ public final class Etc {
 
   public static int parseHexDigit(int c) {
     if (isDigit(c)) return c - '0';
-    if (isLower(c)) return c - 'a' + 10;
-    if (isUpper(c)) return c - 'A' + 10;
+    if ('a' <= c && c <= 'f') return c - 'a' + 10;
+    if ('A' <= c && c <= 'F') return c - 'A' + 10;
     throw new IllegalArgumentException(Integer.toString(c));
   }
 
