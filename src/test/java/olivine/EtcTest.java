@@ -47,4 +47,33 @@ class EtcTest {
     assertThrows(IllegalArgumentException.class, () -> Etc.parseHexDigit('@'));
     assertThrows(IllegalArgumentException.class, () -> Etc.parseHexDigit(' '));
   }
+
+  @Test
+  public void testExtension_withExtension() {
+    assertEquals("txt", Etc.extension("file.txt"));
+    assertEquals("jpg", Etc.extension("image.jpg"));
+    assertEquals("pdf", Etc.extension("document.pdf"));
+  }
+
+  @Test
+  public void testExtension_withMultipleDots() {
+    assertEquals("gz", Etc.extension("archive.tar.gz"));
+    assertEquals("docx", Etc.extension("file.name.with.dots.docx"));
+  }
+
+  @Test
+  public void testExtension_withNoExtension() {
+    assertEquals("", Etc.extension("file"));
+    assertEquals("", Etc.extension("anotherfile."));
+  }
+
+  @Test
+  public void testExtension_withEmptyString() {
+    assertEquals("", Etc.extension(""));
+  }
+
+  @Test
+  public void testExtension_withDotOnly() {
+    assertEquals("", Etc.extension("."));
+  }
 }

@@ -217,4 +217,10 @@ public final class LlvmParser {
       break;
     }
   }
+
+  private void eol() {
+    if (newline) return;
+    while (text[ti] != '\n') ti++;
+    lex();
+  }
 }

@@ -44,4 +44,10 @@ public final class Etc {
   public static boolean isLower(int c) {
     return 'a' <= c && c <= 'z';
   }
+
+  public static String extension(String file) {
+    var i = file.lastIndexOf('.');
+    if (i < 0) return "";
+    return file.substring(i + 1);
+  }
 }
