@@ -32,7 +32,7 @@ public final class LlvmParser {
   public static String datalayout;
   public static String triple;
 
-  public LlvmParser(String file, byte[] text, Module module) {
+  private LlvmParser(String file, byte[] text, Module module) {
     this.file = file;
     this.text = text;
 
@@ -222,5 +222,11 @@ public final class LlvmParser {
     if (newline) return;
     while (text[ti] != '\n') ti++;
     lex();
+  }
+
+  public static Module parse(String file, byte[] text) {
+    var module = new Module();
+    new LlvmParser(file, text, module);
+    return module;
   }
 }

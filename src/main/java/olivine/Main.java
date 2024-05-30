@@ -81,9 +81,7 @@ final class Main {
           System.exit(1);
         }
       }
-      var module = new Module();
-      modules.add(module);
-      new LlvmParser(file, Files.readAllBytes(Path.of(file)), module);
+      modules.add(LlvmParser.parse(file, Files.readAllBytes(Path.of(file))));
     }
   }
 
