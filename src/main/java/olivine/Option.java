@@ -29,7 +29,7 @@ public abstract class Option {
     if (live) {
       System.out.print("@file");
       for (var i = 5; i < width; i++) System.out.print(' ');
-      System.out.println("  read args from file");
+      System.out.println("  Read args from file");
     }
     var width1 = 0;
     for (var option : options) {
@@ -86,7 +86,7 @@ public abstract class Option {
     };
   }
 
-  private static int separator(String s, int i) {
+  private static int separator(String s, @SuppressWarnings("SameParameterValue") int i) {
     while (i < s.length() && !isSeparator(s.charAt(i))) i++;
     return i;
   }

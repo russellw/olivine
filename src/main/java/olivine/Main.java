@@ -7,13 +7,13 @@ import java.util.Properties;
 final class Main {
   private static final Option[] OPTIONS =
       new Option[] {
-        new Option('h', "help", null, "show help") {
+        new Option('h', "help", null, "Show help") {
           @Override
           public void accept(String arg) {
             Option.help(OPTIONS);
           }
         },
-        new Option('V', "version", null, "show version") {
+        new Option('V', "version", null, "Show version") {
           @Override
           public void accept(String arg) {
             printVersion();
@@ -22,10 +22,13 @@ final class Main {
         },
       };
 
-  private Main() {}
-
-  public static void main(String[] args) {
-    System.out.println("Hello World!");
+  public static void main(String[] args) throws IOException {
+    // Command line
+    Option.parse(OPTIONS, args);
+    if (Option.positionalArgs.isEmpty()) {
+      System.err.println("No input files specified");
+      System.exit(1);
+    }
   }
 
   private static String version() {
