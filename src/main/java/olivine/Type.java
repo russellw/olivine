@@ -246,11 +246,11 @@ public abstract class Type implements Iterable<Type> {
   }
 
   public static Type struct(Type... fields) {
-    return new StructType(fields);
+    return new Struct(fields);
   }
 
   public static Type struct(List<Type> fields) {
-    return new StructType(fields.toArray(new Type[0]));
+    return new Struct(fields.toArray(new Type[0]));
   }
 
   private static class Iterator0 implements Iterator<Type> {
@@ -265,11 +265,11 @@ public abstract class Type implements Iterable<Type> {
     }
   }
 
-  private abstract static class SequentialType extends Type {
+  private abstract static class Sequential extends Type {
     private final int count;
     private final Type element;
 
-    private SequentialType(int count, Type element) {
+    private Sequential(int count, Type element) {
       this.count = count;
       this.element = element;
     }
@@ -278,7 +278,7 @@ public abstract class Type implements Iterable<Type> {
     public boolean equals(Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
-      SequentialType types = (SequentialType) o;
+      Sequential types = (Sequential) o;
       return count == types.count && Objects.equals(element, types.element);
     }
 
@@ -299,40 +299,70 @@ public abstract class Type implements Iterable<Type> {
     }
   }
 
-  private abstract static class Types extends Type {
-    final Type[] types;
+  public static Type array(int count, Type element) {
+    return new Array(count, element);
+  }
 
-    Types(Type[] types) {
-      this.types = types;
+  public static Type vector(int count, Type element) {
+    return new Vector(count, element);
+  }
+
+  private static final class Array extends Sequential {
+    Array(int count, Type element) {
+      super(count, element);
+    }
+
+    @Override
+    Kind kind() {
+      return Kind.ARRAY;
+    }
+  }
+
+  private static final class Vector extends Sequential {
+    Vector(int count, Type element) {
+      super(count, element);
+    }
+
+    @Override
+    Kind kind() {
+      return Kind.VECTOR;
+    }
+  }
+
+  private abstract static class Compound extends Type {
+    final Type[] elements;
+
+    Compound(Type[] elements) {
+      this.elements = elements;
     }
 
     @Override
     public Type get(int i) {
-      return types[i];
+      return elements[i];
     }
 
     @Override
     public int size() {
-      return types.length;
+      return elements.length;
     }
   }
 
-  private static final class StructType extends Types {
-    StructType(Type[] v) {
-      super(v);
+  private static final class Struct extends Compound {
+    Struct(Type[] types) {
+      super(types);
     }
 
     @Override
     public boolean equals(Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
-      StructType types = (StructType) o;
-      return Arrays.equals(this.types, types.types);
+      Struct types = (Struct) o;
+      return Arrays.equals(elements, types.elements);
     }
 
     @Override
     public int hashCode() {
-      return Arrays.hashCode(types);
+      return Arrays.hashCode(elements);
     }
 
     @Override
@@ -340,7 +370,7 @@ public abstract class Type implements Iterable<Type> {
       var sb = new StringBuilder();
       sb.append('{');
       var more = false;
-      for (var type : types) {
+      for (var type : elements) {
         if (more) sb.append(',');
         more = true;
         sb.append(type);
@@ -366,7 +396,7 @@ public abstract class Type implements Iterable<Type> {
     return new FnType(v, varargs);
   }
 
-  private static final class FnType extends Types {
+  private static final class FnType extends Compound {
     final boolean varargs;
 
     FnType(Type[] v, boolean varargs) {
@@ -379,24 +409,24 @@ public abstract class Type implements Iterable<Type> {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
       FnType types = (FnType) o;
-      return varargs == types.varargs && Arrays.equals(this.types, types.types);
+      return varargs == types.varargs && Arrays.equals(elements, types.elements);
     }
 
     @Override
     public int hashCode() {
       int result = Objects.hash(varargs);
-      result = 31 * result + Arrays.hashCode(types);
+      result = 31 * result + Arrays.hashCode(elements);
       return result;
     }
 
     @Override
     public String toString() {
       var sb = new StringBuilder();
-      sb.append(types[0]);
+      sb.append(elements[0]);
       sb.append(" (");
-      for (int i = 1; i < types.length; i++) {
+      for (int i = 1; i < elements.length; i++) {
         if (i > 1) sb.append(", ");
-        sb.append(types[i]);
+        sb.append(elements[i]);
       }
       if (varargs) sb.append(", ...");
       sb.append(')');

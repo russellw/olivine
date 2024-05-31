@@ -115,7 +115,7 @@ public final class LlvmParser {
         expect("x");
         var x = type();
         expect('>');
-        return Type.vec(n, x);
+        return Type.vector(n, x);
       }
       case '{' -> {
         lex();
