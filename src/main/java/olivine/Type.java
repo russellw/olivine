@@ -265,17 +265,32 @@ public abstract class Type implements Iterable<Type> {
     }
   }
 
-  private abstract static class Type1 extends Type {
-    final Type t0;
+  private abstract static class SequentialType extends Type {
+    private final int count;
+    private final Type element;
 
-    Type1(Type t0) {
-      this.t0 = t0;
+    private SequentialType(int count, Type element) {
+      this.count = count;
+      this.element = element;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      SequentialType types = (SequentialType) o;
+      return count == types.count && Objects.equals(element, types.element);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(count, element);
     }
 
     @Override
     public Type get(int i) {
       if (i != 0) throw new IndexOutOfBoundsException("%s, %s".formatted(this, i));
-      return t0;
+      return element;
     }
 
     @Override
