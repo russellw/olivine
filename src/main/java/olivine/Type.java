@@ -347,6 +347,19 @@ public abstract class Type implements Iterable<Type> {
     }
 
     @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      Compound types = (Compound) o;
+      return Objects.deepEquals(elements, types.elements);
+    }
+
+    @Override
+    public int hashCode() {
+      return Arrays.hashCode(elements);
+    }
+
+    @Override
     public Type get(int i) {
       return elements[i];
     }
@@ -360,19 +373,6 @@ public abstract class Type implements Iterable<Type> {
   private static final class Struct extends Compound {
     Struct(Type[] fields) {
       super(fields);
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
-      Struct types = (Struct) o;
-      return Arrays.equals(elements, types.elements);
-    }
-
-    @Override
-    public int hashCode() {
-      return Arrays.hashCode(elements);
     }
 
     @Override
