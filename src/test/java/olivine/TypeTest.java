@@ -2,6 +2,8 @@ package olivine;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.util.Iterator;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class TypeTest {
@@ -32,5 +34,137 @@ class TypeTest {
     var s = Type.struct(Type.I32, Type.I32, Type.I32);
     assertEquals(s, Type.struct(Type.I32, Type.I32, Type.I32));
     assertNotEquals(s, Type.struct(Type.I32, Type.I32, Type.I16));
+  }
+
+  @Test
+  public void testPTRKind() {
+    assertEquals(Kind.PTR, Type.PTR.kind());
+  }
+
+  @Test
+  public void testPTRToString() {
+    assertEquals("ptr", Type.PTR.toString());
+  }
+
+  @Test
+  public void testOPAQUEKind() {
+    assertEquals(Kind.OPAQUE, Type.OPAQUE.kind());
+  }
+
+  @Test
+  public void testOPAQUEToString() {
+    assertEquals("opaque", Type.OPAQUE.toString());
+  }
+
+  @Test
+  public void testVOIDKind() {
+    assertEquals(Kind.VOID, Type.VOID.kind());
+  }
+
+  @Test
+  public void testVOIDToString() {
+    assertEquals("void", Type.VOID.toString());
+  }
+
+  @Test
+  public void testI32Kind() {
+    assertEquals(Kind.INT, Type.I32.kind());
+  }
+
+  @Test
+  public void testI32Bits() {
+    assertEquals(32, Type.I32.bits());
+  }
+
+  @Test
+  public void testI32ToString() {
+    assertEquals("i32", Type.I32.toString());
+  }
+
+  @Test
+  public void testArrayKind() {
+    Type array = Type.array(5, Type.I32);
+    assertEquals(Kind.ARRAY, array.kind());
+  }
+
+  @Test
+  public void testArrayGet() {
+    Type array = Type.array(5, Type.I32);
+    assertEquals(Type.I32, array.get(0));
+  }
+
+  @Test
+  public void testArraySize() {
+    Type array = Type.array(5, Type.I32);
+    assertEquals(1, array.size());
+  }
+
+  @Test
+  public void testVectorKind() {
+    Type vector = Type.vector(5, Type.I32);
+    assertEquals(Kind.VECTOR, vector.kind());
+  }
+
+  @Test
+  public void testVectorGet() {
+    Type vector = Type.vector(5, Type.I32);
+    assertEquals(Type.I32, vector.get(0));
+  }
+
+  @Test
+  public void testVectorSize() {
+    Type vector = Type.vector(5, Type.I32);
+    assertEquals(1, vector.size());
+  }
+
+  @Test
+  public void testStructKind() {
+    Type struct = Type.struct(Type.I32, Type.FLOAT);
+    assertEquals(Kind.STRUCT, struct.kind());
+  }
+
+  @Test
+  public void testStructGet() {
+    Type struct = Type.struct(Type.I32, Type.FLOAT);
+    assertEquals(Type.I32, struct.get(0));
+    assertEquals(Type.FLOAT, struct.get(1));
+  }
+
+  @Test
+  public void testStructSize() {
+    Type struct = Type.struct(Type.I32, Type.FLOAT);
+    assertEquals(2, struct.size());
+  }
+
+  @Test
+  public void testFnKind() {
+    Type fn = Type.fn(Type.VOID, List.of(Type.I32, Type.FLOAT), false);
+    assertEquals(Kind.FN, fn.kind());
+  }
+
+  @Test
+  public void testFnGet() {
+    Type fn = Type.fn(Type.VOID, List.of(Type.I32, Type.FLOAT), false);
+    assertEquals(Type.VOID, fn.get(0));
+    assertEquals(Type.I32, fn.get(1));
+    assertEquals(Type.FLOAT, fn.get(2));
+  }
+
+  @Test
+  public void testFnSize() {
+    Type fn = Type.fn(Type.VOID, List.of(Type.I32, Type.FLOAT), false);
+    assertEquals(3, fn.size());
+  }
+
+  @Test
+  public void testIteratorHasNext() {
+    Iterator<Type> iterator = Type.VOID.iterator();
+    assertFalse(iterator.hasNext());
+  }
+
+  @Test
+  public void testIteratorNextThrowsException() {
+    Iterator<Type> iterator = Type.VOID.iterator();
+    assertThrows(UnsupportedOperationException.class, iterator::next);
   }
 }
