@@ -358,8 +358,8 @@ public abstract class Type implements Iterable<Type> {
   }
 
   private static final class Struct extends Compound {
-    Struct(Type[] types) {
-      super(types);
+    Struct(Type[] fields) {
+      super(fields);
     }
 
     @Override
@@ -380,10 +380,10 @@ public abstract class Type implements Iterable<Type> {
       var sb = new StringBuilder();
       sb.append('{');
       var more = false;
-      for (var type : elements) {
+      for (var field : elements) {
         if (more) sb.append(',');
         more = true;
-        sb.append(type);
+        sb.append(field);
       }
       sb.append('}');
       return sb.toString();
@@ -396,21 +396,21 @@ public abstract class Type implements Iterable<Type> {
   }
 
   public static Type fn(Type rtype, List<Type> params, boolean varargs) {
-    var v = new Type[1 + params.size()];
-    v[0] = rtype;
-    for (var i = 0; i < params.size(); i++) v[1 + i] = params.get(i);
-    return new FnType(v, varargs);
+    var elements = new Type[1 + params.size()];
+    elements[0] = rtype;
+    for (var i = 0; i < params.size(); i++) elements[1 + i] = params.get(i);
+    return new FnType(elements, varargs);
   }
 
-  public static Type fn(Type[] v, boolean varargs) {
-    return new FnType(v, varargs);
+  public static Type fn(Type[] elements, boolean varargs) {
+    return new FnType(elements, varargs);
   }
 
   private static final class FnType extends Compound {
     final boolean varargs;
 
-    FnType(Type[] v, boolean varargs) {
-      super(v);
+    FnType(Type[] elements, boolean varargs) {
+      super(elements);
       this.varargs = varargs;
     }
 

@@ -119,11 +119,11 @@ public final class LlvmParser {
       }
       case '{' -> {
         lex();
-        var v = new ArrayList<Type>();
-        do v.add(type());
+        var fields = new ArrayList<Type>();
+        do fields.add(type());
         while (eat(','));
         expect('}');
-        return Type.struct(v);
+        return Type.struct(fields);
       }
       case LOCAL_ID -> {
         var type = types.get(tokString);
