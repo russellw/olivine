@@ -282,6 +282,96 @@ public final class LlvmParser {
       }
       eol();
     }
+
+    // Third pass, fill in global values and function bodies
+    reset();
+    while (tok != EOF) {
+      switch (tok) {
+        case WORD -> {
+          // Function definition
+          if (lex1().equals("define")) {
+            linkageType();
+            dso();
+
+            // Return type
+            type();
+
+            // Name
+            var fn = (Fn) globals.get(expect(GLOBAL_ID));
+
+            // Parameters
+            expect('(');
+            var i = 0;
+            locals.clear();
+            if (tok != ')')
+              do {
+                if (eat(DOTS)) continue;
+                type();
+                paramAttr();
+                locals.put(expect(LOCAL_ID), fn.params.get(i++));
+              } while (eat(','));
+            while (!eat('{')) {
+              if (tok == EOF) throw err("unexpected end of file");
+              lex();
+            }
+
+            // Entry block
+            var block = new Block();
+            fn.entry = block;
+            locals.put(expect(LABEL), block);
+
+            // Body
+            while (!eat('}')) {
+              if (tok == LABEL) {
+                block = block();
+                continue;
+              }
+              instruction(block);
+              eol();
+            }
+
+            // Phis
+            for (var kv : phis.entrySet()) {
+              var from = kv.getKey();
+
+              // Terminator instruction needs to follow the phi assignments from this block, so get
+              // it out of the way for now. If the terminator is a conditional
+              // branch,
+              // then the phi assignments for blocks not jumped to on a particular
+              // occasion will be redundant but harmless
+              var terminator = from.last();
+              from.instructions.remove(from.size() - 1);
+
+              // Assignments
+              var assign = kv.getValue();
+              for (var j = 0; j < assign.size(); j += 2) {
+                var a = assign.get(j);
+                var val = assign.get(j + 1);
+                from.add(Val.of(Tag.ASSIGN, a, val));
+              }
+
+              // Put the terminator back, after the phi assignments
+              from.add(terminator);
+            }
+            phis.clear();
+          }
+        }
+        case GLOBAL_ID -> {
+          var a = (GlobalVar) globals.get(lex1());
+          expect('=');
+          linkageType();
+          dso();
+          eat("unnamed_addr");
+          if (tok == WORD)
+            switch (tokString) {
+              case "constant", "global" -> lex();
+            }
+          a.val = typeExpr();
+        }
+        default -> lex();
+      }
+      eol();
+    }
   }
 
   private void declare(String name, Global a) {
