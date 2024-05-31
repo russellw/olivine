@@ -334,11 +334,11 @@ public final class LlvmParser {
             for (var kv : phis.entrySet()) {
               var from = kv.getKey();
 
-              // Terminator instruction needs to follow the phi assignments from this block, so get
-              // it out of the way for now. If the terminator is a conditional
-              // branch,
-              // then the phi assignments for blocks not jumped to on a particular
-              // occasion will be redundant but harmless
+              // Terminator instruction needs to follow the phi assignments from this block
+              // so get it out of the way for now
+              // If the terminator is a conditional branch
+              // then the phi assignments for blocks not jumped to on a particular occasion
+              // will be redundant but harmless
               var terminator = from.last();
               from.instructions.remove(from.size() - 1);
 
