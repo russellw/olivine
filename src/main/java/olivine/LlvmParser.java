@@ -167,6 +167,35 @@ public final class LlvmParser {
     return type;
   }
 
+  private void linkageType() {
+    if (tok == WORD)
+      switch (tokString) {
+        case "private",
+                "internal",
+                "available_externally",
+                "linkonce",
+                "weak",
+                "common",
+                "appending",
+                "extern_weak",
+                "linkonce_odr",
+                "weak_odr",
+                "external" ->
+            lex();
+      }
+  }
+
+  private void dso() {
+    if (tok == WORD)
+      switch (tokString) {
+        case "dso_local", "dso_preemptable" -> lex();
+      }
+  }
+
+  private void paramAttr() {
+    eat("noundef");
+  }
+
   private LlvmParser(String file, byte[] text, Module module) {
     this.file = file;
     this.text = text;
@@ -203,6 +232,60 @@ public final class LlvmParser {
       }
       eol();
     }
+
+    // Second pass, declare symbols
+    reset();
+    while (tok != EOF) {
+      switch (tok) {
+        case WORD -> {
+          switch (lex1()) {
+            case "define", "declare" -> {
+              linkageType();
+              dso();
+              var rtype = type();
+              var name = expect(GLOBAL_ID);
+              expect('(');
+              var params = new ArrayList<Var>();
+              var varargs = false;
+              if (tok != ')')
+                do {
+                  if (eat(DOTS)) {
+                    varargs = true;
+                    continue;
+                  }
+                  params.add(new Var(type()));
+                  paramAttr();
+                  eat(LOCAL_ID);
+                } while (eat(','));
+              expect(')');
+              var fn = new Fn(name, rtype, params, varargs);
+              declare(name, fn);
+              module.fns.add(fn);
+            }
+          }
+        }
+        case GLOBAL_ID -> {
+          var name = lex1();
+          expect('=');
+          linkageType();
+          dso();
+          eat("unnamed_addr");
+          if (tok == WORD)
+            switch (tokString) {
+              case "constant", "global" -> lex();
+            }
+          var a = new GlobalVar(name, type());
+          declare(name, a);
+          module.vars.add(a);
+        }
+        default -> lex();
+      }
+      eol();
+    }
+  }
+
+  private void declare(String name, Global a) {
+    if (globals.put(name, a) != null) throw err(name, "duplicate name");
   }
 
   private void reset() {
