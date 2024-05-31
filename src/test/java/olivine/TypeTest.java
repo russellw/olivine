@@ -167,4 +167,16 @@ class TypeTest {
     Iterator<Type> iterator = Type.VOID.iterator();
     assertThrows(UnsupportedOperationException.class, iterator::next);
   }
+
+  @Test
+  public void testArrayToString() {
+    Type array = Type.array(5, Type.I32);
+    assertEquals("[5 x i32]", array.toString());
+  }
+
+  @Test
+  public void testVectorToString() {
+    Type vector = Type.vector(5, Type.I32);
+    assertEquals("<5 x i32>", vector.toString());
+  }
 }

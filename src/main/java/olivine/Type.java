@@ -266,8 +266,8 @@ public abstract class Type implements Iterable<Type> {
   }
 
   private abstract static class Sequential extends Type {
-    private final int count;
-    private final Type element;
+    final int count;
+    final Type element;
 
     private Sequential(int count, Type element) {
       this.count = count;
@@ -313,6 +313,11 @@ public abstract class Type implements Iterable<Type> {
     }
 
     @Override
+    public String toString() {
+      return "[" + count + " x " + element + ']';
+    }
+
+    @Override
     Kind kind() {
       return Kind.ARRAY;
     }
@@ -321,6 +326,11 @@ public abstract class Type implements Iterable<Type> {
   private static final class Vector extends Sequential {
     Vector(int count, Type element) {
       super(count, element);
+    }
+
+    @Override
+    public String toString() {
+      return "<" + count + " x " + element + '>';
     }
 
     @Override
