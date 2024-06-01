@@ -1,9 +1,7 @@
 package olivine;
 
 import java.math.BigInteger;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
-import java.util.Objects;
+import java.util.*;
 
 public abstract class Term implements Iterable<Term> {
   static final Term NULL = new Null();
@@ -34,6 +32,13 @@ public abstract class Term implements Iterable<Term> {
 
   Term add(Term b) {
     return new Add(this, b);
+  }
+
+  Term call(List<Term> args) {
+    var terms = new Term[1 + args.size()];
+    terms[0] = this;
+    for (var i = 0; i < args.size(); i++) terms[1 + i] = args.get(i);
+    return new Call(terms);
   }
 
   public int size() {
@@ -294,6 +299,53 @@ public abstract class Term implements Iterable<Term> {
     @Override
     Tag tag() {
       return Tag.ADD;
+    }
+  }
+
+  private abstract static class Terms extends Term {
+    final Term[] terms;
+
+    Terms(Term[] terms) {
+      this.terms = terms;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      Terms terms1 = (Terms) o;
+      return Objects.deepEquals(terms, terms1.terms);
+    }
+
+    @Override
+    public int hashCode() {
+      return Arrays.hashCode(terms);
+    }
+
+    @Override
+    public Term get(int i) {
+      return terms[i];
+    }
+
+    @Override
+    public int size() {
+      return terms.length;
+    }
+  }
+
+  private static final class Call extends Terms {
+    Call(Term[] terms) {
+      super(terms);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.CALL;
+    }
+
+    @Override
+    Type type() {
+      throw new UnsupportedOperationException(toString());
     }
   }
 }

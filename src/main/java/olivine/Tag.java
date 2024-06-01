@@ -36,4 +36,5 @@ public enum Tag {
   FNE,
   FLT,
   FLE,
+  CALL,
 }

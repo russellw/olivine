@@ -239,17 +239,17 @@ public final class LlvmParser {
   }
 
   private Term call() {
-    var v = new ArrayList<Term>();
-    v.add(typeExpr());
+    var f = typeExpr();
+    var args = new ArrayList<Term>();
     expect('(');
     if (tok != ')')
       do {
         var type = type();
         paramAttr();
-        v.add(expr(type));
+        args.add(expr(type));
       } while (eat(','));
     expect(')');
-    return Val.of(Tag.CALL, v);
+    return f.call(args);
   }
 
   private Block label() {
