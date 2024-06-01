@@ -38,6 +38,22 @@ public abstract class Term implements Iterable<Term> {
     return new SCast(this, type);
   }
 
+  Term feq(Term b) {
+    return new FEq(this, b);
+  }
+
+  Term fne(Term b) {
+    return new FNe(this, b);
+  }
+
+  Term fle(Term b) {
+    return new FLe(this, b);
+  }
+
+  Term flt(Term b) {
+    return new FLt(this, b);
+  }
+
   Term eq(Term b) {
     return new Eq(this, b);
   }
@@ -507,6 +523,50 @@ public abstract class Term implements Iterable<Term> {
     @Override
     Tag tag() {
       return Tag.ADD;
+    }
+  }
+
+  private static final class FEq extends Term2 {
+    FEq(Term arg0, Term arg1) {
+      super(arg0, arg1);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.FEQ;
+    }
+  }
+
+  private static final class FNe extends Term2 {
+    FNe(Term arg0, Term arg1) {
+      super(arg0, arg1);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.FNE;
+    }
+  }
+
+  private static final class FLe extends Term2 {
+    FLe(Term arg0, Term arg1) {
+      super(arg0, arg1);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.FLE;
+    }
+  }
+
+  private static final class FLt extends Term2 {
+    FLt(Term arg0, Term arg1) {
+      super(arg0, arg1);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.FLT;
     }
   }
 

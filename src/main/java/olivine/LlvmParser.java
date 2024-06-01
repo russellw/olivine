@@ -328,12 +328,48 @@ public final class LlvmParser {
           fastMathFlags();
           from =
               switch (expect(WORD)) {
-                case "oeq" -> binaryExpr(Tag.FEQ);
-                case "une" -> binaryExpr(Tag.FNE);
-                case "olt" -> binaryExpr(Tag.FLT);
-                case "ole" -> binaryExpr(Tag.FLE);
-                case "ogt" -> binaryExprReversed(Tag.FLT);
-                case "oge" -> binaryExprReversed(Tag.FLE);
+                case "oeq" -> {
+                  var type = type();
+                  var a = expr(type);
+                  expect(',');
+                  var b = expr(type);
+                  yield a.feq(b);
+                }
+                case "une" -> {
+                  var type = type();
+                  var a = expr(type);
+                  expect(',');
+                  var b = expr(type);
+                  yield a.fne(b);
+                }
+                case "olt" -> {
+                  var type = type();
+                  var a = expr(type);
+                  expect(',');
+                  var b = expr(type);
+                  yield a.flt(b);
+                }
+                case "ole" -> {
+                  var type = type();
+                  var a = expr(type);
+                  expect(',');
+                  var b = expr(type);
+                  yield a.fle(b);
+                }
+                case "ogt" -> {
+                  var type = type();
+                  var b = expr(type);
+                  expect(',');
+                  var a = expr(type);
+                  yield a.flt(b);
+                }
+                case "oge" -> {
+                  var type = type();
+                  var b = expr(type);
+                  expect(',');
+                  var a = expr(type);
+                  yield a.fle(b);
+                }
                 default -> throw err("unknown condition");
               };
         }
