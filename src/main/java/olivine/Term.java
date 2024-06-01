@@ -38,6 +38,30 @@ public abstract class Term implements Iterable<Term> {
     return new SCast(this, type);
   }
 
+  Term eq(Term b) {
+    return new Eq(this, b);
+  }
+
+  Term ne(Term b) {
+    return new Ne(this, b);
+  }
+
+  Term sle(Term b) {
+    return new SLe(this, b);
+  }
+
+  Term slt(Term b) {
+    return new SLt(this, b);
+  }
+
+  Term ule(Term b) {
+    return new ULe(this, b);
+  }
+
+  Term ult(Term b) {
+    return new ULt(this, b);
+  }
+
   Term add(Term b) {
     return new Add(this, b);
   }
@@ -406,6 +430,72 @@ public abstract class Term implements Iterable<Term> {
       public Term next() {
         return term.get(i++);
       }
+    }
+  }
+
+  private static final class Eq extends Term2 {
+    Eq(Term arg0, Term arg1) {
+      super(arg0, arg1);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.EQ;
+    }
+  }
+
+  private static final class Ne extends Term2 {
+    Ne(Term arg0, Term arg1) {
+      super(arg0, arg1);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.NE;
+    }
+  }
+
+  private static final class SLe extends Term2 {
+    SLe(Term arg0, Term arg1) {
+      super(arg0, arg1);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.SLE;
+    }
+  }
+
+  private static final class SLt extends Term2 {
+    SLt(Term arg0, Term arg1) {
+      super(arg0, arg1);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.SLT;
+    }
+  }
+
+  private static final class ULe extends Term2 {
+    ULe(Term arg0, Term arg1) {
+      super(arg0, arg1);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.ULE;
+    }
+  }
+
+  private static final class ULt extends Term2 {
+    ULt(Term arg0, Term arg1) {
+      super(arg0, arg1);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.ULT;
     }
   }
 

@@ -340,16 +340,76 @@ public final class LlvmParser {
         case "icmp" ->
             from =
                 switch (expect(WORD)) {
-                  case "eq" -> binaryExpr(Tag.EQ);
-                  case "ne" -> binaryExpr(Tag.NE);
-                  case "ult" -> binaryExpr(Tag.ULT);
-                  case "ule" -> binaryExpr(Tag.ULE);
-                  case "slt" -> binaryExpr(Tag.SLT);
-                  case "sle" -> binaryExpr(Tag.SLE);
-                  case "ugt" -> binaryExprReversed(Tag.ULT);
-                  case "uge" -> binaryExprReversed(Tag.ULE);
-                  case "sgt" -> binaryExprReversed(Tag.SLT);
-                  case "sge" -> binaryExprReversed(Tag.SLE);
+                  case "eq" -> {
+                    var type = type();
+                    var a = expr(type);
+                    expect(',');
+                    var b = expr(type);
+                    yield a.eq(b);
+                  }
+                  case "ne" -> {
+                    var type = type();
+                    var a = expr(type);
+                    expect(',');
+                    var b = expr(type);
+                    yield a.ne(b);
+                  }
+                  case "ult" -> {
+                    var type = type();
+                    var a = expr(type);
+                    expect(',');
+                    var b = expr(type);
+                    yield a.ult(b);
+                  }
+                  case "ule" -> {
+                    var type = type();
+                    var a = expr(type);
+                    expect(',');
+                    var b = expr(type);
+                    yield a.ule(b);
+                  }
+                  case "slt" -> {
+                    var type = type();
+                    var a = expr(type);
+                    expect(',');
+                    var b = expr(type);
+                    yield a.slt(b);
+                  }
+                  case "sle" -> {
+                    var type = type();
+                    var a = expr(type);
+                    expect(',');
+                    var b = expr(type);
+                    yield a.sle(b);
+                  }
+                  case "ugt" -> {
+                    var type = type();
+                    var b = expr(type);
+                    expect(',');
+                    var a = expr(type);
+                    yield a.ult(b);
+                  }
+                  case "uge" -> {
+                    var type = type();
+                    var b = expr(type);
+                    expect(',');
+                    var a = expr(type);
+                    yield a.ule(b);
+                  }
+                  case "sgt" -> {
+                    var type = type();
+                    var b = expr(type);
+                    expect(',');
+                    var a = expr(type);
+                    yield a.slt(b);
+                  }
+                  case "sge" -> {
+                    var type = type();
+                    var b = expr(type);
+                    expect(',');
+                    var a = expr(type);
+                    yield a.sle(b);
+                  }
                   default -> throw err("unknown condition");
                 };
         case "phi" -> {
