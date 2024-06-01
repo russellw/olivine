@@ -553,7 +553,7 @@ public final class LlvmParser {
       return;
     }
     switch (expect(WORD)) {
-      case "call" -> block.add(call());
+      case "call" -> block.add(new AssignVoid(call()));
       case "store" -> {
         var a = typeExpr();
         expect(',');
