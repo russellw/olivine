@@ -34,6 +34,10 @@ public abstract class Term implements Iterable<Term> {
     return new Cast(this, type);
   }
 
+  Term scast(Type type) {
+    return new SCast(this, type);
+  }
+
   Term add(Term b) {
     return new Add(this, b);
   }
@@ -318,6 +322,25 @@ public abstract class Term implements Iterable<Term> {
     @Override
     Tag tag() {
       return Tag.CAST;
+    }
+  }
+
+  private static final class SCast extends Term1 {
+    private final Type type;
+
+    SCast(Term arg, Type type) {
+      super(arg);
+      this.type = type;
+    }
+
+    @Override
+    Type type() {
+      return type;
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.SCAST;
     }
   }
 

@@ -39,4 +39,5 @@ public enum Tag {
   CALL,
   SELECT,
   CAST,
+  SCAST,
 }

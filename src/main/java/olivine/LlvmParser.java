@@ -543,9 +543,9 @@ public final class LlvmParser {
           from = value.cast(type());
         }
         case "sext", "fptosi", "sitofp" -> {
-          var a = typeExpr();
+          var value = typeExpr();
           expect("to");
-          from = new SCast(type(), a);
+          from = value.scast(type());
         }
         default -> throw err("unknown instruction");
       }
