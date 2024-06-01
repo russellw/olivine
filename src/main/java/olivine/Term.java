@@ -50,6 +50,14 @@ public abstract class Term implements Iterable<Term> {
     return new SDiv(this, b);
   }
 
+  Term urem(Term b) {
+    return new URem(this, b);
+  }
+
+  Term srem(Term b) {
+    return new SRem(this, b);
+  }
+
   Term select(Term ifTrue, Term ifFalse) {
     return new Select(this, ifTrue, ifFalse);
   }
@@ -363,6 +371,28 @@ public abstract class Term implements Iterable<Term> {
     @Override
     Tag tag() {
       return Tag.SDIV;
+    }
+  }
+
+  private static final class URem extends Term2 {
+    URem(Term arg0, Term arg1) {
+      super(arg0, arg1);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.UREM;
+    }
+  }
+
+  private static final class SRem extends Term2 {
+    SRem(Term arg0, Term arg1) {
+      super(arg0, arg1);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.SREM;
     }
   }
 

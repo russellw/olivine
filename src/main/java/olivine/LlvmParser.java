@@ -428,8 +428,20 @@ public final class LlvmParser {
           var b = expr(type);
           from = a.sdiv(b);
         }
-        case "urem" -> from = binaryExpr(Tag.UREM);
-        case "srem" -> from = binaryExpr(Tag.SREM);
+        case "urem" -> {
+          var type = type();
+          var a = expr(type);
+          expect(',');
+          var b = expr(type);
+          from = a.urem(b);
+        }
+        case "srem" -> {
+          var type = type();
+          var a = expr(type);
+          expect(',');
+          var b = expr(type);
+          from = a.srem(b);
+        }
         case "or" -> from = binaryExpr(Tag.OR);
         case "and" -> from = binaryExpr(Tag.AND);
         case "xor" -> from = binaryExpr(Tag.XOR);
