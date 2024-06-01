@@ -569,18 +569,18 @@ public final class LlvmParser {
         block.add(new Ret(typeExpr()));
       }
       case "switch" -> {
-        var a = new Switch();
-        a.val = typeExpr();
+        var value = typeExpr();
         expect(',');
-        a.default1 = label();
+        var defaultDest = label();
+        var switch1 = new Switch(value, defaultDest);
         expect('[');
         do {
           var val = typeExpr();
           expect(',');
-          var target = label();
-          a.cases.add(new Case(val, target));
+          var dest = label();
+          switch1.cases.add(new Case(val, dest));
         } while (!eat(']'));
-        block.add(a);
+        block.add(switch1);
       }
       case "br" -> {
         switch (expect(WORD)) {
