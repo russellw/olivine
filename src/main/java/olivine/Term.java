@@ -54,6 +54,30 @@ public abstract class Term implements Iterable<Term> {
     return new URem(this, b);
   }
 
+  Term and(Term b) {
+    return new And(this, b);
+  }
+
+  Term or(Term b) {
+    return new Or(this, b);
+  }
+
+  Term xor(Term b) {
+    return new Xor(this, b);
+  }
+
+  Term shl(Term b) {
+    return new Shl(this, b);
+  }
+
+  Term ashr(Term b) {
+    return new AShr(this, b);
+  }
+
+  Term lshr(Term b) {
+    return new LShr(this, b);
+  }
+
   Term srem(Term b) {
     return new SRem(this, b);
   }
@@ -393,6 +417,72 @@ public abstract class Term implements Iterable<Term> {
     @Override
     Tag tag() {
       return Tag.SREM;
+    }
+  }
+
+  private static final class And extends Term2 {
+    And(Term arg0, Term arg1) {
+      super(arg0, arg1);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.AND;
+    }
+  }
+
+  private static final class Or extends Term2 {
+    Or(Term arg0, Term arg1) {
+      super(arg0, arg1);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.OR;
+    }
+  }
+
+  private static final class Xor extends Term2 {
+    Xor(Term arg0, Term arg1) {
+      super(arg0, arg1);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.XOR;
+    }
+  }
+
+  private static final class Shl extends Term2 {
+    Shl(Term arg0, Term arg1) {
+      super(arg0, arg1);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.SHL;
+    }
+  }
+
+  private static final class AShr extends Term2 {
+    AShr(Term arg0, Term arg1) {
+      super(arg0, arg1);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.ASHR;
+    }
+  }
+
+  private static final class LShr extends Term2 {
+    LShr(Term arg0, Term arg1) {
+      super(arg0, arg1);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.LSHR;
     }
   }
 

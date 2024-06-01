@@ -442,12 +442,48 @@ public final class LlvmParser {
           var b = expr(type);
           from = a.srem(b);
         }
-        case "or" -> from = binaryExpr(Tag.OR);
-        case "and" -> from = binaryExpr(Tag.AND);
-        case "xor" -> from = binaryExpr(Tag.XOR);
-        case "shl" -> from = binaryExpr(Tag.SHL);
-        case "ashr" -> from = binaryExpr(Tag.ASHR);
-        case "lshr" -> from = binaryExpr(Tag.LSHR);
+        case "or" -> {
+          var type = type();
+          var a = expr(type);
+          expect(',');
+          var b = expr(type);
+          from = a.or(b);
+        }
+        case "and" -> {
+          var type = type();
+          var a = expr(type);
+          expect(',');
+          var b = expr(type);
+          from = a.and(b);
+        }
+        case "xor" -> {
+          var type = type();
+          var a = expr(type);
+          expect(',');
+          var b = expr(type);
+          from = a.xor(b);
+        }
+        case "shl" -> {
+          var type = type();
+          var a = expr(type);
+          expect(',');
+          var b = expr(type);
+          from = a.shl(b);
+        }
+        case "ashr" -> {
+          var type = type();
+          var a = expr(type);
+          expect(',');
+          var b = expr(type);
+          from = a.ashr(b);
+        }
+        case "lshr" -> {
+          var type = type();
+          var a = expr(type);
+          expect(',');
+          var b = expr(type);
+          from = a.lshr(b);
+        }
         case "getelementptr" -> {
           eat("inbounds");
           var type = type();
