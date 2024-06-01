@@ -15,6 +15,11 @@ public abstract class Term implements Iterable<Term> {
     return new IntConstant(type, BigInteger.valueOf(value));
   }
 
+  static Term intConstant(Type type, BigInteger value) {
+    assert value.signum() >= 0;
+    return new IntConstant(type, value);
+  }
+
   static Term floatConstant(Type type, String value) {
     return new FloatConstant(type, value);
   }

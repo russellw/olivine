@@ -1,5 +1,6 @@
 package olivine;
 
+import java.math.BigInteger;
 import java.util.*;
 
 public final class LlvmParser {
@@ -24,6 +25,7 @@ public final class LlvmParser {
   private final Map<String, Type> types = new HashMap<>();
   private final Map<String, Global> globals = new HashMap<>();
   private final Map<String, Term> locals = new HashMap<>();
+  private final Map<String, Block> blocks = new HashMap<>();
   private final Map<Block, List<Term>> phis = new LinkedHashMap<>();
 
   public static String datalayout;
@@ -196,6 +198,332 @@ public final class LlvmParser {
     eat("noundef");
   }
 
+  private Block block() {
+    var block = blocks.get(tokString);
+    if (block == null) {
+      block = new Block();
+      blocks.put(tokString, block);
+    }
+    lex();
+    return block;
+  }
+
+  private void noWrap() {
+    eat("nsw");
+  }
+
+  private void fastMathFlags() {
+    while (tok == WORD)
+      switch (tokString) {
+        case "nnan", "ninf", "nsz", "arcp", "contract", "afn", "reassoc", "fast" -> lex();
+        default -> {
+          return;
+        }
+      }
+  }
+
+  private Term binaryExpr(Tag tag) {
+    var type = type();
+    var a = expr(type);
+    expect(',');
+    var b = expr(type);
+    return Term.of(tag, a, b);
+  }
+
+  private Term binaryExprReversed(Tag tag) {
+    var type = type();
+    var b = expr(type);
+    expect(',');
+    var a = expr(type);
+    return Term.of(tag, a, b);
+  }
+
+  private Term call() {
+    var v = new ArrayList<Term>();
+    v.add(typeExpr());
+    expect('(');
+    if (tok != ')')
+      do {
+        var type = type();
+        paramAttr();
+        v.add(expr(type));
+      } while (eat(','));
+    expect(')');
+    return Val.of(Tag.CALL, v);
+  }
+
+  private Block label() {
+    expect("label");
+    return block();
+  }
+
+  private Var variable(String name, Type type) {
+    var a = (Var) locals.get(name);
+    if (a == null) {
+      a = new Var(type);
+      locals.put(name, a);
+    }
+    return a;
+  }
+
+  private Val getElementPtr(Type type, Val a, List<Val> idxs) {
+    a = new EltPtr(type, a, idxs.get(0));
+    for (var i = 1; i < idxs.size(); i++) {
+      var idx = idxs.get(i);
+      switch (type.kind()) {
+        case ARRAY -> {
+          type = type.get(0);
+          a = new EltPtr(type, a, idx);
+        }
+        case STRUCT -> {
+          a = new EltPtr(type, a, idx);
+          type = type.get(idx.intVal());
+        }
+        default -> throw err("expected compound type");
+      }
+    }
+    return a;
+  }
+
+  private Term expr(Type type) {
+    switch (tok) {
+      case WORD -> {
+        return switch (lex1()) {
+          case "null" -> Term.NULL;
+          case "true" -> Term.TRUE;
+          case "false" -> Term.FALSE;
+          default -> throw err("expected expression");
+        };
+      }
+      case INT -> {
+        return Term.intConstant(type, new BigInteger(lex1()));
+      }
+      case FLOAT, HEX_FLOAT -> {
+        return Term.floatConstant(type, lex1());
+      }
+      case GLOBAL_ID -> {
+        var a = globals.get(lex1());
+        if (a == null) throw err("name not found");
+        if (a instanceof GlobalVar) return Val.of(Tag.ADDR, a);
+        return a;
+      }
+      case LOCAL_ID -> {
+        return variable(lex1(), type);
+      }
+      case STRING -> {
+        var v = new Val[tokString.length()];
+        for (var i = 0; i < v.length; i++)
+          v[i] = IntVal.of(BigInteger.valueOf(tokString.charAt(i)), Type.I8);
+        lex();
+        return Val.of(Tag.ARRAY, v);
+      }
+    }
+    throw err("expected expression");
+  }
+
+  private Term typeExpr() {
+    return expr(type());
+  }
+
+  private void instruction(Block block) {
+    if (tok == LOCAL_ID) {
+      var name = lex1();
+      expect('=');
+      Val val;
+      switch (expect(WORD)) {
+        case "select" -> {
+          fastMathFlags();
+          var cond = typeExpr();
+          expect(",");
+          var ifTrue = typeExpr();
+          expect(",");
+          var ifFalse = typeExpr();
+          val = Val.of(Tag.SELECT, cond, ifTrue, ifFalse);
+        }
+        case "fcmp" -> {
+          fastMathFlags();
+          val =
+              switch (expect(WORD)) {
+                case "oeq" -> binaryExpr(Tag.FEQ);
+                case "une" -> binaryExpr(Tag.FNE);
+                case "olt" -> binaryExpr(Tag.FLT);
+                case "ole" -> binaryExpr(Tag.FLE);
+                case "ogt" -> binaryExprReversed(Tag.FLT);
+                case "oge" -> binaryExprReversed(Tag.FLE);
+                default -> throw err("unknown condition");
+              };
+        }
+        case "icmp" ->
+            val =
+                switch (expect(WORD)) {
+                  case "eq" -> binaryExpr(Tag.EQ);
+                  case "ne" -> binaryExpr(Tag.NE);
+                  case "ult" -> binaryExpr(Tag.ULT);
+                  case "ule" -> binaryExpr(Tag.ULE);
+                  case "slt" -> binaryExpr(Tag.SLT);
+                  case "sle" -> binaryExpr(Tag.SLE);
+                  case "ugt" -> binaryExprReversed(Tag.ULT);
+                  case "uge" -> binaryExprReversed(Tag.ULE);
+                  case "sgt" -> binaryExprReversed(Tag.SLT);
+                  case "sge" -> binaryExprReversed(Tag.SLE);
+                  default -> throw err("unknown condition");
+                };
+        case "phi" -> {
+          fastMathFlags();
+          var type = type();
+          var a = variable(name, type);
+          do {
+            expect('[');
+            var fromVal = expr(type);
+            expect(',');
+            var from = block();
+            expect(']');
+            var assign = phis.computeIfAbsent(from, k -> new ArrayList<>());
+            assign.add(a);
+            assign.add(fromVal);
+          } while (eat(','));
+          return;
+        }
+        case "fneg" -> {
+          fastMathFlags();
+          val = Val.of(Tag.FNEG, typeExpr());
+        }
+        case "fadd" -> {
+          fastMathFlags();
+          val = binaryExpr(Tag.FADD);
+        }
+        case "fsub" -> {
+          fastMathFlags();
+          val = binaryExpr(Tag.FSUB);
+        }
+        case "fmul" -> {
+          fastMathFlags();
+          val = binaryExpr(Tag.FMUL);
+        }
+        case "fdiv" -> {
+          fastMathFlags();
+          val = binaryExpr(Tag.FDIV);
+        }
+        case "add" -> {
+          noWrap();
+          val = binaryExpr(Tag.ADD);
+        }
+        case "sub" -> {
+          noWrap();
+          val = binaryExpr(Tag.SUB);
+        }
+        case "mul" -> {
+          noWrap();
+          val = binaryExpr(Tag.MUL);
+        }
+        case "udiv" -> {
+          eat("exact");
+          val = binaryExpr(Tag.UDIV);
+        }
+        case "sdiv" -> {
+          eat("exact");
+          val = binaryExpr(Tag.SDIV);
+        }
+        case "urem" -> val = binaryExpr(Tag.UREM);
+        case "srem" -> val = binaryExpr(Tag.SREM);
+        case "or" -> val = binaryExpr(Tag.OR);
+        case "and" -> val = binaryExpr(Tag.AND);
+        case "xor" -> val = binaryExpr(Tag.XOR);
+        case "shl" -> val = binaryExpr(Tag.SHL);
+        case "ashr" -> val = binaryExpr(Tag.ASHR);
+        case "lshr" -> val = binaryExpr(Tag.LSHR);
+        case "getelementptr" -> {
+          eat("inbounds");
+          var type = type();
+          expect(',');
+          expect("ptr");
+          var p = expr(Type.PTR);
+          var idxs = new ArrayList<Val>();
+          while (eat(',')) idxs.add(typeExpr());
+          val = getElementPtr(type, p, idxs);
+        }
+        case "call" -> val = call();
+        case "alloca" -> {
+          var type = type();
+          var n = eat(',') && !eat("align") ? typeExpr() : IntVal.of(1);
+          val = new Alloca(type, n);
+        }
+        case "load" -> {
+          var type = type();
+          expect(',');
+          val = new Load(type, typeExpr());
+        }
+        case "bitcast",
+            "trunc",
+            "fptrunc",
+            "fpext",
+            "zext",
+            "fptoui",
+            "uitofp",
+            "ptrtoint",
+            "inttoptr" -> {
+          var a = typeExpr();
+          expect("to");
+          val = new Cast(type(), a);
+        }
+        case "sext", "fptosi", "sitofp" -> {
+          var a = typeExpr();
+          expect("to");
+          val = new SCast(type(), a);
+        }
+        default -> throw err("unknown instruction");
+      }
+      block.add(Val.of(Tag.ASSIGN, variable(name, val.type()), val));
+      return;
+    }
+    switch (expect(WORD)) {
+      case "call" -> block.add(call());
+      case "store" -> {
+        var a = typeExpr();
+        expect(',');
+        var p = typeExpr();
+        block.add(Val.of(Tag.STORE, a, p));
+      }
+      case "unreachable" -> block.add(Val.UNREACHABLE);
+      case "ret" -> {
+        if (eat("void")) {
+          block.add(Val.RET_VOID);
+          return;
+        }
+        block.add(new Ret(typeExpr()));
+      }
+      case "switch" -> {
+        var a = new Switch();
+        a.val = typeExpr();
+        expect(',');
+        a.default1 = label();
+        expect('[');
+        do {
+          var val = typeExpr();
+          expect(',');
+          var target = label();
+          a.cases.add(new Case(val, target));
+        } while (!eat(']'));
+        block.add(a);
+      }
+      case "br" -> {
+        switch (expect(WORD)) {
+          case "label" -> block.add(new Goto(block()));
+          case "i1" -> {
+            var cond = expr(Type.I1);
+            expect(',');
+            var ifTrue = label();
+            expect(',');
+            var ifFalse = label();
+            block.add(new Br(cond, ifTrue, ifFalse));
+          }
+          default -> throw err("unknown branch type");
+        }
+      }
+      default -> throw err("unknown instruction");
+    }
+  }
+
   private LlvmParser(String file, byte[] text, Module module) {
     this.file = file;
     this.text = text;
@@ -318,7 +646,7 @@ public final class LlvmParser {
             // Entry block
             var block = new Block();
             fn.entry = block;
-            locals.put(expect(LABEL), block);
+            blocks.put(expect(LABEL), block);
 
             // Body
             while (!eat('}')) {
@@ -340,7 +668,7 @@ public final class LlvmParser {
               // then the phi assignments for blocks not jumped to on a particular occasion
               // will be redundant but harmless
               var terminator = from.last();
-              from.instructions.remove(from.size() - 1);
+              from.remove(from.size() - 1);
 
               // Assignments
               var assign = kv.getValue();

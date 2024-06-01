@@ -12,6 +12,10 @@ public final class Block implements Iterable<Instruction> {
     return instructions.iterator();
   }
 
+  public void remove(int i) {
+    instructions.remove(i);
+  }
+
   public void add(Instruction instruction) {
     instructions.add(instruction);
   }
