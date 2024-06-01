@@ -34,6 +34,10 @@ public abstract class Term implements Iterable<Term> {
     return new Add(this, b);
   }
 
+  Term select(Term true1, Term false1) {
+    return new Select(this, true1, false1);
+  }
+
   Term call(List<Term> args) {
     var terms = new Term[1 + args.size()];
     terms[0] = this;
@@ -299,6 +303,86 @@ public abstract class Term implements Iterable<Term> {
     @Override
     Tag tag() {
       return Tag.ADD;
+    }
+  }
+
+  private abstract static class Term3 extends Term {
+    final Term arg0, arg1, arg2;
+
+    Term3(Term arg0, Term arg1, Term arg2) {
+      this.arg0 = arg0;
+      this.arg1 = arg1;
+      this.arg2 = arg2;
+    }
+
+    @Override
+    public int size() {
+      return 3;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      Term3 terms = (Term3) o;
+      return Objects.equals(arg0, terms.arg0)
+          && Objects.equals(arg1, terms.arg1)
+          && Objects.equals(arg2, terms.arg2);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(arg0, arg1, arg2);
+    }
+
+    @Override
+    public Term get(int i) {
+      return switch (i) {
+        case 0 -> arg0;
+        case 1 -> arg1;
+        case 2 -> arg2;
+        default -> throw new IndexOutOfBoundsException("%s, %s".formatted(this, i));
+      };
+    }
+
+    @Override
+    public Iterator<Term> iterator() {
+      return new Iterator3(this);
+    }
+
+    private static final class Iterator3 implements Iterator<Term> {
+      private final Term3 term;
+      private int i;
+
+      public Iterator3(Term3 term) {
+        this.term = term;
+      }
+
+      @Override
+      public boolean hasNext() {
+        return i < 3;
+      }
+
+      @Override
+      public Term next() {
+        return term.get(i++);
+      }
+    }
+  }
+
+  public static final class Select extends Term3 {
+    Select(Term cond, Term true1, Term false1) {
+      super(cond, true1, false1);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.SELECT;
+    }
+
+    @Override
+    Type type() {
+      return arg1.type();
     }
   }
 

@@ -329,20 +329,20 @@ public final class LlvmParser {
     if (tok == LOCAL_ID) {
       var name = lex1();
       expect('=');
-      Val val;
+      Term from;
       switch (expect(WORD)) {
         case "select" -> {
           fastMathFlags();
           var cond = typeExpr();
           expect(",");
-          var ifTrue = typeExpr();
+          var true1 = typeExpr();
           expect(",");
-          var ifFalse = typeExpr();
-          val = Val.of(Tag.SELECT, cond, ifTrue, ifFalse);
+          var false1 = typeExpr();
+          from = cond.select(true1, false1);
         }
         case "fcmp" -> {
           fastMathFlags();
-          val =
+          from =
               switch (expect(WORD)) {
                 case "oeq" -> binaryExpr(Tag.FEQ);
                 case "une" -> binaryExpr(Tag.FNE);
@@ -354,7 +354,7 @@ public final class LlvmParser {
               };
         }
         case "icmp" ->
-            val =
+            from =
                 switch (expect(WORD)) {
                   case "eq" -> binaryExpr(Tag.EQ);
                   case "ne" -> binaryExpr(Tag.NE);
@@ -386,52 +386,56 @@ public final class LlvmParser {
         }
         case "fneg" -> {
           fastMathFlags();
-          val = Val.of(Tag.FNEG, typeExpr());
+          from = Val.of(Tag.FNEG, typeExpr());
         }
         case "fadd" -> {
           fastMathFlags();
-          val = binaryExpr(Tag.FADD);
+          from = binaryExpr(Tag.FADD);
         }
         case "fsub" -> {
           fastMathFlags();
-          val = binaryExpr(Tag.FSUB);
+          from = binaryExpr(Tag.FSUB);
         }
         case "fmul" -> {
           fastMathFlags();
-          val = binaryExpr(Tag.FMUL);
+          from = binaryExpr(Tag.FMUL);
         }
         case "fdiv" -> {
           fastMathFlags();
-          val = binaryExpr(Tag.FDIV);
+          from = binaryExpr(Tag.FDIV);
         }
         case "add" -> {
           noWrap();
-          val = binaryExpr(Tag.ADD);
+          var type = type();
+          var a = expr(type);
+          expect(',');
+          var b = expr(type);
+          a.add(b);
         }
         case "sub" -> {
           noWrap();
-          val = binaryExpr(Tag.SUB);
+          from = binaryExpr(Tag.SUB);
         }
         case "mul" -> {
           noWrap();
-          val = binaryExpr(Tag.MUL);
+          from = binaryExpr(Tag.MUL);
         }
         case "udiv" -> {
           eat("exact");
-          val = binaryExpr(Tag.UDIV);
+          from = binaryExpr(Tag.UDIV);
         }
         case "sdiv" -> {
           eat("exact");
-          val = binaryExpr(Tag.SDIV);
+          from = binaryExpr(Tag.SDIV);
         }
-        case "urem" -> val = binaryExpr(Tag.UREM);
-        case "srem" -> val = binaryExpr(Tag.SREM);
-        case "or" -> val = binaryExpr(Tag.OR);
-        case "and" -> val = binaryExpr(Tag.AND);
-        case "xor" -> val = binaryExpr(Tag.XOR);
-        case "shl" -> val = binaryExpr(Tag.SHL);
-        case "ashr" -> val = binaryExpr(Tag.ASHR);
-        case "lshr" -> val = binaryExpr(Tag.LSHR);
+        case "urem" -> from = binaryExpr(Tag.UREM);
+        case "srem" -> from = binaryExpr(Tag.SREM);
+        case "or" -> from = binaryExpr(Tag.OR);
+        case "and" -> from = binaryExpr(Tag.AND);
+        case "xor" -> from = binaryExpr(Tag.XOR);
+        case "shl" -> from = binaryExpr(Tag.SHL);
+        case "ashr" -> from = binaryExpr(Tag.ASHR);
+        case "lshr" -> from = binaryExpr(Tag.LSHR);
         case "getelementptr" -> {
           eat("inbounds");
           var type = type();
@@ -440,18 +444,18 @@ public final class LlvmParser {
           var p = expr(Type.PTR);
           var idxs = new ArrayList<Val>();
           while (eat(',')) idxs.add(typeExpr());
-          val = getElementPtr(type, p, idxs);
+          from = getElementPtr(type, p, idxs);
         }
-        case "call" -> val = call();
+        case "call" -> from = call();
         case "alloca" -> {
           var type = type();
           var n = eat(',') && !eat("align") ? typeExpr() : IntVal.of(1);
-          val = new Alloca(type, n);
+          from = new Alloca(type, n);
         }
         case "load" -> {
           var type = type();
           expect(',');
-          val = new Load(type, typeExpr());
+          from = new Load(type, typeExpr());
         }
         case "bitcast",
             "trunc",
@@ -464,16 +468,16 @@ public final class LlvmParser {
             "inttoptr" -> {
           var a = typeExpr();
           expect("to");
-          val = new Cast(type(), a);
+          from = new Cast(type(), a);
         }
         case "sext", "fptosi", "sitofp" -> {
           var a = typeExpr();
           expect("to");
-          val = new SCast(type(), a);
+          from = new SCast(type(), a);
         }
         default -> throw err("unknown instruction");
       }
-      block.add(Val.of(Tag.ASSIGN, variable(name, val.type()), val));
+      block.add(Val.of(Tag.ASSIGN, variable(name, from.type()), from));
       return;
     }
     switch (expect(WORD)) {

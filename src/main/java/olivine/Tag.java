@@ -37,4 +37,5 @@ public enum Tag {
   FLT,
   FLE,
   CALL,
+  SELECT,
 }
