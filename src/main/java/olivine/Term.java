@@ -26,6 +26,10 @@ public abstract class Term implements Iterable<Term> {
 
   abstract Type type();
 
+  public static Term array(Type type, Term[] elements) {
+    return new Array(type, elements);
+  }
+
   Term fneg() {
     return new FNeg(this);
   }
@@ -881,6 +885,39 @@ public abstract class Term implements Iterable<Term> {
     @Override
     Type type() {
       throw new UnsupportedOperationException(toString());
+    }
+  }
+
+  private static final class Array extends Terms {
+    private final Type type;
+
+    Array(Type type, Term[] elements) {
+      super(elements);
+      this.type = type;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      if (!super.equals(o)) return false;
+      Array terms = (Array) o;
+      return Objects.equals(type, terms.type);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(super.hashCode(), type);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.ARRAY;
+    }
+
+    @Override
+    Type type() {
+      return Type.array(terms.length, type);
     }
   }
 }

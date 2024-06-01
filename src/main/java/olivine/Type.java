@@ -300,10 +300,12 @@ public abstract class Type implements Iterable<Type> {
   }
 
   public static Type array(int count, Type element) {
+    // TODO: refactor to instance
     return new Array(count, element);
   }
 
   public static Type vector(int count, Type element) {
+    // TODO: refactor to instance
     return new Vector(count, element);
   }
 

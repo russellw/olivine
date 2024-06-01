@@ -40,4 +40,5 @@ public enum Tag {
   SELECT,
   CAST,
   SCAST,
+  ARRAY,
 }

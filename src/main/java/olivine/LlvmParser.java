@@ -270,6 +270,7 @@ public final class LlvmParser {
   }
 
   private Term expr(Type type) {
+    // TODO: outer switch expression?
     switch (tok) {
       case WORD -> {
         return switch (lex1()) {
@@ -295,11 +296,10 @@ public final class LlvmParser {
         return variable(lex1(), type);
       }
       case STRING -> {
-        var v = new Val[tokString.length()];
-        for (var i = 0; i < v.length; i++)
-          v[i] = IntVal.of(BigInteger.valueOf(tokString.charAt(i)), Type.I8);
+        var v = new Term[tokString.length()];
+        for (var i = 0; i < v.length; i++) v[i] = Term.intConstant(Type.I8, tokString.charAt(i));
         lex();
-        return Val.of(Tag.ARRAY, v);
+        return Term.array(Type.I8, v);
       }
     }
     throw err("expected expression");
@@ -314,6 +314,7 @@ public final class LlvmParser {
       var name = lex1();
       expect('=');
       Term from;
+      // TODO: outer switch expression?
       switch (expect(WORD)) {
         case "select" -> {
           fastMathFlags();
