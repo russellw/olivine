@@ -555,10 +555,10 @@ public final class LlvmParser {
     switch (expect(WORD)) {
       case "call" -> block.add(new AssignVoid(call()));
       case "store" -> {
-        var a = typeExpr();
+        var value = typeExpr();
         expect(',');
-        var p = typeExpr();
-        block.add(Val.of(Tag.STORE, a, p));
+        var pointer = typeExpr();
+        block.add(new Store(value, pointer));
       }
       case "unreachable" -> block.add(new Unreachable());
       case "ret" -> {
