@@ -38,4 +38,5 @@ public enum Tag {
   FLE,
   CALL,
   SELECT,
+  CAST,
 }

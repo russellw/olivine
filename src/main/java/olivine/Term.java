@@ -30,6 +30,10 @@ public abstract class Term implements Iterable<Term> {
     return new FNeg(this);
   }
 
+  Term cast(Type type) {
+    return new Cast(this, type);
+  }
+
   Term add(Term b) {
     return new Add(this, b);
   }
@@ -295,6 +299,25 @@ public abstract class Term implements Iterable<Term> {
     @Override
     Tag tag() {
       return Tag.FNEG;
+    }
+  }
+
+  private static final class Cast extends Term1 {
+    private final Type type;
+
+    Cast(Term arg, Type type) {
+      super(arg);
+      this.type = type;
+    }
+
+    @Override
+    Type type() {
+      return type;
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.CAST;
     }
   }
 

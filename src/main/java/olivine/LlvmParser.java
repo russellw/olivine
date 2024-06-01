@@ -538,9 +538,9 @@ public final class LlvmParser {
             "uitofp",
             "ptrtoint",
             "inttoptr" -> {
-          var a = typeExpr();
+          var value = typeExpr();
           expect("to");
-          from = new Cast(type(), a);
+          from = value.cast(type());
         }
         case "sext", "fptosi", "sitofp" -> {
           var a = typeExpr();
