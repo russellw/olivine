@@ -222,22 +222,6 @@ public final class LlvmParser {
       }
   }
 
-  private Term binaryExpr(Tag tag) {
-    var type = type();
-    var a = expr(type);
-    expect(',');
-    var b = expr(type);
-    return Term.of(tag, a, b);
-  }
-
-  private Term binaryExprReversed(Tag tag) {
-    var type = type();
-    var b = expr(type);
-    expect(',');
-    var a = expr(type);
-    return Term.of(tag, a, b);
-  }
-
   private Term call() {
     var f = typeExpr();
     var args = new ArrayList<Term>();
@@ -335,10 +319,10 @@ public final class LlvmParser {
           fastMathFlags();
           var cond = typeExpr();
           expect(",");
-          var true1 = typeExpr();
+          var ifTrue = typeExpr();
           expect(",");
-          var false1 = typeExpr();
-          from = cond.select(true1, false1);
+          var ifFalse = typeExpr();
+          from = cond.select(ifTrue, ifFalse);
         }
         case "fcmp" -> {
           fastMathFlags();
@@ -386,7 +370,7 @@ public final class LlvmParser {
         }
         case "fneg" -> {
           fastMathFlags();
-          from = Val.of(Tag.FNEG, typeExpr());
+          from = typeExpr().fneg();
         }
         case "fadd" -> {
           fastMathFlags();
@@ -410,23 +394,39 @@ public final class LlvmParser {
           var a = expr(type);
           expect(',');
           var b = expr(type);
-          a.add(b);
+          from = a.add(b);
         }
         case "sub" -> {
           noWrap();
-          from = binaryExpr(Tag.SUB);
+          var type = type();
+          var a = expr(type);
+          expect(',');
+          var b = expr(type);
+          from = a.sub(b);
         }
         case "mul" -> {
           noWrap();
-          from = binaryExpr(Tag.MUL);
+          var type = type();
+          var a = expr(type);
+          expect(',');
+          var b = expr(type);
+          from = a.mul(b);
         }
         case "udiv" -> {
           eat("exact");
-          from = binaryExpr(Tag.UDIV);
+          var type = type();
+          var a = expr(type);
+          expect(',');
+          var b = expr(type);
+          from = a.udiv(b);
         }
         case "sdiv" -> {
           eat("exact");
-          from = binaryExpr(Tag.SDIV);
+          var type = type();
+          var a = expr(type);
+          expect(',');
+          var b = expr(type);
+          from = a.sdiv(b);
         }
         case "urem" -> from = binaryExpr(Tag.UREM);
         case "srem" -> from = binaryExpr(Tag.SREM);
@@ -477,7 +477,7 @@ public final class LlvmParser {
         }
         default -> throw err("unknown instruction");
       }
-      block.add(Val.of(Tag.ASSIGN, variable(name, from.type()), from));
+      block.add(new Assign(variable(name, from.type()), from));
       return;
     }
     switch (expect(WORD)) {
@@ -488,10 +488,10 @@ public final class LlvmParser {
         var p = typeExpr();
         block.add(Val.of(Tag.STORE, a, p));
       }
-      case "unreachable" -> block.add(Val.UNREACHABLE);
+      case "unreachable" -> block.add(new Unreachable());
       case "ret" -> {
         if (eat("void")) {
-          block.add(Val.RET_VOID);
+          block.add(new RetVoid());
           return;
         }
         block.add(new Ret(typeExpr()));
@@ -512,7 +512,7 @@ public final class LlvmParser {
       }
       case "br" -> {
         switch (expect(WORD)) {
-          case "label" -> block.add(new Goto(block()));
+          case "label" -> block.add(new BrUnconditional(block()));
           case "i1" -> {
             var cond = expr(Type.I1);
             expect(',');

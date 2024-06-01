@@ -34,8 +34,24 @@ public abstract class Term implements Iterable<Term> {
     return new Add(this, b);
   }
 
-  Term select(Term true1, Term false1) {
-    return new Select(this, true1, false1);
+  Term sub(Term b) {
+    return new Sub(this, b);
+  }
+
+  Term mul(Term b) {
+    return new Mul(this, b);
+  }
+
+  Term udiv(Term b) {
+    return new UDiv(this, b);
+  }
+
+  Term sdiv(Term b) {
+    return new SDiv(this, b);
+  }
+
+  Term select(Term ifTrue, Term ifFalse) {
+    return new Select(this, ifTrue, ifFalse);
   }
 
   Term call(List<Term> args) {
@@ -306,6 +322,50 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
+  private static final class Sub extends Term2 {
+    Sub(Term arg0, Term arg1) {
+      super(arg0, arg1);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.SUB;
+    }
+  }
+
+  private static final class Mul extends Term2 {
+    Mul(Term arg0, Term arg1) {
+      super(arg0, arg1);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.MUL;
+    }
+  }
+
+  private static final class UDiv extends Term2 {
+    UDiv(Term arg0, Term arg1) {
+      super(arg0, arg1);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.UDIV;
+    }
+  }
+
+  private static final class SDiv extends Term2 {
+    SDiv(Term arg0, Term arg1) {
+      super(arg0, arg1);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.SDIV;
+    }
+  }
+
   private abstract static class Term3 extends Term {
     final Term arg0, arg1, arg2;
 
@@ -371,8 +431,8 @@ public abstract class Term implements Iterable<Term> {
   }
 
   public static final class Select extends Term3 {
-    Select(Term cond, Term true1, Term false1) {
-      super(cond, true1, false1);
+    Select(Term cond, Term ifTrue, Term ifFalse) {
+      super(cond, ifTrue, ifFalse);
     }
 
     @Override
