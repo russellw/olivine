@@ -34,6 +34,26 @@ public abstract class Term implements Iterable<Term> {
     return new Add(this, b);
   }
 
+  Term fadd(Term b) {
+    return new FAdd(this, b);
+  }
+
+  Term fsub(Term b) {
+    return new FSub(this, b);
+  }
+
+  Term fmul(Term b) {
+    return new FMul(this, b);
+  }
+
+  Term fdiv(Term b) {
+    return new FDiv(this, b);
+  }
+
+  Term frem(Term b) {
+    return new FRem(this, b);
+  }
+
   Term sub(Term b) {
     return new Sub(this, b);
   }
@@ -417,6 +437,61 @@ public abstract class Term implements Iterable<Term> {
     @Override
     Tag tag() {
       return Tag.SREM;
+    }
+  }
+
+  private static final class FAdd extends Term2 {
+    FAdd(Term arg0, Term arg1) {
+      super(arg0, arg1);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.FADD;
+    }
+  }
+
+  private static final class FSub extends Term2 {
+    FSub(Term arg0, Term arg1) {
+      super(arg0, arg1);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.FSUB;
+    }
+  }
+
+  private static final class FMul extends Term2 {
+    FMul(Term arg0, Term arg1) {
+      super(arg0, arg1);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.FMUL;
+    }
+  }
+
+  private static final class FDiv extends Term2 {
+    FDiv(Term arg0, Term arg1) {
+      super(arg0, arg1);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.FDIV;
+    }
+  }
+
+  private static final class FRem extends Term2 {
+    FRem(Term arg0, Term arg1) {
+      super(arg0, arg1);
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.FREM;
     }
   }
 

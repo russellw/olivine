@@ -374,19 +374,43 @@ public final class LlvmParser {
         }
         case "fadd" -> {
           fastMathFlags();
-          from = binaryExpr(Tag.FADD);
+          var type = type();
+          var a = expr(type);
+          expect(',');
+          var b = expr(type);
+          from = a.fadd(b);
         }
         case "fsub" -> {
           fastMathFlags();
-          from = binaryExpr(Tag.FSUB);
+          var type = type();
+          var a = expr(type);
+          expect(',');
+          var b = expr(type);
+          from = a.fsub(b);
         }
         case "fmul" -> {
           fastMathFlags();
-          from = binaryExpr(Tag.FMUL);
+          var type = type();
+          var a = expr(type);
+          expect(',');
+          var b = expr(type);
+          from = a.fmul(b);
         }
         case "fdiv" -> {
           fastMathFlags();
-          from = binaryExpr(Tag.FDIV);
+          var type = type();
+          var a = expr(type);
+          expect(',');
+          var b = expr(type);
+          from = a.fdiv(b);
+        }
+        case "frem" -> {
+          fastMathFlags();
+          var type = type();
+          var a = expr(type);
+          expect(',');
+          var b = expr(type);
+          from = a.frem(b);
         }
         case "add" -> {
           noWrap();
