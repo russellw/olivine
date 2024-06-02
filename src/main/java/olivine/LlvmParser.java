@@ -289,7 +289,7 @@ public final class LlvmParser {
       case GLOBAL_ID -> {
         var a = globals.get(lex1());
         if (a == null) throw err("name not found");
-        if (a instanceof GlobalVar) return Val.of(Tag.ADDR, a);
+        if (a instanceof GlobalVar) return a.addr();
         return a;
       }
       case LOCAL_ID -> {

@@ -41,4 +41,5 @@ public enum Tag {
   CAST,
   SCAST,
   ARRAY,
+  ADDR,
 }
