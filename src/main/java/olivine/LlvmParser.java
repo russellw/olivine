@@ -313,7 +313,7 @@ public final class LlvmParser {
     if (tok == LOCAL_ID) {
       var name = lex1();
       expect('=');
-      Term from;
+      Term value;
       // TODO: outer switch expression?
       switch (expect(WORD)) {
         case "select" -> {
@@ -323,11 +323,11 @@ public final class LlvmParser {
           var ifTrue = typeExpr();
           expect(",");
           var ifFalse = typeExpr();
-          from = cond.select(ifTrue, ifFalse);
+          value = cond.select(ifTrue, ifFalse);
         }
         case "fcmp" -> {
           fastMathFlags();
-          from =
+          value =
               switch (expect(WORD)) {
                 case "oeq" -> {
                   var type = type();
@@ -375,7 +375,7 @@ public final class LlvmParser {
               };
         }
         case "icmp" ->
-            from =
+            value =
                 switch (expect(WORD)) {
                   case "eq" -> {
                     var type = type();
@@ -467,7 +467,7 @@ public final class LlvmParser {
         }
         case "fneg" -> {
           fastMathFlags();
-          from = typeExpr().fneg();
+          value = typeExpr().fneg();
         }
         case "fadd" -> {
           fastMathFlags();
@@ -475,7 +475,7 @@ public final class LlvmParser {
           var a = expr(type);
           expect(',');
           var b = expr(type);
-          from = a.fadd(b);
+          value = a.fadd(b);
         }
         case "fsub" -> {
           fastMathFlags();
@@ -483,7 +483,7 @@ public final class LlvmParser {
           var a = expr(type);
           expect(',');
           var b = expr(type);
-          from = a.fsub(b);
+          value = a.fsub(b);
         }
         case "fmul" -> {
           fastMathFlags();
@@ -491,7 +491,7 @@ public final class LlvmParser {
           var a = expr(type);
           expect(',');
           var b = expr(type);
-          from = a.fmul(b);
+          value = a.fmul(b);
         }
         case "fdiv" -> {
           fastMathFlags();
@@ -499,7 +499,7 @@ public final class LlvmParser {
           var a = expr(type);
           expect(',');
           var b = expr(type);
-          from = a.fdiv(b);
+          value = a.fdiv(b);
         }
         case "frem" -> {
           fastMathFlags();
@@ -507,7 +507,7 @@ public final class LlvmParser {
           var a = expr(type);
           expect(',');
           var b = expr(type);
-          from = a.frem(b);
+          value = a.frem(b);
         }
         case "add" -> {
           noWrap();
@@ -515,7 +515,7 @@ public final class LlvmParser {
           var a = expr(type);
           expect(',');
           var b = expr(type);
-          from = a.add(b);
+          value = a.add(b);
         }
         case "sub" -> {
           noWrap();
@@ -523,7 +523,7 @@ public final class LlvmParser {
           var a = expr(type);
           expect(',');
           var b = expr(type);
-          from = a.sub(b);
+          value = a.sub(b);
         }
         case "mul" -> {
           noWrap();
@@ -531,7 +531,7 @@ public final class LlvmParser {
           var a = expr(type);
           expect(',');
           var b = expr(type);
-          from = a.mul(b);
+          value = a.mul(b);
         }
         case "udiv" -> {
           eat("exact");
@@ -539,7 +539,7 @@ public final class LlvmParser {
           var a = expr(type);
           expect(',');
           var b = expr(type);
-          from = a.udiv(b);
+          value = a.udiv(b);
         }
         case "sdiv" -> {
           eat("exact");
@@ -547,56 +547,56 @@ public final class LlvmParser {
           var a = expr(type);
           expect(',');
           var b = expr(type);
-          from = a.sdiv(b);
+          value = a.sdiv(b);
         }
         case "urem" -> {
           var type = type();
           var a = expr(type);
           expect(',');
           var b = expr(type);
-          from = a.urem(b);
+          value = a.urem(b);
         }
         case "srem" -> {
           var type = type();
           var a = expr(type);
           expect(',');
           var b = expr(type);
-          from = a.srem(b);
+          value = a.srem(b);
         }
         case "or" -> {
           var type = type();
           var a = expr(type);
           expect(',');
           var b = expr(type);
-          from = a.or(b);
+          value = a.or(b);
         }
         case "and" -> {
           var type = type();
           var a = expr(type);
           expect(',');
           var b = expr(type);
-          from = a.and(b);
+          value = a.and(b);
         }
         case "xor" -> {
           var type = type();
           var a = expr(type);
           expect(',');
           var b = expr(type);
-          from = a.xor(b);
+          value = a.xor(b);
         }
         case "shl" -> {
           var type = type();
           var a = expr(type);
           expect(',');
           var b = expr(type);
-          from = a.shl(b);
+          value = a.shl(b);
         }
         case "ashr" -> {
           var type = type();
           var a = expr(type);
           expect(',');
           var b = expr(type);
-          from = a.ashr(b);
+          value = a.ashr(b);
         }
         case "lshr" -> {
           var type = type();
@@ -604,7 +604,7 @@ public final class LlvmParser {
           expect(',');
           // TODO: inline variable
           var b = expr(type);
-          from = a.lshr(b);
+          value = a.lshr(b);
         }
         case "getelementptr" -> {
           eat("inbounds");
@@ -614,20 +614,20 @@ public final class LlvmParser {
           var p = expr(Type.PTR);
           var idxs = new ArrayList<Val>();
           while (eat(',')) idxs.add(typeExpr());
-          from = getElementPtr(type, p, idxs);
+          value = getElementPtr(type, p, idxs);
         }
-        case "call" -> from = call();
+        case "call" -> value = call();
         case "alloca" -> {
           var type = type();
           var numElements = Term.ONE;
           if (eat(',') && !eat("align")) numElements = typeExpr();
-          from = Term.alloca(type, numElements);
+          value = Term.alloca(type, numElements);
         }
         case "load" -> {
           var type = type();
           expect(',');
           expect("ptr");
-          from = expr(type).load(type);
+          value = expr(type).load(type);
         }
         case "bitcast",
             "trunc",
@@ -640,16 +640,16 @@ public final class LlvmParser {
             "inttoptr" -> {
           var value = typeExpr();
           expect("to");
-          from = value.cast(type());
+          value = value.cast(type());
         }
         case "sext", "fptosi", "sitofp" -> {
           var value = typeExpr();
           expect("to");
-          from = value.scast(type());
+          value = value.scast(type());
         }
         default -> throw err("unknown instruction");
       }
-      block.add(new Assign(variable(name, from.type()), from));
+      block.add(new Assign(variable(name, value.type()), value));
       return;
     }
     switch (expect(WORD)) {

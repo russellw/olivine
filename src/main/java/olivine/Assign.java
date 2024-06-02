@@ -1,11 +1,11 @@
 package olivine;
 
 public final class Assign extends Instruction {
-  final Var to;
-  final Term from;
+  final Var variable;
+  final Term value;
 
-  public Assign(Var to, Term from) {
-    this.to = to;
-    this.from = from;
+  public Assign(Var variable, Term value) {
+    this.variable = variable;
+    this.value = value;
   }
 }
