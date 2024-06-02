@@ -42,4 +42,5 @@ public enum Tag {
   SCAST,
   ARRAY,
   ADDR,
+  LOAD,
 }

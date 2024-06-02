@@ -602,6 +602,7 @@ public final class LlvmParser {
           var type = type();
           var a = expr(type);
           expect(',');
+          // TODO: inline variable
           var b = expr(type);
           from = a.lshr(b);
         }
@@ -624,7 +625,8 @@ public final class LlvmParser {
         case "load" -> {
           var type = type();
           expect(',');
-          from = new Load(type, typeExpr());
+          expect("ptr");
+          from = expr(type).load(type);
         }
         case "bitcast",
             "trunc",

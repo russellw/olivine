@@ -38,6 +38,10 @@ public abstract class Term implements Iterable<Term> {
     return new Addr(this);
   }
 
+  Term load(Type type) {
+    return new Load(type, this);
+  }
+
   Term cast(Type type) {
     return new Cast(this, type);
   }
@@ -370,12 +374,59 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
+  private static final class Load extends Term1 {
+    private final Type type;
+
+    Load(Type type, Term pointer) {
+      super(pointer);
+      this.type = type;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      if (!super.equals(o)) return false;
+      Load terms = (Load) o;
+      return Objects.equals(type, terms.type);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(super.hashCode(), type);
+    }
+
+    @Override
+    Type type() {
+      return type;
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.LOAD;
+    }
+  }
+
   private static final class Cast extends Term1 {
     private final Type type;
 
     Cast(Term arg, Type type) {
       super(arg);
       this.type = type;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      if (!super.equals(o)) return false;
+      Cast terms = (Cast) o;
+      return Objects.equals(type, terms.type);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(super.hashCode(), type);
     }
 
     @Override
@@ -395,6 +446,20 @@ public abstract class Term implements Iterable<Term> {
     SCast(Term arg, Type type) {
       super(arg);
       this.type = type;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      if (!super.equals(o)) return false;
+      SCast terms = (SCast) o;
+      return Objects.equals(type, terms.type);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(super.hashCode(), type);
     }
 
     @Override
