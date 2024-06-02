@@ -619,8 +619,9 @@ public final class LlvmParser {
         case "call" -> from = call();
         case "alloca" -> {
           var type = type();
-          var n = eat(',') && !eat("align") ? typeExpr() : IntVal.of(1);
-          from = new Alloca(type, n);
+          var numElements = Term.ONE;
+          if (eat(',') && !eat("align")) numElements = typeExpr();
+          from = Term.alloca(type, numElements);
         }
         case "load" -> {
           var type = type();

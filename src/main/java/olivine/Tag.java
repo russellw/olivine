@@ -43,4 +43,5 @@ public enum Tag {
   ARRAY,
   ADDR,
   LOAD,
+  ALLOCA,
 }

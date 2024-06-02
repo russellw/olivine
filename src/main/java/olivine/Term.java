@@ -5,6 +5,7 @@ import java.util.*;
 
 public abstract class Term implements Iterable<Term> {
   static final Term NULL = new Null();
+  static final Term ONE = intConstant(Type.I32, 1);
   static final Term TRUE = intConstant(Type.I1, 1);
   static final Term FALSE = intConstant(Type.I1, 0);
 
@@ -404,6 +405,43 @@ public abstract class Term implements Iterable<Term> {
     @Override
     Tag tag() {
       return Tag.LOAD;
+    }
+  }
+
+  static Term alloca(Type type, Term numElements) {
+    return new Alloca(type, numElements);
+  }
+
+  private static final class Alloca extends Term1 {
+    private final Type type;
+
+    Alloca(Type type, Term numElements) {
+      super(numElements);
+      this.type = type;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      if (!super.equals(o)) return false;
+      Alloca terms = (Alloca) o;
+      return Objects.equals(type, terms.type);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(super.hashCode(), type);
+    }
+
+    @Override
+    Type type() {
+      return Type.PTR;
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.ALLOCA;
     }
   }
 
