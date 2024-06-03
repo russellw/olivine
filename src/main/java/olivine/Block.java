@@ -12,6 +12,12 @@ public final class Block implements Iterable<Instruction> {
     return instructions.iterator();
   }
 
+  public Instruction pop() {
+    var last = instructions.getLast();
+    instructions.remove(size() - 1);
+    return last;
+  }
+
   public void remove(int i) {
     instructions.remove(i);
   }

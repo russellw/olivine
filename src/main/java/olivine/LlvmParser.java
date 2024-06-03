@@ -793,6 +793,7 @@ public final class LlvmParser {
     // Third pass, fill in global values and function bodies
     reset();
     while (tok != EOF) {
+      // TODO: refactor?
       switch (tok) {
         case WORD -> {
           // Function definition
@@ -846,15 +847,14 @@ public final class LlvmParser {
               // If the terminator is a conditional branch
               // then the phi assignments for blocks not jumped to on a particular occasion
               // will be redundant but harmless
-              var terminator = from.last();
-              from.remove(from.size() - 1);
+              var terminator = from.pop();
 
               // Assignments
               var assign = kv.getValue();
               for (var j = 0; j < assign.size(); j += 2) {
-                var a = assign.get(j);
+                var a = (Var) assign.get(j);
                 var val = assign.get(j + 1);
-                from.add(Val.of(Tag.ASSIGN, a, val));
+                from.add(new Assign(a, val));
               }
 
               // Put the terminator back, after the phi assignments
