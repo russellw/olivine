@@ -257,11 +257,12 @@ public final class LlvmParser {
       switch (type.kind()) {
         case ARRAY -> {
           type = type.get(0);
-          ptr = new EltPtr(type, ptr, idx);
+          ptr = ptr.elementPtr(type, idx);
         }
         case STRUCT -> {
-          ptr = new EltPtr(type, ptr, idx);
-          type = type.get(idx.intVal());
+          var idx1 = idx.intValueExact();
+          ptr = ptr.fieldPtr(type, idx1);
+          type = type.get(idx1);
         }
         default -> throw err("expected compound type");
       }

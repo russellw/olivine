@@ -211,6 +211,10 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
+  int intValueExact() {
+    throw new UnsupportedOperationException(toString());
+  }
+
   private static final class IntConstant extends Term {
     private final Type type;
     private final BigInteger value;
@@ -218,6 +222,11 @@ public abstract class Term implements Iterable<Term> {
     private IntConstant(Type type, BigInteger value) {
       this.type = type;
       this.value = value;
+    }
+
+    @Override
+    int intValueExact() {
+      return value.intValueExact();
     }
 
     @Override
