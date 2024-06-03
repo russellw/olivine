@@ -83,19 +83,19 @@ class TypeTest {
 
   @Test
   public void testArrayKind() {
-    Type array = Type.array(5, Type.I32);
+    Type array = Type.I32.array(5);
     assertEquals(Kind.ARRAY, array.kind());
   }
 
   @Test
   public void testArrayGet() {
-    Type array = Type.array(5, Type.I32);
+    Type array = Type.I32.array(5);
     assertEquals(Type.I32, array.get(0));
   }
 
   @Test
   public void testArraySize() {
-    Type array = Type.array(5, Type.I32);
+    Type array = Type.I32.array(5);
     assertEquals(1, array.size());
   }
 
@@ -170,7 +170,7 @@ class TypeTest {
 
   @Test
   public void testArrayToString() {
-    Type array = Type.array(5, Type.I32);
+    Type array = Type.I32.array(5);
     assertEquals("[5 x i32]", array.toString());
   }
 

@@ -226,6 +226,10 @@ public abstract class Type implements Iterable<Type> {
         }
       };
 
+  public Type array(int count) {
+    return new Array(count, this);
+  }
+
   int bits() {
     throw new UnsupportedOperationException(toString());
   }
@@ -297,11 +301,6 @@ public abstract class Type implements Iterable<Type> {
     public int size() {
       return 1;
     }
-  }
-
-  public static Type array(int count, Type element) {
-    // TODO: refactor to instance
-    return new Array(count, element);
   }
 
   public static Type vector(int count, Type element) {

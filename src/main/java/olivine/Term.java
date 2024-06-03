@@ -1125,7 +1125,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     Type type() {
-      return Type.array(terms.length, type);
+      return type.array(terms.length);
     }
   }
 }

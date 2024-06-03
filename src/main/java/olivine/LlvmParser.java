@@ -109,7 +109,7 @@ public final class LlvmParser {
         expect("x");
         var x = type();
         expect(']');
-        return Type.array(n, x);
+        return x.array(n);
       }
       case '<' -> {
         lex();
