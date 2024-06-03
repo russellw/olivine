@@ -864,7 +864,7 @@ public final class LlvmParser {
           }
         }
         case GLOBAL_ID -> {
-          var a = (GlobalVariable) globals.get(lex1());
+          var variable = (GlobalVariable) globals.get(lex1());
           expect('=');
           linkageType();
           dso();
@@ -873,7 +873,7 @@ public final class LlvmParser {
             switch (tokString) {
               case "constant", "global" -> lex();
             }
-          a.val = typeExpr();
+          variable.value = typeExpr();
         }
         default -> lex();
       }
