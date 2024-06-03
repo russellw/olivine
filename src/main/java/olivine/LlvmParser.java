@@ -272,39 +272,31 @@ public final class LlvmParser {
   }
 
   private Term expr(Type type) {
-    // TODO: outer switch expression?
-    switch (tok) {
-      case WORD -> {
-        return switch (lex1()) {
-          case "null" -> Term.NULL;
-          case "true" -> Term.TRUE;
-          case "false" -> Term.FALSE;
-          default -> throw err("expected expression");
-        };
-      }
-      case INT -> {
-        return Term.intConstant(type, new BigInteger(lex1()));
-      }
-      case FLOAT, HEX_FLOAT -> {
-        return Term.floatConstant(type, lex1());
-      }
+    return switch (tok) {
+      case WORD ->
+          switch (lex1()) {
+            case "null" -> Term.NULL;
+            case "true" -> Term.TRUE;
+            case "false" -> Term.FALSE;
+            default -> throw err("expected expression");
+          };
+      case INT -> Term.intConstant(type, new BigInteger(lex1()));
+      case FLOAT, HEX_FLOAT -> Term.floatConstant(type, lex1());
       case GLOBAL_ID -> {
         var a = globals.get(lex1());
         if (a == null) throw err("name not found");
-        if (a instanceof GlobalVariable) return a.addr();
-        return a;
+        if (a instanceof GlobalVariable) yield a.addr();
+        yield a;
       }
-      case LOCAL_ID -> {
-        return variable(lex1(), type);
-      }
+      case LOCAL_ID -> variable(lex1(), type);
       case STRING -> {
         var v = new Term[tokString.length()];
         for (var i = 0; i < v.length; i++) v[i] = Term.intConstant(Type.I8, tokString.charAt(i));
         lex();
-        return Term.array(Type.I8, v);
+        yield Term.array(Type.I8, v);
       }
-    }
-    throw err("expected expression");
+      default -> throw err("expected expression");
+    };
   }
 
   private Term typeExpr() {
