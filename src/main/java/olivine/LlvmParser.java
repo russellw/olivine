@@ -308,7 +308,6 @@ public final class LlvmParser {
       var name = lex1();
       expect('=');
       Term value;
-      // TODO: outer switch expression?
       switch (expect(WORD)) {
         case "select" -> {
           fastMathFlags();
@@ -446,17 +445,16 @@ public final class LlvmParser {
         case "phi" -> {
           fastMathFlags();
           var type = type();
-          // TODO: rename?
-          var a = variable(name, type);
+          var variable = variable(name, type);
           do {
             expect('[');
-            var fromVal = expr(type);
+            var val = expr(type);
             expect(',');
             var from = block();
             expect(']');
-            var assign = phis.computeIfAbsent(from, k -> new ArrayList<>());
-            assign.add(a);
-            assign.add(fromVal);
+            var assign = phis.computeIfAbsent(from, _ -> new ArrayList<>());
+            assign.add(variable);
+            assign.add(val);
           } while (eat(','));
           return;
         }
