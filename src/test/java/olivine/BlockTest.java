@@ -59,4 +59,56 @@ class BlockTest {
     assertEquals(0, block.size());
     assertThrows(RuntimeException.class, () -> block.last());
   }
+
+  @Test
+  public void testPop() {
+    block.add(assignInstruction);
+    block.add(retVoidInstruction);
+    assertEquals(retVoidInstruction, block.pop());
+    assertEquals(1, block.size());
+    assertEquals(assignInstruction, block.pop());
+    assertEquals(0, block.size());
+    assertThrows(RuntimeException.class, () -> block.pop());
+  }
+
+  @Test
+  public void testRemove() {
+    block.add(assignInstruction);
+    block.add(retVoidInstruction);
+    block.remove(0);
+    assertEquals(1, block.size());
+    assertEquals(retVoidInstruction, block.last());
+    block.remove(0);
+    assertEquals(0, block.size());
+    assertThrows(IndexOutOfBoundsException.class, () -> block.remove(0));
+  }
+
+  @Test
+  public void testAddMultiple() {
+    for (int i = 0; i < 100; i++) {
+      block.add(new Assign(new Variable(Type.I32), Term.intConstant(Type.I32, i)));
+    }
+    assertEquals(100, block.size());
+    for (int i = 99; i >= 0; i--) {
+      assertEquals(Term.intConstant(Type.I32, i), getTerm(block.pop()));
+    }
+    assertEquals(0, block.size());
+  }
+
+  private Term getTerm(Instruction instruction) {
+    return ((Assign) instruction).value;
+  }
+
+  @Test
+  public void testIteratorWithMultipleElements() {
+    for (int i = 0; i < 100; i++) {
+      block.add(new Assign(new Variable(Type.I32), Term.intConstant(Type.I32, i)));
+    }
+    int count = 0;
+    for (Instruction instr : block) {
+      assertEquals(Term.intConstant(Type.I32, count), getTerm(instr));
+      count++;
+    }
+    assertEquals(100, count);
+  }
 }
