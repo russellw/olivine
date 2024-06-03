@@ -251,7 +251,8 @@ public final class LlvmParser {
   }
 
   private Term getElementPtr(Type type, Term ptr, List<Term> idxs) {
-    ptr = new EltPtr(type, ptr, idxs.get(0));
+    // The first index of getelementptr is for the case when the pointer is to an array
+    ptr = ptr.elementPtr(type, idxs.getFirst());
     for (var i = 1; i < idxs.size(); i++) {
       var idx = idxs.get(i);
       switch (type.kind()) {
