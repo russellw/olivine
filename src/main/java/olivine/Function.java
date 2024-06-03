@@ -2,13 +2,13 @@ package olivine;
 
 import java.util.List;
 
-public final class Fn extends Global {
+public final class Function extends Global {
   public final Type returnType;
-  public final List<Var> params;
+  public final List<Variable> params;
   public final boolean varargs;
   public Block entry;
 
-  public Fn(String name, Type returnType, List<Var> params, boolean varargs) {
+  public Function(String name, Type returnType, List<Variable> params, boolean varargs) {
     super(name);
     this.returnType = returnType;
     this.params = params;
@@ -22,6 +22,6 @@ public final class Fn extends Global {
 
   @Override
   public Tag tag() {
-    return Tag.FN;
+    return Tag.FUNCTION;
   }
 }

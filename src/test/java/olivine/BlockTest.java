@@ -14,7 +14,7 @@ class BlockTest {
   @BeforeEach
   public void setUp() {
     block = new Block();
-    assignInstruction = new Assign(new Var(Type.I32), Term.intConstant(Type.I32, 42));
+    assignInstruction = new Assign(new Variable(Type.I32), Term.intConstant(Type.I32, 42));
     retVoidInstruction = new RetVoid();
   }
 

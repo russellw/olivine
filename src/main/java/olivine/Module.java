@@ -7,6 +7,6 @@ import java.util.Set;
 
 public final class Module {
   public final Set<String> comdats = new HashSet<>();
-  public final List<GlobalVar> vars = new ArrayList<>();
-  public final List<Fn> fns = new ArrayList<>();
+  public final List<GlobalVariable> vars = new ArrayList<>();
+  public final List<Function> functions = new ArrayList<>();
 }

@@ -241,10 +241,10 @@ public final class LlvmParser {
     return block();
   }
 
-  private Var variable(String name, Type type) {
-    var a = (Var) locals.get(name);
+  private Variable variable(String name, Type type) {
+    var a = (Variable) locals.get(name);
     if (a == null) {
-      a = new Var(type);
+      a = new Variable(type);
       locals.put(name, a);
     }
     return a;
@@ -291,7 +291,7 @@ public final class LlvmParser {
       case GLOBAL_ID -> {
         var a = globals.get(lex1());
         if (a == null) throw err("name not found");
-        if (a instanceof GlobalVar) return a.addr();
+        if (a instanceof GlobalVariable) return a.addr();
         return a;
       }
       case LOCAL_ID -> {
@@ -752,7 +752,7 @@ public final class LlvmParser {
               var rtype = type();
               var name = expect(GLOBAL_ID);
               expect('(');
-              var params = new ArrayList<Var>();
+              var params = new ArrayList<Variable>();
               var varargs = false;
               if (tok != ')')
                 do {
@@ -760,14 +760,14 @@ public final class LlvmParser {
                     varargs = true;
                     continue;
                   }
-                  params.add(new Var(type()));
+                  params.add(new Variable(type()));
                   paramAttr();
                   eat(LOCAL_ID);
                 } while (eat(','));
               expect(')');
-              var fn = new Fn(name, rtype, params, varargs);
+              var fn = new Function(name, rtype, params, varargs);
               declare(name, fn);
-              module.fns.add(fn);
+              module.functions.add(fn);
             }
           }
         }
@@ -781,7 +781,7 @@ public final class LlvmParser {
             switch (tokString) {
               case "constant", "global" -> lex();
             }
-          var a = new GlobalVar(name, type());
+          var a = new GlobalVariable(name, type());
           declare(name, a);
           module.vars.add(a);
         }
@@ -805,7 +805,7 @@ public final class LlvmParser {
             type();
 
             // Name
-            var fn = (Fn) globals.get(expect(GLOBAL_ID));
+            var fn = (Function) globals.get(expect(GLOBAL_ID));
 
             // Parameters
             expect('(');
@@ -852,7 +852,7 @@ public final class LlvmParser {
               // Assignments
               var assign = kv.getValue();
               for (var j = 0; j < assign.size(); j += 2) {
-                var a = (Var) assign.get(j);
+                var a = (Variable) assign.get(j);
                 var val = assign.get(j + 1);
                 from.add(new Assign(a, val));
               }
@@ -864,7 +864,7 @@ public final class LlvmParser {
           }
         }
         case GLOBAL_ID -> {
-          var a = (GlobalVar) globals.get(lex1());
+          var a = (GlobalVariable) globals.get(lex1());
           expect('=');
           linkageType();
           dso();

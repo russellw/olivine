@@ -1,9 +1,9 @@
 package olivine;
 
-public final class Var extends Term {
+public final class Variable extends Term {
   private final Type type;
 
-  public Var(Type type) {
+  public Variable(Type type) {
     this.type = type;
   }
 
@@ -14,6 +14,6 @@ public final class Var extends Term {
 
   @Override
   public Tag tag() {
-    return Tag.VAR;
+    return Tag.VARIABLE;
   }
 }

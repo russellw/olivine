@@ -1,9 +1,9 @@
 package olivine;
 
-public final class GlobalVar extends Global {
+public final class GlobalVariable extends Global {
   private final Type type;
 
-  public GlobalVar(String name, Type type) {
+  public GlobalVariable(String name, Type type) {
     super(name);
     this.type = type;
   }
@@ -15,6 +15,6 @@ public final class GlobalVar extends Global {
 
   @Override
   public Tag tag() {
-    return Tag.GLOBAL_VAR;
+    return Tag.GLOBAL_VARIABLE;
   }
 }
