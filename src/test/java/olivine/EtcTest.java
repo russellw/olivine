@@ -105,4 +105,35 @@ class EtcTest {
     assertEquals("file.name", Etc.baseName("/path/to/file.name.txt"));
     assertEquals("", Etc.baseName("/path/to/.hiddenfile"));
   }
+
+  @Test
+  void testHexDigitForDigits() {
+    // Test for n from 0 to 9
+    for (int n = 0; n < 10; n++) {
+      int expected = '0' + n;
+      assertEquals(expected, Etc.hexDigit(n), "Failed for n = " + n);
+    }
+  }
+
+  @Test
+  void testHexDigitForLetters() {
+    // Test for n from 10 to 15
+    for (int n = 10; n < 16; n++) {
+      int expected = 'a' - 10 + n;
+      assertEquals(expected, Etc.hexDigit(n), "Failed for n = " + n);
+    }
+  }
+
+  @Test
+  void testHexDigitThrowsAssertionErrorForNegative() {
+    // Test for negative values
+    assertThrows(AssertionError.class, () -> Etc.hexDigit(-1));
+  }
+
+  @Test
+  void testHexDigitThrowsAssertionErrorForTooLargeValues() {
+    // Test for values >= 16
+    assertThrows(AssertionError.class, () -> Etc.hexDigit(16));
+    assertThrows(AssertionError.class, () -> Etc.hexDigit(17));
+  }
 }
