@@ -852,9 +852,9 @@ public final class LlvmParser {
               // Assignments
               var assign = kv.getValue();
               for (var j = 0; j < assign.size(); j += 2) {
-                var a = (Variable) assign.get(j);
+                var variable = (Variable) assign.get(j);
                 var val = assign.get(j + 1);
-                from.add(new Assign(a, val));
+                from.add(new Assign(variable, val));
               }
 
               // Put the terminator back, after the phi assignments
