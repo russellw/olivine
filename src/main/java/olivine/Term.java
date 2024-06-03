@@ -445,6 +445,82 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
+  Term fieldPtr(Type type, int idx) {
+    return new FieldPtr(type, this, idx);
+  }
+
+  private static final class FieldPtr extends Term1 {
+    private final Type type;
+    private final int idx;
+
+    FieldPtr(Type type, Term ptrVal, int idx) {
+      super(ptrVal);
+      this.type = type;
+      this.idx = idx;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      if (!super.equals(o)) return false;
+      FieldPtr terms = (FieldPtr) o;
+      return idx == terms.idx && Objects.equals(type, terms.type);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(super.hashCode(), type, idx);
+    }
+
+    @Override
+    Type type() {
+      return Type.PTR;
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.FIELD_PTR;
+    }
+  }
+
+  Term elementPtr(Type type, Term idx) {
+    return new ElementPtr(type, this, idx);
+  }
+
+  private static final class ElementPtr extends Term2 {
+    private final Type type;
+
+    ElementPtr(Type type, Term ptrVal, Term idx) {
+      super(ptrVal, idx);
+      this.type = type;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      if (!super.equals(o)) return false;
+      ElementPtr terms = (ElementPtr) o;
+      return Objects.equals(type, terms.type);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(super.hashCode(), type);
+    }
+
+    @Override
+    Type type() {
+      return Type.PTR;
+    }
+
+    @Override
+    Tag tag() {
+      return Tag.ELEMENT_PTR;
+    }
+  }
+
   private static final class Cast extends Term1 {
     private final Type type;
 

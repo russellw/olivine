@@ -44,4 +44,6 @@ public enum Tag {
   ADDR,
   LOAD,
   ALLOCA,
+  ELEMENT_PTR,
+  FIELD_PTR,
 }

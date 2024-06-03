@@ -452,6 +452,7 @@ public final class LlvmParser {
         case "phi" -> {
           fastMathFlags();
           var type = type();
+          // TODO: rename?
           var a = variable(name, type);
           do {
             expect('[');
