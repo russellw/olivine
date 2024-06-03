@@ -250,23 +250,23 @@ public final class LlvmParser {
     return a;
   }
 
-  private Val getElementPtr(Type type, Val a, List<Val> idxs) {
-    a = new EltPtr(type, a, idxs.get(0));
+  private Term getElementPtr(Type type, Term ptr, List<Term> idxs) {
+    ptr = new EltPtr(type, ptr, idxs.get(0));
     for (var i = 1; i < idxs.size(); i++) {
       var idx = idxs.get(i);
       switch (type.kind()) {
         case ARRAY -> {
           type = type.get(0);
-          a = new EltPtr(type, a, idx);
+          ptr = new EltPtr(type, ptr, idx);
         }
         case STRUCT -> {
-          a = new EltPtr(type, a, idx);
+          ptr = new EltPtr(type, ptr, idx);
           type = type.get(idx.intVal());
         }
         default -> throw err("expected compound type");
       }
     }
-    return a;
+    return ptr;
   }
 
   private Term expr(Type type) {
@@ -612,10 +612,10 @@ public final class LlvmParser {
           var type = type();
           expect(',');
           expect("ptr");
-          var p = expr(Type.PTR);
-          var idxs = new ArrayList<Val>();
+          var ptrVal = expr(Type.PTR);
+          var idxs = new ArrayList<Term>();
           while (eat(',')) idxs.add(typeExpr());
-          value = getElementPtr(type, p, idxs);
+          value = getElementPtr(type, ptrVal, idxs);
         }
         case "call" -> value = call();
         case "alloca" -> {
