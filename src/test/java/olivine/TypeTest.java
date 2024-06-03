@@ -137,22 +137,22 @@ class TypeTest {
   }
 
   @Test
-  public void testFnKind() {
-    Type fn = Type.fn(Type.VOID, List.of(Type.I32, Type.FLOAT), false);
+  public void testFunctionKind() {
+    Type fn = Type.function(Type.VOID, List.of(Type.I32, Type.FLOAT), false);
     assertEquals(Kind.FN, fn.kind());
   }
 
   @Test
-  public void testFnGet() {
-    Type fn = Type.fn(Type.VOID, List.of(Type.I32, Type.FLOAT), false);
+  public void testFunctionGet() {
+    Type fn = Type.function(Type.VOID, List.of(Type.I32, Type.FLOAT), false);
     assertEquals(Type.VOID, fn.get(0));
     assertEquals(Type.I32, fn.get(1));
     assertEquals(Type.FLOAT, fn.get(2));
   }
 
   @Test
-  public void testFnSize() {
-    Type fn = Type.fn(Type.VOID, List.of(Type.I32, Type.FLOAT), false);
+  public void testFunctionSize() {
+    Type fn = Type.function(Type.VOID, List.of(Type.I32, Type.FLOAT), false);
     assertEquals(3, fn.size());
   }
 

@@ -397,14 +397,14 @@ public abstract class Type implements Iterable<Type> {
     }
   }
 
-  public static Type fn(Type returnType, List<Type> params, boolean varargs) {
+  public static Type function(Type returnType, List<Type> params, boolean varargs) {
     var elements = new Type[1 + params.size()];
     elements[0] = returnType;
     for (var i = 0; i < params.size(); i++) elements[1 + i] = params.get(i);
     return new FnType(elements, varargs);
   }
 
-  public static Type fn(Type[] elements, boolean varargs) {
+  public static Type function(Type[] elements, boolean varargs) {
     return new FnType(elements, varargs);
   }
 

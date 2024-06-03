@@ -163,7 +163,7 @@ public final class LlvmParser {
             params.add(type());
           } while (eat(','));
         expect(')');
-        return Type.fn(type, params, varargs);
+        return Type.function(type, params, varargs);
       }
     }
     return type;
