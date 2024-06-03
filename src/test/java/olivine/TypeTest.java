@@ -101,19 +101,19 @@ class TypeTest {
 
   @Test
   public void testVectorKind() {
-    Type vector = Type.vector(5, Type.I32);
+    Type vector = Type.I32.vector(5);
     assertEquals(Kind.VECTOR, vector.kind());
   }
 
   @Test
   public void testVectorGet() {
-    Type vector = Type.vector(5, Type.I32);
+    Type vector = Type.I32.vector(5);
     assertEquals(Type.I32, vector.get(0));
   }
 
   @Test
   public void testVectorSize() {
-    Type vector = Type.vector(5, Type.I32);
+    Type vector = Type.I32.vector(5);
     assertEquals(1, vector.size());
   }
 
@@ -176,7 +176,7 @@ class TypeTest {
 
   @Test
   public void testVectorToString() {
-    Type vector = Type.vector(5, Type.I32);
+    Type vector = Type.I32.vector(5);
     assertEquals("<5 x i32>", vector.toString());
   }
 }

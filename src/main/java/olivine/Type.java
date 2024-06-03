@@ -226,6 +226,10 @@ public abstract class Type implements Iterable<Type> {
         }
       };
 
+  public Type vector(int count) {
+    return new Vector(count, this);
+  }
+
   public Type array(int count) {
     return new Array(count, this);
   }
@@ -301,11 +305,6 @@ public abstract class Type implements Iterable<Type> {
     public int size() {
       return 1;
     }
-  }
-
-  public static Type vector(int count, Type element) {
-    // TODO: refactor to instance
-    return new Vector(count, element);
   }
 
   private static final class Array extends Sequential {
