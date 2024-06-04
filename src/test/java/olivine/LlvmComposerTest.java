@@ -58,7 +58,6 @@ class LlvmComposerTest {
   @Test
   void testIntToPtr() {
     Term intTerm = Term.intConstant(Type.I32, 1);
-    Term ptrTerm = Term.alloca(Type.I32, intTerm);
 
     Term intToPtrTerm = intTerm.cast(Type.PTR);
     assertEquals("inttoptr", LlvmComposer.cast(intToPtrTerm));
@@ -118,5 +117,45 @@ class LlvmComposerTest {
     Term invalidCastTerm = floatTerm.cast(Type.PTR);
 
     assertThrows(IllegalArgumentException.class, () -> LlvmComposer.cast(invalidCastTerm));
+  }
+
+  @Test
+  void testScastFromIntToFloat() {
+    Term intTerm = Term.intConstant(Type.I32, 1);
+    Term floatTerm = intTerm.scast(Type.FLOAT);
+
+    assertEquals("sitofp", LlvmComposer.scast(floatTerm));
+  }
+
+  @Test
+  void testScastFromIntToInt() {
+    Term smallIntTerm = Term.intConstant(Type.I8, 1);
+    Term largeIntTerm = smallIntTerm.scast(Type.I32);
+
+    assertEquals("sext", LlvmComposer.scast(largeIntTerm));
+  }
+
+  @Test
+  void testScastFromFloatToInt() {
+    Term floatTerm = Term.floatConstant(Type.FLOAT, "1.0");
+    Term intTerm = floatTerm.scast(Type.I32);
+
+    assertEquals("fptosi", LlvmComposer.scast(intTerm));
+  }
+
+  @Test
+  void testScastFromFloatToFloat() {
+    Term floatTerm = Term.floatConstant(Type.FLOAT, "1.0");
+    Term anotherFloatTerm = floatTerm.scast(Type.DOUBLE);
+
+    assertEquals("fptosi", LlvmComposer.scast(anotherFloatTerm));
+  }
+
+  @Test
+  void testScastInvalidCase() {
+    Term floatTerm = Term.floatConstant(Type.FLOAT, "1.0");
+    Term invalidIntTerm = floatTerm.scast(Type.I64);
+
+    assertEquals("fptosi", LlvmComposer.scast(invalidIntTerm));
   }
 }

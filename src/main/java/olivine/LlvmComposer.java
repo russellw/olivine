@@ -9,6 +9,20 @@ public final class LlvmComposer {
   private final ByteArrayOutputStream stream = new ByteArrayOutputStream();
   private final Map<Object, Integer> locals = new HashMap<>();
 
+  public static String scast(Term a) {
+    var from = a.get(0).type();
+    var to = a.type();
+
+    // From int
+    if (from.isInt()) {
+      if (to.isFloat()) return "sitofp";
+      return "sext";
+    }
+
+    // From float
+    return "fptosi";
+  }
+
   public static String cast(Term a) {
     var from = a.get(0).type();
     var to = a.type();
