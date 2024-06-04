@@ -737,7 +737,7 @@ public final class LlvmParser {
             }
           var a = new GlobalVariable(name, type());
           declare(name, a);
-          module.vars.add(a);
+          module.variables.add(a);
         }
         default -> lex();
       }
