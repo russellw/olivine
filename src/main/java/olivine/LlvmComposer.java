@@ -2,9 +2,17 @@ package olivine;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 
 public final class LlvmComposer {
   private final ByteArrayOutputStream stream = new ByteArrayOutputStream();
+  private final Map<Object, Integer> locals = new HashMap<>();
+
+  private void nameLocal(Object o) {
+    assert !locals.containsKey(o);
+    locals.put(o, locals.size());
+  }
 
   private void print(int c) {
     stream.write(c);
