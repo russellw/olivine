@@ -315,8 +315,7 @@ public final class LlvmParser {
           expect(",");
           var ifTrue = typeExpr();
           expect(",");
-          var ifFalse = typeExpr();
-          value = cond.select(ifTrue, ifFalse);
+          value = cond.select(ifTrue, typeExpr());
         }
         case "fcmp" -> {
           fastMathFlags();
@@ -326,29 +325,25 @@ public final class LlvmParser {
                   var type = type();
                   var a = expr(type);
                   expect(',');
-                  var b = expr(type);
-                  yield a.feq(b);
+                  yield a.feq(expr(type));
                 }
                 case "une" -> {
                   var type = type();
                   var a = expr(type);
                   expect(',');
-                  var b = expr(type);
-                  yield a.fne(b);
+                  yield a.fne(expr(type));
                 }
                 case "olt" -> {
                   var type = type();
                   var a = expr(type);
                   expect(',');
-                  var b = expr(type);
-                  yield a.flt(b);
+                  yield a.flt(expr(type));
                 }
                 case "ole" -> {
                   var type = type();
                   var a = expr(type);
                   expect(',');
-                  var b = expr(type);
-                  yield a.fle(b);
+                  yield a.fle(expr(type));
                 }
                 case "ogt" -> {
                   var type = type();
@@ -374,43 +369,37 @@ public final class LlvmParser {
                     var type = type();
                     var a = expr(type);
                     expect(',');
-                    var b = expr(type);
-                    yield a.eq(b);
+                    yield a.eq(expr(type));
                   }
                   case "ne" -> {
                     var type = type();
                     var a = expr(type);
                     expect(',');
-                    var b = expr(type);
-                    yield a.ne(b);
+                    yield a.ne(expr(type));
                   }
                   case "ult" -> {
                     var type = type();
                     var a = expr(type);
                     expect(',');
-                    var b = expr(type);
-                    yield a.ult(b);
+                    yield a.ult(expr(type));
                   }
                   case "ule" -> {
                     var type = type();
                     var a = expr(type);
                     expect(',');
-                    var b = expr(type);
-                    yield a.ule(b);
+                    yield a.ule(expr(type));
                   }
                   case "slt" -> {
                     var type = type();
                     var a = expr(type);
                     expect(',');
-                    var b = expr(type);
-                    yield a.slt(b);
+                    yield a.slt(expr(type));
                   }
                   case "sle" -> {
                     var type = type();
                     var a = expr(type);
                     expect(',');
-                    var b = expr(type);
-                    yield a.sle(b);
+                    yield a.sle(expr(type));
                   }
                   case "ugt" -> {
                     var type = type();
@@ -467,137 +456,119 @@ public final class LlvmParser {
           var type = type();
           var a = expr(type);
           expect(',');
-          var b = expr(type);
-          value = a.fadd(b);
+          value = a.fadd(expr(type));
         }
         case "fsub" -> {
           fastMathFlags();
           var type = type();
           var a = expr(type);
           expect(',');
-          var b = expr(type);
-          value = a.fsub(b);
+          value = a.fsub(expr(type));
         }
         case "fmul" -> {
           fastMathFlags();
           var type = type();
           var a = expr(type);
           expect(',');
-          var b = expr(type);
-          value = a.fmul(b);
+          value = a.fmul(expr(type));
         }
         case "fdiv" -> {
           fastMathFlags();
           var type = type();
           var a = expr(type);
           expect(',');
-          var b = expr(type);
-          value = a.fdiv(b);
+          value = a.fdiv(expr(type));
         }
         case "frem" -> {
           fastMathFlags();
           var type = type();
           var a = expr(type);
           expect(',');
-          var b = expr(type);
-          value = a.frem(b);
+          value = a.frem(expr(type));
         }
         case "add" -> {
           noWrap();
           var type = type();
           var a = expr(type);
           expect(',');
-          var b = expr(type);
-          value = a.add(b);
+          value = a.add(expr(type));
         }
         case "sub" -> {
           noWrap();
           var type = type();
           var a = expr(type);
           expect(',');
-          var b = expr(type);
-          value = a.sub(b);
+          value = a.sub(expr(type));
         }
         case "mul" -> {
           noWrap();
           var type = type();
           var a = expr(type);
           expect(',');
-          var b = expr(type);
-          value = a.mul(b);
+          value = a.mul(expr(type));
         }
         case "udiv" -> {
           eat("exact");
           var type = type();
           var a = expr(type);
           expect(',');
-          var b = expr(type);
-          value = a.udiv(b);
+          value = a.udiv(expr(type));
         }
         case "sdiv" -> {
           eat("exact");
           var type = type();
           var a = expr(type);
           expect(',');
-          var b = expr(type);
-          value = a.sdiv(b);
+          value = a.sdiv(expr(type));
         }
         case "urem" -> {
           var type = type();
           var a = expr(type);
           expect(',');
-          var b = expr(type);
-          value = a.urem(b);
+          value = a.urem(expr(type));
         }
         case "srem" -> {
           var type = type();
           var a = expr(type);
           expect(',');
-          var b = expr(type);
-          value = a.srem(b);
+          value = a.srem(expr(type));
         }
         case "or" -> {
           var type = type();
           var a = expr(type);
           expect(',');
-          var b = expr(type);
-          value = a.or(b);
+          value = a.or(expr(type));
         }
         case "and" -> {
           var type = type();
           var a = expr(type);
           expect(',');
-          var b = expr(type);
-          value = a.and(b);
+          value = a.and(expr(type));
         }
         case "xor" -> {
           var type = type();
           var a = expr(type);
           expect(',');
-          var b = expr(type);
-          value = a.xor(b);
+          value = a.xor(expr(type));
         }
         case "shl" -> {
           var type = type();
           var a = expr(type);
           expect(',');
-          var b = expr(type);
-          value = a.shl(b);
+          value = a.shl(expr(type));
         }
         case "ashr" -> {
           var type = type();
           var a = expr(type);
           expect(',');
-          var b = expr(type);
-          value = a.ashr(b);
+          value = a.ashr(expr(type));
         }
         case "lshr" -> {
           var type = type();
           var a = expr(type);
           expect(',');
           // TODO: inline variable
-          var b = expr(type);
-          value = a.lshr(b);
+          value = a.lshr(expr(type));
         }
         case "getelementptr" -> {
           eat("inbounds");
@@ -631,14 +602,14 @@ public final class LlvmParser {
             "uitofp",
             "ptrtoint",
             "inttoptr" -> {
-          value = typeExpr();
+          var a = typeExpr();
           expect("to");
-          value = value.cast(type());
+          value = a.cast(type());
         }
         case "sext", "fptosi", "sitofp" -> {
-          value = typeExpr();
+          var a = typeExpr();
           expect("to");
-          value = value.scast(type());
+          value = a.scast(type());
         }
         default -> throw err("unknown instruction");
       }
