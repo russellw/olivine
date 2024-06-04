@@ -83,6 +83,7 @@ final class Main {
       }
       modules.add(LlvmParser.parse(file, Files.readAllBytes(Path.of(file))));
     }
+    Files.write(Path.of("a.ll"), LlvmComposer.compose(modules.getFirst()));
   }
 
   private static String version() throws IOException {
