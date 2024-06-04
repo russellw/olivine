@@ -148,7 +148,7 @@ class LlvmComposerTest {
     Term floatTerm = Term.floatConstant(Type.FLOAT, "1.0");
     Term anotherFloatTerm = floatTerm.scast(Type.DOUBLE);
 
-    assertEquals("fptosi", LlvmComposer.scast(anotherFloatTerm));
+    assertThrows(Throwable.class, () -> LlvmComposer.scast(anotherFloatTerm));
   }
 
   @Test

@@ -12,15 +12,15 @@ public final class LlvmComposer {
   public static String scast(Term a) {
     var from = a.get(0).type();
     var to = a.type();
-
-    // From int
+    assert !from.equals(to);
     if (from.isInt()) {
+      if (to.isInt()) {
+        assert from.bits() < to.bits();
+        return "sext";
+      }
       if (to.isFloat()) return "sitofp";
-      return "sext";
-    }
-
-    // From float
-    return "fptosi";
+    } else if (from.isFloat()) if (to.isInt()) return "fptosi";
+    throw new IllegalArgumentException(a.toString());
   }
 
   public static String cast(Term a) {
