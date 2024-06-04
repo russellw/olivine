@@ -97,4 +97,122 @@ public final class LlvmComposer {
   public static byte[] compose(Module module) {
     return new LlvmComposer(module).stream.toByteArray();
   }
+
+  private void args(Term a) {
+    print(' ');
+    var more = false;
+    for (var b : a) {
+      if (more) print(',');
+      more = true;
+      typeExpr(b);
+    }
+  }
+
+  private void args(Term a, boolean expr) {
+    print(expr ? '(' : ' ');
+    var more = false;
+    for (var b : a) {
+      if (more) print(',');
+      if (expr || !more) {
+        print(b.type());
+        print(' ');
+      }
+      more = true;
+      print(b, true);
+    }
+    if (expr) print(')');
+  }
+
+  private void print(Term a, boolean expr) {
+    switch (a.tag()) {
+      case SCAST -> {
+        print(scast(a));
+        print(' ');
+        typeExpr(a.get(0));
+        print(" to ");
+        print(a.type());
+      }
+      case CAST -> {
+        print(cast(a));
+        print(' ');
+        typeExpr(a.get(0));
+        print(" to ");
+        print(a.type());
+      }
+      case NE -> {
+        print("icmp ne");
+        args(a, expr);
+      }
+      case SLT -> {
+        print("icmp slt");
+        args(a, expr);
+      }
+      case FMUL -> {
+        print("fmul");
+        args(a, expr);
+      }
+      case OR -> {
+        print("or");
+        args(a, expr);
+      }
+      case ADDR -> {
+        print('@');
+        var b = (GlobalVariable) a.get(0);
+        id(b.name);
+      }
+      case VARIABLE -> {
+        print('%');
+        print(locals.get(a));
+      }
+      case ARRAY -> {
+        print('[');
+        var more = false;
+        for (var b : a) {
+          if (more) print(',');
+          more = true;
+          typeExpr(b);
+        }
+        print(']');
+      }
+      case NULL, INT, FLOAT -> print(a.toString());
+      case CALL -> {
+        print("call ");
+        var fn = (Function) a.get(0);
+        print(fn.returnType);
+        print(" @");
+        id(fn.name);
+        print('(');
+        for (var i = 1; i < a.size(); i++) {
+          if (i > 1) print(',');
+          typeExpr(a.get(i));
+        }
+        print(')');
+      }
+      case LOAD -> {
+        print("load ");
+        print(a.type());
+        print(',');
+        typeExpr(a.get(0));
+      }
+      case ELEMENT_PTR -> {
+        print("getelementptr ptr,");
+        typeExpr(a.get(0));
+        print(',');
+        typeExpr(a.get(1));
+      }
+      case ALLOCA -> {
+        print("alloca ");
+        print(a.type());
+      }
+      default -> throw new IllegalArgumentException(a.toString());
+    }
+  }
+
+  private void print(Instruction instruction) {}
+
+  private void typeExpr(Term a) {
+    print(a.type());
+    print(' ');
+    print(a, true);
+  }
 }
