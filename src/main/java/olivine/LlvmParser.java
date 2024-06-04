@@ -719,9 +719,9 @@ public final class LlvmParser {
                   eat(LOCAL_ID);
                 } while (eat(','));
               expect(')');
-              var fn = new Function(name, rtype, params, varargs);
-              declare(name, fn);
-              module.functions.add(fn);
+              var function = new Function(name, rtype, params, varargs);
+              declare(name, function);
+              module.functions.add(function);
             }
           }
         }
@@ -759,7 +759,7 @@ public final class LlvmParser {
             type();
 
             // Name
-            var fn = (Function) globals.get(expect(GLOBAL_ID));
+            var function = (Function) globals.get(expect(GLOBAL_ID));
 
             // Parameters
             expect('(');
@@ -770,7 +770,7 @@ public final class LlvmParser {
                 if (eat(DOTS)) continue;
                 type();
                 paramAttr();
-                locals.put(expect(LOCAL_ID), fn.params.get(i++));
+                locals.put(expect(LOCAL_ID), function.params.get(i++));
               } while (eat(','));
             while (!eat('{')) {
               if (tok == EOF) throw err("unexpected end of file");
@@ -779,7 +779,7 @@ public final class LlvmParser {
 
             // Entry block
             var block = new Block();
-            fn.entry = block;
+            function.entry = block;
             blocks.put(expect(LABEL), block);
 
             // Body
@@ -793,8 +793,8 @@ public final class LlvmParser {
             }
 
             // Phis
-            for (var kv : phis.entrySet()) {
-              var from = kv.getKey();
+            for (var entry : phis.entrySet()) {
+              var from = entry.getKey();
 
               // Terminator instruction needs to follow the phi assignments from this block
               // so get it out of the way for now
@@ -804,7 +804,7 @@ public final class LlvmParser {
               var terminator = from.pop();
 
               // Assignments
-              var assign = kv.getValue();
+              var assign = entry.getValue();
               for (var j = 0; j < assign.size(); j += 2) {
                 var variable = (Variable) assign.get(j);
                 var val = assign.get(j + 1);
