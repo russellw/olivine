@@ -92,7 +92,21 @@ public final class LlvmComposer {
     return true;
   }
 
-  private LlvmComposer(Module module) {}
+  private LlvmComposer(Module module) {
+    for (var variable : module.variables) {
+      print('@');
+      id(variable.name);
+      print('=');
+      if (variable.value == null) print("external ");
+      print("global ");
+      print(variable.type());
+      if (variable.value != null) {
+        print(' ');
+        print(variable.value, true);
+      }
+      print('\n');
+    }
+  }
 
   public static byte[] compose(Module module) {
     return new LlvmComposer(module).stream.toByteArray();
