@@ -29,36 +29,24 @@ public final class LlvmComposer {
     assert !from.equals(to);
     if (from == Type.PTR) {
       if (to.isInt()) return "ptrtoint";
-      throw new IllegalArgumentException(to.toString());
-    }
-    if (to == Type.PTR) {
-      if (!from.isInt()) throw new IllegalArgumentException(from.toString());
-      return "inttoptr";
-    }
-
-    // Both numbers, so size matters
-    var fromBits = from.bits();
-    var toBits = to.bits();
-
-    // From int
-    if (from.isInt()) {
+    } else if (from.isInt()) {
+      if (to == Type.PTR) return "inttoptr";
+      if (to.isInt()) {
+        if (from.bits() < to.bits()) return "zext";
+        assert from.bits() > to.bits();
+        return "trunc";
+      }
       if (to.isFloat()) return "uitofp";
-
-      // To int
-      if (fromBits < toBits) return "zext";
-      assert fromBits > toBits;
-      return "trunc";
+    } else if (from.isFloat()) {
+      if (to.isInt()) return "fptoui";
+      if (to.isFloat()) {
+        if (from.bits() < to.bits()) return "fpext";
+        // TODO: what happens when float types are the same size?
+        assert from.bits() > to.bits();
+        return "fptrunc";
+      }
     }
-
-    // From float
-    if (!from.isFloat()) throw new IllegalArgumentException(from.toString());
-    if (to.isInt()) return "fptoui";
-
-    // To float
-    // TODO: what happens when float types are the same size?
-    if (fromBits < toBits) return "fpext";
-    assert fromBits > toBits;
-    return "fptrunc";
+    throw new IllegalArgumentException(a.toString());
   }
 
   private void nameLocal(Object o) {
