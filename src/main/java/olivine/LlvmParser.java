@@ -349,15 +349,13 @@ public final class LlvmParser {
                   var type = type();
                   var b = expr(type);
                   expect(',');
-                  var a = expr(type);
-                  yield a.flt(b);
+                  yield expr(type).flt(b);
                 }
                 case "oge" -> {
                   var type = type();
                   var b = expr(type);
                   expect(',');
-                  var a = expr(type);
-                  yield a.fle(b);
+                  yield expr(type).fle(b);
                 }
                 default -> throw err("unknown condition");
               };
@@ -405,29 +403,25 @@ public final class LlvmParser {
                     var type = type();
                     var b = expr(type);
                     expect(',');
-                    var a = expr(type);
-                    yield a.ult(b);
+                    yield expr(type).ult(b);
                   }
                   case "uge" -> {
                     var type = type();
                     var b = expr(type);
                     expect(',');
-                    var a = expr(type);
-                    yield a.ule(b);
+                    yield expr(type).ule(b);
                   }
                   case "sgt" -> {
                     var type = type();
                     var b = expr(type);
                     expect(',');
-                    var a = expr(type);
-                    yield a.slt(b);
+                    yield expr(type).slt(b);
                   }
                   case "sge" -> {
                     var type = type();
                     var b = expr(type);
                     expect(',');
-                    var a = expr(type);
-                    yield a.sle(b);
+                    yield expr(type).sle(b);
                   }
                   default -> throw err("unknown condition");
                 };
@@ -567,7 +561,6 @@ public final class LlvmParser {
           var type = type();
           var a = expr(type);
           expect(',');
-          // TODO: inline variable
           value = a.lshr(expr(type));
         }
         case "getelementptr" -> {
