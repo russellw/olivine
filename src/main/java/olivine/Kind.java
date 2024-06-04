@@ -2,7 +2,7 @@ package olivine;
 
 public enum Kind {
   VOID,
-  FN,
+  FUNCTION,
   INT,
   HALF,
   BFLOAT,

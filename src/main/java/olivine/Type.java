@@ -47,6 +47,11 @@ public abstract class Type implements Iterable<Type> {
         }
 
         @Override
+        public boolean isFloat() {
+          return true;
+        }
+
+        @Override
         public String toString() {
           return "half";
         }
@@ -56,6 +61,11 @@ public abstract class Type implements Iterable<Type> {
         @Override
         Kind kind() {
           return Kind.BFLOAT;
+        }
+
+        @Override
+        public boolean isFloat() {
+          return true;
         }
 
         @Override
@@ -71,6 +81,11 @@ public abstract class Type implements Iterable<Type> {
         }
 
         @Override
+        public boolean isFloat() {
+          return true;
+        }
+
+        @Override
         public String toString() {
           return "float";
         }
@@ -80,6 +95,11 @@ public abstract class Type implements Iterable<Type> {
         @Override
         Kind kind() {
           return Kind.DOUBLE;
+        }
+
+        @Override
+        public boolean isFloat() {
+          return true;
         }
 
         @Override
@@ -95,6 +115,11 @@ public abstract class Type implements Iterable<Type> {
         }
 
         @Override
+        public boolean isFloat() {
+          return true;
+        }
+
+        @Override
         public String toString() {
           return "fp128";
         }
@@ -107,6 +132,11 @@ public abstract class Type implements Iterable<Type> {
         }
 
         @Override
+        public boolean isFloat() {
+          return true;
+        }
+
+        @Override
         public String toString() {
           return "x86_fp80";
         }
@@ -116,6 +146,11 @@ public abstract class Type implements Iterable<Type> {
         @Override
         Kind kind() {
           return Kind.PPC_FP128;
+        }
+
+        @Override
+        public boolean isFloat() {
+          return true;
         }
 
         @Override
@@ -225,6 +260,14 @@ public abstract class Type implements Iterable<Type> {
           return "i128";
         }
       };
+
+  public final boolean isInt() {
+    return kind() == Kind.INT;
+  }
+
+  public boolean isFloat() {
+    return false;
+  }
 
   public Type vector(int count) {
     return new Vector(count, this);
@@ -399,17 +442,17 @@ public abstract class Type implements Iterable<Type> {
     var elements = new Type[1 + params.size()];
     elements[0] = returnType;
     for (var i = 0; i < params.size(); i++) elements[1 + i] = params.get(i);
-    return new FnType(elements, varargs);
+    return new FunctionType(elements, varargs);
   }
 
   public static Type function(Type[] elements, boolean varargs) {
-    return new FnType(elements, varargs);
+    return new FunctionType(elements, varargs);
   }
 
-  private static final class FnType extends Compound {
+  private static final class FunctionType extends Compound {
     final boolean varargs;
 
-    FnType(Type[] elements, boolean varargs) {
+    FunctionType(Type[] elements, boolean varargs) {
       super(elements);
       this.varargs = varargs;
     }
@@ -418,7 +461,7 @@ public abstract class Type implements Iterable<Type> {
     public boolean equals(Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
-      FnType types = (FnType) o;
+      FunctionType types = (FunctionType) o;
       return varargs == types.varargs && Arrays.equals(elements, types.elements);
     }
 
@@ -445,7 +488,7 @@ public abstract class Type implements Iterable<Type> {
 
     @Override
     public Kind kind() {
-      return Kind.FN;
+      return Kind.FUNCTION;
     }
   }
 }

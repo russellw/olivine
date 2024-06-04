@@ -139,7 +139,7 @@ class TypeTest {
   @Test
   public void testFunctionKind() {
     Type fn = Type.function(Type.VOID, List.of(Type.I32, Type.FLOAT), false);
-    assertEquals(Kind.FN, fn.kind());
+    assertEquals(Kind.FUNCTION, fn.kind());
   }
 
   @Test
