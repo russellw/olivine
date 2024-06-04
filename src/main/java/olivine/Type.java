@@ -351,6 +351,10 @@ public abstract class Type implements Iterable<Type> {
     }
   }
 
+  int count() {
+    throw new UnsupportedOperationException(toString());
+  }
+
   private abstract static class Sequential extends Type {
     final int count;
     final Type element;
@@ -358,6 +362,11 @@ public abstract class Type implements Iterable<Type> {
     private Sequential(int count, Type element) {
       this.count = count;
       this.element = element;
+    }
+
+    @Override
+    int count() {
+      return count;
     }
 
     @Override

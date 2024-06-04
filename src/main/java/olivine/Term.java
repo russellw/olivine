@@ -9,6 +9,23 @@ public abstract class Term implements Iterable<Term> {
   static final Term TRUE = intConstant(Type.I1, 1);
   static final Term FALSE = intConstant(Type.I1, 0);
 
+  static Term zeroinitializer(Type type) {
+    return switch (type.kind()) {
+      case INT -> intConstant(type, 0);
+      case ARRAY -> {
+        var count = type.count();
+        type = type.get(0);
+        var elements = new Term[count];
+        Arrays.fill(elements, zeroinitializer(type));
+        yield array(type, elements);
+      }
+      default -> {
+        if (type.isFloat()) yield floatConstant(type, "0");
+        throw new IllegalArgumentException(type.toString());
+      }
+    };
+  }
+
   static Term intConstant(Type type, long value) {
     assert value >= 0;
     return new IntConstant(type, BigInteger.valueOf(value));
