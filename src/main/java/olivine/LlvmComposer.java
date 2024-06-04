@@ -9,6 +9,49 @@ public final class LlvmComposer {
   private final ByteArrayOutputStream stream = new ByteArrayOutputStream();
   private final Map<Object, Integer> locals = new HashMap<>();
 
+  public static String cast(Term a) {
+    var from = a.get(0).type();
+    var to = a.type();
+
+    // Same type
+    // TODO: when is this actually used?
+    if (from.equals(to)) return "bitcast";
+
+    // Pointer <-> int
+    if (from == Type.PTR) {
+      if (!to.isInt()) throw new IllegalArgumentException(to.toString());
+      return "ptrtoint";
+    }
+    if (to == Type.PTR) {
+      if (!from.isInt()) throw new IllegalArgumentException(from.toString());
+      return "inttoptr";
+    }
+
+    // Both numbers, so size matters
+    var fromBits = from.bits();
+    var toBits = to.bits();
+
+    // From int
+    if (from.isInt()) {
+      if (to.isFloat()) return "uitofp";
+
+      // To int
+      if (fromBits < toBits) return "zext";
+      assert fromBits > toBits;
+      return "trunc";
+    }
+
+    // From float
+    if (!from.isFloat()) throw new IllegalArgumentException(from.toString());
+    if (to.isInt()) return "fptoui";
+
+    // To float
+    // TODO: what happens when float types are the same size?
+    if (fromBits < toBits) return "fpext";
+    assert fromBits > toBits;
+    return "fptrunc";
+  }
+
   private void nameLocal(Object o) {
     assert !locals.containsKey(o);
     locals.put(o, locals.size());

@@ -52,6 +52,11 @@ public abstract class Type implements Iterable<Type> {
         }
 
         @Override
+        int bits() {
+          return 16;
+        }
+
+        @Override
         public String toString() {
           return "half";
         }
@@ -61,6 +66,11 @@ public abstract class Type implements Iterable<Type> {
         @Override
         Kind kind() {
           return Kind.BFLOAT;
+        }
+
+        @Override
+        int bits() {
+          return 16;
         }
 
         @Override
@@ -86,6 +96,11 @@ public abstract class Type implements Iterable<Type> {
         }
 
         @Override
+        int bits() {
+          return 32;
+        }
+
+        @Override
         public String toString() {
           return "float";
         }
@@ -95,6 +110,11 @@ public abstract class Type implements Iterable<Type> {
         @Override
         Kind kind() {
           return Kind.DOUBLE;
+        }
+
+        @Override
+        int bits() {
+          return 64;
         }
 
         @Override
@@ -120,6 +140,11 @@ public abstract class Type implements Iterable<Type> {
         }
 
         @Override
+        int bits() {
+          return 128;
+        }
+
+        @Override
         public String toString() {
           return "fp128";
         }
@@ -129,6 +154,11 @@ public abstract class Type implements Iterable<Type> {
         @Override
         Kind kind() {
           return Kind.X86_FP80;
+        }
+
+        @Override
+        int bits() {
+          return 80;
         }
 
         @Override
@@ -151,6 +181,11 @@ public abstract class Type implements Iterable<Type> {
         @Override
         public boolean isFloat() {
           return true;
+        }
+
+        @Override
+        int bits() {
+          return 128;
         }
 
         @Override
