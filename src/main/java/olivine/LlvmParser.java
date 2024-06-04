@@ -273,13 +273,15 @@ public final class LlvmParser {
 
   private Term expr(Type type) {
     return switch (token) {
-      case WORD ->
-          switch (lex1()) {
-            case "null" -> Term.NULL;
-            case "true" -> Term.TRUE;
-            case "false" -> Term.FALSE;
-            default -> throw error("expected expression");
-          };
+      case WORD -> {
+        var s = lex1();
+        yield switch (s) {
+          case "null" -> Term.NULL;
+          case "true" -> Term.TRUE;
+          case "false" -> Term.FALSE;
+          default -> throw error(s, "expected expression");
+        };
+      }
       case INT -> Term.intConstant(type, new BigInteger(lex1()));
       case FLOAT, HEX_FLOAT -> Term.floatConstant(type, lex1());
       case GLOBAL_ID -> {
