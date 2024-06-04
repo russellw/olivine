@@ -328,6 +328,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Term get(int i) {
+      // TODO: assert?
       if (i != 0) throw new IndexOutOfBoundsException("%s, %s".formatted(this, i));
       return arg;
     }
