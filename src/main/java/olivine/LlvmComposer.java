@@ -98,27 +98,27 @@ public final class LlvmComposer {
     return new LlvmComposer(module).stream.toByteArray();
   }
 
-  private void args(Term a) {
+  private void args(Iterable<Term> terms) {
     print(' ');
     var more = false;
-    for (var b : a) {
+    for (var term : terms) {
       if (more) print(',');
       more = true;
-      typeExpr(b);
+      typeExpr(term);
     }
   }
 
-  private void args(Term a, boolean expr) {
+  private void args(Iterable<Term> terms, boolean expr) {
     print(expr ? '(' : ' ');
     var more = false;
-    for (var b : a) {
+    for (var term : terms) {
       if (more) print(',');
       if (expr || !more) {
-        print(b.type());
+        print(term.type());
         print(' ');
       }
       more = true;
-      print(b, true);
+      print(term, true);
     }
     if (expr) print(')');
   }
@@ -157,8 +157,8 @@ public final class LlvmComposer {
       }
       case ADDR -> {
         print('@');
-        var b = (GlobalVariable) a.get(0);
-        id(b.name);
+        var variable = (GlobalVariable) a.get(0);
+        id(variable.name);
       }
       case VARIABLE -> {
         print('%');
@@ -177,10 +177,10 @@ public final class LlvmComposer {
       case NULL, INT, FLOAT -> print(a.toString());
       case CALL -> {
         print("call ");
-        var fn = (Function) a.get(0);
-        print(fn.returnType);
+        var function = (Function) a.get(0);
+        print(function.returnType);
         print(" @");
-        id(fn.name);
+        id(function.name);
         print('(');
         for (var i = 1; i < a.size(); i++) {
           if (i > 1) print(',');
@@ -208,7 +208,20 @@ public final class LlvmComposer {
     }
   }
 
-  private void print(Instruction instruction) {}
+  private void print(Instruction instruction) {
+    switch (instruction) {
+      case RetVoid _ -> print("ret void");
+      case Ret ret -> {
+        print("ret");
+        print(ret.value, false);
+      }
+      case BrUnconditional brUnconditional -> {
+        print("br ");
+        print(locals.get(brUnconditional.dest).toString());
+      }
+      default -> throw new IllegalArgumentException(instruction.toString());
+    }
+  }
 
   private void typeExpr(Term a) {
     print(a.type());
