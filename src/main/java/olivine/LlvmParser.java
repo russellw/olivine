@@ -780,7 +780,7 @@ public final class LlvmParser {
             // Entry block
             var block = new Block();
             function.entry = block;
-            blocks.put(expect(LABEL), block);
+            if (tok == LABEL) blocks.put(lex1(), block);
 
             // Body
             while (!eat('}')) {
