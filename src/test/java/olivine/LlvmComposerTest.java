@@ -39,7 +39,7 @@ class LlvmComposerTest {
   void testSameType() {
     Term intConstant = Term.intConstant(Type.I32, 42);
     Term castTerm = intConstant.cast(Type.I32);
-    assertEquals("bitcast", LlvmComposer.cast(castTerm));
+    assertThrows(Throwable.class, () -> LlvmComposer.cast(castTerm));
   }
 
   @Test

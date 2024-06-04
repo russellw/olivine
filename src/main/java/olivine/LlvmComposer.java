@@ -26,15 +26,10 @@ public final class LlvmComposer {
   public static String cast(Term a) {
     var from = a.get(0).type();
     var to = a.type();
-
-    // Same type
-    // TODO: when is this actually used?
-    if (from.equals(to)) return "bitcast";
-
-    // Pointer <-> int
+    assert !from.equals(to);
     if (from == Type.PTR) {
-      if (!to.isInt()) throw new IllegalArgumentException(to.toString());
-      return "ptrtoint";
+      if (to.isInt()) return "ptrtoint";
+      throw new IllegalArgumentException(to.toString());
     }
     if (to == Type.PTR) {
       if (!from.isInt()) throw new IllegalArgumentException(from.toString());
