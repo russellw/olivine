@@ -138,6 +138,7 @@ public final class LlvmComposer {
   }
 
   private void print(Term a, boolean expr) {
+    // TODO: name?
     switch (a.tag()) {
       case SCAST -> {
         print(scast(a));

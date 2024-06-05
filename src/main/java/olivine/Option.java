@@ -5,8 +5,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 
 public abstract class Option {
@@ -71,7 +69,6 @@ public abstract class Option {
   }
 
   public static void help(Option[] options) {
-    Arrays.sort(options, Comparator.comparing(o -> o.longName));
     var width = help(options, false, 0);
     help(options, true, width);
     System.exit(0);
