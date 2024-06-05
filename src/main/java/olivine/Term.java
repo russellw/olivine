@@ -990,21 +990,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Iterator<Term> iterator() {
-      return new Iterator3();
-    }
-
-    private final class Iterator3 implements Iterator<Term> {
-      private int i;
-
-      @Override
-      public boolean hasNext() {
-        return i < 3;
-      }
-
-      @Override
-      public Term next() {
-        return get(i++);
-      }
+      return Arrays.asList(arg0, arg1, arg2).iterator();
     }
   }
 
