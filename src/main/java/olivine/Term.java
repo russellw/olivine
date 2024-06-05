@@ -1052,6 +1052,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
+  // TODO: names
   private abstract static class Terms extends Term {
     final Term[] terms;
 
@@ -1084,27 +1085,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Iterator<Term> iterator() {
-      return new Iterator_(this);
-    }
-
-    // TODO: names
-    private static final class Iterator_ implements Iterator<Term> {
-      private final Term[] terms;
-      private int i;
-
-      public Iterator_(Terms term) {
-        terms = term.terms;
-      }
-
-      @Override
-      public boolean hasNext() {
-        return i < terms.length;
-      }
-
-      @Override
-      public Term next() {
-        return terms[i++];
-      }
+      return Arrays.asList(terms).iterator();
     }
   }
 
