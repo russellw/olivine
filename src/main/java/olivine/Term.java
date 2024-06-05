@@ -352,21 +352,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Iterator<Term> iterator() {
-      return new Iterator1();
-    }
-
-    private final class Iterator1 implements Iterator<Term> {
-      private int i;
-
-      @Override
-      public boolean hasNext() {
-        return i == 0;
-      }
-
-      @Override
-      public Term next() {
-        return get(i++);
-      }
+      return Collections.singletonList(arg).iterator();
     }
   }
 
