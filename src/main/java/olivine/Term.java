@@ -352,16 +352,11 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Iterator<Term> iterator() {
-      return new Iterator1(this);
+      return new Iterator1();
     }
 
-    private static final class Iterator1 implements Iterator<Term> {
-      private final Term1 term;
+    private final class Iterator1 implements Iterator<Term> {
       private int i;
-
-      public Iterator1(Term1 term) {
-        this.term = term;
-      }
 
       @Override
       public boolean hasNext() {
@@ -370,7 +365,7 @@ public abstract class Term implements Iterable<Term> {
 
       @Override
       public Term next() {
-        return term.get(i++);
+        return get(i++);
       }
     }
   }
@@ -656,16 +651,11 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Iterator<Term> iterator() {
-      return new Iterator2(this);
+      return new Iterator2();
     }
 
-    private static final class Iterator2 implements Iterator<Term> {
-      private final Term2 term;
+    private final class Iterator2 implements Iterator<Term> {
       private int i;
-
-      public Iterator2(Term2 term) {
-        this.term = term;
-      }
 
       @Override
       public boolean hasNext() {
@@ -674,7 +664,7 @@ public abstract class Term implements Iterable<Term> {
 
       @Override
       public Term next() {
-        return term.get(i++);
+        return get(i++);
       }
     }
   }
@@ -1028,16 +1018,11 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Iterator<Term> iterator() {
-      return new Iterator3(this);
+      return new Iterator3();
     }
 
-    private static final class Iterator3 implements Iterator<Term> {
-      private final Term3 term;
+    private final class Iterator3 implements Iterator<Term> {
       private int i;
-
-      public Iterator3(Term3 term) {
-        this.term = term;
-      }
 
       @Override
       public boolean hasNext() {
@@ -1046,7 +1031,7 @@ public abstract class Term implements Iterable<Term> {
 
       @Override
       public Term next() {
-        return term.get(i++);
+        return get(i++);
       }
     }
   }
