@@ -180,4 +180,70 @@ class TermTest {
     assertEquals(term2, add.get(1));
     assertThrows(IndexOutOfBoundsException.class, () -> add.get(2));
   }
+
+  @Test
+  public void testZeroInitializerForIntType() {
+    // Test I1 type
+    Term result = Term.zeroinitializer(Type.I1);
+    assertSame(result.tag(), Tag.INT);
+    assertEquals(0, result.intValueExact());
+
+    // Test I32 type
+    result = Term.zeroinitializer(Type.I32);
+    assertSame(result.tag(), Tag.INT);
+    assertEquals(0, result.intValueExact());
+
+    // Test I64 type
+    result = Term.zeroinitializer(Type.I64);
+    assertSame(result.tag(), Tag.INT);
+    assertEquals(0, result.intValueExact());
+  }
+
+  @Test
+  public void testZeroInitializerForFloatType() {
+    // Test FLOAT type
+    Term result = Term.zeroinitializer(Type.FLOAT);
+    assertSame(result.tag(), Tag.FLOAT);
+    assertEquals("0", result.toString());
+
+    // Test DOUBLE type
+    result = Term.zeroinitializer(Type.DOUBLE);
+    assertSame(result.tag(), Tag.FLOAT);
+    assertEquals("0", result.toString());
+
+    // Test HALF type
+    result = Term.zeroinitializer(Type.HALF);
+    assertSame(result.tag(), Tag.FLOAT);
+    assertEquals("0", result.toString());
+  }
+
+  @Test
+  public void testZeroInitializerForArrayType() {
+    // Test array of I32
+    Type arrayType = Type.I32.array(3);
+    Term result = Term.zeroinitializer(arrayType);
+    assertSame(result.tag(), Tag.ARRAY);
+    assertEquals(3, result.size());
+    for (Term element : result) {
+      assertSame(element.tag(), Tag.INT);
+      assertEquals(0, element.intValueExact());
+    }
+
+    // Test array of FLOAT
+    arrayType = Type.FLOAT.array(2);
+    result = Term.zeroinitializer(arrayType);
+    assertSame(result.tag(), Tag.ARRAY);
+    assertEquals(2, result.size());
+    for (Term element : result) {
+      assertSame(element.tag(), Tag.FLOAT);
+      assertEquals("0", element.toString());
+    }
+  }
+
+  @Test
+  public void testZeroInitializerForUnsupportedType() {
+    // Test unsupported type should throw IllegalArgumentException
+    Type unsupportedType = Type.OPAQUE;
+    assertThrows(IllegalArgumentException.class, () -> Term.zeroinitializer(unsupportedType));
+  }
 }
