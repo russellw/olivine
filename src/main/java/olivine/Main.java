@@ -63,19 +63,11 @@ final class Main {
     var modules = new ArrayList<Module>();
     for (var file : Option.positionalArgs) {
       switch (Etc.extension(file)) {
-        case "c", "m", "mm", "M", "cc", "cpp", "cppm", "cp", "cxx", "c++", "C", "CPP" -> {
-          run(new String[] {"clang", "-S", "-emit-llvm", "--", file});
-          file = Etc.baseName(file) + ".ll";
-        }
         case "bc" -> {
           run(new String[] {"llvm-dis", "--", file});
           file = Etc.baseName(file) + ".ll";
         }
         case "ll" -> {}
-        case "rs" -> {
-          run(new String[] {"rustc", "--emit", "llvm-ir", "--", file});
-          file = Etc.baseName(file) + ".ll";
-        }
         default -> {
           System.err.println(file + ": unknown extension");
           System.exit(1);
