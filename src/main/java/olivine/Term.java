@@ -1102,6 +1102,7 @@ public abstract class Term implements Iterable<Term> {
       return new Iterator_(this);
     }
 
+    // TODO: names
     private static final class Iterator_ implements Iterator<Term> {
       private final Term[] terms;
       private int i;
