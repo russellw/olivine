@@ -371,6 +371,11 @@ public abstract class Type implements Iterable<Type> {
     }
 
     @Override
+    public Iterator<Type> iterator() {
+      return Collections.singletonList(element).iterator();
+    }
+
+    @Override
     public Type get(int i) {
       if (i != 0) throw new IndexOutOfBoundsException("%s, %s".formatted(this, i));
       return element;
@@ -432,6 +437,11 @@ public abstract class Type implements Iterable<Type> {
     @Override
     public int hashCode() {
       return Arrays.hashCode(elements);
+    }
+
+    @Override
+    public Iterator<Type> iterator() {
+      return Arrays.asList(elements).iterator();
     }
 
     @Override
