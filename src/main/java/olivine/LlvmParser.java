@@ -250,7 +250,7 @@ public final class LlvmParser {
     return a;
   }
 
-  private Term getElementPtr(Type type, Term ptr, List<Term> idxs) {
+  private Term getelementptr(Type type, Term ptr, List<Term> idxs) {
     // The first index of getelementptr is for the case when the pointer is to an array
     ptr = ptr.elementPtr(type, idxs.getFirst());
     for (var i = 1; i < idxs.size(); i++) {
@@ -274,8 +274,21 @@ public final class LlvmParser {
   private Term expr(Type type) {
     return switch (token) {
       case WORD -> {
+        // TODO: more accurate position report
         var s = lex1();
         yield switch (s) {
+          case "getelementptr" -> {
+            expect('(');
+            type = type();
+            expect(',');
+            expect("ptr");
+            var ptrVal = expr(Type.PTR);
+            var idxs = new ArrayList<Term>();
+            while (eat(',')) idxs.add(typeExpr());
+            var r = getelementptr(type, ptrVal, idxs);
+            expect(')');
+            yield r;
+          }
           case "null" -> Term.NULL;
           case "true" -> Term.TRUE;
           case "false" -> Term.FALSE;
@@ -574,7 +587,7 @@ public final class LlvmParser {
           var ptrVal = expr(Type.PTR);
           var idxs = new ArrayList<Term>();
           while (eat(',')) idxs.add(typeExpr());
-          value = getElementPtr(type, ptrVal, idxs);
+          value = getelementptr(type, ptrVal, idxs);
         }
         case "call" -> value = call();
         case "alloca" -> {
