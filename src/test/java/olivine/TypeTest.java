@@ -179,4 +179,70 @@ class TypeTest {
     Type vector = Type.I32.vector(5);
     assertEquals("<5 x i32>", vector.toString());
   }
+
+  @Test
+  public void testArray() {
+    Type intType = Type.I32;
+    Type arrayType = intType.array(5);
+
+    // Verify kind and string representation
+    assertEquals(Kind.ARRAY, arrayType.kind());
+    assertEquals("[5 x i32]", arrayType.toString());
+
+    // Verify size and get method
+    assertEquals(1, arrayType.size());
+    assertEquals(intType, arrayType.get(0));
+
+    // Verify iterator
+    Iterator<Type> iterator = arrayType.iterator();
+    assertTrue(iterator.hasNext());
+    assertEquals(intType, iterator.next());
+    assertFalse(iterator.hasNext());
+  }
+
+  @Test
+  public void testVector() {
+    Type floatType = Type.FLOAT;
+    Type vectorType = floatType.vector(4);
+
+    // Verify kind and string representation
+    assertEquals(Kind.VECTOR, vectorType.kind());
+    assertEquals("<4 x float>", vectorType.toString());
+
+    // Verify size and get method
+    assertEquals(1, vectorType.size());
+    assertEquals(floatType, vectorType.get(0));
+
+    // Verify iterator
+    Iterator<Type> iterator = vectorType.iterator();
+    assertTrue(iterator.hasNext());
+    assertEquals(floatType, iterator.next());
+    assertFalse(iterator.hasNext());
+  }
+
+  @Test
+  public void testStruct() {
+    Type[] fields = {Type.I32, Type.FLOAT, Type.PTR};
+    Type structType = Type.struct(fields);
+
+    // Verify kind and string representation
+    assertEquals(Kind.STRUCT, structType.kind());
+    assertEquals("{i32,float,ptr}", structType.toString());
+
+    // Verify size and get method
+    assertEquals(3, structType.size());
+    assertEquals(Type.I32, structType.get(0));
+    assertEquals(Type.FLOAT, structType.get(1));
+    assertEquals(Type.PTR, structType.get(2));
+
+    // Verify iterator
+    Iterator<Type> iterator = structType.iterator();
+    assertTrue(iterator.hasNext());
+    assertEquals(Type.I32, iterator.next());
+    assertTrue(iterator.hasNext());
+    assertEquals(Type.FLOAT, iterator.next());
+    assertTrue(iterator.hasNext());
+    assertEquals(Type.PTR, iterator.next());
+    assertFalse(iterator.hasNext());
+  }
 }
