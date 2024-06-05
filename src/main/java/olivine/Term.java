@@ -1096,6 +1096,30 @@ public abstract class Term implements Iterable<Term> {
     public int size() {
       return terms.length;
     }
+
+    @Override
+    public Iterator<Term> iterator() {
+      return new Iterator_(this);
+    }
+
+    private static final class Iterator_ implements Iterator<Term> {
+      private final Term[] terms;
+      private int i;
+
+      public Iterator_(Terms term) {
+        terms = term.terms;
+      }
+
+      @Override
+      public boolean hasNext() {
+        return i < terms.length;
+      }
+
+      @Override
+      public Term next() {
+        return terms[i++];
+      }
+    }
   }
 
   private static final class Call extends Terms {
