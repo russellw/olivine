@@ -12,6 +12,12 @@ public final class Etc {
     return 'a' - 10 + n;
   }
 
+  @SuppressWarnings("unused")
+  public static void debug(Object o) {
+    System.out.print(Thread.currentThread().getStackTrace()[2] + ": ");
+    System.out.println(o);
+  }
+
   public static int parseHexDigit(int c) {
     if (isDigit(c)) return c - '0';
     if ('a' <= c && c <= 'f') return c - 'a' + 10;
