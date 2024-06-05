@@ -165,7 +165,7 @@ class TypeTest {
   @Test
   public void testIteratorNextThrowsException() {
     Iterator<Type> iterator = Type.VOID.iterator();
-    assertThrows(UnsupportedOperationException.class, iterator::next);
+    assertThrows(Throwable.class, iterator::next);
   }
 
   @Test

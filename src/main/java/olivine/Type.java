@@ -322,7 +322,7 @@ public abstract class Type implements Iterable<Type> {
 
   @Override
   public Iterator<Type> iterator() {
-    return new Iterator0();
+    return Collections.emptyIterator();
   }
 
   abstract Kind kind();
@@ -337,18 +337,6 @@ public abstract class Type implements Iterable<Type> {
 
   public static Type struct(List<Type> fields) {
     return new Struct(fields.toArray(new Type[0]));
-  }
-
-  private static class Iterator0 implements Iterator<Type> {
-    @Override
-    public boolean hasNext() {
-      return false;
-    }
-
-    @Override
-    public Type next() {
-      throw new UnsupportedOperationException();
-    }
   }
 
   int count() {
