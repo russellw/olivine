@@ -1,15 +1,15 @@
 #include <stdio.h>
 
-int main(int argc, char** argv) {
-	puts("begin");
-	goto a;
+int main(int argc, char **argv) {
+  puts("begin");
+  goto a;
 a:
-	puts("a");
-	goto b;
+  puts("a");
+  goto b;
 b:
-	puts("b");
-	goto c;
+  puts("b");
+  goto c;
 c:
-	puts("c");
-	return 0;
+  puts("c");
+  return 0;
 }
