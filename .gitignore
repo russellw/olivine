@@ -26,6 +26,5 @@ replay_pid*
 target/
 .idea/
 
-*.c
 *.ll
 *.exe
