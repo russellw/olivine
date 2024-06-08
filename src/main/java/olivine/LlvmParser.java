@@ -84,7 +84,8 @@ public final class LlvmParser {
   private Type primaryType() {
     switch (token) {
       case WORD -> {
-        return switch (expect(WORD)) {
+        var s = lex1();
+        return switch (s) {
           case "void" -> Type.VOID;
           case "ptr" -> Type.PTR;
           case "half" -> Type.HALF;
@@ -100,7 +101,7 @@ public final class LlvmParser {
           case "i32" -> Type.I32;
           case "i64" -> Type.I64;
           case "i128" -> Type.I128;
-          default -> throw error("unknown type");
+          default -> throw error(s, "unknown type");
         };
       }
       case '[' -> {
