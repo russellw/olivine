@@ -84,7 +84,7 @@ def do(f):
     f = os.path.basename(f)
     f = os.path.splitext(f)[0]
     subprocess.check_call(["clang", "-o", exe_file(f), f + ".ll"])
-    subprocess.check_call(["olivine", f + ".ll"])
+    subprocess.check_call(["olivine", f + ".ll"], shell=True)
     subprocess.check_call(["clang", "a.ll"])
     if any(map(lambda s: s.startswith("$"), v)):
         for i in range(10):
