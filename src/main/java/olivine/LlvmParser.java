@@ -720,6 +720,8 @@ public final class LlvmParser {
             case "define", "declare" -> {
               linkage();
               preemptionSpecifier();
+              paramAttr();
+
               var rtype = type();
               var name = expect(GLOBAL_ID);
               expect('(');
@@ -771,6 +773,7 @@ public final class LlvmParser {
           if (lex1().equals("define")) {
             linkage();
             preemptionSpecifier();
+            paramAttr();
 
             // Return type
             type();
