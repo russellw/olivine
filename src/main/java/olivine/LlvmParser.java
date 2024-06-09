@@ -170,7 +170,7 @@ public final class LlvmParser {
     return type;
   }
 
-  private void linkageType() {
+  private void linkage() {
     if (token == WORD)
       switch (tokenString) {
         case "private",
@@ -188,7 +188,7 @@ public final class LlvmParser {
       }
   }
 
-  private void dso() {
+  private void preemptionSpecifier() {
     if (token == WORD)
       switch (tokenString) {
         case "dso_local", "dso_preemptable" -> lex();
@@ -718,8 +718,8 @@ public final class LlvmParser {
         case WORD -> {
           switch (lex1()) {
             case "define", "declare" -> {
-              linkageType();
-              dso();
+              linkage();
+              preemptionSpecifier();
               var rtype = type();
               var name = expect(GLOBAL_ID);
               expect('(');
@@ -745,8 +745,8 @@ public final class LlvmParser {
         case GLOBAL_ID -> {
           var name = lex1();
           expect('=');
-          linkageType();
-          dso();
+          linkage();
+          preemptionSpecifier();
           eat("unnamed_addr");
           if (token == WORD)
             switch (tokenString) {
@@ -769,8 +769,8 @@ public final class LlvmParser {
         case WORD -> {
           // Function definition
           if (lex1().equals("define")) {
-            linkageType();
-            dso();
+            linkage();
+            preemptionSpecifier();
 
             // Return type
             type();
@@ -837,8 +837,8 @@ public final class LlvmParser {
         case GLOBAL_ID -> {
           var variable = (GlobalVariable) globals.get(lex1());
           expect('=');
-          linkageType();
-          dso();
+          linkage();
+          preemptionSpecifier();
           eat("unnamed_addr");
           if (token == WORD)
             switch (tokenString) {
