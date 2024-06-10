@@ -339,8 +339,9 @@ public final class LlvmParser {
     if (token == LOCAL_ID) {
       var name = lex1();
       expect('=');
+      String cause;
       Term value;
-      switch (expect(WORD)) {
+      switch (cause = expect(WORD)) {
         case "select" -> {
           fastMathFlags();
           var cond = typeExpr();
@@ -636,7 +637,7 @@ public final class LlvmParser {
           expect("to");
           value = a.scast(type());
         }
-        default -> throw error("unknown instruction");
+        default -> throw error(cause, "unknown instruction");
       }
       block.add(new Assign(variable(name, value.type()), value));
       return;
