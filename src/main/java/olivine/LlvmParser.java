@@ -35,8 +35,9 @@ public final class LlvmParser {
     return new ParseException(file, line(), msg);
   }
 
-  private ParseException error(String source, String msg) {
-    return new ParseException(file, line(), source, msg);
+  private ParseException error(String cause, String msg) {
+    if (cause == null) return new ParseException(file, line(), msg);
+    return new ParseException(file, line(), cause, msg);
   }
 
   private boolean eat(int k) {
@@ -55,7 +56,15 @@ public final class LlvmParser {
 
   private String expect(int k) {
     if (token == k) return lex1();
-    throw error(k < 128 ? "expected '%c'".formatted(k) : "syntax error");
+    var msg = k < 128 ? "expected '%c'".formatted(k) : "syntax error";
+    throw error(cause(), msg);
+  }
+
+  String cause() {
+    return switch (token) {
+      case WORD, INT -> tokenString;
+      default -> null;
+    };
   }
 
   private boolean eat(String s) {
