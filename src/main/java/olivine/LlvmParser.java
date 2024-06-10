@@ -205,7 +205,13 @@ public final class LlvmParser {
   }
 
   private void paramAttr() {
-    eat("noundef");
+    while (token == WORD)
+      switch (tokenString) {
+        case "noundef", "immarg", "nocapture" -> lex();
+        default -> {
+          return;
+        }
+      }
   }
 
   private Block block() {
