@@ -204,7 +204,7 @@ public final class LlvmParser {
       }
   }
 
-  private void paramAttr() {
+  private void paramAttrs() {
     while (token == WORD)
       switch (tokenString) {
         case "noundef", "immarg", "nocapture" -> lex();
@@ -245,7 +245,7 @@ public final class LlvmParser {
     if (token != ')')
       do {
         var type = type();
-        paramAttr();
+        paramAttrs();
         args.add(expr(type));
       } while (eat(','));
     expect(')');
@@ -735,7 +735,7 @@ public final class LlvmParser {
             case "define", "declare" -> {
               linkage();
               preemptionSpecifier();
-              paramAttr();
+              paramAttrs();
 
               var rtype = type();
               var name = expect(GLOBAL_ID);
@@ -749,7 +749,7 @@ public final class LlvmParser {
                     continue;
                   }
                   params.add(new Variable(type()));
-                  paramAttr();
+                  paramAttrs();
                   eat(LOCAL_ID);
                 } while (eat(','));
               expect(')');
@@ -788,7 +788,7 @@ public final class LlvmParser {
           if (lex1().equals("define")) {
             linkage();
             preemptionSpecifier();
-            paramAttr();
+            paramAttrs();
 
             // Return type
             type();
@@ -804,7 +804,7 @@ public final class LlvmParser {
               do {
                 if (eat(DOTS)) continue;
                 type();
-                paramAttr();
+                paramAttrs();
                 locals.put(expect(LOCAL_ID), function.params.get(i++));
               } while (eat(','));
             while (!eat('{')) {
