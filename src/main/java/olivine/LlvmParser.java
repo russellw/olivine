@@ -606,6 +606,10 @@ public final class LlvmParser {
           while (eat(',')) idxs.add(typeExpr());
           value = getelementptr(type, ptrVal, idxs);
         }
+        case "tail" -> {
+          expect("call");
+          value = call();
+        }
         case "call" -> value = call();
         case "alloca" -> {
           var type = type();
