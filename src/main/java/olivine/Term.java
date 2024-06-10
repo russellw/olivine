@@ -1047,7 +1047,8 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     Type type() {
-      throw new UnsupportedOperationException(toString());
+      var function = (Function) terms[0];
+      return function.returnType;
     }
   }
 
