@@ -207,7 +207,13 @@ public final class LlvmParser {
   private void paramAttrs() {
     while (token == WORD)
       switch (tokenString) {
-        case "noundef", "immarg", "nocapture" -> lex();
+        case "noundef", "nonnull", "immarg", "nocapture" -> lex();
+        case "dereferenceable" -> {
+          lex();
+          expect('(');
+          expect(INT);
+          expect(')');
+        }
         default -> {
           return;
         }
