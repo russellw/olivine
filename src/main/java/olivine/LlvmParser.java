@@ -21,7 +21,6 @@ public final class LlvmParser {
   private int textIdx;
   private int token;
   private String tokenString;
-  private boolean newline;
   private final Map<String, Type> types = new HashMap<>();
   private final Map<String, Global> globals = new HashMap<>();
   private final Map<String, Term> locals = new HashMap<>();
@@ -939,7 +938,6 @@ public final class LlvmParser {
   }
 
   private void lex() {
-    newline = false;
     for (; ; ) {
       if (textIdx == text.length) {
         token = EOF;
@@ -948,11 +946,6 @@ public final class LlvmParser {
       switch (text[textIdx]) {
         case ' ', '\r', '\t', '\f' -> {
           textIdx++;
-          continue;
-        }
-        case '\n' -> {
-          textIdx++;
-          newline = true;
           continue;
         }
         case ';' -> {
@@ -1065,9 +1058,10 @@ public final class LlvmParser {
   }
 
   private void eol() {
-    if (newline) return;
-    while (text[textIdx] != '\n') textIdx++;
-    lex();
+    while (token != '\n') {
+      if (token == EOF) throw error("unexpected end of file");
+      lex();
+    }
   }
 
   public static Module parse(String file, byte[] text) {
