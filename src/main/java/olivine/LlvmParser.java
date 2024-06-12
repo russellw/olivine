@@ -923,7 +923,7 @@ public final class LlvmParser {
   private void lexWord() {
     var sb = new StringBuilder();
     do sb.append((char) text[textIdx++]);
-    while (Etc.isAlnum(text[textIdx]) || text[textIdx] == '_' || text[textIdx] == '.');
+    while (isIdPart(text[textIdx]));
     token = WORD;
     if (text[textIdx] == ':') {
       textIdx++;
