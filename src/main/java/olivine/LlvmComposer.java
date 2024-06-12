@@ -222,10 +222,15 @@ public final class LlvmComposer {
 
   private void print(Instruction instruction) {
     switch (instruction) {
+      case Assign assign -> {
+        local(assign.variable);
+        print('=');
+        print(assign.value);
+      }
       case RetVoid _ -> print("ret void");
       case Ret ret -> {
         print("ret");
-        print(ret.value);
+        atom(ret.value);
       }
       case BrUnconditional brUnconditional -> {
         print("br ");
@@ -233,6 +238,7 @@ public final class LlvmComposer {
       }
       default -> throw new IllegalArgumentException(instruction.toString());
     }
+    print('\n');
   }
 
   private void typeAtom(Term term) {
