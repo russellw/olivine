@@ -139,97 +139,93 @@ public final class LlvmComposer {
     }
   }
 
-  private void print(Term a) {
-    // TODO: name?
-    switch (a.tag()) {
-      case SCAST -> {
-        print(scast(a));
-        print(' ');
-        typeAtom(a.get(0));
-        print(" to ");
-        print(a.type());
-      }
-      case CAST -> {
-        print(cast(a));
-        print(' ');
-        typeAtom(a.get(0));
-        print(" to ");
-        print(a.type());
-      }
-      case NE -> {
-        print("icmp ne");
-        args(a);
-      }
-      case SLT -> {
-        print("icmp slt");
-        args(a);
-      }
-      case FMUL -> {
-        print("fmul");
-        args(a);
-      }
-      case OR -> {
-        print("or");
-        args(a);
-      }
-      case ADDR -> {
-        print('@');
-        var variable = (GlobalVariable) a.get(0);
-        id(variable.name);
-      }
-      case ARRAY -> {
-        print('[');
-        var more = false;
-        for (var b : a) {
-          if (more) print(',');
-          more = true;
-          typeAtom(b);
-        }
-        print(']');
-      }
-      case CALL -> {
-        print("call ");
-        var function = (Function) a.get(0);
-        print(function.returnType);
-        print(" @");
-        id(function.name);
-        print('(');
-        for (var i = 1; i < a.size(); i++) {
-          if (i > 1) print(',');
-          typeAtom(a.get(i));
-        }
-        print(')');
-      }
-      case LOAD -> {
-        print("load ");
-        print(a.type());
-        print(',');
-        typeAtom(a.get(0));
-      }
-      case ELEMENT_PTR -> {
-        print("getelementptr ptr,");
-        typeAtom(a.get(0));
-        print(',');
-        typeAtom(a.get(1));
-      }
-      case ALLOCA -> {
-        print("alloca ");
-        print(a.type());
-      }
-      default -> throw new IllegalArgumentException(a.toString());
-    }
-  }
-
   private void print(Instruction instruction) {
     switch (instruction) {
       case Assign assign -> {
         local(assign.variable);
         print('=');
-        print(assign.value);
+        var value = assign.value;
+        switch (value.tag()) {
+          case SCAST -> {
+            print(scast(value));
+            print(' ');
+            typeAtom(value.get(0));
+            print(" to ");
+            print(value.type());
+          }
+          case CAST -> {
+            print(cast(value));
+            print(' ');
+            typeAtom(value.get(0));
+            print(" to ");
+            print(value.type());
+          }
+          case NE -> {
+            print("icmp ne");
+            args(value);
+          }
+          case SLT -> {
+            print("icmp slt");
+            args(value);
+          }
+          case FMUL -> {
+            print("fmul");
+            args(value);
+          }
+          case OR -> {
+            print("or");
+            args(value);
+          }
+          case ADDR -> {
+            print('@');
+            var variable = (GlobalVariable) value.get(0);
+            id(variable.name);
+          }
+          case ARRAY -> {
+            print('[');
+            var more = false;
+            for (var b : value) {
+              if (more) print(',');
+              more = true;
+              typeAtom(b);
+            }
+            print(']');
+          }
+          case CALL -> {
+            print("call ");
+            var function = (Function) value.get(0);
+            print(function.returnType);
+            print(" @");
+            id(function.name);
+            print('(');
+            for (var i = 1; i < value.size(); i++) {
+              if (i > 1) print(',');
+              typeAtom(value.get(i));
+            }
+            print(')');
+          }
+          case LOAD -> {
+            print("load ");
+            print(value.type());
+            print(',');
+            typeAtom(value.get(0));
+          }
+          case ELEMENT_PTR -> {
+            print("getelementptr ptr,");
+            typeAtom(value.get(0));
+            print(',');
+            typeAtom(value.get(1));
+          }
+          case ALLOCA -> {
+            print("alloca ");
+            print(value.type());
+          }
+          default -> throw new IllegalArgumentException(value.toString());
+        }
       }
       case RetVoid _ -> print("ret void");
       case Ret ret -> {
-        print("ret");
+        print("ret ");
         atom(ret.value);
       }
       case BrUnconditional brUnconditional -> {
