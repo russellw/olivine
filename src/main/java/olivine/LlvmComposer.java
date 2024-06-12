@@ -51,12 +51,12 @@ public final class LlvmComposer {
 
   private void local(Object o) {
     print('%');
-    var name = locals.get(o);
-    if (name == null) {
-      name = Integer.toString(locals.size());
-      locals.put(o, name);
+    var s = locals.get(o);
+    if (s == null) {
+      s = Integer.toString(locals.size());
+      locals.put(o, s);
     }
-    print(name);
+    print(s);
   }
 
   private void print(int c) {
