@@ -107,7 +107,8 @@ public final class LlvmComposer {
       print(variable.type());
       if (variable.value != null) {
         print(' ');
-        print(variable.value);
+        // TODO: could be gep
+        atom(variable.value);
       }
       print('\n');
     }
