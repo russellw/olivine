@@ -798,9 +798,10 @@ public final class LlvmParser {
           if (tokenString.equals("define")) {
             do lex();
             while (token != GLOBAL_ID);
-            var function = (Function) globals.get(tokenString);
+            var function = (Function) globals.get(lex1());
 
-            // Parameters
+            // Already parsed parameters for the function declaration
+            // but do so again to get the local variable names of the parameters
             expect('(');
             var i = 0;
             locals.clear();
