@@ -7,7 +7,7 @@ import java.util.Map;
 
 public final class LlvmComposer {
   private final ByteArrayOutputStream stream = new ByteArrayOutputStream();
-  private final Map<Object, Integer> locals = new HashMap<>();
+  private final Map<Object, String> locals = new HashMap<>();
 
   public static String scast(Term a) {
     var from = a.get(0).type();
@@ -49,9 +49,14 @@ public final class LlvmComposer {
     throw new IllegalArgumentException(a.toString());
   }
 
-  private void nameLocal(Object o) {
-    assert !locals.containsKey(o);
-    locals.put(o, locals.size());
+  private void local(Object o) {
+    print('%');
+    var name = locals.get(o);
+    if (name == null) {
+      name = Integer.toString(locals.size());
+      locals.put(o, name);
+    }
+    print(name);
   }
 
   private void print(int c) {
@@ -232,7 +237,7 @@ public final class LlvmComposer {
       }
       case BrUnconditional brUnconditional -> {
         print("br ");
-        print(locals.get(brUnconditional.dest).toString());
+        local(brUnconditional.dest);
       }
       default -> throw new IllegalArgumentException(instruction.toString());
     }
