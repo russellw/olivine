@@ -795,16 +795,10 @@ public final class LlvmParser {
       switch (token) {
         case WORD -> {
           // Function definition
-          if (lex1().equals("define")) {
-            linkage();
-            preemptionSpecifier();
-            paramAttrs();
-
-            // Return type
-            type();
-
-            // Name
-            var function = (Function) globals.get(expect(GLOBAL_ID));
+          if (tokenString.equals("define")) {
+            do lex();
+            while (token != GLOBAL_ID);
+            var function = (Function) globals.get(tokenString);
 
             // Parameters
             expect('(');
