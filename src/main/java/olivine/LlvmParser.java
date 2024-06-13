@@ -49,7 +49,7 @@ public final class LlvmParser {
 
   private int line() {
     var n = 1;
-    for (var i = 0; i < textIdx; i++) if (text[i] == '\n') n++;
+    for (var i = 0; i < textIdx - 1; i++) if (text[i] == '\n') n++;
     return n;
   }
 
