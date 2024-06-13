@@ -1061,6 +1061,22 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    public String toString() {
+      var sb = new StringBuilder();
+      sb.append('[');
+      var more = false;
+      for (var element : terms) {
+        if (more) sb.append(',');
+        more = true;
+        sb.append(element.type());
+        sb.append(' ');
+        sb.append(element);
+      }
+      sb.append(']');
+      return sb.toString();
+    }
+
+    @Override
     public boolean equals(Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
