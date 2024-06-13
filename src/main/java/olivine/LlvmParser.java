@@ -61,8 +61,12 @@ public final class LlvmParser {
 
   String cause() {
     return switch (token) {
+      case '\n' -> "newline";
       case WORD, INT -> tokenString;
-      default -> null;
+      default -> {
+        if (Etc.isPrint(token)) yield "'%c'".formatted(token);
+        yield null;
+      }
     };
   }
 
