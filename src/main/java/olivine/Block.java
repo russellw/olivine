@@ -9,6 +9,7 @@ public final class Block implements Iterable<Instruction> {
   private final List<Instruction> instructions = new ArrayList<>();
 
   List<Block> successors() {
+    if (instructions.isEmpty()) return List.of();
     return switch (last()) {
       case BrUnconditional brUnconditional -> List.of(brUnconditional.dest);
       case Br br -> List.of(br.ifTrue, br.ifFalse);
