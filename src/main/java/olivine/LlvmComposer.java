@@ -112,6 +112,100 @@ public final class LlvmComposer {
       }
       print('\n');
     }
+    for (var function : module.functions) {
+      print(function.entry == null ? "declare " : "define ");
+      print(function.returnType);
+      print(" @");
+      id(function.name);
+      print('(');
+      locals.clear();
+      var more = false;
+      for (var a : function.params) {
+        if (more) print(',');
+        more = true;
+        typeAtom(a);
+      }
+      if (function.varargs) print(",...");
+      print(')');
+
+      // empty function is only declared, not defined
+      if (function.entry == null) {
+        print('\n');
+        continue;
+      }
+
+      /*
+      var blocks = function.blocks();
+
+      // Count how many times each local variable is assigned
+      var assignCounts = new LinkedHashMap<Var, Integer>();
+      for (var block : blocks)
+        for (var a : block.instructions)
+          if (a.tag() == Tag.ASSIGN && a.get(0) instanceof Var x)
+            assignCounts.put(x, assignCounts.getOrDefault(x, 0) + 1);
+
+      // look at the ones that are assigned more than once
+      var vars = new HashSet<Var>();
+      for (var kv : assignCounts.entrySet()) if (kv.getValue() > 1) vars.add(kv.getKey());
+
+      // they need to be converted to alloca
+      var allocas = new ArrayList<Val>();
+      for (var x : vars) allocas.add(Val.of(Tag.ASSIGN, x, new Alloca(x.type(), IntVal.of(1))));
+      function.entry.instructions.addAll(0, allocas);
+
+      // convert assignment to store
+      for (var block : blocks) {
+        var instructions = block.instructions;
+        @SuppressWarnings("unchecked")
+        var replacements = (List<Val>[]) new List[instructions.size()];
+        for (int i = 0, instructionsSize = instructions.size(); i < instructionsSize; i++) {
+          var a = instructions.get(i);
+          if (a.tag() == Tag.ASSIGN && a.get(0) instanceof Var x) {
+            if (!vars.contains(x)) continue;
+            var y = new Var(x.type());
+            var calc = Val.of(Tag.ASSIGN, y, a.get(1));
+            var store = Val.of(Tag.ASSIGN, Val.of(Tag.LOAD, y), x);
+            replacements[i] = List.of(calc, store);
+          }
+        }
+        block.replace(replacements);
+      }
+
+      // convert reference to load
+      for (var block : blocks) {
+        var instructions = block.instructions;
+        @SuppressWarnings("unchecked")
+        var replacements = (List<Val>[]) new List[instructions.size()];
+        for (int i = 0, instructionsSize = instructions.size(); i < instructionsSize; i++) {
+          var a = instructions.get(i);
+          var loads = new ArrayList<Val>();
+          for (var x : vars)
+            if (a.containsLeaf(x)) {
+              var y = new Var(x.type());
+              loads.add(Val.of(Tag.ASSIGN, y, new Alloca(x.type(), x)));
+            }
+        }
+        block.replace(replacements);
+      }
+
+      // write body
+      print("{\n");
+      for (var block : blocks) {
+        nameLocal(block);
+        for (var a : block.instructions) if (a.tag() == Tag.ASSIGN) nameLocal(a.get(0));
+      }
+      for (var block : blocks) {
+        print(locals.get(block));
+        print(":\n");
+        for (var a : block.instructions) {
+          print(a, false);
+          print('\n');
+        }
+      }
+      print("}\n");
+
+       */
+    }
   }
 
   public static byte[] compose(Module module) {
