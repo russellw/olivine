@@ -97,6 +97,7 @@ public final class LlvmComposer {
   }
 
   private LlvmComposer(Module module) {
+    // Global variables
     for (var variable : module.variables) {
       print('@');
       id(variable.name);
@@ -111,11 +112,17 @@ public final class LlvmComposer {
       }
       print('\n');
     }
+
+    // Functions
     for (var function : module.functions) {
       print(function.entry == null ? "declare " : "define ");
       print(function.returnType);
+
+      // Name
       print(" @");
       id(function.name);
+
+      // Parameters
       print('(');
       locals.clear();
       var more = false;
@@ -126,6 +133,8 @@ public final class LlvmComposer {
       }
       if (function.varargs) print(",...");
       print(')');
+
+      // End of declaration
       if (function.entry != null) print('{');
       print('\n');
 
@@ -134,23 +143,22 @@ public final class LlvmComposer {
 
       // Count how many times each local variable is assigned
       var blocks = function.blocks();
-      var assignCounts = new LinkedHashMap<Variable, Integer>();
+      var assigned = new LinkedHashMap<Variable, Integer>();
       for (var block : blocks)
         for (var instruction : block)
           if (instruction instanceof Assign assign) {
             var variable = assign.variable;
-            assignCounts.put(variable, assignCounts.getOrDefault(variable, 0) + 1);
+            assigned.put(variable, assigned.getOrDefault(variable, 0) + 1);
           }
 
       // Look at the ones that are assigned more than once
-      var vars = new HashSet<Variable>();
-      for (var kv : assignCounts.entrySet()) if (kv.getValue() > 1) vars.add(kv.getKey());
+      var reassigned = new HashSet<Variable>();
+      for (var entry : assigned.entrySet())
+        if (entry.getValue() > 1) reassigned.add(entry.getKey());
 
       // They need to be converted to alloca
-      var allocas = new ArrayList<Assign>();
-      for (var x : vars)
-        allocas.add(new Assign(x, Term.alloca(x.type(), Term.intConstant(Type.I32, 1))));
-      function.entry.addAll(0, allocas);
+      for (var variable : reassigned)
+        print(new Assign(variable, Term.alloca(variable.type(), Term.intConstant(Type.I32, 1))));
 
       // Convert assignment to store
       for (var block : blocks) {
@@ -159,7 +167,7 @@ public final class LlvmComposer {
         for (int i = 0, instructionsSize = block.size(); i < instructionsSize; i++) {
           var a = block.get(i);
           if (a.tag() == Tag.ASSIGN && a.get(0) instanceof Var x) {
-            if (!vars.contains(x)) continue;
+            if (!reassigned.contains(x)) continue;
             var y = new Var(x.type());
             var calc = Val.of(Tag.ASSIGN, y, a.get(1));
             var store = Val.of(Tag.ASSIGN, Val.of(Tag.LOAD, y), x);
@@ -177,7 +185,7 @@ public final class LlvmComposer {
         for (int i = 0, instructionsSize = instructions.size(); i < instructionsSize; i++) {
           var a = instructions.get(i);
           var loads = new ArrayList<Val>();
-          for (var x : vars)
+          for (var x : reassigned)
             if (a.containsLeaf(x)) {
               var y = new Var(x.type());
               loads.add(Val.of(Tag.ASSIGN, y, new Alloca(x.type(), x)));
@@ -188,14 +196,14 @@ public final class LlvmComposer {
 
       // Print body
       for (var block : blocks) {
-        nameLocal(block);
+        local(block);
         for (var a : block.instructions) if (a.tag() == Tag.ASSIGN) nameLocal(a.get(0));
       }
       for (var block : blocks) {
         print(locals.get(block));
         print(":\n");
-        for (var a : block.instructions) {
-          print(a, false);
+        for (var instruction : block) {
+          print(instruction);
           print('\n');
         }
       }
