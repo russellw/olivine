@@ -126,16 +126,14 @@ public final class LlvmComposer {
       }
       if (function.varargs) print(",...");
       print(')');
+      if (function.entry != null) print('{');
+      print('\n');
 
       // Empty function is only declared, not defined
-      if (function.entry == null) {
-        print('\n');
-        continue;
-      }
-
-      var blocks = function.blocks();
+      if (function.entry == null) continue;
 
       // Count how many times each local variable is assigned
+      var blocks = function.blocks();
       var assignCounts = new LinkedHashMap<Variable, Integer>();
       for (var block : blocks)
         for (var instruction : block)
@@ -189,7 +187,6 @@ public final class LlvmComposer {
       }
 
       // Print body
-      print("{\n");
       for (var block : blocks) {
         nameLocal(block);
         for (var a : block.instructions) if (a.tag() == Tag.ASSIGN) nameLocal(a.get(0));
