@@ -1,9 +1,6 @@
 package olivine;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public final class Block implements Iterable<Instruction> {
   private final List<Instruction> instructions = new ArrayList<>();
@@ -15,6 +12,15 @@ public final class Block implements Iterable<Instruction> {
       case Br br -> List.of(br.ifTrue, br.ifFalse);
       default -> List.of();
     };
+  }
+
+  void addAll(
+      @SuppressWarnings("SameParameterValue") int i, Collection<? extends Instruction> collection) {
+    instructions.addAll(i, collection);
+  }
+
+  Instruction get(int i) {
+    return instructions.get(i);
   }
 
   @Override

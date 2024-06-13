@@ -2,8 +2,7 @@ package olivine;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public final class LlvmComposer {
   private final ByteArrayOutputStream stream = new ByteArrayOutputStream();
@@ -128,38 +127,39 @@ public final class LlvmComposer {
       if (function.varargs) print(",...");
       print(')');
 
-      // empty function is only declared, not defined
+      // Empty function is only declared, not defined
       if (function.entry == null) {
         print('\n');
         continue;
       }
 
-      /*
       var blocks = function.blocks();
 
       // Count how many times each local variable is assigned
-      var assignCounts = new LinkedHashMap<Var, Integer>();
+      var assignCounts = new LinkedHashMap<Variable, Integer>();
       for (var block : blocks)
-        for (var a : block.instructions)
-          if (a.tag() == Tag.ASSIGN && a.get(0) instanceof Var x)
-            assignCounts.put(x, assignCounts.getOrDefault(x, 0) + 1);
+        for (var instruction : block)
+          if (instruction instanceof Assign assign) {
+            var variable = assign.variable;
+            assignCounts.put(variable, assignCounts.getOrDefault(variable, 0) + 1);
+          }
 
-      // look at the ones that are assigned more than once
-      var vars = new HashSet<Var>();
+      // Look at the ones that are assigned more than once
+      var vars = new HashSet<Variable>();
       for (var kv : assignCounts.entrySet()) if (kv.getValue() > 1) vars.add(kv.getKey());
 
-      // they need to be converted to alloca
-      var allocas = new ArrayList<Val>();
-      for (var x : vars) allocas.add(Val.of(Tag.ASSIGN, x, new Alloca(x.type(), IntVal.of(1))));
-      function.entry.instructions.addAll(0, allocas);
+      // They need to be converted to alloca
+      var allocas = new ArrayList<Assign>();
+      for (var x : vars)
+        allocas.add(new Assign(x, Term.alloca(x.type(), Term.intConstant(Type.I32, 1))));
+      function.entry.addAll(0, allocas);
 
-      // convert assignment to store
+      // Convert assignment to store
       for (var block : blocks) {
-        var instructions = block.instructions;
         @SuppressWarnings("unchecked")
-        var replacements = (List<Val>[]) new List[instructions.size()];
-        for (int i = 0, instructionsSize = instructions.size(); i < instructionsSize; i++) {
-          var a = instructions.get(i);
+        var replacements = (List<Val>[]) new List[block.size()];
+        for (int i = 0, instructionsSize = block.size(); i < instructionsSize; i++) {
+          var a = block.get(i);
           if (a.tag() == Tag.ASSIGN && a.get(0) instanceof Var x) {
             if (!vars.contains(x)) continue;
             var y = new Var(x.type());
@@ -171,7 +171,7 @@ public final class LlvmComposer {
         block.replace(replacements);
       }
 
-      // convert reference to load
+      // Convert reference to load
       for (var block : blocks) {
         var instructions = block.instructions;
         @SuppressWarnings("unchecked")
@@ -188,7 +188,7 @@ public final class LlvmComposer {
         block.replace(replacements);
       }
 
-      // write body
+      // Print body
       print("{\n");
       for (var block : blocks) {
         nameLocal(block);
@@ -203,8 +203,6 @@ public final class LlvmComposer {
         }
       }
       print("}\n");
-
-       */
     }
   }
 
