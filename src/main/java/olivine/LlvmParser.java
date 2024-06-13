@@ -731,7 +731,6 @@ public final class LlvmParser {
           expect("comdat");
           expect("any");
         }
-        default -> lex();
       }
       eol();
     }
@@ -783,7 +782,6 @@ public final class LlvmParser {
           declare(name, a);
           module.variables.add(a);
         }
-        default -> lex();
       }
       eol();
     }
@@ -869,7 +867,6 @@ public final class LlvmParser {
             }
           variable.value = typeExpr();
         }
-        default -> lex();
       }
       eol();
     }
@@ -1083,6 +1080,7 @@ public final class LlvmParser {
       if (token == EOF) throw error("unexpected end of file");
       lex();
     }
+    lex();
   }
 
   public static Module parse(String file, byte[] text) {
