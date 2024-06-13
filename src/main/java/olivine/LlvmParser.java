@@ -814,10 +814,7 @@ public final class LlvmParser {
                 paramAttrs();
                 locals.put(expect(LOCAL_ID), function.params.get(i++));
               } while (eat(','));
-            while (!eat('{')) {
-              if (token == EOF) throw error("unexpected end of file");
-              lex();
-            }
+            eol();
 
             // Entry block
             var block = new Block();
@@ -825,7 +822,7 @@ public final class LlvmParser {
             if (token == LABEL) blocks.put(lex1(), block);
 
             // Body
-            while (!eat('}')) {
+            while (token != '}') {
               if (token == LABEL) {
                 block = block();
                 continue;
