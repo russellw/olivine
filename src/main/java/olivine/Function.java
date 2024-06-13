@@ -1,5 +1,7 @@
 package olivine;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 public final class Function extends Global {
@@ -18,6 +20,12 @@ public final class Function extends Global {
   @Override
   public Type type() {
     throw new UnsupportedOperationException(toString());
+  }
+
+  public List<Block> blocks() {
+    var blocks = new ArrayList<Block>();
+    if (entry != null) entry.getBlocks(new HashSet<>(), blocks);
+    return blocks;
   }
 
   @Override
