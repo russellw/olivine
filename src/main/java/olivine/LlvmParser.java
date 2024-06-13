@@ -890,10 +890,36 @@ public final class LlvmParser {
     var sb = new StringBuilder();
     while (text[textIdx] != '"') {
       int c = text[textIdx++];
-      if (c == '\\') {
-        c = Etc.parseHexDigit(text[textIdx]) << 4 + Etc.parseHexDigit(text[textIdx + 1]);
-        textIdx += 2;
-      }
+      if (c == '\\')
+        switch (text[textIdx]) {
+          case '\\' -> textIdx++;
+          case '0',
+              '1',
+              '2',
+              '3',
+              '4',
+              '5',
+              '6',
+              '7',
+              '8',
+              '9',
+              'a',
+              'b',
+              'c',
+              'd',
+              'e',
+              'f',
+              'A',
+              'B',
+              'C',
+              'D',
+              'E',
+              'F' -> {
+            c = Etc.parseHexDigit(text[textIdx]) << 4 + Etc.parseHexDigit(text[textIdx + 1]);
+            textIdx += 2;
+          }
+          default -> throw error(Integer.toString(c), "unknown escape sequence");
+        }
       sb.append((char) c);
     }
     textIdx++;
