@@ -3,6 +3,7 @@ package olivine;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Iterator;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -110,5 +111,41 @@ class BlockTest {
       count++;
     }
     assertEquals(100, count);
+  }
+
+  @Test
+  public void testSuccessorsWithBrUnconditional() {
+    Block dest = new Block();
+    Block block = new Block();
+    block.add(new BrUnconditional(dest));
+
+    List<Block> successors = block.successors();
+
+    assertEquals(1, successors.size());
+    assertTrue(successors.contains(dest));
+  }
+
+  @Test
+  public void testSuccessorsWithBr() {
+    Block ifTrue = new Block();
+    Block ifFalse = new Block();
+    Block block = new Block();
+    block.add(new Br(Term.TRUE, ifTrue, ifFalse));
+
+    List<Block> successors = block.successors();
+
+    assertEquals(2, successors.size());
+    assertTrue(successors.contains(ifTrue));
+    assertTrue(successors.contains(ifFalse));
+  }
+
+  @Test
+  public void testSuccessorsWithNoBranches() {
+    Block block = new Block();
+    block.add(new RetVoid());
+
+    List<Block> successors = block.successors();
+
+    assertTrue(successors.isEmpty());
   }
 }
