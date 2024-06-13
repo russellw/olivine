@@ -21,8 +21,8 @@ public final class Etc {
   public static int parseHexDigit(int c) {
     if (isDigit(c)) return c - '0';
     if ('a' <= c && c <= 'f') return c - 'a' + 10;
-    if ('A' <= c && c <= 'F') return c - 'A' + 10;
-    throw new IllegalArgumentException(Integer.toString(c));
+    assert 'A' <= c && c <= 'F';
+    return c - 'A' + 10;
   }
 
   public static boolean isSign(int c) {

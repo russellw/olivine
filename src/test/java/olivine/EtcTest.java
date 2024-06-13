@@ -41,11 +41,11 @@ class EtcTest {
 
   @Test
   void testParseHexDigit_withInvalidCharacters() {
-    assertThrows(IllegalArgumentException.class, () -> Etc.parseHexDigit('g'));
-    assertThrows(IllegalArgumentException.class, () -> Etc.parseHexDigit('G'));
-    assertThrows(IllegalArgumentException.class, () -> Etc.parseHexDigit('z'));
-    assertThrows(IllegalArgumentException.class, () -> Etc.parseHexDigit('@'));
-    assertThrows(IllegalArgumentException.class, () -> Etc.parseHexDigit(' '));
+    assertThrows(Throwable.class, () -> Etc.parseHexDigit('g'));
+    assertThrows(Throwable.class, () -> Etc.parseHexDigit('G'));
+    assertThrows(Throwable.class, () -> Etc.parseHexDigit('z'));
+    assertThrows(Throwable.class, () -> Etc.parseHexDigit('@'));
+    assertThrows(Throwable.class, () -> Etc.parseHexDigit(' '));
   }
 
   @Test

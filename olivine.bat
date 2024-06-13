@@ -1,1 +1,1 @@
-java -classpath target\classes olivine.Main %*
+java -classpath target\classes -enableassertions olivine.Main %*
