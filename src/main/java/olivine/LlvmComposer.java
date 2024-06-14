@@ -159,40 +159,6 @@ public final class LlvmComposer {
       for (var variable : reassigned)
         print(new Assign(variable, Term.alloca(variable.type(), Term.intConstant(Type.I32, 1))));
 
-      // Convert assignment to store
-      for (var block : blocks) {
-        @SuppressWarnings("unchecked")
-        var replacements = (List<Val>[]) new List[block.size()];
-        for (int i = 0, instructionsSize = block.size(); i < instructionsSize; i++) {
-          var a = block.get(i);
-          if (a.tag() == Tag.ASSIGN && a.get(0) instanceof Var x) {
-            if (!reassigned.contains(x)) continue;
-            var y = new Var(x.type());
-            var calc = Val.of(Tag.ASSIGN, y, a.get(1));
-            var store = Val.of(Tag.ASSIGN, Val.of(Tag.LOAD, y), x);
-            replacements[i] = List.of(calc, store);
-          }
-        }
-        block.replace(replacements);
-      }
-
-      // Convert reference to load
-      for (var block : blocks) {
-        var instructions = block.instructions;
-        @SuppressWarnings("unchecked")
-        var replacements = (List<Val>[]) new List[instructions.size()];
-        for (int i = 0, instructionsSize = instructions.size(); i < instructionsSize; i++) {
-          var a = instructions.get(i);
-          var loads = new ArrayList<Val>();
-          for (var x : reassigned)
-            if (a.containsLeaf(x)) {
-              var y = new Var(x.type());
-              loads.add(Val.of(Tag.ASSIGN, y, new Alloca(x.type(), x)));
-            }
-        }
-        block.replace(replacements);
-      }
-
       // Print body
       for (var block : blocks) {
         local(block);
