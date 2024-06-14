@@ -1,2 +1,2 @@
 call mvn compile||exit /b
-python test\test.py
+python test\test.py %*
