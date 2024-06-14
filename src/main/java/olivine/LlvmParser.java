@@ -963,11 +963,15 @@ public final class LlvmParser {
     do sb.append((char) text[textIdx++]);
     while (isIdPart(text[textIdx]));
     token = WORD;
+    maybeLabel();
+    tokenString = sb.toString();
+  }
+
+  private void maybeLabel() {
     if (text[textIdx] == ':') {
       textIdx++;
       token = LABEL;
     }
-    tokenString = sb.toString();
   }
 
   private void lex() {
@@ -1074,6 +1078,7 @@ public final class LlvmParser {
             if (!Etc.isDigit(c) && token == INT) token = FLOAT;
             sb.append((char) c);
           }
+          maybeLabel();
           tokenString = sb.toString();
         }
         case '.' -> {
