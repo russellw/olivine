@@ -353,361 +353,367 @@ public final class LlvmParser {
   }
 
   private void instruction(Block block) {
-    if (token == LOCAL_ID) {
-      var name = lex1();
-      expect('=');
-      String cause;
-      Term value;
-      switch (cause = expect(WORD)) {
-        case "select" -> {
-          fastMathFlags();
-          var cond = typeExpr();
-          expect(",");
-          var ifTrue = typeExpr();
-          expect(",");
-          value = cond.select(ifTrue, typeExpr());
-        }
-        case "fcmp" -> {
-          fastMathFlags();
-          value =
-              switch (expect(WORD)) {
-                case "oeq" -> {
-                  var type = type();
-                  var a = expr(type);
-                  expect(',');
-                  yield a.feq(expr(type));
-                }
-                case "une" -> {
-                  var type = type();
-                  var a = expr(type);
-                  expect(',');
-                  yield a.fne(expr(type));
-                }
-                case "olt" -> {
-                  var type = type();
-                  var a = expr(type);
-                  expect(',');
-                  yield a.flt(expr(type));
-                }
-                case "ole" -> {
-                  var type = type();
-                  var a = expr(type);
-                  expect(',');
-                  yield a.fle(expr(type));
-                }
-                case "ogt" -> {
-                  var type = type();
-                  var b = expr(type);
-                  expect(',');
-                  yield expr(type).flt(b);
-                }
-                case "oge" -> {
-                  var type = type();
-                  var b = expr(type);
-                  expect(',');
-                  yield expr(type).fle(b);
-                }
-                default -> throw error("unknown condition");
-              };
-        }
-        case "icmp" ->
+    switch (token) {
+      case LOCAL_ID -> {
+        var name = lex1();
+        expect('=');
+        String cause;
+        Term value;
+        switch (cause = expect(WORD)) {
+          case "select" -> {
+            fastMathFlags();
+            var cond = typeExpr();
+            expect(",");
+            var ifTrue = typeExpr();
+            expect(",");
+            value = cond.select(ifTrue, typeExpr());
+          }
+          case "fcmp" -> {
+            fastMathFlags();
             value =
                 switch (expect(WORD)) {
-                  case "eq" -> {
+                  case "oeq" -> {
                     var type = type();
                     var a = expr(type);
                     expect(',');
-                    yield a.eq(expr(type));
+                    yield a.feq(expr(type));
                   }
-                  case "ne" -> {
+                  case "une" -> {
                     var type = type();
                     var a = expr(type);
                     expect(',');
-                    yield a.ne(expr(type));
+                    yield a.fne(expr(type));
                   }
-                  case "ult" -> {
+                  case "olt" -> {
                     var type = type();
                     var a = expr(type);
                     expect(',');
-                    yield a.ult(expr(type));
+                    yield a.flt(expr(type));
                   }
-                  case "ule" -> {
+                  case "ole" -> {
                     var type = type();
                     var a = expr(type);
                     expect(',');
-                    yield a.ule(expr(type));
+                    yield a.fle(expr(type));
                   }
-                  case "slt" -> {
-                    var type = type();
-                    var a = expr(type);
-                    expect(',');
-                    yield a.slt(expr(type));
-                  }
-                  case "sle" -> {
-                    var type = type();
-                    var a = expr(type);
-                    expect(',');
-                    yield a.sle(expr(type));
-                  }
-                  case "ugt" -> {
+                  case "ogt" -> {
                     var type = type();
                     var b = expr(type);
                     expect(',');
-                    yield expr(type).ult(b);
+                    yield expr(type).flt(b);
                   }
-                  case "uge" -> {
+                  case "oge" -> {
                     var type = type();
                     var b = expr(type);
                     expect(',');
-                    yield expr(type).ule(b);
-                  }
-                  case "sgt" -> {
-                    var type = type();
-                    var b = expr(type);
-                    expect(',');
-                    yield expr(type).slt(b);
-                  }
-                  case "sge" -> {
-                    var type = type();
-                    var b = expr(type);
-                    expect(',');
-                    yield expr(type).sle(b);
+                    yield expr(type).fle(b);
                   }
                   default -> throw error("unknown condition");
                 };
-        case "phi" -> {
-          fastMathFlags();
-          var type = type();
-          var variable = variable(name, type);
-          do {
-            expect('[');
-            var val = expr(type);
-            expect(',');
-            var from = block();
-            expect(']');
-            var assign = phis.computeIfAbsent(from, _ -> new ArrayList<>());
-            assign.add(variable);
-            assign.add(val);
-          } while (eat(','));
-          return;
-        }
-        case "fneg" -> {
-          fastMathFlags();
-          value = typeExpr().fneg();
-        }
-        case "fadd" -> {
-          fastMathFlags();
-          var type = type();
-          var a = expr(type);
-          expect(',');
-          value = a.fadd(expr(type));
-        }
-        case "fsub" -> {
-          fastMathFlags();
-          var type = type();
-          var a = expr(type);
-          expect(',');
-          value = a.fsub(expr(type));
-        }
-        case "fmul" -> {
-          fastMathFlags();
-          var type = type();
-          var a = expr(type);
-          expect(',');
-          value = a.fmul(expr(type));
-        }
-        case "fdiv" -> {
-          fastMathFlags();
-          var type = type();
-          var a = expr(type);
-          expect(',');
-          value = a.fdiv(expr(type));
-        }
-        case "frem" -> {
-          fastMathFlags();
-          var type = type();
-          var a = expr(type);
-          expect(',');
-          value = a.frem(expr(type));
-        }
-        case "add" -> {
-          noWrap();
-          var type = type();
-          var a = expr(type);
-          expect(',');
-          value = a.add(expr(type));
-        }
-        case "sub" -> {
-          noWrap();
-          var type = type();
-          var a = expr(type);
-          expect(',');
-          value = a.sub(expr(type));
-        }
-        case "mul" -> {
-          noWrap();
-          var type = type();
-          var a = expr(type);
-          expect(',');
-          value = a.mul(expr(type));
-        }
-        case "udiv" -> {
-          eat("exact");
-          var type = type();
-          var a = expr(type);
-          expect(',');
-          value = a.udiv(expr(type));
-        }
-        case "sdiv" -> {
-          eat("exact");
-          var type = type();
-          var a = expr(type);
-          expect(',');
-          value = a.sdiv(expr(type));
-        }
-        case "urem" -> {
-          var type = type();
-          var a = expr(type);
-          expect(',');
-          value = a.urem(expr(type));
-        }
-        case "srem" -> {
-          var type = type();
-          var a = expr(type);
-          expect(',');
-          value = a.srem(expr(type));
-        }
-        case "or" -> {
-          var type = type();
-          var a = expr(type);
-          expect(',');
-          value = a.or(expr(type));
-        }
-        case "and" -> {
-          var type = type();
-          var a = expr(type);
-          expect(',');
-          value = a.and(expr(type));
-        }
-        case "xor" -> {
-          var type = type();
-          var a = expr(type);
-          expect(',');
-          value = a.xor(expr(type));
-        }
-        case "shl" -> {
-          var type = type();
-          var a = expr(type);
-          expect(',');
-          value = a.shl(expr(type));
-        }
-        case "ashr" -> {
-          var type = type();
-          var a = expr(type);
-          expect(',');
-          value = a.ashr(expr(type));
-        }
-        case "lshr" -> {
-          var type = type();
-          var a = expr(type);
-          expect(',');
-          value = a.lshr(expr(type));
-        }
-        case "getelementptr" -> {
-          eat("inbounds");
-          var type = type();
-          expect(',');
-          expect("ptr");
-          var ptrVal = expr(Type.PTR);
-          var idxs = new ArrayList<Term>();
-          while (eat(',')) idxs.add(typeExpr());
-          value = getelementptr(type, ptrVal, idxs);
-        }
-        case "tail" -> {
-          expect("call");
-          value = call();
-        }
-        case "call" -> value = call();
-        case "alloca" -> {
-          var type = type();
-          var numElements = Term.ONE;
-          if (eat(',') && !eat("align")) numElements = typeExpr();
-          value = Term.alloca(type, numElements);
-        }
-        case "load" -> {
-          var type = type();
-          expect(',');
-          expect("ptr");
-          value = expr(type).load(type);
-        }
-        case "bitcast",
-            "trunc",
-            "fptrunc",
-            "fpext",
-            "zext",
-            "fptoui",
-            "uitofp",
-            "ptrtoint",
-            "inttoptr" -> {
-          var a = typeExpr();
-          expect("to");
-          value = a.cast(type());
-        }
-        case "sext", "fptosi", "sitofp" -> {
-          var a = typeExpr();
-          expect("to");
-          value = a.scast(type());
-        }
-        default -> throw error(cause, "unknown instruction");
-      }
-      block.add(new Assign(variable(name, value.type()), value));
-      return;
-    }
-    switch (expect(WORD)) {
-      case "call" -> block.add(new VoidCall(call()));
-      case "store" -> {
-        var value = typeExpr();
-        expect(',');
-        var pointer = typeExpr();
-        block.add(new Store(value, pointer));
-      }
-      case "unreachable" -> block.add(new Unreachable());
-      case "ret" -> {
-        if (eat("void")) {
-          block.add(new RetVoid());
-          return;
-        }
-        block.add(new Ret(typeExpr()));
-      }
-      case "switch" -> {
-        var value = typeExpr();
-        expect(',');
-        var defaultDest = label();
-        var switch1 = new Switch(value, defaultDest);
-        expect('[');
-        do {
-          var val = typeExpr();
-          expect(',');
-          var dest = label();
-          switch1.cases.add(new Case(val, dest));
-        } while (!eat(']'));
-        block.add(switch1);
-      }
-      case "br" -> {
-        switch (expect(WORD)) {
-          case "label" -> block.add(new BrUnconditional(block()));
-          case "i1" -> {
-            var cond = expr(Type.I1);
-            expect(',');
-            var ifTrue = label();
-            expect(',');
-            var ifFalse = label();
-            block.add(new Br(cond, ifTrue, ifFalse));
           }
-          default -> throw error("unknown branch type");
+          case "icmp" ->
+              value =
+                  switch (expect(WORD)) {
+                    case "eq" -> {
+                      var type = type();
+                      var a = expr(type);
+                      expect(',');
+                      yield a.eq(expr(type));
+                    }
+                    case "ne" -> {
+                      var type = type();
+                      var a = expr(type);
+                      expect(',');
+                      yield a.ne(expr(type));
+                    }
+                    case "ult" -> {
+                      var type = type();
+                      var a = expr(type);
+                      expect(',');
+                      yield a.ult(expr(type));
+                    }
+                    case "ule" -> {
+                      var type = type();
+                      var a = expr(type);
+                      expect(',');
+                      yield a.ule(expr(type));
+                    }
+                    case "slt" -> {
+                      var type = type();
+                      var a = expr(type);
+                      expect(',');
+                      yield a.slt(expr(type));
+                    }
+                    case "sle" -> {
+                      var type = type();
+                      var a = expr(type);
+                      expect(',');
+                      yield a.sle(expr(type));
+                    }
+                    case "ugt" -> {
+                      var type = type();
+                      var b = expr(type);
+                      expect(',');
+                      yield expr(type).ult(b);
+                    }
+                    case "uge" -> {
+                      var type = type();
+                      var b = expr(type);
+                      expect(',');
+                      yield expr(type).ule(b);
+                    }
+                    case "sgt" -> {
+                      var type = type();
+                      var b = expr(type);
+                      expect(',');
+                      yield expr(type).slt(b);
+                    }
+                    case "sge" -> {
+                      var type = type();
+                      var b = expr(type);
+                      expect(',');
+                      yield expr(type).sle(b);
+                    }
+                    default -> throw error("unknown condition");
+                  };
+          case "phi" -> {
+            fastMathFlags();
+            var type = type();
+            var variable = variable(name, type);
+            do {
+              expect('[');
+              var val = expr(type);
+              expect(',');
+              var from = block();
+              expect(']');
+              var assign = phis.computeIfAbsent(from, _ -> new ArrayList<>());
+              assign.add(variable);
+              assign.add(val);
+            } while (eat(','));
+            return;
+          }
+          case "fneg" -> {
+            fastMathFlags();
+            value = typeExpr().fneg();
+          }
+          case "fadd" -> {
+            fastMathFlags();
+            var type = type();
+            var a = expr(type);
+            expect(',');
+            value = a.fadd(expr(type));
+          }
+          case "fsub" -> {
+            fastMathFlags();
+            var type = type();
+            var a = expr(type);
+            expect(',');
+            value = a.fsub(expr(type));
+          }
+          case "fmul" -> {
+            fastMathFlags();
+            var type = type();
+            var a = expr(type);
+            expect(',');
+            value = a.fmul(expr(type));
+          }
+          case "fdiv" -> {
+            fastMathFlags();
+            var type = type();
+            var a = expr(type);
+            expect(',');
+            value = a.fdiv(expr(type));
+          }
+          case "frem" -> {
+            fastMathFlags();
+            var type = type();
+            var a = expr(type);
+            expect(',');
+            value = a.frem(expr(type));
+          }
+          case "add" -> {
+            noWrap();
+            var type = type();
+            var a = expr(type);
+            expect(',');
+            value = a.add(expr(type));
+          }
+          case "sub" -> {
+            noWrap();
+            var type = type();
+            var a = expr(type);
+            expect(',');
+            value = a.sub(expr(type));
+          }
+          case "mul" -> {
+            noWrap();
+            var type = type();
+            var a = expr(type);
+            expect(',');
+            value = a.mul(expr(type));
+          }
+          case "udiv" -> {
+            eat("exact");
+            var type = type();
+            var a = expr(type);
+            expect(',');
+            value = a.udiv(expr(type));
+          }
+          case "sdiv" -> {
+            eat("exact");
+            var type = type();
+            var a = expr(type);
+            expect(',');
+            value = a.sdiv(expr(type));
+          }
+          case "urem" -> {
+            var type = type();
+            var a = expr(type);
+            expect(',');
+            value = a.urem(expr(type));
+          }
+          case "srem" -> {
+            var type = type();
+            var a = expr(type);
+            expect(',');
+            value = a.srem(expr(type));
+          }
+          case "or" -> {
+            var type = type();
+            var a = expr(type);
+            expect(',');
+            value = a.or(expr(type));
+          }
+          case "and" -> {
+            var type = type();
+            var a = expr(type);
+            expect(',');
+            value = a.and(expr(type));
+          }
+          case "xor" -> {
+            var type = type();
+            var a = expr(type);
+            expect(',');
+            value = a.xor(expr(type));
+          }
+          case "shl" -> {
+            var type = type();
+            var a = expr(type);
+            expect(',');
+            value = a.shl(expr(type));
+          }
+          case "ashr" -> {
+            var type = type();
+            var a = expr(type);
+            expect(',');
+            value = a.ashr(expr(type));
+          }
+          case "lshr" -> {
+            var type = type();
+            var a = expr(type);
+            expect(',');
+            value = a.lshr(expr(type));
+          }
+          case "getelementptr" -> {
+            eat("inbounds");
+            var type = type();
+            expect(',');
+            expect("ptr");
+            var ptrVal = expr(Type.PTR);
+            var idxs = new ArrayList<Term>();
+            while (eat(',')) idxs.add(typeExpr());
+            value = getelementptr(type, ptrVal, idxs);
+          }
+          case "tail" -> {
+            expect("call");
+            value = call();
+          }
+          case "call" -> value = call();
+          case "alloca" -> {
+            var type = type();
+            var numElements = Term.ONE;
+            if (eat(',') && !eat("align")) numElements = typeExpr();
+            value = Term.alloca(type, numElements);
+          }
+          case "load" -> {
+            var type = type();
+            expect(',');
+            expect("ptr");
+            value = expr(type).load(type);
+          }
+          case "bitcast",
+              "trunc",
+              "fptrunc",
+              "fpext",
+              "zext",
+              "fptoui",
+              "uitofp",
+              "ptrtoint",
+              "inttoptr" -> {
+            var a = typeExpr();
+            expect("to");
+            value = a.cast(type());
+          }
+          case "sext", "fptosi", "sitofp" -> {
+            var a = typeExpr();
+            expect("to");
+            value = a.scast(type());
+          }
+          default -> throw error(cause, "unknown instruction");
+        }
+        block.add(new Assign(variable(name, value.type()), value));
+      }
+      case WORD -> {
+        var mnemonic = lex1();
+        switch (mnemonic) {
+          case "call" -> block.add(new VoidCall(call()));
+          case "store" -> {
+            var value = typeExpr();
+            expect(',');
+            var pointer = typeExpr();
+            block.add(new Store(value, pointer));
+          }
+          case "unreachable" -> block.add(new Unreachable());
+          case "ret" -> {
+            if (eat("void")) {
+              block.add(new RetVoid());
+              return;
+            }
+            block.add(new Ret(typeExpr()));
+          }
+          case "switch" -> {
+            var value = typeExpr();
+            expect(',');
+            var defaultDest = label();
+            var switch1 = new Switch(value, defaultDest);
+            expect('[');
+            do {
+              var val = typeExpr();
+              expect(',');
+              var dest = label();
+              switch1.cases.add(new Case(val, dest));
+            } while (!eat(']'));
+            block.add(switch1);
+          }
+          case "br" -> {
+            switch (expect(WORD)) {
+              case "label" -> block.add(new BrUnconditional(block()));
+              case "i1" -> {
+                var cond = expr(Type.I1);
+                expect(',');
+                var ifTrue = label();
+                expect(',');
+                var ifFalse = label();
+                block.add(new Br(cond, ifTrue, ifFalse));
+              }
+              default -> throw error("unknown branch type");
+            }
+          }
+          default -> throw error(mnemonic, "unknown instruction");
         }
       }
-      default -> throw error("unknown instruction");
+      case '\n' -> {}
+      default -> throw error(cause(), "expected instruction");
     }
   }
 
