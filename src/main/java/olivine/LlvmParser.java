@@ -207,10 +207,18 @@ public final class LlvmParser {
       }
   }
 
+  private void unnamedAddr() {
+    if (token == WORD)
+      switch (tokenString) {
+        case "unnamed_addr", "local_unnamed_addr" -> lex();
+      }
+  }
+
   private void paramAttrs() {
     while (token == WORD)
       switch (tokenString) {
-        case "noundef", "readnone", "readonly", "nonnull", "immarg", "nocapture" -> lex();
+        case "noundef", "readnone", "readonly", "nonnull", "immarg", "nocapture", "returned" ->
+            lex();
         case "dereferenceable" -> {
           lex();
           expect('(');
@@ -777,7 +785,7 @@ public final class LlvmParser {
           expect('=');
           linkage();
           preemptionSpecifier();
-          eat("unnamed_addr");
+          unnamedAddr();
           if (token == WORD)
             switch (tokenString) {
               case "constant", "global" -> lex();
@@ -861,7 +869,7 @@ public final class LlvmParser {
           expect('=');
           linkage();
           preemptionSpecifier();
-          eat("unnamed_addr");
+          unnamedAddr();
           if (token == WORD)
             switch (tokenString) {
               case "constant", "global" -> lex();
