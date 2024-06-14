@@ -294,6 +294,13 @@ public final class LlvmComposer {
         print("br %");
         local(brUnconditional.dest);
       }
+      case Store store -> {
+        print("store ");
+        typeAtom(store.value);
+        print(',');
+        typeAtom(store.pointer);
+      }
+      case AssignVoid assignVoid -> {}
       default -> throw new IllegalArgumentException(instruction.toString());
     }
     print('\n');
