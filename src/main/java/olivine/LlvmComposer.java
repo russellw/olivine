@@ -252,6 +252,10 @@ public final class LlvmComposer {
             print("icmp ne");
             args(value);
           }
+          case EQ -> {
+            print("icmp eq");
+            args(value);
+          }
           case SLT -> {
             print("icmp slt");
             args(value);
