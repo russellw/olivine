@@ -49,7 +49,6 @@ public final class LlvmComposer {
   }
 
   private void local(Object o) {
-    print('%');
     var s = locals.get(o);
     if (s == null) {
       s = Integer.toString(locals.size());
@@ -197,10 +196,6 @@ public final class LlvmComposer {
       // Print body
       for (var block : blocks) {
         local(block);
-        for (var a : block.instructions) if (a.tag() == Tag.ASSIGN) nameLocal(a.get(0));
-      }
-      for (var block : blocks) {
-        print(locals.get(block));
         print(":\n");
         for (var instruction : block) {
           print(instruction);
@@ -231,7 +226,10 @@ public final class LlvmComposer {
 
   private void atom(Term term) {
     switch (term.tag()) {
-      case VARIABLE -> local(term);
+      case VARIABLE -> {
+        print('%');
+        local(term);
+      }
       default -> print(term.toString());
     }
   }
@@ -239,6 +237,7 @@ public final class LlvmComposer {
   private void print(Instruction instruction) {
     switch (instruction) {
       case Assign assign -> {
+        print('%');
         local(assign.variable);
         print('=');
         var value = assign.value;
@@ -326,7 +325,7 @@ public final class LlvmComposer {
         atom(ret.value);
       }
       case BrUnconditional brUnconditional -> {
-        print("br ");
+        print("br %");
         local(brUnconditional.dest);
       }
       default -> throw new IllegalArgumentException(instruction.toString());
