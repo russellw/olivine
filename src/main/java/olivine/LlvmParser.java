@@ -896,7 +896,7 @@ public final class LlvmParser {
     lex();
   }
 
-  private void lexQuote() {
+  private void quote() {
     assert text[textIdx] == '"';
     textIdx++;
     var sb = new StringBuilder();
@@ -946,10 +946,10 @@ public final class LlvmParser {
     };
   }
 
-  private void lexId() {
+  private void id() {
     textIdx++;
     if (text[textIdx] == '"') {
-      lexQuote();
+      quote();
       return;
     }
     var sb = new StringBuilder();
@@ -958,7 +958,7 @@ public final class LlvmParser {
     tokenString = sb.toString();
   }
 
-  private void lexWord() {
+  private void word() {
     var sb = new StringBuilder();
     do sb.append((char) text[textIdx++]);
     while (isIdPart(text[textIdx]));
@@ -988,28 +988,28 @@ public final class LlvmParser {
         }
         case '%' -> {
           token = LOCAL_ID;
-          lexId();
+          id();
         }
         case '@' -> {
           token = GLOBAL_ID;
-          lexId();
+          id();
         }
         case '$' -> {
           token = COMDAT_ID;
-          lexId();
+          id();
         }
         case '"' -> {
           token = STRING;
-          lexQuote();
+          quote();
         }
         case 'c' -> {
           if (text[textIdx + 1] == '"') {
             textIdx++;
             token = STRING;
-            lexQuote();
+            quote();
             break;
           }
-          lexWord();
+          word();
         }
         case 'A',
                 'B',
@@ -1063,7 +1063,7 @@ public final class LlvmParser {
                 'y',
                 'z',
                 '_' ->
-            lexWord();
+            word();
         case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-' -> {
           var sb = new StringBuilder();
           sb.append((char) text[textIdx++]);
