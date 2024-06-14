@@ -666,6 +666,10 @@ public final class LlvmParser {
       case WORD -> {
         var mnemonic = lex1();
         switch (mnemonic) {
+          case "tail" -> {
+            expect("call");
+            block.add(new VoidCall(call()));
+          }
           case "call" -> block.add(new VoidCall(call()));
           case "store" -> {
             var value = typeExpr();
