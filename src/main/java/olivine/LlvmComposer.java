@@ -300,7 +300,7 @@ public final class LlvmComposer {
         print(',');
         typeAtom(store.pointer);
       }
-      case AssignVoid assignVoid -> {}
+      case VoidCall voidCall -> {}
       default -> throw new IllegalArgumentException(instruction.toString());
     }
     print('\n');
