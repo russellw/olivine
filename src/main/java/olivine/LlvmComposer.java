@@ -165,7 +165,6 @@ public final class LlvmComposer {
         print(":\n");
         for (var instruction : block) {
           print(instruction);
-          print('\n');
         }
       }
       print("}\n");
