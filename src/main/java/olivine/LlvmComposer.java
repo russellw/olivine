@@ -162,8 +162,10 @@ public final class LlvmComposer {
 
       // Print body
       for (var block : blocks) {
-        local(block);
-        print(":\n");
+        if (block != function.entry) {
+          local(block);
+          print(":\n");
+        }
         for (var instruction : block) {
           print(instruction);
         }
