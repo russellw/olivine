@@ -300,6 +300,14 @@ public final class LlvmComposer {
             print(',');
             typeAtom(value.get(0));
           }
+          case FIELD_PTR -> {
+            print("getelementptr ");
+            print(value.type());
+            print(',');
+            typeAtom(value.get(0));
+            print(",i32 0,i32 ");
+            print(Integer.toString(value.intValueExact()));
+          }
           case ELEMENT_PTR -> {
             print("getelementptr ptr,");
             typeAtom(value.get(0));
