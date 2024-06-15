@@ -114,6 +114,7 @@ public final class LlvmComposer {
 
     // Functions
     for (var function : module.functions) {
+      print('\n');
       print(function.entry == null ? "declare " : "define ");
       print(function.returnType);
 
@@ -227,6 +228,7 @@ public final class LlvmComposer {
   }
 
   private void print(Instruction instruction) {
+    print('\t');
     switch (instruction) {
       case Assign assign -> {
         print('%');
