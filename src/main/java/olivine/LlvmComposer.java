@@ -300,13 +300,21 @@ public final class LlvmComposer {
             print("alloca ");
             print(value.type());
           }
-          default -> throw new IllegalArgumentException(value.toString());
+          default -> atom(value);
         }
       }
       case RetVoid _ -> print("ret void");
       case Ret ret -> {
         print("ret ");
         typeAtom(ret.value);
+      }
+      case Br br -> {
+        print("br i1 ");
+        atom(br.cond);
+        print(",label %");
+        local(br.ifTrue);
+        print(",label %");
+        local(br.ifFalse);
       }
       case BrUnconditional brUnconditional -> {
         print("br %");
