@@ -157,6 +157,8 @@ public final class LlvmComposer {
         if (entry.getValue() > 1) reassigned.add(entry.getKey());
 
       // They need to be converted to alloca
+      local(function.entry);
+      print(":\n");
       for (var variable : reassigned)
         print(new Assign(variable, Term.alloca(variable.type(), Term.intConstant(Type.I32, 1))));
 
