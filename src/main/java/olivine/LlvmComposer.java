@@ -270,6 +270,10 @@ public final class LlvmComposer {
             print("fmul");
             args(value);
           }
+          case MUL -> {
+            print("mul");
+            args(value);
+          }
           case OR -> {
             print("or");
             args(value);
