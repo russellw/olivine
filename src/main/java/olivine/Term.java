@@ -9,6 +9,11 @@ public abstract class Term implements Iterable<Term> {
   static final Term TRUE = intConstant(Type.I1, 1);
   static final Term FALSE = intConstant(Type.I1, 0);
 
+  Term rewrite(Term[] terms) {
+    assert terms.length == 0;
+    return this;
+  }
+
   static Term zeroinitializer(Type type) {
     return switch (type.kind()) {
       case INT -> intConstant(type, 0);
@@ -350,6 +355,12 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 1;
+      return new FNeg(terms[0]);
+    }
+
+    @Override
     Tag tag() {
       return Tag.FNEG;
     }
@@ -358,6 +369,12 @@ public abstract class Term implements Iterable<Term> {
   private static final class Addr extends Term1 {
     Addr(Term arg) {
       super(arg);
+    }
+
+    @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 1;
+      return new Addr(terms[0]);
     }
 
     @Override
@@ -373,6 +390,12 @@ public abstract class Term implements Iterable<Term> {
 
   private static final class Load extends Term1 {
     private final Type type;
+
+    @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 1;
+      return new Load(type, terms[0]);
+    }
 
     Load(Type type, Term pointer) {
       super(pointer);
@@ -410,6 +433,12 @@ public abstract class Term implements Iterable<Term> {
 
   private static final class Alloca extends Term1 {
     private final Type type;
+
+    @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 1;
+      return new Alloca(type, terms[0]);
+    }
 
     Alloca(Type type, Term numElements) {
       super(numElements);
@@ -475,6 +504,12 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 1;
+      return new FieldPtr(type, terms[0], idx);
+    }
+
+    @Override
     Type type() {
       return Type.PTR;
     }
@@ -495,6 +530,12 @@ public abstract class Term implements Iterable<Term> {
     ElementPtr(Type type, Term ptrVal, Term idx) {
       super(ptrVal, idx);
       this.type = type;
+    }
+
+    @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new ElementPtr(type, terms[0], terms[1]);
     }
 
     @Override
@@ -531,6 +572,12 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 1;
+      return new Cast(terms[0], type);
+    }
+
+    @Override
     public boolean equals(Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
@@ -561,6 +608,12 @@ public abstract class Term implements Iterable<Term> {
     SCast(Term arg, Type type) {
       super(arg);
       this.type = type;
+    }
+
+    @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 1;
+      return new SCast(terms[0], type);
     }
 
     @Override
@@ -640,6 +693,12 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new Eq(terms[0], terms[1]);
+    }
+
+    @Override
     Tag tag() {
       return Tag.EQ;
     }
@@ -648,6 +707,12 @@ public abstract class Term implements Iterable<Term> {
   private static final class Ne extends Term2 {
     Ne(Term arg0, Term arg1) {
       super(arg0, arg1);
+    }
+
+    @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new Ne(terms[0], terms[1]);
     }
 
     @Override
@@ -662,6 +727,12 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new SLe(terms[0], terms[1]);
+    }
+
+    @Override
     Tag tag() {
       return Tag.SLE;
     }
@@ -670,6 +741,12 @@ public abstract class Term implements Iterable<Term> {
   private static final class SLt extends Term2 {
     SLt(Term arg0, Term arg1) {
       super(arg0, arg1);
+    }
+
+    @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new SLt(terms[0], terms[1]);
     }
 
     @Override
@@ -684,6 +761,12 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new ULe(terms[0], terms[1]);
+    }
+
+    @Override
     Tag tag() {
       return Tag.ULE;
     }
@@ -692,6 +775,12 @@ public abstract class Term implements Iterable<Term> {
   private static final class ULt extends Term2 {
     ULt(Term arg0, Term arg1) {
       super(arg0, arg1);
+    }
+
+    @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new ULt(terms[0], terms[1]);
     }
 
     @Override
@@ -706,6 +795,12 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new Add(terms[0], terms[1]);
+    }
+
+    @Override
     Tag tag() {
       return Tag.ADD;
     }
@@ -714,6 +809,12 @@ public abstract class Term implements Iterable<Term> {
   private static final class FEq extends Term2 {
     FEq(Term arg0, Term arg1) {
       super(arg0, arg1);
+    }
+
+    @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new FEq(terms[0], terms[1]);
     }
 
     @Override
@@ -728,6 +829,12 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new FNe(terms[0], terms[1]);
+    }
+
+    @Override
     Tag tag() {
       return Tag.FNE;
     }
@@ -736,6 +843,12 @@ public abstract class Term implements Iterable<Term> {
   private static final class FLe extends Term2 {
     FLe(Term arg0, Term arg1) {
       super(arg0, arg1);
+    }
+
+    @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new FLe(terms[0], terms[1]);
     }
 
     @Override
@@ -750,6 +863,12 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new FLt(terms[0], terms[1]);
+    }
+
+    @Override
     Tag tag() {
       return Tag.FLT;
     }
@@ -758,6 +877,12 @@ public abstract class Term implements Iterable<Term> {
   private static final class Sub extends Term2 {
     Sub(Term arg0, Term arg1) {
       super(arg0, arg1);
+    }
+
+    @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new Sub(terms[0], terms[1]);
     }
 
     @Override
@@ -772,6 +897,12 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new Mul(terms[0], terms[1]);
+    }
+
+    @Override
     Tag tag() {
       return Tag.MUL;
     }
@@ -780,6 +911,12 @@ public abstract class Term implements Iterable<Term> {
   private static final class UDiv extends Term2 {
     UDiv(Term arg0, Term arg1) {
       super(arg0, arg1);
+    }
+
+    @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new UDiv(terms[0], terms[1]);
     }
 
     @Override
@@ -794,6 +931,12 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new SDiv(terms[0], terms[1]);
+    }
+
+    @Override
     Tag tag() {
       return Tag.SDIV;
     }
@@ -802,6 +945,12 @@ public abstract class Term implements Iterable<Term> {
   private static final class URem extends Term2 {
     URem(Term arg0, Term arg1) {
       super(arg0, arg1);
+    }
+
+    @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new URem(terms[0], terms[1]);
     }
 
     @Override
@@ -816,6 +965,12 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new SRem(terms[0], terms[1]);
+    }
+
+    @Override
     Tag tag() {
       return Tag.SREM;
     }
@@ -824,6 +979,12 @@ public abstract class Term implements Iterable<Term> {
   private static final class FAdd extends Term2 {
     FAdd(Term arg0, Term arg1) {
       super(arg0, arg1);
+    }
+
+    @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new FAdd(terms[0], terms[1]);
     }
 
     @Override
@@ -838,6 +999,12 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new FSub(terms[0], terms[1]);
+    }
+
+    @Override
     Tag tag() {
       return Tag.FSUB;
     }
@@ -846,6 +1013,12 @@ public abstract class Term implements Iterable<Term> {
   private static final class FMul extends Term2 {
     FMul(Term arg0, Term arg1) {
       super(arg0, arg1);
+    }
+
+    @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new FMul(terms[0], terms[1]);
     }
 
     @Override
@@ -860,6 +1033,12 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new FDiv(terms[0], terms[1]);
+    }
+
+    @Override
     Tag tag() {
       return Tag.FDIV;
     }
@@ -868,6 +1047,12 @@ public abstract class Term implements Iterable<Term> {
   private static final class FRem extends Term2 {
     FRem(Term arg0, Term arg1) {
       super(arg0, arg1);
+    }
+
+    @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new FRem(terms[0], terms[1]);
     }
 
     @Override
@@ -882,6 +1067,12 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new And(terms[0], terms[1]);
+    }
+
+    @Override
     Tag tag() {
       return Tag.AND;
     }
@@ -890,6 +1081,12 @@ public abstract class Term implements Iterable<Term> {
   private static final class Or extends Term2 {
     Or(Term arg0, Term arg1) {
       super(arg0, arg1);
+    }
+
+    @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new Or(terms[0], terms[1]);
     }
 
     @Override
@@ -904,6 +1101,12 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new Xor(terms[0], terms[1]);
+    }
+
+    @Override
     Tag tag() {
       return Tag.XOR;
     }
@@ -912,6 +1115,12 @@ public abstract class Term implements Iterable<Term> {
   private static final class Shl extends Term2 {
     Shl(Term arg0, Term arg1) {
       super(arg0, arg1);
+    }
+
+    @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new Shl(terms[0], terms[1]);
     }
 
     @Override
@@ -926,6 +1135,12 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new AShr(terms[0], terms[1]);
+    }
+
+    @Override
     Tag tag() {
       return Tag.ASHR;
     }
@@ -934,6 +1149,12 @@ public abstract class Term implements Iterable<Term> {
   private static final class LShr extends Term2 {
     LShr(Term arg0, Term arg1) {
       super(arg0, arg1);
+    }
+
+    @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 2;
+      return new LShr(terms[0], terms[1]);
     }
 
     @Override
@@ -990,6 +1211,12 @@ public abstract class Term implements Iterable<Term> {
   public static final class Select extends Term3 {
     Select(Term cond, Term ifTrue, Term ifFalse) {
       super(cond, ifTrue, ifFalse);
+    }
+
+    @Override
+    Term rewrite(Term[] terms) {
+      assert terms.length == 3;
+      return new Select(terms[0], terms[1], terms[2]);
     }
 
     @Override
@@ -1051,6 +1278,11 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    Term rewrite(Term[] terms) {
+      return new Call(terms);
+    }
+
+    @Override
     Type type() {
       var function = (Function) terms[0];
       return function.returnType;
@@ -1059,6 +1291,11 @@ public abstract class Term implements Iterable<Term> {
 
   private static final class Array extends Terms {
     private final Type type;
+
+    @Override
+    Term rewrite(Term[] terms) {
+      return new Array(type, terms);
+    }
 
     Array(Type type, Term[] elements) {
       super(elements);
