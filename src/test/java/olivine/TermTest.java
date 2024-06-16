@@ -246,4 +246,363 @@ class TermTest {
     Type unsupportedType = Type.OPAQUE;
     assertThrows(IllegalArgumentException.class, () -> Term.zeroinitializer(unsupportedType));
   }
+
+  @Test
+  void testRewriteOnBaseTerm() {
+    Term term = Term.NULL;
+    Term[] terms = {};
+    Term result = term.rewrite(terms);
+    assertSame(term, result);
+  }
+
+  @Test
+  void testRewriteOnFNeg() {
+    Term arg = Term.intConstant(Type.I32, 42);
+    Term term = arg.fneg();
+    Term[] terms = {Term.intConstant(Type.I32, 43)};
+    Term result = term.rewrite(terms);
+    assertNotSame(term, result);
+    assertEquals(Tag.FNEG, result.tag());
+    assertEquals(terms[0], result.get(0));
+  }
+
+  @Test
+  void testRewriteOnAddr() {
+    Term arg = Term.intConstant(Type.I32, 42);
+    Term term = arg.addr();
+    Term[] terms = {Term.intConstant(Type.I32, 43)};
+    Term result = term.rewrite(terms);
+    assertNotSame(term, result);
+    assertEquals(Tag.ADDR, result.tag());
+    assertEquals(terms[0], result.get(0));
+  }
+
+  @Test
+  void testRewriteOnLoad() {
+    Term arg = Term.intConstant(Type.I32, 42);
+    Type type = Type.I32;
+    Term term = arg.load(type);
+    Term[] terms = {Term.intConstant(Type.I32, 43)};
+    Term result = term.rewrite(terms);
+    assertNotSame(term, result);
+    assertEquals(Tag.LOAD, result.tag());
+    assertEquals(terms[0], result.get(0));
+    assertEquals(type, result.type());
+  }
+
+  @Test
+  void testRewriteOnAlloca() {
+    Term arg = Term.intConstant(Type.I32, 42);
+    Type type = Type.I32;
+    Term term = Term.alloca(type, arg);
+    Term[] terms = {Term.intConstant(Type.I32, 43)};
+    Term result = term.rewrite(terms);
+    assertNotSame(term, result);
+    assertEquals(Tag.ALLOCA, result.tag());
+    assertEquals(terms[0], result.get(0));
+    assertEquals(Type.PTR, result.type());
+  }
+
+  @Test
+  void testRewriteOnFieldPtr() {
+    Term arg = Term.intConstant(Type.I32, 42);
+    Type type = Type.I32;
+    int idx = 3;
+    Term term = arg.fieldPtr(type, idx);
+    Term[] terms = {Term.intConstant(Type.I32, 43)};
+    Term result = term.rewrite(terms);
+    assertNotSame(term, result);
+    assertEquals(Tag.FIELD_PTR, result.tag());
+    assertEquals(terms[0], result.get(0));
+    assertEquals(Type.PTR, result.type());
+    assertEquals(idx, result.intValueExact());
+  }
+
+  @Test
+  void testRewriteOnElementPtr() {
+    Term arg1 = Term.intConstant(Type.I32, 42);
+    Term arg2 = Term.intConstant(Type.I32, 43);
+    Type type = Type.I32;
+    Term term = arg1.elementPtr(type, arg2);
+    Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
+    Term result = term.rewrite(terms);
+    assertNotSame(term, result);
+    assertEquals(Tag.ELEMENT_PTR, result.tag());
+    assertEquals(terms[0], result.get(0));
+    assertEquals(terms[1], result.get(1));
+    assertEquals(Type.PTR, result.type());
+  }
+
+  @Test
+  void testRewriteOnCast() {
+    Term arg = Term.intConstant(Type.I32, 42);
+    Type type = Type.I32;
+    Term term = arg.cast(type);
+    Term[] terms = {Term.intConstant(Type.I32, 43)};
+    Term result = term.rewrite(terms);
+    assertNotSame(term, result);
+    assertEquals(Tag.CAST, result.tag());
+    assertEquals(terms[0], result.get(0));
+    assertEquals(type, result.type());
+  }
+
+  @Test
+  void testRewriteOnSCast() {
+    Term arg = Term.intConstant(Type.I32, 42);
+    Type type = Type.I32;
+    Term term = arg.scast(type);
+    Term[] terms = {Term.intConstant(Type.I32, 43)};
+    Term result = term.rewrite(terms);
+    assertNotSame(term, result);
+    assertEquals(Tag.SCAST, result.tag());
+    assertEquals(terms[0], result.get(0));
+    assertEquals(type, result.type());
+  }
+
+  @Test
+  void testRewriteOnEq() {
+    Term arg1 = Term.intConstant(Type.I32, 42);
+    Term arg2 = Term.intConstant(Type.I32, 43);
+    Term term = arg1.eq(arg2);
+    Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
+    Term result = term.rewrite(terms);
+    assertNotSame(term, result);
+    assertEquals(Tag.EQ, result.tag());
+    assertEquals(terms[0], result.get(0));
+    assertEquals(terms[1], result.get(1));
+  }
+
+  @Test
+  void testRewriteOnNe() {
+    Term arg1 = Term.intConstant(Type.I32, 42);
+    Term arg2 = Term.intConstant(Type.I32, 43);
+    Term term = arg1.ne(arg2);
+    Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
+    Term result = term.rewrite(terms);
+    assertNotSame(term, result);
+    assertEquals(Tag.NE, result.tag());
+    assertEquals(terms[0], result.get(0));
+    assertEquals(terms[1], result.get(1));
+  }
+
+  @Test
+  void testRewriteOnSLe() {
+    Term arg1 = Term.intConstant(Type.I32, 42);
+    Term arg2 = Term.intConstant(Type.I32, 43);
+    Term term = arg1.sle(arg2);
+    Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
+    Term result = term.rewrite(terms);
+    assertNotSame(term, result);
+    assertEquals(Tag.SLE, result.tag());
+    assertEquals(terms[0], result.get(0));
+    assertEquals(terms[1], result.get(1));
+  }
+
+  @Test
+  void testRewriteOnSLt() {
+    Term arg1 = Term.intConstant(Type.I32, 42);
+    Term arg2 = Term.intConstant(Type.I32, 43);
+    Term term = arg1.slt(arg2);
+    Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
+    Term result = term.rewrite(terms);
+    assertNotSame(term, result);
+    assertEquals(Tag.SLT, result.tag());
+    assertEquals(terms[0], result.get(0));
+    assertEquals(terms[1], result.get(1));
+  }
+
+  @Test
+  void testRewriteOnULe() {
+    Term arg1 = Term.intConstant(Type.I32, 42);
+    Term arg2 = Term.intConstant(Type.I32, 43);
+    Term term = arg1.ule(arg2);
+    Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
+    Term result = term.rewrite(terms);
+    assertNotSame(term, result);
+    assertEquals(Tag.ULE, result.tag());
+    assertEquals(terms[0], result.get(0));
+    assertEquals(terms[1], result.get(1));
+  }
+
+  @Test
+  void testRewriteOnULt() {
+    Term arg1 = Term.intConstant(Type.I32, 42);
+    Term arg2 = Term.intConstant(Type.I32, 43);
+    Term term = arg1.ult(arg2);
+    Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
+    Term result = term.rewrite(terms);
+    assertNotSame(term, result);
+    assertEquals(Tag.ULT, result.tag());
+    assertEquals(terms[0], result.get(0));
+    assertEquals(terms[1], result.get(1));
+  }
+
+  @Test
+  void testRewriteOnAdd() {
+    Term arg1 = Term.intConstant(Type.I32, 42);
+    Term arg2 = Term.intConstant(Type.I32, 43);
+    Term term = arg1.add(arg2);
+    Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
+    Term result = term.rewrite(terms);
+    assertNotSame(term, result);
+    assertEquals(Tag.ADD, result.tag());
+    assertEquals(terms[0], result.get(0));
+    assertEquals(terms[1], result.get(1));
+  }
+
+  @Test
+  void testRewriteOnSub() {
+    Term arg1 = Term.intConstant(Type.I32, 42);
+    Term arg2 = Term.intConstant(Type.I32, 43);
+    Term term = arg1.sub(arg2);
+    Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
+    Term result = term.rewrite(terms);
+    assertNotSame(term, result);
+    assertEquals(Tag.SUB, result.tag());
+    assertEquals(terms[0], result.get(0));
+    assertEquals(terms[1], result.get(1));
+  }
+
+  @Test
+  void testRewriteOnMul() {
+    Term arg1 = Term.intConstant(Type.I32, 42);
+    Term arg2 = Term.intConstant(Type.I32, 43);
+    Term term = arg1.mul(arg2);
+    Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
+    Term result = term.rewrite(terms);
+    assertNotSame(term, result);
+    assertEquals(Tag.MUL, result.tag());
+    assertEquals(terms[0], result.get(0));
+    assertEquals(terms[1], result.get(1));
+  }
+
+  @Test
+  void testRewriteOnUDiv() {
+    Term arg1 = Term.intConstant(Type.I32, 42);
+    Term arg2 = Term.intConstant(Type.I32, 43);
+    Term term = arg1.udiv(arg2);
+    Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
+    Term result = term.rewrite(terms);
+    assertNotSame(term, result);
+    assertEquals(Tag.UDIV, result.tag());
+    assertEquals(terms[0], result.get(0));
+    assertEquals(terms[1], result.get(1));
+  }
+
+  @Test
+  void testRewriteOnSDiv() {
+    Term arg1 = Term.intConstant(Type.I32, 42);
+    Term arg2 = Term.intConstant(Type.I32, 43);
+    Term term = arg1.sdiv(arg2);
+    Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
+    Term result = term.rewrite(terms);
+    assertNotSame(term, result);
+    assertEquals(Tag.SDIV, result.tag());
+    assertEquals(terms[0], result.get(0));
+    assertEquals(terms[1], result.get(1));
+  }
+
+  @Test
+  void testRewriteOnURem() {
+    Term arg1 = Term.intConstant(Type.I32, 42);
+    Term arg2 = Term.intConstant(Type.I32, 43);
+    Term term = arg1.urem(arg2);
+    Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
+    Term result = term.rewrite(terms);
+    assertNotSame(term, result);
+    assertEquals(Tag.UREM, result.tag());
+    assertEquals(terms[0], result.get(0));
+    assertEquals(terms[1], result.get(1));
+  }
+
+  @Test
+  void testRewriteOnSRem() {
+    Term arg1 = Term.intConstant(Type.I32, 42);
+    Term arg2 = Term.intConstant(Type.I32, 43);
+    Term term = arg1.srem(arg2);
+    Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
+    Term result = term.rewrite(terms);
+    assertNotSame(term, result);
+    assertEquals(Tag.SREM, result.tag());
+    assertEquals(terms[0], result.get(0));
+    assertEquals(terms[1], result.get(1));
+  }
+
+  @Test
+  void testRewriteOnAnd() {
+    Term arg1 = Term.intConstant(Type.I32, 42);
+    Term arg2 = Term.intConstant(Type.I32, 43);
+    Term term = arg1.and(arg2);
+    Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
+    Term result = term.rewrite(terms);
+    assertNotSame(term, result);
+    assertEquals(Tag.AND, result.tag());
+    assertEquals(terms[0], result.get(0));
+    assertEquals(terms[1], result.get(1));
+  }
+
+  @Test
+  void testRewriteOnOr() {
+    Term arg1 = Term.intConstant(Type.I32, 42);
+    Term arg2 = Term.intConstant(Type.I32, 43);
+    Term term = arg1.or(arg2);
+    Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
+    Term result = term.rewrite(terms);
+    assertNotSame(term, result);
+    assertEquals(Tag.OR, result.tag());
+    assertEquals(terms[0], result.get(0));
+    assertEquals(terms[1], result.get(1));
+  }
+
+  @Test
+  void testRewriteOnXor() {
+    Term arg1 = Term.intConstant(Type.I32, 42);
+    Term arg2 = Term.intConstant(Type.I32, 43);
+    Term term = arg1.xor(arg2);
+    Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
+    Term result = term.rewrite(terms);
+    assertNotSame(term, result);
+    assertEquals(Tag.XOR, result.tag());
+    assertEquals(terms[0], result.get(0));
+    assertEquals(terms[1], result.get(1));
+  }
+
+  @Test
+  void testRewriteOnShl() {
+    Term arg1 = Term.intConstant(Type.I32, 42);
+    Term arg2 = Term.intConstant(Type.I32, 43);
+    Term term = arg1.shl(arg2);
+    Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
+    Term result = term.rewrite(terms);
+    assertNotSame(term, result);
+    assertEquals(Tag.SHL, result.tag());
+    assertEquals(terms[0], result.get(0));
+    assertEquals(terms[1], result.get(1));
+  }
+
+  @Test
+  void testRewriteOnLShr() {
+    Term arg1 = Term.intConstant(Type.I32, 42);
+    Term arg2 = Term.intConstant(Type.I32, 43);
+    Term term = arg1.lshr(arg2);
+    Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
+    Term result = term.rewrite(terms);
+    assertNotSame(term, result);
+    assertEquals(Tag.LSHR, result.tag());
+    assertEquals(terms[0], result.get(0));
+    assertEquals(terms[1], result.get(1));
+  }
+
+  @Test
+  void testRewriteOnAShr() {
+    Term arg1 = Term.intConstant(Type.I32, 42);
+    Term arg2 = Term.intConstant(Type.I32, 43);
+    Term term = arg1.ashr(arg2);
+    Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
+    Term result = term.rewrite(terms);
+    assertNotSame(term, result);
+    assertEquals(Tag.ASHR, result.tag());
+    assertEquals(terms[0], result.get(0));
+    assertEquals(terms[1], result.get(1));
+  }
 }
