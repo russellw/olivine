@@ -3,9 +3,22 @@ package olivine;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class FunctionTest {
+  private Function function;
+  private Type voidType;
+  private Type intType;
+  private Block block;
+
+  @BeforeEach
+  public void setup() {
+    voidType = Type.VOID;
+    intType = Type.I32;
+    block = new Block();
+  }
+
   @Test
   public void testBlocksSingleBlock() {
     Block entry = new Block();
@@ -45,5 +58,53 @@ class FunctionTest {
     List<Block> blocks = function.blocks();
 
     assertTrue(blocks.isEmpty());
+  }
+
+  @Test
+  public void testVerifyWithVoidReturnTypeAndRetVoid() {
+    function = new Function("testFunction", voidType, List.of(), false);
+    block.add(new RetVoid());
+    function.entry = block;
+
+    assertDoesNotThrow(() -> function.verify());
+  }
+
+  @Test
+  public void testVerifyWithNonVoidReturnTypeAndRet() {
+    function = new Function("testFunction", intType, List.of(), false);
+    Term returnValue = Term.intConstant(intType, 10);
+    block.add(new Ret(returnValue));
+    function.entry = block;
+
+    assertDoesNotThrow(() -> function.verify());
+  }
+
+  @Test
+  public void testVerifyWithVoidReturnTypeAndRet() {
+    function = new Function("testFunction", voidType, List.of(), false);
+    Term returnValue = Term.intConstant(intType, 10);
+    block.add(new Ret(returnValue));
+    function.entry = block;
+
+    assertThrows(AssertionError.class, () -> function.verify());
+  }
+
+  @Test
+  public void testVerifyWithNonVoidReturnTypeAndRetVoid() {
+    function = new Function("testFunction", intType, List.of(), false);
+    block.add(new RetVoid());
+    function.entry = block;
+
+    assertThrows(AssertionError.class, () -> function.verify());
+  }
+
+  @Test
+  public void testVerifyWithNonVoidReturnTypeAndRetWithMismatchedType() {
+    function = new Function("testFunction", intType, List.of(), false);
+    Term returnValue = Term.intConstant(Type.I1, 1);
+    block.add(new Ret(returnValue));
+    function.entry = block;
+
+    assertThrows(AssertionError.class, () -> function.verify());
   }
 }
