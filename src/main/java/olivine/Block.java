@@ -14,13 +14,9 @@ public final class Block implements Iterable<Instruction> {
     };
   }
 
-  void addAll(
-      @SuppressWarnings("SameParameterValue") int i, Collection<? extends Instruction> collection) {
-    instructions.addAll(i, collection);
-  }
-
-  Instruction get(int i) {
-    return instructions.get(i);
+  void replace(List<Instruction> replacement) {
+    instructions.clear();
+    instructions.addAll(replacement);
   }
 
   @Override
