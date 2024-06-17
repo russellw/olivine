@@ -26,7 +26,9 @@ public abstract class Term implements Iterable<Term> {
     return this;
   }
 
-  void verify() {}
+  void verify() {
+    for (var arg : this) arg.verify();
+  }
 
   static Term zeroinitializer(Type type) {
     return switch (type.kind()) {
@@ -309,7 +311,7 @@ public abstract class Term implements Iterable<Term> {
   }
 
   private abstract static class Term1 extends Term {
-    private final Term arg;
+    final Term arg;
 
     private Term1(Term arg) {
       this.arg = arg;
@@ -354,6 +356,12 @@ public abstract class Term implements Iterable<Term> {
   private static final class FNeg extends Term1 {
     FNeg(Term arg) {
       super(arg);
+    }
+
+    @Override
+    void verify() {
+      super.verify();
+      assert arg.type().isFloat();
     }
 
     @Override
@@ -645,6 +653,12 @@ public abstract class Term implements Iterable<Term> {
 
   private abstract static class Term2 extends Term {
     private final Term arg0, arg1;
+
+    @Override
+    void verify() {
+      super.verify();
+      assert arg0.type().equals(arg1.type());
+    }
 
     Term2(Term arg0, Term arg1) {
       this.arg0 = arg0;
@@ -1216,6 +1230,13 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    void verify() {
+      super.verify();
+      assert arg0.type() == Type.I1;
+      assert arg1.type().equals(arg2.type());
+    }
+
+    @Override
     Term rewrite(Term[] terms) {
       assert terms.length == 3;
       return new Select(terms[0], terms[1], terms[2]);
@@ -1293,6 +1314,12 @@ public abstract class Term implements Iterable<Term> {
 
   private static final class Array extends Terms {
     private final Type type;
+
+    @Override
+    void verify() {
+      super.verify();
+      for (var element : terms) assert element.type().equals(type);
+    }
 
     @Override
     Term rewrite(Term[] terms) {
