@@ -61,50 +61,50 @@ class FunctionTest {
   }
 
   @Test
-  public void testVerifyWithVoidReturnTypeAndRetVoid() {
+  public void testVerifyFunctionWithVoidReturnTypeAndRetVoid() {
     function = new Function("testFunction", voidType, List.of(), false);
     block.add(new RetVoid());
     function.entry = block;
 
-    assertDoesNotThrow(() -> function.verify());
+    assertDoesNotThrow(() -> function.verifyFunction());
   }
 
   @Test
-  public void testVerifyWithNonVoidReturnTypeAndRet() {
+  public void testVerifyFunctionWithNonVoidReturnTypeAndRet() {
     function = new Function("testFunction", intType, List.of(), false);
     Term returnValue = Term.intConstant(intType, 10);
     block.add(new Ret(returnValue));
     function.entry = block;
 
-    assertDoesNotThrow(() -> function.verify());
+    assertDoesNotThrow(() -> function.verifyFunction());
   }
 
   @Test
-  public void testVerifyWithVoidReturnTypeAndRet() {
+  public void testVerifyFunctionWithVoidReturnTypeAndRet() {
     function = new Function("testFunction", voidType, List.of(), false);
     Term returnValue = Term.intConstant(intType, 10);
     block.add(new Ret(returnValue));
     function.entry = block;
 
-    assertThrows(AssertionError.class, () -> function.verify());
+    assertThrows(AssertionError.class, () -> function.verifyFunction());
   }
 
   @Test
-  public void testVerifyWithNonVoidReturnTypeAndRetVoid() {
+  public void testVerifyFunctionWithNonVoidReturnTypeAndRetVoid() {
     function = new Function("testFunction", intType, List.of(), false);
     block.add(new RetVoid());
     function.entry = block;
 
-    assertThrows(AssertionError.class, () -> function.verify());
+    assertThrows(AssertionError.class, () -> function.verifyFunction());
   }
 
   @Test
-  public void testVerifyWithNonVoidReturnTypeAndRetWithMismatchedType() {
+  public void testVerifyFunctionWithNonVoidReturnTypeAndRetWithMismatchedType() {
     function = new Function("testFunction", intType, List.of(), false);
     Term returnValue = Term.intConstant(Type.I1, 1);
     block.add(new Ret(returnValue));
     function.entry = block;
 
-    assertThrows(AssertionError.class, () -> function.verify());
+    assertThrows(AssertionError.class, () -> function.verifyFunction());
   }
 }

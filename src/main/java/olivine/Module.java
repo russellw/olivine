@@ -11,6 +11,6 @@ public final class Module {
   public final List<Function> functions = new ArrayList<>();
 
   void verify() {
-    for (var function : functions) function.verify();
+    for (var function : functions) function.verifyFunction();
   }
 }

@@ -10,7 +10,7 @@ public final class Function extends Global {
   public final boolean varargs;
   public Block entry;
 
-  void verify() {
+  void verifyFunction() {
     for (var block : blocks()) {
       switch (block.last()) {
         case RetVoid _ -> {
