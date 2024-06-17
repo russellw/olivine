@@ -2,6 +2,7 @@ package olivine;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,12 +12,25 @@ class BlockTest {
   private Block block;
   private Instruction assignInstruction;
   private Instruction retVoidInstruction;
+  private List<Instruction> initialInstructions;
+  private List<Instruction> replacementInstructions;
 
   @BeforeEach
   public void setUp() {
     block = new Block();
     assignInstruction = new Assign(new Variable(Type.I32), Term.intConstant(Type.I32, 42));
     retVoidInstruction = new RetVoid();
+
+    initialInstructions = new ArrayList<>();
+    replacementInstructions = new ArrayList<>();
+
+    // Adding initial instructions to the block
+    initialInstructions.add(new RetVoid());
+    initialInstructions.add(new RetVoid());
+
+    // Adding replacement instructions
+    replacementInstructions.add(new RetVoid());
+    replacementInstructions.add(new BrUnconditional(new Block()));
   }
 
   @Test
@@ -147,5 +161,62 @@ class BlockTest {
     List<Block> successors = block.successors();
 
     assertTrue(successors.isEmpty());
+  }
+
+  @Test
+  void testReplaceClearsExistingInstructions() {
+    // Ensure the block has initial instructions
+    assertEquals(0, block.size());
+
+    // Replace instructions
+    block.replace(replacementInstructions);
+
+    // Ensure the block's instructions have been replaced
+    assertEquals(2, block.size());
+    assertEquals(replacementInstructions, blockToList(block));
+  }
+
+  @Test
+  void testReplaceWithEmptyList() {
+    // Replace instructions with an empty list
+    block.replace(new ArrayList<>());
+
+    // Ensure the block is now empty
+    assertEquals(0, block.size());
+  }
+
+  @Test
+  void testReplaceWithNonEmptyList() {
+    // Replace instructions with a non-empty list
+    block.replace(replacementInstructions);
+
+    // Ensure the block has the same instructions as the replacement list
+    assertEquals(2, block.size());
+    assertEquals(replacementInstructions, blockToList(block));
+  }
+
+  @Test
+  void testReplaceMultipleTimes() {
+    // Replace instructions with a non-empty list
+    block.replace(replacementInstructions);
+
+    // Replace again with the initial list
+    block.replace(initialInstructions);
+
+    // Ensure the block has the same instructions as the initial list
+    assertEquals(2, block.size());
+    assertEquals(initialInstructions, blockToList(block));
+
+    // Replace again with an empty list
+    block.replace(new ArrayList<>());
+
+    // Ensure the block is now empty
+    assertEquals(0, block.size());
+  }
+
+  private List<Instruction> blockToList(Block block) {
+    List<Instruction> instructionsList = new ArrayList<>();
+    block.forEach(instructionsList::add);
+    return instructionsList;
   }
 }
