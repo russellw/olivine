@@ -25,5 +25,7 @@ class FlattenTest {
     Flatten.run(module);
 
     assertEquals(2, block.size());
+    var assign = (Assign) block.get(0);
+    assertEquals(Tag.ADD, assign.value.tag());
   }
 }

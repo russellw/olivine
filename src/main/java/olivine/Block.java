@@ -14,6 +14,10 @@ public final class Block implements Iterable<Instruction> {
     };
   }
 
+  Instruction get(int i) {
+    return instructions.get(i);
+  }
+
   void replace(List<Instruction> replacement) {
     instructions.clear();
     instructions.addAll(replacement);
