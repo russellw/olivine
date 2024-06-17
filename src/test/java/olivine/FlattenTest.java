@@ -47,7 +47,9 @@ class FlattenTest {
     var module = new Module();
     module.functions.add(function);
 
+    module.verify();
     Flatten.run(module);
+    module.verify();
 
     assertEquals(1, block.size());
     var ret = (Ret) block.get(0);
@@ -76,7 +78,9 @@ class FlattenTest {
     var module = new Module();
     module.functions.add(function);
 
+    module.verify();
     Flatten.run(module);
+    module.verify();
 
     assertEquals(2, block.size());
     var assign = (Assign) block.get(0);

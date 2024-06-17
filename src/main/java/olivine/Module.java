@@ -9,4 +9,8 @@ public final class Module {
   public final Set<String> comdats = new HashSet<>();
   public final List<GlobalVariable> variables = new ArrayList<>();
   public final List<Function> functions = new ArrayList<>();
+
+  void verify() {
+    for (var function : functions) function.verify();
+  }
 }

@@ -10,6 +10,21 @@ public final class Function extends Global {
   public final boolean varargs;
   public Block entry;
 
+  void verify() {
+    for (var b : blocks()) {
+      switch (b.last()) {
+        case RetVoid _ -> {
+          assert returnType == Type.VOID;
+        }
+        case Ret ret -> {
+          assert returnType != Type.VOID;
+          assert ret.value.type().equals(returnType);
+        }
+        default -> {}
+      }
+    }
+  }
+
   public Function(String name, Type returnType, List<Variable> params, boolean varargs) {
     super(name);
     this.returnType = returnType;

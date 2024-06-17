@@ -75,8 +75,12 @@ final class Main {
       }
       modules.add(LlvmParser.parse(file, Files.readAllBytes(Path.of(file))));
     }
-    Flatten.run(modules.getFirst());
-    Files.write(Path.of("a.ll"), LlvmComposer.compose(modules.getFirst()));
+
+    var module = modules.getFirst();
+    module.verify();
+    Flatten.run(module);
+    module.verify();
+    Files.write(Path.of("a.ll"), LlvmComposer.compose(module));
   }
 
   private static String version() throws IOException {
