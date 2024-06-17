@@ -31,7 +31,32 @@ class FlattenTest {
   }
 
   @Test
-  void testFlattenFieldPtr() {
+  void testFlattenFieldPtr1() {
+    // red, green, blue
+    var colorType = Type.struct(Type.FLOAT, Type.FLOAT, Type.FLOAT);
+
+    var color = new Variable(colorType);
+    var function = new Function("f", Type.PTR, List.of(color), false);
+
+    // &color->blue
+    var pblue = color.fieldPtr(colorType, 2);
+
+    var block = new Block();
+    block.add(new Ret(pblue));
+    function.entry = block;
+    var module = new Module();
+    module.functions.add(function);
+
+    Flatten.run(module);
+
+    assertEquals(1, block.size());
+    var ret = (Ret) block.get(0);
+    assertEquals(Type.PTR, ret.value.type());
+    assertEquals(Tag.FIELD_PTR, ret.value.tag());
+  }
+
+  @Test
+  void testFlattenFieldPtr2() {
     // red, green, blue
     var colorType = Type.struct(Type.FLOAT, Type.FLOAT, Type.FLOAT);
 
@@ -39,14 +64,14 @@ class FlattenTest {
     var colorsType = Type.struct(colorType, colorType);
 
     var colors = new Variable(colorsType);
-    var function = new Function("f", Type.FLOAT, List.of(colors), false);
+    var function = new Function("f", Type.PTR, List.of(colors), false);
 
-    // colors->background->blue
-    var background = colors.fieldPtr(colorsType, 1);
-    var blue = background.fieldPtr(colorType, 2);
+    // &colors->background.blue
+    var pbackground = colors.fieldPtr(colorsType, 1);
+    var pblue = pbackground.fieldPtr(colorType, 2);
 
     var block = new Block();
-    block.add(new Ret(blue));
+    block.add(new Ret(pblue));
     function.entry = block;
     var module = new Module();
     module.functions.add(function);
