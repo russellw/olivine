@@ -1,3 +1,5 @@
 package olivine;
 
-public abstract class Instruction {}
+public abstract class Instruction {
+  void verify() {}
+}
