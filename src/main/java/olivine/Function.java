@@ -12,6 +12,7 @@ public final class Function extends Global {
 
   void verifyFunction() {
     for (var block : blocks()) {
+      for (var instruction : block) instruction.verify();
       switch (block.last()) {
         case RetVoid _ -> {
           assert returnType == Type.VOID;
@@ -22,7 +23,6 @@ public final class Function extends Global {
         }
         default -> {}
       }
-      for (var instruction : block) instruction.verify();
     }
   }
 

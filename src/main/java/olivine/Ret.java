@@ -5,6 +5,7 @@ public final class Ret extends Instruction {
 
   @Override
   void verify() {
+    value.verify();
     assert value.type() != Type.VOID;
   }
 

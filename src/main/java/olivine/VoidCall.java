@@ -5,6 +5,7 @@ public final class VoidCall extends Instruction {
 
   @Override
   void verify() {
+    call.verify();
     assert call.tag() == Tag.CALL;
     var function = (Function) call.get(0);
     assert function.returnType == Type.VOID;

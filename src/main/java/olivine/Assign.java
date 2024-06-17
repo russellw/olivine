@@ -6,6 +6,7 @@ public final class Assign extends Instruction {
 
   @Override
   void verify() {
+    value.verify();
     var type = value.type();
     assert type != Type.VOID;
     assert variable.type().equals(type);

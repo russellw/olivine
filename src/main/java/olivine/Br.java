@@ -6,6 +6,7 @@ public final class Br extends Instruction {
 
   @Override
   void verify() {
+    cond.verify();
     assert cond.type() == Type.I1;
   }
 
