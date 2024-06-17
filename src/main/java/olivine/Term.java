@@ -652,7 +652,7 @@ public abstract class Term implements Iterable<Term> {
   }
 
   private abstract static class BinaryTerm extends Term {
-    private final Term arg0, arg1;
+    final Term arg0, arg1;
 
     @Override
     void verify() {
@@ -858,6 +858,12 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    void verify() {
+      super.verify();
+      assert arg0.type().isFloat();
+    }
+
+    @Override
     Term rewrite(Term[] terms) {
       assert terms.length == 2;
       return new FEq(terms[0], terms[1]);
@@ -885,6 +891,12 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    void verify() {
+      super.verify();
+      assert arg0.type().isFloat();
+    }
+
+    @Override
     Term rewrite(Term[] terms) {
       assert terms.length == 2;
       return new FNe(terms[0], terms[1]);
@@ -899,6 +911,12 @@ public abstract class Term implements Iterable<Term> {
   private static final class FLe extends BinaryTerm {
     FLe(Term arg0, Term arg1) {
       super(arg0, arg1);
+    }
+
+    @Override
+    void verify() {
+      super.verify();
+      assert arg0.type().isFloat();
     }
 
     @Override
@@ -921,6 +939,12 @@ public abstract class Term implements Iterable<Term> {
   private static final class FLt extends BinaryTerm {
     FLt(Term arg0, Term arg1) {
       super(arg0, arg1);
+    }
+
+    @Override
+    void verify() {
+      super.verify();
+      assert arg0.type().isFloat();
     }
 
     @Override
@@ -1048,6 +1072,12 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    void verify() {
+      super.verify();
+      assert arg0.type().isFloat();
+    }
+
+    @Override
     Term rewrite(Term[] terms) {
       assert terms.length == 2;
       return new FAdd(terms[0], terms[1]);
@@ -1062,6 +1092,12 @@ public abstract class Term implements Iterable<Term> {
   private static final class FSub extends BinaryTerm {
     FSub(Term arg0, Term arg1) {
       super(arg0, arg1);
+    }
+
+    @Override
+    void verify() {
+      super.verify();
+      assert arg0.type().isFloat();
     }
 
     @Override
@@ -1082,6 +1118,12 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    void verify() {
+      super.verify();
+      assert arg0.type().isFloat();
+    }
+
+    @Override
     Term rewrite(Term[] terms) {
       assert terms.length == 2;
       return new FMul(terms[0], terms[1]);
@@ -1099,6 +1141,12 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    void verify() {
+      super.verify();
+      assert arg0.type().isFloat();
+    }
+
+    @Override
     Term rewrite(Term[] terms) {
       assert terms.length == 2;
       return new FDiv(terms[0], terms[1]);
@@ -1113,6 +1161,12 @@ public abstract class Term implements Iterable<Term> {
   private static final class FRem extends BinaryTerm {
     FRem(Term arg0, Term arg1) {
       super(arg0, arg1);
+    }
+
+    @Override
+    void verify() {
+      super.verify();
+      assert arg0.type().isFloat();
     }
 
     @Override
