@@ -15,6 +15,8 @@ public abstract class Term implements Iterable<Term> {
     return this;
   }
 
+  void verify() {}
+
   static Term zeroinitializer(Type type) {
     return switch (type.kind()) {
       case INT -> intConstant(type, 0);
