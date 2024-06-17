@@ -605,4 +605,10 @@ class TermTest {
     assertEquals(terms[0], result.get(0));
     assertEquals(terms[1], result.get(1));
   }
+
+  @Test
+  void predicates() {
+    var term = Term.ONE.eq(Term.ONE);
+    assertEquals(Type.I1, term.type());
+  }
 }

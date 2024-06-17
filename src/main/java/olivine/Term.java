@@ -709,6 +709,11 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    Type type() {
+      return Type.I1;
+    }
+
+    @Override
     Term rewrite(Term[] terms) {
       assert terms.length == 2;
       return new Eq(terms[0], terms[1]);
@@ -723,6 +728,11 @@ public abstract class Term implements Iterable<Term> {
   private static final class Ne extends BinaryTerm {
     Ne(Term arg0, Term arg1) {
       super(arg0, arg1);
+    }
+
+    @Override
+    Type type() {
+      return Type.I1;
     }
 
     @Override
@@ -749,6 +759,11 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    Type type() {
+      return Type.I1;
+    }
+
+    @Override
     Tag tag() {
       return Tag.SLE;
     }
@@ -763,6 +778,11 @@ public abstract class Term implements Iterable<Term> {
     Term rewrite(Term[] terms) {
       assert terms.length == 2;
       return new SLt(terms[0], terms[1]);
+    }
+
+    @Override
+    Type type() {
+      return Type.I1;
     }
 
     @Override
@@ -783,6 +803,11 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    Type type() {
+      return Type.I1;
+    }
+
+    @Override
     Tag tag() {
       return Tag.ULE;
     }
@@ -791,6 +816,11 @@ public abstract class Term implements Iterable<Term> {
   private static final class ULt extends BinaryTerm {
     ULt(Term arg0, Term arg1) {
       super(arg0, arg1);
+    }
+
+    @Override
+    Type type() {
+      return Type.I1;
     }
 
     @Override
@@ -834,6 +864,11 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    Type type() {
+      return Type.I1;
+    }
+
+    @Override
     Tag tag() {
       return Tag.FEQ;
     }
@@ -842,6 +877,11 @@ public abstract class Term implements Iterable<Term> {
   private static final class FNe extends BinaryTerm {
     FNe(Term arg0, Term arg1) {
       super(arg0, arg1);
+    }
+
+    @Override
+    Type type() {
+      return Type.I1;
     }
 
     @Override
@@ -868,6 +908,11 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    Type type() {
+      return Type.I1;
+    }
+
+    @Override
     Tag tag() {
       return Tag.FLE;
     }
@@ -882,6 +927,11 @@ public abstract class Term implements Iterable<Term> {
     Term rewrite(Term[] terms) {
       assert terms.length == 2;
       return new FLt(terms[0], terms[1]);
+    }
+
+    @Override
+    Type type() {
+      return Type.I1;
     }
 
     @Override
