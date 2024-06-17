@@ -34,6 +34,10 @@ public final class Flatten {
           instruction =
               switch (instruction) {
                 case Assign assign -> new Assign(assign.variable, flatten(assign.value));
+                case Ret ret -> new Ret(flatten(ret.value));
+                case Br br -> new Br(flatten(br.cond), br.ifTrue, br.ifFalse);
+                case VoidCall voidCall -> new VoidCall(flatten(voidCall.call));
+                case Store store -> new Store(flatten(store.value), flatten(store.pointer));
                 default -> instruction;
               };
           replacement.add(instruction);
