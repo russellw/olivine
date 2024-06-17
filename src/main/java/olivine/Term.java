@@ -3,6 +3,7 @@ package olivine;
 import java.math.BigInteger;
 import java.util.*;
 
+// TODO: element/terms name
 public abstract class Term implements Iterable<Term> {
   static final Term NULL = new Null();
   static final Term ONE = intConstant(Type.I32, 1);
