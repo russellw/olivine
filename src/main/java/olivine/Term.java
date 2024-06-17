@@ -310,10 +310,10 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private abstract static class Term1 extends Term {
+  private abstract static class UnaryTerm extends Term {
     final Term arg;
 
-    private Term1(Term arg) {
+    private UnaryTerm(Term arg) {
       this.arg = arg;
     }
 
@@ -326,7 +326,7 @@ public abstract class Term implements Iterable<Term> {
     public boolean equals(Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
-      Term1 terms = (Term1) o;
+      UnaryTerm terms = (UnaryTerm) o;
       return Objects.equals(arg, terms.arg);
     }
 
@@ -353,7 +353,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class FNeg extends Term1 {
+  private static final class FNeg extends UnaryTerm {
     FNeg(Term arg) {
       super(arg);
     }
@@ -376,7 +376,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class Addr extends Term1 {
+  private static final class Addr extends UnaryTerm {
     Addr(Term arg) {
       super(arg);
     }
@@ -398,7 +398,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class Load extends Term1 {
+  private static final class Load extends UnaryTerm {
     private final Type type;
 
     @Override
@@ -441,7 +441,7 @@ public abstract class Term implements Iterable<Term> {
     return new Alloca(type, numElements);
   }
 
-  private static final class Alloca extends Term1 {
+  private static final class Alloca extends UnaryTerm {
     private final Type type;
 
     @Override
@@ -484,7 +484,7 @@ public abstract class Term implements Iterable<Term> {
     return new FieldPtr(type, this, idx);
   }
 
-  private static final class FieldPtr extends Term1 {
+  private static final class FieldPtr extends UnaryTerm {
     private final Type type;
     private final int idx;
 
@@ -534,7 +534,7 @@ public abstract class Term implements Iterable<Term> {
     return new ElementPtr(type, this, idx);
   }
 
-  private static final class ElementPtr extends Term2 {
+  private static final class ElementPtr extends BinaryTerm {
     private final Type type;
 
     ElementPtr(Type type, Term ptrVal, Term idx) {
@@ -573,7 +573,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class Cast extends Term1 {
+  private static final class Cast extends UnaryTerm {
     private final Type type;
 
     Cast(Term arg, Type type) {
@@ -612,7 +612,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class SCast extends Term1 {
+  private static final class SCast extends UnaryTerm {
     private final Type type;
 
     SCast(Term arg, Type type) {
@@ -651,7 +651,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private abstract static class Term2 extends Term {
+  private abstract static class BinaryTerm extends Term {
     private final Term arg0, arg1;
 
     @Override
@@ -660,7 +660,7 @@ public abstract class Term implements Iterable<Term> {
       assert arg0.type().equals(arg1.type());
     }
 
-    Term2(Term arg0, Term arg1) {
+    BinaryTerm(Term arg0, Term arg1) {
       this.arg0 = arg0;
       this.arg1 = arg1;
     }
@@ -679,7 +679,7 @@ public abstract class Term implements Iterable<Term> {
     public boolean equals(Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
-      Term2 terms = (Term2) o;
+      BinaryTerm terms = (BinaryTerm) o;
       return Objects.equals(arg0, terms.arg0) && Objects.equals(arg1, terms.arg1);
     }
 
@@ -703,7 +703,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class Eq extends Term2 {
+  private static final class Eq extends BinaryTerm {
     Eq(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
@@ -720,7 +720,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class Ne extends Term2 {
+  private static final class Ne extends BinaryTerm {
     Ne(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
@@ -737,7 +737,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class SLe extends Term2 {
+  private static final class SLe extends BinaryTerm {
     SLe(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
@@ -754,7 +754,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class SLt extends Term2 {
+  private static final class SLt extends BinaryTerm {
     SLt(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
@@ -771,7 +771,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class ULe extends Term2 {
+  private static final class ULe extends BinaryTerm {
     ULe(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
@@ -788,7 +788,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class ULt extends Term2 {
+  private static final class ULt extends BinaryTerm {
     ULt(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
@@ -805,7 +805,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class Add extends Term2 {
+  private static final class Add extends BinaryTerm {
     Add(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
@@ -822,7 +822,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class FEq extends Term2 {
+  private static final class FEq extends BinaryTerm {
     FEq(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
@@ -839,7 +839,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class FNe extends Term2 {
+  private static final class FNe extends BinaryTerm {
     FNe(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
@@ -856,7 +856,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class FLe extends Term2 {
+  private static final class FLe extends BinaryTerm {
     FLe(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
@@ -873,7 +873,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class FLt extends Term2 {
+  private static final class FLt extends BinaryTerm {
     FLt(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
@@ -890,7 +890,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class Sub extends Term2 {
+  private static final class Sub extends BinaryTerm {
     Sub(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
@@ -907,7 +907,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class Mul extends Term2 {
+  private static final class Mul extends BinaryTerm {
     Mul(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
@@ -924,7 +924,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class UDiv extends Term2 {
+  private static final class UDiv extends BinaryTerm {
     UDiv(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
@@ -941,7 +941,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class SDiv extends Term2 {
+  private static final class SDiv extends BinaryTerm {
     SDiv(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
@@ -958,7 +958,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class URem extends Term2 {
+  private static final class URem extends BinaryTerm {
     URem(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
@@ -975,7 +975,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class SRem extends Term2 {
+  private static final class SRem extends BinaryTerm {
     SRem(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
@@ -992,7 +992,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class FAdd extends Term2 {
+  private static final class FAdd extends BinaryTerm {
     FAdd(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
@@ -1009,7 +1009,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class FSub extends Term2 {
+  private static final class FSub extends BinaryTerm {
     FSub(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
@@ -1026,7 +1026,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class FMul extends Term2 {
+  private static final class FMul extends BinaryTerm {
     FMul(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
@@ -1043,7 +1043,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class FDiv extends Term2 {
+  private static final class FDiv extends BinaryTerm {
     FDiv(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
@@ -1060,7 +1060,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class FRem extends Term2 {
+  private static final class FRem extends BinaryTerm {
     FRem(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
@@ -1077,7 +1077,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class And extends Term2 {
+  private static final class And extends BinaryTerm {
     And(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
@@ -1094,7 +1094,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class Or extends Term2 {
+  private static final class Or extends BinaryTerm {
     Or(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
@@ -1111,7 +1111,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class Xor extends Term2 {
+  private static final class Xor extends BinaryTerm {
     Xor(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
@@ -1128,7 +1128,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class Shl extends Term2 {
+  private static final class Shl extends BinaryTerm {
     Shl(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
@@ -1145,7 +1145,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class AShr extends Term2 {
+  private static final class AShr extends BinaryTerm {
     AShr(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
@@ -1162,7 +1162,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class LShr extends Term2 {
+  private static final class LShr extends BinaryTerm {
     LShr(Term arg0, Term arg1) {
       super(arg0, arg1);
     }
@@ -1254,10 +1254,10 @@ public abstract class Term implements Iterable<Term> {
   }
 
   // TODO: names
-  private abstract static class Terms extends Term {
+  private abstract static class NaryTerm extends Term {
     final Term[] terms;
 
-    Terms(Term[] terms) {
+    NaryTerm(Term[] terms) {
       this.terms = terms;
     }
 
@@ -1265,7 +1265,7 @@ public abstract class Term implements Iterable<Term> {
     public boolean equals(Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
-      Terms terms1 = (Terms) o;
+      NaryTerm terms1 = (NaryTerm) o;
       return Objects.deepEquals(terms, terms1.terms);
     }
 
@@ -1290,7 +1290,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class Call extends Terms {
+  private static final class Call extends NaryTerm {
     Call(Term[] terms) {
       super(terms);
     }
@@ -1312,7 +1312,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private static final class Array extends Terms {
+  private static final class Array extends NaryTerm {
     private final Type type;
 
     @Override
