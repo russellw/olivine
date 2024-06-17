@@ -5,7 +5,18 @@ import java.util.*;
 
 // TODO: element/terms name
 public abstract class Term implements Iterable<Term> {
-  static final Term NULL = new Null();
+  static final Term NULL =
+      new Term() {
+        @Override
+        Tag tag() {
+          return Tag.NULL;
+        }
+
+        @Override
+        Type type() {
+          return Type.PTR;
+        }
+      };
   static final Term ONE = intConstant(Type.I32, 1);
   static final Term TRUE = intConstant(Type.I1, 1);
   static final Term FALSE = intConstant(Type.I1, 0);
@@ -210,18 +221,6 @@ public abstract class Term implements Iterable<Term> {
 
   public Term get(int i) {
     throw new IndexOutOfBoundsException("%s, %s".formatted(this, i));
-  }
-
-  private static final class Null extends Term {
-    @Override
-    Tag tag() {
-      return Tag.NULL;
-    }
-
-    @Override
-    Type type() {
-      return Type.PTR;
-    }
   }
 
   int intValueExact() {
