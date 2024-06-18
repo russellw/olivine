@@ -484,6 +484,23 @@ public abstract class Term implements Iterable<Term> {
     return new FieldPtr(type, this, idx);
   }
 
+  @Override
+  public String toString() {
+    var sb = new StringBuilder();
+    sb.append(tag());
+    if (size() != 0) {
+      sb.append('(');
+      var more = false;
+      for (var arg : this) {
+        if (more) sb.append(',');
+        more = true;
+        sb.append(arg);
+      }
+      sb.append(')');
+    }
+    return sb.toString();
+  }
+
   private static final class FieldPtr extends UnaryTerm {
     private final Type type;
     private final int idx;
@@ -530,6 +547,11 @@ public abstract class Term implements Iterable<Term> {
     @Override
     Type type() {
       return Type.PTR;
+    }
+
+    @Override
+    public String toString() {
+      return "%s(%s,%d)".formatted(tag(), arg, idx);
     }
 
     @Override
