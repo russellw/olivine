@@ -480,8 +480,8 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  Term fieldPtr(Type structType, int idx) {
-    return new FieldPtr(structType, this, idx);
+  Term fieldPtr(Type struct, int idx) {
+    return new FieldPtr(struct, this, idx);
   }
 
   @Override
@@ -501,22 +501,22 @@ public abstract class Term implements Iterable<Term> {
     return sb.toString();
   }
 
-  Type structType() {
+  Type struct() {
     throw new UnsupportedOperationException(toString());
   }
 
   private static final class FieldPtr extends UnaryTerm {
-    private final Type structType;
+    private final Type struct;
     private final int idx;
 
     @Override
-    Type structType() {
-      return structType;
+    Type struct() {
+      return struct;
     }
 
-    FieldPtr(Type structType, Term ptrVal, int idx) {
+    FieldPtr(Type struct, Term ptrVal, int idx) {
       super(ptrVal);
-      this.structType = structType;
+      this.struct = struct;
       this.idx = idx;
     }
 
@@ -524,8 +524,8 @@ public abstract class Term implements Iterable<Term> {
     void verify() {
       arg.verify();
       assert arg.type() == Type.PTR;
-      assert structType.kind() == Kind.STRUCT;
-      assert 0 <= idx && idx < structType.size();
+      assert struct.kind() == Kind.STRUCT;
+      assert 0 <= idx && idx < struct.size();
     }
 
     @Override
@@ -539,18 +539,18 @@ public abstract class Term implements Iterable<Term> {
       if (o == null || getClass() != o.getClass()) return false;
       if (!super.equals(o)) return false;
       FieldPtr terms = (FieldPtr) o;
-      return idx == terms.idx && Objects.equals(structType, terms.structType);
+      return idx == terms.idx && Objects.equals(struct, terms.struct);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(super.hashCode(), structType, idx);
+      return Objects.hash(super.hashCode(), struct, idx);
     }
 
     @Override
     Term rewrite(Term[] terms) {
       assert terms.length == 1;
-      return new FieldPtr(structType, terms[0], idx);
+      return new FieldPtr(struct, terms[0], idx);
     }
 
     @Override
@@ -560,7 +560,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public String toString() {
-      return "%s(%s,%s,%d)".formatted(tag(), structType, arg, idx);
+      return "%s(%s,%s,%d)".formatted(tag(), struct, arg, idx);
     }
 
     @Override
