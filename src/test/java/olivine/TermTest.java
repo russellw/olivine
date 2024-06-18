@@ -613,10 +613,20 @@ class TermTest {
   }
 
   @Test
-  void verifyGEP() {
+  void verifyElementPtr() {
     var a = new Variable(Type.PTR);
     var i = Term.ONE;
-    var ai = a.elementPtr(Type.DOUBLE, i);
-    ai.verify();
+    a.elementPtr(Type.DOUBLE, i).verify();
+    assertThrows(Throwable.class, a.elementPtr(Type.DOUBLE, a)::verify);
+    assertThrows(Throwable.class, i.elementPtr(Type.DOUBLE, i)::verify);
+  }
+
+  @Test
+  void verifyFieldPtr() {
+    var s = new Variable(Type.PTR);
+    var t = Type.struct(Type.FLOAT, Type.FLOAT, Type.FLOAT);
+    s.fieldPtr(t, 2).verify();
+    assertThrows(Throwable.class, s.fieldPtr(t, -1)::verify);
+    assertThrows(Throwable.class, s.fieldPtr(t, 3)::verify);
   }
 }

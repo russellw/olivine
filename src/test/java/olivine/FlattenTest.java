@@ -35,7 +35,7 @@ class FlattenTest {
     // red, green, blue
     var colorType = Type.struct(Type.FLOAT, Type.FLOAT, Type.FLOAT);
 
-    var color = new Variable(colorType);
+    var color = new Variable(Type.PTR);
     var function = new Function("f", Type.PTR, List.of(color), false);
 
     // &color->blue
@@ -65,7 +65,7 @@ class FlattenTest {
     // foreground, background
     var colorsType = Type.struct(colorType, colorType);
 
-    var colors = new Variable(colorsType);
+    var colors = new Variable(Type.PTR);
     var function = new Function("f", Type.PTR, List.of(colors), false);
 
     // &colors->background.blue

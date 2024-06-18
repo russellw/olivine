@@ -495,6 +495,14 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    void verify() {
+      arg.verify();
+      assert arg.type() == Type.PTR;
+      assert type.kind() == Kind.STRUCT;
+      assert 0 <= idx && idx < type.size();
+    }
+
+    @Override
     int intValueExact() {
       return idx;
     }
