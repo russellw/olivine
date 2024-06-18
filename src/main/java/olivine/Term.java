@@ -543,6 +543,14 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    void verify() {
+      arg0.verify();
+      arg1.verify();
+      assert arg0.type() == Type.PTR;
+      assert arg1.type().isInt();
+    }
+
+    @Override
     Term rewrite(Term[] terms) {
       assert terms.length == 2;
       return new ElementPtr(type, terms[0], terms[1]);

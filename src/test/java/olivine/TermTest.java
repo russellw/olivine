@@ -611,4 +611,12 @@ class TermTest {
     var term = Term.ONE.eq(Term.ONE);
     assertEquals(Type.I1, term.type());
   }
+
+  @Test
+  void verifyGEP() {
+    var a = new Variable(Type.PTR);
+    var i = Term.ONE;
+    var ai = a.elementPtr(Type.DOUBLE, i);
+    ai.verify();
+  }
 }
