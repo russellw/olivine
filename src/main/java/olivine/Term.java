@@ -551,7 +551,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public String toString() {
-      return "%s(%s,%d)".formatted(tag(), arg, idx);
+      return "%s(%s,%s,%d)".formatted(tag(), type, arg, idx);
     }
 
     @Override

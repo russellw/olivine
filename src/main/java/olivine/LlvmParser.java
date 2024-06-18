@@ -622,6 +622,7 @@ public final class LlvmParser {
             var idxs = new ArrayList<Term>();
             while (eat(',')) idxs.add(typeExpr());
             value = getelementptr(type, ptrVal, idxs);
+            Etc.debug(value);
           }
           case "tail" -> {
             expect("call");
