@@ -302,7 +302,7 @@ public final class LlvmComposer {
           }
           case FIELD_PTR -> {
             print("getelementptr ");
-            print(value.type());
+            print(value.structType());
             print(',');
             typeAtom(value.get(0));
             print(",i32 0,i32 ");

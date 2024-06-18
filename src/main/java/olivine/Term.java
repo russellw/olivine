@@ -480,8 +480,8 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  Term fieldPtr(Type type, int idx) {
-    return new FieldPtr(type, this, idx);
+  Term fieldPtr(Type structType, int idx) {
+    return new FieldPtr(structType, this, idx);
   }
 
   @Override
@@ -501,13 +501,22 @@ public abstract class Term implements Iterable<Term> {
     return sb.toString();
   }
 
+  Type structType() {
+    throw new UnsupportedOperationException(toString());
+  }
+
   private static final class FieldPtr extends UnaryTerm {
-    private final Type type;
+    private final Type structType;
     private final int idx;
 
-    FieldPtr(Type type, Term ptrVal, int idx) {
+    @Override
+    Type structType() {
+      return structType;
+    }
+
+    FieldPtr(Type structType, Term ptrVal, int idx) {
       super(ptrVal);
-      this.type = type;
+      this.structType = structType;
       this.idx = idx;
     }
 
@@ -515,8 +524,8 @@ public abstract class Term implements Iterable<Term> {
     void verify() {
       arg.verify();
       assert arg.type() == Type.PTR;
-      assert type.kind() == Kind.STRUCT;
-      assert 0 <= idx && idx < type.size();
+      assert structType.kind() == Kind.STRUCT;
+      assert 0 <= idx && idx < structType.size();
     }
 
     @Override
@@ -530,18 +539,18 @@ public abstract class Term implements Iterable<Term> {
       if (o == null || getClass() != o.getClass()) return false;
       if (!super.equals(o)) return false;
       FieldPtr terms = (FieldPtr) o;
-      return idx == terms.idx && Objects.equals(type, terms.type);
+      return idx == terms.idx && Objects.equals(structType, terms.structType);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(super.hashCode(), type, idx);
+      return Objects.hash(super.hashCode(), structType, idx);
     }
 
     @Override
     Term rewrite(Term[] terms) {
       assert terms.length == 1;
-      return new FieldPtr(type, terms[0], idx);
+      return new FieldPtr(structType, terms[0], idx);
     }
 
     @Override
@@ -551,7 +560,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public String toString() {
-      return "%s(%s,%s,%d)".formatted(tag(), type, arg, idx);
+      return "%s(%s,%s,%d)".formatted(tag(), structType, arg, idx);
     }
 
     @Override
