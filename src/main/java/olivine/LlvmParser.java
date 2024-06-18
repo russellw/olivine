@@ -307,7 +307,6 @@ public final class LlvmParser {
   private Term expr(Type type) {
     return switch (token) {
       case WORD -> {
-        // TODO: more accurate position report
         var s = lex1();
         yield switch (s) {
           case "getelementptr" -> {
