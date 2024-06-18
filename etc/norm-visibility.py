@@ -1,3 +1,4 @@
 import etc
 
-print(etc.src_files())
+for file in etc.src_files():
+    print(file)

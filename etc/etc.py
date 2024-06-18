@@ -19,3 +19,14 @@ def src_files():
                 java_files.append(file_path)
 
     return java_files
+
+
+def read_lines(file):
+    with open(file) as f:
+        return [s.rstrip() for s in f]
+
+
+def write_lines(file, lines):
+    with open(file, "w", newline="\n") as f:
+        for s in lines:
+            f.write(s + "\n")
