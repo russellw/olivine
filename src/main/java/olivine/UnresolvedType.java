@@ -3,7 +3,7 @@ package olivine;
 import java.util.Map;
 
 public final class UnresolvedType extends Type {
-  final String name;
+  private final String name;
 
   @Override
   Type resolve(Map<String, Type> typeMap) {
