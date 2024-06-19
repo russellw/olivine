@@ -245,4 +245,45 @@ class TypeTest {
     assertEquals(Type.PTR, iterator.next());
     assertFalse(iterator.hasNext());
   }
+
+  @Test
+  void testRewriteBaseType() {
+    assertEquals(Type.I32, Type.I32.rewrite(new Type[] {}));
+    assertEquals(Type.FLOAT, Type.FLOAT.rewrite(new Type[] {}));
+  }
+
+  @Test
+  void testRewriteArrayType() {
+    Type original = Type.I32.array(4);
+    Type rewritten = original.rewrite(new Type[] {Type.FLOAT});
+    assertEquals(Type.FLOAT.array(4), rewritten);
+  }
+
+  @Test
+  void testRewriteVectorType() {
+    Type original = Type.I32.vector(4);
+    Type rewritten = original.rewrite(new Type[] {Type.FLOAT});
+    assertEquals(Type.FLOAT.vector(4), rewritten);
+  }
+
+  @Test
+  void testRewriteStructType() {
+    Type original = Type.struct(Type.I32, Type.FLOAT);
+    Type rewritten = original.rewrite(new Type[] {Type.DOUBLE, Type.I8});
+    assertEquals(Type.struct(Type.DOUBLE, Type.I8), rewritten);
+  }
+
+  @Test
+  void testRewriteFunctionType() {
+    Type original = Type.function(new Type[] {Type.I32, Type.FLOAT}, false);
+    Type rewritten = original.rewrite(new Type[] {Type.DOUBLE, Type.I8});
+    assertEquals(Type.function(new Type[] {Type.DOUBLE, Type.I8}, false), rewritten);
+  }
+
+  @Test
+  void testRewriteEmptyStructType() {
+    Type original = Type.struct();
+    Type rewritten = original.rewrite(new Type[] {});
+    assertEquals(Type.struct(), rewritten);
+  }
 }
