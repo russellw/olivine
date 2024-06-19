@@ -979,11 +979,7 @@ public final class LlvmParser {
   }
 
   private void lex() {
-    for (; ; ) {
-      if (textIdx == text.length) {
-        token = EOF;
-        return;
-      }
+    while (textIdx < text.length) {
       switch (text[textIdx]) {
         case ' ', '\r', '\t', '\f' -> {
           textIdx++;
@@ -1095,19 +1091,20 @@ public final class LlvmParser {
         }
         default -> token = text[textIdx++];
       }
-      break;
+      return;
     }
+    token = EOF;
   }
 
   private void eol() {
-    while (token != '\n') {
-      if (token == EOF) throw error("unexpected end of file");
-      lex();
-    }
+    assert token != EOF;
+    while (token != '\n') lex();
     lex();
   }
 
   public static Module parse(String file, byte[] text) {
+    if (text.length == 0 || text[text.length - 1] != '\n')
+      throw new IllegalArgumentException("input does not end in newline");
     var module = new Module();
     new LlvmParser(file, text, module);
     return module;
