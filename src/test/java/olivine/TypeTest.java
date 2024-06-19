@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class TypeTest {
@@ -285,5 +286,96 @@ class TypeTest {
     Type original = Type.struct();
     Type rewritten = original.rewrite(new Type[] {});
     assertEquals(Type.struct(), rewritten);
+  }
+
+  @Test
+  void testResolveUnresolvedType() {
+    // Given
+    Type unresolvedType = new UnresolvedType("int32");
+    Map<String, Type> typeMap = Map.of("int32", Type.I32);
+
+    // When
+    Type resolvedType = unresolvedType.resolve(typeMap);
+
+    // Then
+    assertEquals(Type.I32, resolvedType);
+  }
+
+  @Test
+  void testResolveArrayType() {
+    // Given
+    Type unresolvedType = new UnresolvedType("int32");
+    Type arrayType = unresolvedType.array(10);
+    Map<String, Type> typeMap = Map.of("int32", Type.I32);
+
+    // When
+    Type resolvedType = arrayType.resolve(typeMap);
+
+    // Then
+    assertEquals(Type.I32.array(10), resolvedType);
+  }
+
+  @Test
+  void testResolveStructType() {
+    // Given
+    Type unresolvedType1 = new UnresolvedType("float");
+    Type unresolvedType2 = new UnresolvedType("double");
+    Type structType = Type.struct(unresolvedType1, unresolvedType2);
+    Map<String, Type> typeMap =
+        Map.of(
+            "float", Type.FLOAT,
+            "double", Type.DOUBLE);
+
+    // When
+    Type resolvedType = structType.resolve(typeMap);
+
+    // Then
+    Type expectedStruct = Type.struct(Type.FLOAT, Type.DOUBLE);
+    assertEquals(expectedStruct, resolvedType);
+  }
+
+  @Test
+  void testResolveNestedStructType() {
+    // Given
+    Type unresolvedType1 = new UnresolvedType("float");
+    Type unresolvedType2 = new UnresolvedType("nestedStruct");
+    Type structType = Type.struct(unresolvedType1, unresolvedType2);
+    Type nestedStructType = Type.struct(new UnresolvedType("double"));
+    Map<String, Type> typeMap =
+        Map.of(
+            "float", Type.FLOAT,
+            "nestedStruct", nestedStructType,
+            "double", Type.DOUBLE);
+
+    // When
+    Type resolvedType = structType.resolve(typeMap);
+
+    // Then
+    Type expectedNestedStruct = Type.struct(Type.DOUBLE);
+    Type expectedStruct = Type.struct(Type.FLOAT, expectedNestedStruct);
+    assertEquals(expectedStruct, resolvedType);
+  }
+
+  @Test
+  void testResolveFunctionType() {
+    // Given
+    Type unresolvedReturnType = new UnresolvedType("void");
+    Type unresolvedParamType1 = new UnresolvedType("int32");
+    Type unresolvedParamType2 = new UnresolvedType("float");
+    Type functionType =
+        Type.function(
+            new Type[] {unresolvedReturnType, unresolvedParamType1, unresolvedParamType2}, false);
+    Map<String, Type> typeMap =
+        Map.of(
+            "void", Type.VOID,
+            "int32", Type.I32,
+            "float", Type.FLOAT);
+
+    // When
+    Type resolvedType = functionType.resolve(typeMap);
+
+    // Then
+    Type expectedFunctionType = Type.function(new Type[] {Type.VOID, Type.I32, Type.FLOAT}, false);
+    assertEquals(expectedFunctionType, resolvedType);
   }
 }
