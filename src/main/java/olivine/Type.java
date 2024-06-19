@@ -296,6 +296,11 @@ public abstract class Type implements Iterable<Type> {
         }
       };
 
+  Type rewrite(Type[] types) {
+    assert types.length == 0;
+    return this;
+  }
+
   public final boolean isInt() {
     return kind() == Kind.INT;
   }
@@ -393,6 +398,12 @@ public abstract class Type implements Iterable<Type> {
     }
 
     @Override
+    Type rewrite(Type[] types) {
+      assert types.length == 1;
+      return new Array(count, types[0]);
+    }
+
+    @Override
     public String toString() {
       return "[" + count + " x " + element + ']';
     }
@@ -406,6 +417,12 @@ public abstract class Type implements Iterable<Type> {
   private static final class Vector extends Sequential {
     Vector(int count, Type element) {
       super(count, element);
+    }
+
+    @Override
+    Type rewrite(Type[] types) {
+      assert types.length == 1;
+      return new Vector(count, types[0]);
     }
 
     @Override
@@ -461,6 +478,11 @@ public abstract class Type implements Iterable<Type> {
     }
 
     @Override
+    Type rewrite(Type[] types) {
+      return new Struct(types);
+    }
+
+    @Override
     public String toString() {
       var sb = new StringBuilder();
       sb.append('{');
@@ -493,6 +515,11 @@ public abstract class Type implements Iterable<Type> {
 
   private static final class FunctionType extends Compound {
     final boolean varargs;
+
+    @Override
+    Type rewrite(Type[] types) {
+      return new FunctionType(types, varargs);
+    }
 
     FunctionType(Type[] elements, boolean varargs) {
       super(elements);
