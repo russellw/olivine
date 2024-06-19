@@ -377,7 +377,7 @@ public abstract class Type implements Iterable<Type> {
 
     @Override
     public Type get(int i) {
-      if (i != 0) throw new IndexOutOfBoundsException("%s, %s".formatted(this, i));
+      assert i == 0;
       return element;
     }
 
