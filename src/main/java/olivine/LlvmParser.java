@@ -756,6 +756,7 @@ public final class LlvmParser {
       }
       eol();
     }
+    types.replaceAll((_, value) -> value.resolve(types));
 
     // Second pass, declare symbols
     reset();
