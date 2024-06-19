@@ -1098,8 +1098,7 @@ public final class LlvmParser {
 
   private void eol() {
     assert token != EOF;
-    while (token != '\n') lex();
-    lex();
+    while (!eat('\n')) lex();
   }
 
   public static Module parse(String file, byte[] text) {
