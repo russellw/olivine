@@ -344,6 +344,12 @@ public abstract class Type implements Iterable<Type> {
     return new Struct(fields.toArray(new Type[0]));
   }
 
+  Type resolve(Map<String, Type> typeMap) {
+    var types = new Type[size()];
+    for (var i = 0; i < types.length; i++) types[i] = get(i).resolve(typeMap);
+    return rewrite(types);
+  }
+
   int count() {
     throw new UnsupportedOperationException(toString());
   }
