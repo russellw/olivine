@@ -42,14 +42,15 @@ def indentation(s):
 
 def parse_java(v):
     i = 0
-    while not is_class_start(v[i]) and not is_enum_start(v[i]):
+
+    # package
+    assert v[i].startswith("package")
+    i += 1
+
+    # import
+    while not v[i] or v[i].startswith("import"):
         i += 1
     header = v[:i]
-
-    if is_enum_start(v[i]):
-        j = i
-        while v[j] != "}":
-            j += 1
 
     def parse_member():
         nonlocal i
@@ -101,7 +102,9 @@ def parse_java(v):
             i += 1
             return a
 
-    return header
+    a = parse_member()
+    a.header = header + a.header
+    return a
 
 
 def closes(dent, s):
