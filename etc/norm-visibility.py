@@ -1,4 +1,5 @@
 import etc
 
 for file in etc.src_files():
-    print(file)
+    v = etc.read_lines(file)
+    print(etc.parse_java(v))
