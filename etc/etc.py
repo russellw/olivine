@@ -51,10 +51,6 @@ def parse_java(v):
         while v[j] != "}":
             j += 1
 
-    def parse_class():
-        assert is_class_start(v[i])
-        assert v[i].endswith("{")
-
     def parse_member():
         nonlocal i
 
@@ -77,11 +73,9 @@ def parse_java(v):
         # Enum
         if is_enum_start(signature):
             a = Enum(header, signature)
-            while re.match(r" *\w,$", v[i]):
+            while not closes(dent, v[i]):
                 a.members.append(v[i])
                 i += 1
-            assert re.match(r" *}$", v[i])
-            assert indentation(signature) == indentation(v[i])
             i += 1
             return a
 
@@ -95,14 +89,17 @@ def parse_java(v):
                 if closes(dent, v[i]):
                     break
                 a.members.append(parse_member())
-            assert re.match(r" *}$", v[i])
-            assert indentation(signature) == indentation(v[i])
             i += 1
             return a
 
         # Method
         if re.match(r" *[\w ]*\(.*\) {$", signature):
-            pass
+            a = Method(header, signature)
+            while not closes(dent, v[i]):
+                a.body.append(v[i])
+                i += 1
+            i += 1
+            return a
 
     return header
 
@@ -116,6 +113,13 @@ class Class:
         self.header = header
         self.signature = signature
         self.members = []
+
+
+class Method:
+    def __init__(self, header, signature):
+        self.header = header
+        self.signature = signature
+        self.body = []
 
 
 class Enum:
