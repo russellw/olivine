@@ -1,5 +1,8 @@
+import java
+
 import etc
 
-for file in etc.src_files():
+for file in java.src_files():
     v = etc.read_lines(file)
-    print(etc.parse_java(v))
+    a = java.parse(v)
+    print(a)

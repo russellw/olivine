@@ -1,3 +1,4 @@
+import os
 import re
 
 import etc
@@ -14,7 +15,7 @@ def src_files():
     return java_files
 
 
-def java(v):
+def parse(v):
     i = 0
 
     # package
@@ -56,7 +57,7 @@ def java(v):
 
         # Class
         if re.search(r"\bclass\b", signature):
-            dent = indentation(signature)
+            dent = etc.indentation(signature)
             a = Class(header, signature)
             while 1:
                 while not v[i]:
@@ -75,6 +76,8 @@ def java(v):
                 i += 1
             i += 1
             return a
+
+        raise Exception(f"{i}: {signature}")
 
     a = parse_member()
     a.header = header + a.header
