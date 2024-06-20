@@ -2,8 +2,8 @@ import argparse
 import os
 import random
 import re
-import subprocess
 import shlex
+import subprocess
 
 
 def call(cmd):
