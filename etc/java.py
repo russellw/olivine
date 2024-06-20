@@ -46,7 +46,7 @@ def java(v):
         i += 1
 
         # Enum
-        if is_enum_start(signature):
+        if re.search(r"\benum\b", signature):
             a = Enum(header, signature)
             while not closes(dent, v[i]):
                 a.members.append(v[i])
@@ -55,7 +55,7 @@ def java(v):
             return a
 
         # Class
-        if is_class_start(signature):
+        if re.search(r"\bclass\b", signature):
             dent = indentation(signature)
             a = Class(header, signature)
             while 1:
