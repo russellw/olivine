@@ -18,12 +18,12 @@ def src_files():
 def parse(v):
     i = 0
 
-    # package
+    # Package
     assert v[i].startswith("package")
     i += 1
 
-    # import
-    while not v[i] or v[i].startswith("import"):
+    # Imports or comments
+    while not v[i] or v[i].startswith("import") or v[i].startswith("//"):
         i += 1
     header = v[:i]
 
