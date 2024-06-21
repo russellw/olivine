@@ -125,7 +125,7 @@ class Class:
         r.append(self.signature)
         for i in range(len(self.members)):
             a = self.members[i]
-            if i and a.separate() and self.members[i - 1].separate():
+            if i and (a.separate() or self.members[i - 1].separate()):
                 r.append("")
             a.compose(r)
         if not self.signature.endswith("}"):
