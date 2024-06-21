@@ -14,7 +14,8 @@ def write_lines(file, v):
 
 def indentation(s):
     i = 0
-    while s[i] == " ":
-        i += 1
-    assert s[i] != "\t"
+    if s:
+        while s[i] == " ":
+            i += 1
+        assert s[i] != "\t"
     return i

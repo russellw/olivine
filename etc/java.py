@@ -44,6 +44,7 @@ def parse(v):
         # Signature
         assert re.match(r" *\w", v[i])
         signature = v[i]
+        dent = etc.indentation(signature)
         i += 1
 
         # Enum
@@ -57,7 +58,6 @@ def parse(v):
 
         # Class
         if re.search(r"\bclass\b", signature):
-            dent = etc.indentation(signature)
             a = Class(header, signature)
             while 1:
                 while not v[i]:
@@ -68,13 +68,29 @@ def parse(v):
             i += 1
             return a
 
+        # Empty method
+        if re.search(r"\w\(.*\) .*{}$", signature):
+            return Method(header, signature)
+
         # Method
-        if re.match(r" *[\w ]*\(.*\) {$", signature):
+        if re.search(r"\w\(.*\) .*{$", signature):
             a = Method(header, signature)
             while not closes(dent, v[i]):
                 a.body.append(v[i])
                 i += 1
             i += 1
+            return a
+
+        # One-line field
+        if signature.endswith(";"):
+            return Field(header, signature)
+
+        # Multiline field
+        if signature.endswith("="):
+            a = Field(header, signature)
+            while dent < etc.indentation(v[i]):
+                a.value.append(v[i])
+                i += 1
             return a
 
         raise Exception(f"{i}: {signature}")
@@ -93,6 +109,13 @@ class Class:
         self.header = header
         self.signature = signature
         self.members = []
+
+
+class Field:
+    def __init__(self, header, signature):
+        self.header = header
+        self.signature = signature
+        self.value = []
 
 
 class Method:
