@@ -27,7 +27,7 @@ def parse(v):
         i += 1
     header = v[:i]
 
-    def parse_member():
+    def member():
         nonlocal i
 
         # Comments
@@ -68,7 +68,7 @@ def parse(v):
                     i += 1
                 if closes(dent, v[i]):
                     break
-                a.members.append(parse_member())
+                a.members.append(member())
             i += 1
             return a
 
@@ -105,7 +105,7 @@ def parse(v):
 
         raise Exception(f"{i}: {signature}")
 
-    a = parse_member()
+    a = member()
     a.header = header + a.header
     return a
 
@@ -148,6 +148,11 @@ class Class:
         if not self.signature.endswith("}"):
             r.append(" " * etc.indentation(self.signature) + "}")
 
+    def walk(self, f):
+        for a in self.members:
+            a.walk(f)
+        f(self)
+
 
 class Field:
     def __init__(self, header, signature):
@@ -167,6 +172,20 @@ class Field:
         r.append(self.signature)
         r.extend(self.value)
 
+    def walk(self, f):
+        f(self)
+
+
+def visibility(a):
+    s = a.signature
+    if re.search(r"\bpublic\b", s):
+        return "public"
+    if re.search(r"\bprivate\b", s):
+        return "private"
+    if re.search(r"\bprotected\b", s):
+        return "protected"
+    return ""
+
 
 class Method:
     def __init__(self, header, signature):
@@ -184,6 +203,9 @@ class Method:
         if self.signature[-1] not in ";}":
             r.append(" " * etc.indentation(self.signature) + "}")
 
+    def walk(self, f):
+        f(self)
+
 
 class Enum:
     def __init__(self, header, signature):
@@ -200,3 +222,6 @@ class Enum:
         r.extend(self.members)
         if not self.signature.endswith("}"):
             r.append(" " * etc.indentation(self.signature) + "}")
+
+    def walk(self, f):
+        f(self)

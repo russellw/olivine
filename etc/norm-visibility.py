@@ -2,6 +2,12 @@ import java
 
 import etc
 
+
+def f(a):
+    if not java.visibility(a):
+        s = a.signature
+
+
 for file in java.src_files():
     v = etc.read_lines(file)
     a = java.parse(v)
