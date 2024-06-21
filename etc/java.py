@@ -174,6 +174,10 @@ class Class:
         if not self.sig.endswith("}"):
             r.append(" " * etc.indentation(self.sig) + "}")
 
+    def sort(self):
+        for a in self.members:
+            a.sort()
+
     def walk(self, f):
         for a in self.members:
             a.walk(f)
@@ -206,6 +210,10 @@ class FieldClass:
                 r.append("")
             a.compose(r)
         r.append(" " * etc.indentation(self.sig1) + "};")
+
+    def sort(self):
+        for a in self.members:
+            a.sort()
 
     def walk(self, f):
         for a in self.members:
@@ -240,6 +248,9 @@ class Field:
         r.extend(self.header)
         r.append(self.sig)
         r.extend(self.value)
+
+    def sort(self):
+        pass
 
     def walk(self, f):
         f(self)
@@ -278,6 +289,9 @@ class Method:
         if self.sig[-1] not in ";}":
             r.append(" " * etc.indentation(self.sig) + "}")
 
+    def sort(self):
+        pass
+
     def walk(self, f):
         f(self)
 
@@ -303,6 +317,9 @@ class Enum:
         r.extend(self.members)
         if not self.sig.endswith("}"):
             r.append(" " * etc.indentation(self.sig) + "}")
+
+    def sort(self):
+        pass
 
     def walk(self, f):
         f(self)
