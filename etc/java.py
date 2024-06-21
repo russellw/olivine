@@ -174,6 +174,7 @@ class Class:
         self.sig = sig
         self.members = []
 
+        # Name
         r = re.search(r"class (\w+)", sig)
         self.name = r[1]
 
@@ -212,6 +213,7 @@ class FieldClass:
         self.sig1 = sig1
         self.members = []
 
+        # Name
         r = re.search(r"(\w+) =", sig)
         self.name = r[1]
 
@@ -249,6 +251,7 @@ class Field:
         self.sig = sig
         self.value = []
 
+        # Name
         r = re.search(r"(\w+) =", sig)
         if r:
             self.name = r[1]
@@ -295,6 +298,7 @@ class Method:
         self.sig = sig
         self.body = []
 
+        # Name
         r = re.search(r"(\w+)\(.*\)", sig)
         self.name = r[1]
 
@@ -324,6 +328,7 @@ class Enum:
         self.sig = sig
         self.members = []
 
+        # Name
         r = re.search(r"enum (\w+)", sig)
         self.name = r[1]
 
