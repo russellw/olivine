@@ -25,32 +25,6 @@ public final class Main {
         },
       };
 
-  private static void run(String[] cmd) throws IOException, InterruptedException {
-    // Print the command we are about to run
-    var more = false;
-    for (var s : cmd) {
-      if (more) System.out.print(' ');
-      more = true;
-      System.out.print(s);
-    }
-    System.out.println();
-
-    // Setup
-    var builder = new ProcessBuilder(cmd);
-    builder.inheritIO();
-
-    // Run
-    var process = builder.start();
-    process.waitFor();
-
-    // Check for error
-    var e = process.exitValue();
-    if (e != 0) {
-      System.err.println("Process exit value: " + e);
-      System.exit(e);
-    }
-  }
-
   public static void main(String[] args) throws IOException, InterruptedException {
     // Command line
     Option.parse(OPTIONS, args);
@@ -83,17 +57,6 @@ public final class Main {
     Files.write(Path.of("a.ll"), LlvmComposer.compose(module));
   }
 
-  private static String version() throws IOException {
-    var properties = new Properties();
-    var stream =
-        Etc.class
-            .getClassLoader()
-            .getResourceAsStream("META-INF/maven/olivine/olivine/pom.properties");
-    if (stream == null) return null;
-    properties.load(stream);
-    return properties.getProperty("version");
-  }
-
   private static void printVersion() throws IOException {
     System.out.printf(
         "Olivine %s, %s\n",
@@ -109,5 +72,42 @@ public final class Main {
         System.getProperty("os.name"),
         System.getProperty("os.version"),
         System.getProperty("os.arch"));
+  }
+
+  private static void run(String[] cmd) throws IOException, InterruptedException {
+    // Print the command we are about to run
+    var more = false;
+    for (var s : cmd) {
+      if (more) System.out.print(' ');
+      more = true;
+      System.out.print(s);
+    }
+    System.out.println();
+
+    // Setup
+    var builder = new ProcessBuilder(cmd);
+    builder.inheritIO();
+
+    // Run
+    var process = builder.start();
+    process.waitFor();
+
+    // Check for error
+    var e = process.exitValue();
+    if (e != 0) {
+      System.err.println("Process exit value: " + e);
+      System.exit(e);
+    }
+  }
+
+  private static String version() throws IOException {
+    var properties = new Properties();
+    var stream =
+        Etc.class
+            .getClassLoader()
+            .getResourceAsStream("META-INF/maven/olivine/olivine/pom.properties");
+    if (stream == null) return null;
+    properties.load(stream);
+    return properties.getProperty("version");
   }
 }

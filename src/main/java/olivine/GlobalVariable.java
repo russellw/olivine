@@ -10,12 +10,12 @@ public final class GlobalVariable extends Global {
   }
 
   @Override
-  public Type type() {
-    return type;
+  public Tag tag() {
+    return Tag.GLOBAL_VARIABLE;
   }
 
   @Override
-  public Tag tag() {
-    return Tag.GLOBAL_VARIABLE;
+  public Type type() {
+    return type;
   }
 }

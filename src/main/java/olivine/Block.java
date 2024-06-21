@@ -5,22 +5,18 @@ import java.util.*;
 public final class Block implements Iterable<Instruction> {
   private final List<Instruction> instructions = new ArrayList<>();
 
-  public List<Block> successors() {
-    if (instructions.isEmpty()) return List.of();
-    return switch (last()) {
-      case BrUnconditional brUnconditional -> List.of(brUnconditional.dest);
-      case Br br -> List.of(br.ifTrue, br.ifFalse);
-      default -> List.of();
-    };
+  public void add(Instruction instruction) {
+    instructions.add(instruction);
   }
 
   public Instruction get(int i) {
     return instructions.get(i);
   }
 
-  public void replace(List<Instruction> replacement) {
-    instructions.clear();
-    instructions.addAll(replacement);
+  public void getBlocks(Set<Block> visited, List<Block> blocks) {
+    if (!visited.add(this)) return;
+    blocks.add(this);
+    for (var block : successors()) block.getBlocks(visited, blocks);
   }
 
   @Override
@@ -28,10 +24,8 @@ public final class Block implements Iterable<Instruction> {
     return instructions.iterator();
   }
 
-  public void getBlocks(Set<Block> visited, List<Block> blocks) {
-    if (!visited.add(this)) return;
-    blocks.add(this);
-    for (var block : successors()) block.getBlocks(visited, blocks);
+  public Instruction last() {
+    return instructions.getLast();
   }
 
   public Instruction pop() {
@@ -44,15 +38,21 @@ public final class Block implements Iterable<Instruction> {
     instructions.remove(i);
   }
 
-  public void add(Instruction instruction) {
-    instructions.add(instruction);
+  public void replace(List<Instruction> replacement) {
+    instructions.clear();
+    instructions.addAll(replacement);
   }
 
   public int size() {
     return instructions.size();
   }
 
-  public Instruction last() {
-    return instructions.getLast();
+  public List<Block> successors() {
+    if (instructions.isEmpty()) return List.of();
+    return switch (last()) {
+      case BrUnconditional brUnconditional -> List.of(brUnconditional.dest);
+      case Br br -> List.of(br.ifTrue, br.ifFalse);
+      default -> List.of();
+    };
   }
 }

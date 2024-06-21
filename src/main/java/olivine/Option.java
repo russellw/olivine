@@ -8,19 +8,31 @@ import java.util.ArrayList;
 import java.util.List;
 
 public abstract class Option {
-  private final char shortName;
-  private final String longName;
-  private final String argName;
-  private final String description;
-
   private static boolean parsingOptions = true;
   public static final List<String> positionalArgs = new ArrayList<>();
+
+  private final String argName;
+  private final String description;
+  private final String longName;
+  private final char shortName;
 
   protected Option(char shortName, String longName, String argName, String description) {
     this.shortName = shortName;
     this.longName = longName;
     this.argName = argName;
     this.description = description;
+  }
+
+  public abstract void accept(String arg) throws IOException;
+
+  private static Option getOption(Option[] options, String longName) {
+    for (var option : options) if (option.longName.equals(longName)) return option;
+    return null;
+  }
+
+  private static Option getOption(Option[] options, char shortName) {
+    for (var option : options) if (option.shortName == shortName) return option;
+    return null;
   }
 
   private static int help(Option[] options, boolean live, int width) {
@@ -74,28 +86,11 @@ public abstract class Option {
     System.exit(0);
   }
 
-  public abstract void accept(String arg) throws IOException;
-
   private static boolean isSeparator(char c) {
     return switch (c) {
       case ':', '=' -> true;
       default -> false;
     };
-  }
-
-  private static int separator(String s, @SuppressWarnings("SameParameterValue") int i) {
-    while (i < s.length() && !isSeparator(s.charAt(i))) i++;
-    return i;
-  }
-
-  private static Option getOption(Option[] options, char shortName) {
-    for (var option : options) if (option.shortName == shortName) return option;
-    return null;
-  }
-
-  private static Option getOption(Option[] options, String longName) {
-    for (var option : options) if (option.longName.equals(longName)) return option;
-    return null;
   }
 
   public static void parse(Option[] options, String[] args) throws IOException {
@@ -174,5 +169,10 @@ public abstract class Option {
         }
       positionalArgs.add(s);
     }
+  }
+
+  private static int separator(String s, @SuppressWarnings("SameParameterValue") int i) {
+    while (i < s.length() && !isSeparator(s.charAt(i))) i++;
+    return i;
   }
 }

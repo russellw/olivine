@@ -5,95 +5,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public final class LlvmComposer {
-  private final ByteArrayOutputStream stream = new ByteArrayOutputStream();
   private final Map<Object, String> locals = new HashMap<>();
-
-  public static String scast(Term a) {
-    var from = a.get(0).type();
-    var to = a.type();
-    assert !from.equals(to);
-    if (from.isInt()) {
-      if (to.isInt()) {
-        assert from.bits() < to.bits();
-        return "sext";
-      }
-      if (to.isFloat()) return "sitofp";
-    } else if (from.isFloat()) if (to.isInt()) return "fptosi";
-    throw new IllegalArgumentException(a.toString());
-  }
-
-  public static String cast(Term a) {
-    var from = a.get(0).type();
-    var to = a.type();
-    assert !from.equals(to);
-    if (from == Type.PTR) {
-      if (to.isInt()) return "ptrtoint";
-    } else if (from.isInt()) {
-      if (to == Type.PTR) return "inttoptr";
-      if (to.isInt()) {
-        if (from.bits() < to.bits()) return "zext";
-        assert from.bits() > to.bits();
-        return "trunc";
-      }
-      if (to.isFloat()) return "uitofp";
-    } else if (from.isFloat()) {
-      if (to.isInt()) return "fptoui";
-      if (to.isFloat()) {
-        if (from.bits() < to.bits()) return "fpext";
-        // TODO: what happens when float types are the same size?
-        assert from.bits() > to.bits();
-        return "fptrunc";
-      }
-    }
-    throw new IllegalArgumentException(a.toString());
-  }
-
-  private void local(Object o) {
-    var s = locals.get(o);
-    if (s == null) {
-      s = Integer.toString(locals.size());
-      locals.put(o, s);
-    }
-    print(s);
-  }
-
-  private void print(int c) {
-    stream.write(c);
-  }
-
-  private void print(Type type) {
-    print(type.toString());
-  }
-
-  private void print(String s) {
-    stream.writeBytes(s.getBytes(StandardCharsets.UTF_8));
-  }
-
-  private void id(String s) {
-    if (isId(s)) {
-      print(s);
-      return;
-    }
-    print('"');
-    for (var i = 0; i < s.length(); i++) {
-      int c = s.charAt(i);
-      if (Etc.isPrint(c) && c != '"' && c != '\\') {
-        print(c);
-        continue;
-      }
-      print('\\');
-      print(Etc.hexDigit(c >> 4));
-      print(Etc.hexDigit(c & 0xf));
-    }
-    print('"');
-  }
-
-  public static boolean isId(String s) {
-    if (s.isEmpty()) return false;
-    if (Etc.isDigit(s.charAt(0))) return false;
-    for (var i = 0; i < s.length(); i++) if (!LlvmParser.isIdPart(s.charAt(i))) return false;
-    return true;
-  }
+  private final ByteArrayOutputStream stream = new ByteArrayOutputStream();
 
   private LlvmComposer(Module module) {
     // Global variables
@@ -176,10 +89,6 @@ public final class LlvmComposer {
     }
   }
 
-  public static byte[] compose(Module module) {
-    return new LlvmComposer(module).stream.toByteArray();
-  }
-
   private void args(Iterable<Term> terms) {
     print(' ');
     var more = false;
@@ -192,21 +101,6 @@ public final class LlvmComposer {
       more = true;
       atom(term);
     }
-  }
-
-  private void call(Term call) {
-    assert call.tag() == Tag.CALL;
-    print("call ");
-    var function = (Function) call.get(0);
-    print(function.returnType);
-    print(" @");
-    id(function.name);
-    print('(');
-    for (var i = 1; i < call.size(); i++) {
-      if (i > 1) print(',');
-      typeAtom(call.get(i));
-    }
-    print(')');
   }
 
   private void atom(Term term) {
@@ -229,6 +123,86 @@ public final class LlvmComposer {
       }
       default -> print(term.toString());
     }
+  }
+
+  private void call(Term call) {
+    assert call.tag() == Tag.CALL;
+    print("call ");
+    var function = (Function) call.get(0);
+    print(function.returnType);
+    print(" @");
+    id(function.name);
+    print('(');
+    for (var i = 1; i < call.size(); i++) {
+      if (i > 1) print(',');
+      typeAtom(call.get(i));
+    }
+    print(')');
+  }
+
+  public static String cast(Term a) {
+    var from = a.get(0).type();
+    var to = a.type();
+    assert !from.equals(to);
+    if (from == Type.PTR) {
+      if (to.isInt()) return "ptrtoint";
+    } else if (from.isInt()) {
+      if (to == Type.PTR) return "inttoptr";
+      if (to.isInt()) {
+        if (from.bits() < to.bits()) return "zext";
+        assert from.bits() > to.bits();
+        return "trunc";
+      }
+      if (to.isFloat()) return "uitofp";
+    } else if (from.isFloat()) {
+      if (to.isInt()) return "fptoui";
+      if (to.isFloat()) {
+        if (from.bits() < to.bits()) return "fpext";
+        // TODO: what happens when float types are the same size?
+        assert from.bits() > to.bits();
+        return "fptrunc";
+      }
+    }
+    throw new IllegalArgumentException(a.toString());
+  }
+
+  public static byte[] compose(Module module) {
+    return new LlvmComposer(module).stream.toByteArray();
+  }
+
+  private void id(String s) {
+    if (isId(s)) {
+      print(s);
+      return;
+    }
+    print('"');
+    for (var i = 0; i < s.length(); i++) {
+      int c = s.charAt(i);
+      if (Etc.isPrint(c) && c != '"' && c != '\\') {
+        print(c);
+        continue;
+      }
+      print('\\');
+      print(Etc.hexDigit(c >> 4));
+      print(Etc.hexDigit(c & 0xf));
+    }
+    print('"');
+  }
+
+  public static boolean isId(String s) {
+    if (s.isEmpty()) return false;
+    if (Etc.isDigit(s.charAt(0))) return false;
+    for (var i = 0; i < s.length(); i++) if (!LlvmParser.isIdPart(s.charAt(i))) return false;
+    return true;
+  }
+
+  private void local(Object o) {
+    var s = locals.get(o);
+    if (s == null) {
+      s = Integer.toString(locals.size());
+      locals.put(o, s);
+    }
+    print(s);
   }
 
   private void print(Instruction instruction) {
@@ -348,6 +322,32 @@ public final class LlvmComposer {
       default -> throw new IllegalArgumentException(instruction.toString());
     }
     print('\n');
+  }
+
+  private void print(String s) {
+    stream.writeBytes(s.getBytes(StandardCharsets.UTF_8));
+  }
+
+  private void print(Type type) {
+    print(type.toString());
+  }
+
+  private void print(int c) {
+    stream.write(c);
+  }
+
+  public static String scast(Term a) {
+    var from = a.get(0).type();
+    var to = a.type();
+    assert !from.equals(to);
+    if (from.isInt()) {
+      if (to.isInt()) {
+        assert from.bits() < to.bits();
+        return "sext";
+      }
+      if (to.isFloat()) return "sitofp";
+    } else if (from.isFloat()) if (to.isInt()) return "fptosi";
+    throw new IllegalArgumentException(a.toString());
   }
 
   private void typeAtom(Term term) {

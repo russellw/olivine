@@ -4,231 +4,201 @@ import java.math.BigInteger;
 import java.util.*;
 
 public final class LlvmParser {
-  private static final int EOF = 128;
-  private static final int LOCAL_ID = 129;
-  private static final int GLOBAL_ID = 130;
   private static final int COMDAT_ID = 131;
-  private static final int LABEL = 132;
-  private static final int WORD = 133;
-  private static final int INT = 134;
-  private static final int STRING = 135;
   private static final int DOTS = 136;
+  private static final int EOF = 128;
   private static final int FLOAT = 137;
+  private static final int GLOBAL_ID = 130;
   private static final int HEX_FLOAT = 138;
+  private static final int INT = 134;
+  private static final int LABEL = 132;
+  private static final int LOCAL_ID = 129;
+  private static final int STRING = 135;
+  private static final int WORD = 133;
 
+  public static String datalayout;
+  public static String triple;
+
+  private final Map<String, Block> blocks = new HashMap<>();
   private final String file;
+  private final Map<String, Global> globals = new HashMap<>();
+  private final Map<String, Term> locals = new HashMap<>();
+  private final Map<Block, List<Term>> phis = new LinkedHashMap<>();
   private final byte[] text;
   private int textIdx;
   private int token;
   private String tokenString;
   private final Map<String, Type> types = new HashMap<>();
-  private final Map<String, Global> globals = new HashMap<>();
-  private final Map<String, Term> locals = new HashMap<>();
-  private final Map<String, Block> blocks = new HashMap<>();
-  private final Map<Block, List<Term>> phis = new LinkedHashMap<>();
 
-  public static String datalayout;
-  public static String triple;
+  private LlvmParser(String file, byte[] text, Module module) {
+    this.file = file;
+    this.text = text;
 
-  private ParseException error(String msg) {
-    return new ParseException(file, line(), msg);
-  }
-
-  private ParseException error(String cause, String msg) {
-    if (cause == null) return new ParseException(file, line(), msg);
-    return new ParseException(file, line(), cause, msg);
-  }
-
-  private boolean eat(int k) {
-    if (token == k) {
-      lex();
-      return true;
-    }
-    return false;
-  }
-
-  private int line() {
-    var n = 1;
-    for (var i = 0; i < textIdx - 1; i++) if (text[i] == '\n') n++;
-    return n;
-  }
-
-  private String expect(int k) {
-    if (token == k) return lex1();
-    var msg = k < 128 ? "expected '%c'".formatted(k) : "syntax error";
-    throw error(cause(), msg);
-  }
-
-  public String cause() {
-    return switch (token) {
-      case '\n' -> "newline";
-      case WORD, INT -> tokenString;
-      default -> {
-        if (Etc.isPrint(token)) yield "'%c'".formatted(token);
-        yield null;
-      }
-    };
-  }
-
-  private boolean eat(String s) {
-    if (token == WORD && tokenString.equals(s)) {
-      lex();
-      return true;
-    }
-    return false;
-  }
-
-  private void expect(String s) {
-    if (!eat(s)) throw error("expected '%s'".formatted(s));
-  }
-
-  private String lex1() {
-    var s = tokenString;
-    lex();
-    return s;
-  }
-
-  private String idem(String s) {
-    if (s == null || s.equals(tokenString)) return tokenString;
-    throw error("does not match previous declaration");
-  }
-
-  private Type primaryType() {
-    switch (token) {
-      case WORD -> {
-        var s = lex1();
-        return switch (s) {
-          case "void" -> Type.VOID;
-          case "ptr" -> Type.PTR;
-          case "half" -> Type.HALF;
-          case "bfloat" -> Type.BFLOAT;
-          case "float" -> Type.FLOAT;
-          case "double" -> Type.DOUBLE;
-          case "fp128" -> Type.FP128;
-          case "x86_fp80" -> Type.X86_FP80;
-          case "ppc_fp128" -> Type.PPC_FP128;
-          case "i1" -> Type.I1;
-          case "i8" -> Type.I8;
-          case "i16" -> Type.I16;
-          case "i32" -> Type.I32;
-          case "i64" -> Type.I64;
-          case "i128" -> Type.I128;
-          default -> throw error(s, "unknown type");
-        };
-      }
-      case '[' -> {
-        lex();
-        var n = Integer.parseInt(expect(INT));
-        expect("x");
-        var x = type();
-        expect(']');
-        return x.array(n);
-      }
-      case '<' -> {
-        lex();
-        var n = Integer.parseInt(expect(INT));
-        expect("x");
-        var x = type();
-        expect('>');
-        return x.vector(n);
-      }
-      case '{' -> {
-        lex();
-        var fields = new ArrayList<Type>();
-        do fields.add(type());
-        while (eat(','));
-        expect('}');
-        return Type.struct(fields);
-      }
-      case LOCAL_ID -> {
-        var type = types.get(tokenString);
-        if (type == null) type = new UnresolvedType(tokenString);
-        lex();
-        return type;
-      }
-    }
-    throw error("expected type");
-  }
-
-  private Type type() {
-    var type = primaryType();
-    switch (token) {
-      case WORD -> {
-        if (eat("align")) expect(INT);
-      }
-      case '*' -> {
-        //noinspection StatementWithEmptyBody
-        do
-          ;
-        while (eat('*'));
-        return Type.PTR;
-      }
-      case '(' -> {
-        lex();
-        var params = new ArrayList<Type>();
-        var varargs = false;
-        if (token != ')')
-          do {
-            if (eat(DOTS)) {
-              varargs = true;
-              continue;
+    // First pass, define types along with miscellaneous items that don't depend on other
+    // definitions
+    reset();
+    while (token != EOF) {
+      switch (token) {
+        case LOCAL_ID -> {
+          var name = lex1();
+          expect('=');
+          if (eat("type")) types.put(name, type());
+        }
+        case WORD -> {
+          if (lex1().equals("target")) {
+            var t = expect(WORD);
+            expect('=');
+            if (token != STRING) throw error("expected string");
+            switch (t) {
+              case "datalayout" -> datalayout = idem(datalayout);
+              case "triple" -> triple = idem(triple);
+              default -> throw error(t, "unknown target attribute");
             }
-            params.add(type());
-          } while (eat(','));
-        expect(')');
-        return Type.function(type, params, varargs);
+          }
+        }
+        case COMDAT_ID -> {
+          module.comdats.add(lex1());
+          expect('=');
+          expect("comdat");
+          expect("any");
+        }
       }
+      eol();
     }
-    return type;
-  }
+    types.replaceAll((_, value) -> value.resolve(types));
 
-  private void linkage() {
-    if (token == WORD)
-      switch (tokenString) {
-        case "private",
-                "internal",
-                "available_externally",
-                "linkonce",
-                "weak",
-                "common",
-                "appending",
-                "extern_weak",
-                "linkonce_odr",
-                "weak_odr",
-                "external" ->
-            lex();
-      }
-  }
+    // Second pass, declare symbols
+    reset();
+    while (token != EOF) {
+      switch (token) {
+        case WORD -> {
+          switch (lex1()) {
+            case "define", "declare" -> {
+              linkage();
+              preemptionSpecifier();
+              paramAttrs();
 
-  private void preemptionSpecifier() {
-    if (token == WORD)
-      switch (tokenString) {
-        case "dso_local", "dso_preemptable" -> lex();
-      }
-  }
-
-  private void unnamedAddr() {
-    if (token == WORD)
-      switch (tokenString) {
-        case "unnamed_addr", "local_unnamed_addr" -> lex();
-      }
-  }
-
-  private void paramAttrs() {
-    while (token == WORD)
-      switch (tokenString) {
-        case "noundef", "readnone", "readonly", "nonnull", "immarg", "nocapture", "returned" ->
-            lex();
-        case "dereferenceable" -> {
-          lex();
-          expect('(');
-          expect(INT);
-          expect(')');
+              var rtype = type();
+              var name = expect(GLOBAL_ID);
+              expect('(');
+              var params = new ArrayList<Variable>();
+              var varargs = false;
+              if (token != ')')
+                do {
+                  if (eat(DOTS)) {
+                    varargs = true;
+                    continue;
+                  }
+                  params.add(new Variable(type()));
+                  paramAttrs();
+                  eat(LOCAL_ID);
+                } while (eat(','));
+              expect(')');
+              var function = new Function(name, rtype, params, varargs);
+              declare(name, function);
+              module.functions.add(function);
+            }
+          }
         }
-        default -> {
-          return;
+        case GLOBAL_ID -> {
+          var name = lex1();
+          expect('=');
+          linkage();
+          preemptionSpecifier();
+          unnamedAddr();
+          if (token == WORD)
+            switch (tokenString) {
+              case "constant", "global" -> lex();
+            }
+          var a = new GlobalVariable(name, type());
+          declare(name, a);
+          module.variables.add(a);
         }
       }
+      eol();
+    }
+
+    // Third pass, fill in global values and function bodies
+    reset();
+    while (token != EOF) {
+      // TODO: refactor?
+      switch (token) {
+        case WORD -> {
+          // Function definition
+          if (tokenString.equals("define")) {
+            do lex();
+            while (token != GLOBAL_ID);
+            var function = (Function) globals.get(lex1());
+
+            // Already parsed parameters for the function declaration
+            // but do so again to get the local variable names of the parameters
+            expect('(');
+            var i = 0;
+            locals.clear();
+            if (token != ')')
+              do {
+                if (eat(DOTS)) continue;
+                type();
+                paramAttrs();
+                locals.put(expect(LOCAL_ID), function.params.get(i++));
+              } while (eat(','));
+            eol();
+
+            // Entry block
+            var block = new Block();
+            function.entry = block;
+            if (token == LABEL) blocks.put(lex1(), block);
+
+            // Body
+            while (token != '}') {
+              if (token == LABEL) {
+                block = block();
+                continue;
+              }
+              instruction(block);
+              eol();
+            }
+
+            // Phis
+            for (var entry : phis.entrySet()) {
+              var from = entry.getKey();
+
+              // Terminator instruction needs to follow the phi assignments from this block
+              // so get it out of the way for now
+              // If the terminator is a conditional branch
+              // then the phi assignments for blocks not jumped to on a particular occasion
+              // will be redundant but harmless
+              var terminator = from.pop();
+
+              // Assignments
+              var assign = entry.getValue();
+              for (var j = 0; j < assign.size(); j += 2) {
+                var variable = (Variable) assign.get(j);
+                var val = assign.get(j + 1);
+                from.add(new Assign(variable, val));
+              }
+
+              // Put the terminator back, after the phi assignments
+              from.add(terminator);
+            }
+            phis.clear();
+          }
+        }
+        case GLOBAL_ID -> {
+          var variable = (GlobalVariable) globals.get(lex1());
+          expect('=');
+          linkage();
+          preemptionSpecifier();
+          unnamedAddr();
+          if (token == WORD)
+            switch (tokenString) {
+              case "constant", "global" -> lex();
+            }
+          variable.value = typeExpr();
+        }
+      }
+      eol();
+    }
   }
 
   private Block block() {
@@ -239,20 +209,6 @@ public final class LlvmParser {
     }
     lex();
     return block;
-  }
-
-  private void noWrap() {
-    eat("nsw");
-  }
-
-  private void fastMathFlags() {
-    while (token == WORD)
-      switch (tokenString) {
-        case "nnan", "ninf", "nsz", "arcp", "contract", "afn", "reassoc", "fast" -> lex();
-        default -> {
-          return;
-        }
-      }
   }
 
   private Term call() {
@@ -269,39 +225,59 @@ public final class LlvmParser {
     return f.call(args);
   }
 
-  private Block label() {
-    expect("label");
-    return block();
-  }
-
-  private Variable variable(String name, Type type) {
-    var a = (Variable) locals.get(name);
-    if (a == null) {
-      a = new Variable(type);
-      locals.put(name, a);
-    }
-    return a;
-  }
-
-  private Term getelementptr(Type type, Term ptr, List<Term> idxs) {
-    // The first index of getelementptr is for the case when the pointer is to an array
-    ptr = ptr.elementPtr(type, idxs.getFirst());
-    for (var i = 1; i < idxs.size(); i++) {
-      var idx = idxs.get(i);
-      switch (type.kind()) {
-        case ARRAY -> {
-          type = type.get(0);
-          ptr = ptr.elementPtr(type, idx);
-        }
-        case STRUCT -> {
-          var idx1 = idx.intValueExact();
-          ptr = ptr.fieldPtr(type, idx1);
-          type = type.get(idx1);
-        }
-        default -> throw error("expected compound type");
+  public String cause() {
+    return switch (token) {
+      case '\n' -> "newline";
+      case WORD, INT -> tokenString;
+      default -> {
+        if (Etc.isPrint(token)) yield "'%c'".formatted(token);
+        yield null;
       }
+    };
+  }
+
+  private void declare(String name, Global a) {
+    if (globals.put(name, a) != null) throw error(name, "duplicate name");
+  }
+
+  private boolean eat(String s) {
+    if (token == WORD && tokenString.equals(s)) {
+      lex();
+      return true;
     }
-    return ptr;
+    return false;
+  }
+
+  private boolean eat(int k) {
+    if (token == k) {
+      lex();
+      return true;
+    }
+    return false;
+  }
+
+  private void eol() {
+    assert token != EOF;
+    while (!eat('\n')) lex();
+  }
+
+  private ParseException error(String cause, String msg) {
+    if (cause == null) return new ParseException(file, line(), msg);
+    return new ParseException(file, line(), cause, msg);
+  }
+
+  private ParseException error(String msg) {
+    return new ParseException(file, line(), msg);
+  }
+
+  private String expect(int k) {
+    if (token == k) return lex1();
+    var msg = k < 128 ? "expected '%c'".formatted(k) : "syntax error";
+    throw error(cause(), msg);
+  }
+
+  private void expect(String s) {
+    if (!eat(s)) throw error("expected '%s'".formatted(s));
   }
 
   private Term expr(Type type) {
@@ -347,8 +323,52 @@ public final class LlvmParser {
     };
   }
 
-  private Term typeExpr() {
-    return expr(type());
+  private void fastMathFlags() {
+    while (token == WORD)
+      switch (tokenString) {
+        case "nnan", "ninf", "nsz", "arcp", "contract", "afn", "reassoc", "fast" -> lex();
+        default -> {
+          return;
+        }
+      }
+  }
+
+  private Term getelementptr(Type type, Term ptr, List<Term> idxs) {
+    // The first index of getelementptr is for the case when the pointer is to an array
+    ptr = ptr.elementPtr(type, idxs.getFirst());
+    for (var i = 1; i < idxs.size(); i++) {
+      var idx = idxs.get(i);
+      switch (type.kind()) {
+        case ARRAY -> {
+          type = type.get(0);
+          ptr = ptr.elementPtr(type, idx);
+        }
+        case STRUCT -> {
+          var idx1 = idx.intValueExact();
+          ptr = ptr.fieldPtr(type, idx1);
+          type = type.get(idx1);
+        }
+        default -> throw error("expected compound type");
+      }
+    }
+    return ptr;
+  }
+
+  private void id() {
+    textIdx++;
+    if (text[textIdx] == '"') {
+      quote();
+      return;
+    }
+    var sb = new StringBuilder();
+    do sb.append((char) text[textIdx++]);
+    while (isIdPart(text[textIdx]));
+    tokenString = sb.toString();
+  }
+
+  private String idem(String s) {
+    if (s == null || s.equals(tokenString)) return tokenString;
+    throw error("does not match previous declaration");
   }
 
   private void instruction(Block block) {
@@ -721,228 +741,6 @@ public final class LlvmParser {
     }
   }
 
-  private LlvmParser(String file, byte[] text, Module module) {
-    this.file = file;
-    this.text = text;
-
-    // First pass, define types along with miscellaneous items that don't depend on other
-    // definitions
-    reset();
-    while (token != EOF) {
-      switch (token) {
-        case LOCAL_ID -> {
-          var name = lex1();
-          expect('=');
-          if (eat("type")) types.put(name, type());
-        }
-        case WORD -> {
-          if (lex1().equals("target")) {
-            var t = expect(WORD);
-            expect('=');
-            if (token != STRING) throw error("expected string");
-            switch (t) {
-              case "datalayout" -> datalayout = idem(datalayout);
-              case "triple" -> triple = idem(triple);
-              default -> throw error(t, "unknown target attribute");
-            }
-          }
-        }
-        case COMDAT_ID -> {
-          module.comdats.add(lex1());
-          expect('=');
-          expect("comdat");
-          expect("any");
-        }
-      }
-      eol();
-    }
-    types.replaceAll((_, value) -> value.resolve(types));
-
-    // Second pass, declare symbols
-    reset();
-    while (token != EOF) {
-      switch (token) {
-        case WORD -> {
-          switch (lex1()) {
-            case "define", "declare" -> {
-              linkage();
-              preemptionSpecifier();
-              paramAttrs();
-
-              var rtype = type();
-              var name = expect(GLOBAL_ID);
-              expect('(');
-              var params = new ArrayList<Variable>();
-              var varargs = false;
-              if (token != ')')
-                do {
-                  if (eat(DOTS)) {
-                    varargs = true;
-                    continue;
-                  }
-                  params.add(new Variable(type()));
-                  paramAttrs();
-                  eat(LOCAL_ID);
-                } while (eat(','));
-              expect(')');
-              var function = new Function(name, rtype, params, varargs);
-              declare(name, function);
-              module.functions.add(function);
-            }
-          }
-        }
-        case GLOBAL_ID -> {
-          var name = lex1();
-          expect('=');
-          linkage();
-          preemptionSpecifier();
-          unnamedAddr();
-          if (token == WORD)
-            switch (tokenString) {
-              case "constant", "global" -> lex();
-            }
-          var a = new GlobalVariable(name, type());
-          declare(name, a);
-          module.variables.add(a);
-        }
-      }
-      eol();
-    }
-
-    // Third pass, fill in global values and function bodies
-    reset();
-    while (token != EOF) {
-      // TODO: refactor?
-      switch (token) {
-        case WORD -> {
-          // Function definition
-          if (tokenString.equals("define")) {
-            do lex();
-            while (token != GLOBAL_ID);
-            var function = (Function) globals.get(lex1());
-
-            // Already parsed parameters for the function declaration
-            // but do so again to get the local variable names of the parameters
-            expect('(');
-            var i = 0;
-            locals.clear();
-            if (token != ')')
-              do {
-                if (eat(DOTS)) continue;
-                type();
-                paramAttrs();
-                locals.put(expect(LOCAL_ID), function.params.get(i++));
-              } while (eat(','));
-            eol();
-
-            // Entry block
-            var block = new Block();
-            function.entry = block;
-            if (token == LABEL) blocks.put(lex1(), block);
-
-            // Body
-            while (token != '}') {
-              if (token == LABEL) {
-                block = block();
-                continue;
-              }
-              instruction(block);
-              eol();
-            }
-
-            // Phis
-            for (var entry : phis.entrySet()) {
-              var from = entry.getKey();
-
-              // Terminator instruction needs to follow the phi assignments from this block
-              // so get it out of the way for now
-              // If the terminator is a conditional branch
-              // then the phi assignments for blocks not jumped to on a particular occasion
-              // will be redundant but harmless
-              var terminator = from.pop();
-
-              // Assignments
-              var assign = entry.getValue();
-              for (var j = 0; j < assign.size(); j += 2) {
-                var variable = (Variable) assign.get(j);
-                var val = assign.get(j + 1);
-                from.add(new Assign(variable, val));
-              }
-
-              // Put the terminator back, after the phi assignments
-              from.add(terminator);
-            }
-            phis.clear();
-          }
-        }
-        case GLOBAL_ID -> {
-          var variable = (GlobalVariable) globals.get(lex1());
-          expect('=');
-          linkage();
-          preemptionSpecifier();
-          unnamedAddr();
-          if (token == WORD)
-            switch (tokenString) {
-              case "constant", "global" -> lex();
-            }
-          variable.value = typeExpr();
-        }
-      }
-      eol();
-    }
-  }
-
-  private void declare(String name, Global a) {
-    if (globals.put(name, a) != null) throw error(name, "duplicate name");
-  }
-
-  private void reset() {
-    textIdx = 0;
-    lex();
-  }
-
-  private void quote() {
-    assert text[textIdx] == '"';
-    textIdx++;
-    var sb = new StringBuilder();
-    while (text[textIdx] != '"') {
-      int c = text[textIdx++];
-      if (c == '\\')
-        switch (text[textIdx]) {
-          case '\\' -> textIdx++;
-          case '0',
-              '1',
-              '2',
-              '3',
-              '4',
-              '5',
-              '6',
-              '7',
-              '8',
-              '9',
-              'a',
-              'b',
-              'c',
-              'd',
-              'e',
-              'f',
-              'A',
-              'B',
-              'C',
-              'D',
-              'E',
-              'F' -> {
-            c = Etc.parseHexDigit(text[textIdx]) << 4 + Etc.parseHexDigit(text[textIdx + 1]);
-            textIdx += 2;
-          }
-          default -> throw error(Integer.toString(c), "unknown escape sequence");
-        }
-      sb.append((char) c);
-    }
-    textIdx++;
-    tokenString = sb.toString();
-  }
-
   public static boolean isIdPart(int c) {
     if (Etc.isAlnum(c)) return true;
     return switch (c) {
@@ -951,32 +749,9 @@ public final class LlvmParser {
     };
   }
 
-  private void id() {
-    textIdx++;
-    if (text[textIdx] == '"') {
-      quote();
-      return;
-    }
-    var sb = new StringBuilder();
-    do sb.append((char) text[textIdx++]);
-    while (isIdPart(text[textIdx]));
-    tokenString = sb.toString();
-  }
-
-  private void word() {
-    var sb = new StringBuilder();
-    do sb.append((char) text[textIdx++]);
-    while (isIdPart(text[textIdx]));
-    token = WORD;
-    maybeLabel();
-    tokenString = sb.toString();
-  }
-
-  private void maybeLabel() {
-    if (text[textIdx] == ':') {
-      textIdx++;
-      token = LABEL;
-    }
+  private Block label() {
+    expect("label");
+    return block();
   }
 
   private void lex() {
@@ -1097,9 +872,62 @@ public final class LlvmParser {
     token = EOF;
   }
 
-  private void eol() {
-    assert token != EOF;
-    while (!eat('\n')) lex();
+  private String lex1() {
+    var s = tokenString;
+    lex();
+    return s;
+  }
+
+  private int line() {
+    var n = 1;
+    for (var i = 0; i < textIdx - 1; i++) if (text[i] == '\n') n++;
+    return n;
+  }
+
+  private void linkage() {
+    if (token == WORD)
+      switch (tokenString) {
+        case "private",
+                "internal",
+                "available_externally",
+                "linkonce",
+                "weak",
+                "common",
+                "appending",
+                "extern_weak",
+                "linkonce_odr",
+                "weak_odr",
+                "external" ->
+            lex();
+      }
+  }
+
+  private void maybeLabel() {
+    if (text[textIdx] == ':') {
+      textIdx++;
+      token = LABEL;
+    }
+  }
+
+  private void noWrap() {
+    eat("nsw");
+  }
+
+  private void paramAttrs() {
+    while (token == WORD)
+      switch (tokenString) {
+        case "noundef", "readnone", "readonly", "nonnull", "immarg", "nocapture", "returned" ->
+            lex();
+        case "dereferenceable" -> {
+          lex();
+          expect('(');
+          expect(INT);
+          expect(')');
+        }
+        default -> {
+          return;
+        }
+      }
   }
 
   public static Module parse(String file, byte[] text) {
@@ -1108,5 +936,177 @@ public final class LlvmParser {
     var module = new Module();
     new LlvmParser(file, text, module);
     return module;
+  }
+
+  private void preemptionSpecifier() {
+    if (token == WORD)
+      switch (tokenString) {
+        case "dso_local", "dso_preemptable" -> lex();
+      }
+  }
+
+  private Type primaryType() {
+    switch (token) {
+      case WORD -> {
+        var s = lex1();
+        return switch (s) {
+          case "void" -> Type.VOID;
+          case "ptr" -> Type.PTR;
+          case "half" -> Type.HALF;
+          case "bfloat" -> Type.BFLOAT;
+          case "float" -> Type.FLOAT;
+          case "double" -> Type.DOUBLE;
+          case "fp128" -> Type.FP128;
+          case "x86_fp80" -> Type.X86_FP80;
+          case "ppc_fp128" -> Type.PPC_FP128;
+          case "i1" -> Type.I1;
+          case "i8" -> Type.I8;
+          case "i16" -> Type.I16;
+          case "i32" -> Type.I32;
+          case "i64" -> Type.I64;
+          case "i128" -> Type.I128;
+          default -> throw error(s, "unknown type");
+        };
+      }
+      case '[' -> {
+        lex();
+        var n = Integer.parseInt(expect(INT));
+        expect("x");
+        var x = type();
+        expect(']');
+        return x.array(n);
+      }
+      case '<' -> {
+        lex();
+        var n = Integer.parseInt(expect(INT));
+        expect("x");
+        var x = type();
+        expect('>');
+        return x.vector(n);
+      }
+      case '{' -> {
+        lex();
+        var fields = new ArrayList<Type>();
+        do fields.add(type());
+        while (eat(','));
+        expect('}');
+        return Type.struct(fields);
+      }
+      case LOCAL_ID -> {
+        var type = types.get(tokenString);
+        if (type == null) type = new UnresolvedType(tokenString);
+        lex();
+        return type;
+      }
+    }
+    throw error("expected type");
+  }
+
+  private void quote() {
+    assert text[textIdx] == '"';
+    textIdx++;
+    var sb = new StringBuilder();
+    while (text[textIdx] != '"') {
+      int c = text[textIdx++];
+      if (c == '\\')
+        switch (text[textIdx]) {
+          case '\\' -> textIdx++;
+          case '0',
+              '1',
+              '2',
+              '3',
+              '4',
+              '5',
+              '6',
+              '7',
+              '8',
+              '9',
+              'a',
+              'b',
+              'c',
+              'd',
+              'e',
+              'f',
+              'A',
+              'B',
+              'C',
+              'D',
+              'E',
+              'F' -> {
+            c = Etc.parseHexDigit(text[textIdx]) << 4 + Etc.parseHexDigit(text[textIdx + 1]);
+            textIdx += 2;
+          }
+          default -> throw error(Integer.toString(c), "unknown escape sequence");
+        }
+      sb.append((char) c);
+    }
+    textIdx++;
+    tokenString = sb.toString();
+  }
+
+  private void reset() {
+    textIdx = 0;
+    lex();
+  }
+
+  private Type type() {
+    var type = primaryType();
+    switch (token) {
+      case WORD -> {
+        if (eat("align")) expect(INT);
+      }
+      case '*' -> {
+        //noinspection StatementWithEmptyBody
+        do
+          ;
+        while (eat('*'));
+        return Type.PTR;
+      }
+      case '(' -> {
+        lex();
+        var params = new ArrayList<Type>();
+        var varargs = false;
+        if (token != ')')
+          do {
+            if (eat(DOTS)) {
+              varargs = true;
+              continue;
+            }
+            params.add(type());
+          } while (eat(','));
+        expect(')');
+        return Type.function(type, params, varargs);
+      }
+    }
+    return type;
+  }
+
+  private Term typeExpr() {
+    return expr(type());
+  }
+
+  private void unnamedAddr() {
+    if (token == WORD)
+      switch (tokenString) {
+        case "unnamed_addr", "local_unnamed_addr" -> lex();
+      }
+  }
+
+  private Variable variable(String name, Type type) {
+    var a = (Variable) locals.get(name);
+    if (a == null) {
+      a = new Variable(type);
+      locals.put(name, a);
+    }
+    return a;
+  }
+
+  private void word() {
+    var sb = new StringBuilder();
+    do sb.append((char) text[textIdx++]);
+    while (isIdPart(text[textIdx]));
+    token = WORD;
+    maybeLabel();
+    tokenString = sb.toString();
   }
 }
