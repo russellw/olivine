@@ -319,7 +319,7 @@ class Enum:
             r.append(" " * etc.indentation(self.sig) + "}")
 
     def sort(self):
-        pass
+        self.members.sort()
 
     def walk(self, f):
         f(self)
