@@ -7,7 +7,7 @@ def f(a):
         s = a.signature
         i = etc.indentation(s)
         s = s[:i] + "public " + s[i:]
-        print(s)
+        a.signature = s
 
 
 for file in java.src_files():
