@@ -1,3 +1,6 @@
+# Normalize visibility, change default to public
+# Internal tool, designed for this project only
+# Does NOT work for arbitrary Java code
 import etc
 import java
 
