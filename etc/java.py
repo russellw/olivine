@@ -48,7 +48,7 @@ def parse(v):
         i += 1
 
         # Enum
-        if re.search(r"\benum\b", signature):
+        if re.search(r"\benum \w", signature):
             a = Enum(header, signature)
             while not closes(dent, v[i]):
                 a.members.append(v[i])
@@ -56,8 +56,12 @@ def parse(v):
             i += 1
             return a
 
+        # Empty class
+        if re.search(r"\bclass \w.*{}$", signature):
+            return Class(header, signature)
+
         # Class
-        if re.search(r"\bclass\b", signature):
+        if re.search(r"\bclass \w", signature):
             a = Class(header, signature)
             while 1:
                 while not v[i]:
