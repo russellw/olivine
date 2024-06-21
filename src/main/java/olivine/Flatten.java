@@ -6,7 +6,7 @@ import java.util.List;
 public final class Flatten {
   private final List<Instruction> replacement = new ArrayList<>();
 
-  static boolean flat(Term term) {
+  public static boolean flat(Term term) {
     for (var arg : term) if (arg.size() != 0) return false;
     return true;
   }

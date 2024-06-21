@@ -3,10 +3,10 @@ package olivine;
 import java.util.*;
 
 public abstract class Type implements Iterable<Type> {
-  static final Type PTR =
+  public static final Type PTR =
       new Type() {
         @Override
-        Kind kind() {
+        public Kind kind() {
           return Kind.PTR;
         }
 
@@ -15,10 +15,11 @@ public abstract class Type implements Iterable<Type> {
           return "ptr";
         }
       };
-  static final Type OPAQUE =
+
+  public static final Type OPAQUE =
       new Type() {
         @Override
-        Kind kind() {
+        public Kind kind() {
           return Kind.OPAQUE;
         }
 
@@ -27,10 +28,11 @@ public abstract class Type implements Iterable<Type> {
           return "opaque";
         }
       };
-  static final Type VOID =
+
+  public static final Type VOID =
       new Type() {
         @Override
-        Kind kind() {
+        public Kind kind() {
           return Kind.VOID;
         }
 
@@ -39,10 +41,11 @@ public abstract class Type implements Iterable<Type> {
           return "void";
         }
       };
-  static final Type HALF =
+
+  public static final Type HALF =
       new Type() {
         @Override
-        Kind kind() {
+        public Kind kind() {
           return Kind.HALF;
         }
 
@@ -52,7 +55,7 @@ public abstract class Type implements Iterable<Type> {
         }
 
         @Override
-        int bits() {
+        public int bits() {
           return 16;
         }
 
@@ -61,15 +64,16 @@ public abstract class Type implements Iterable<Type> {
           return "half";
         }
       };
-  static final Type BFLOAT =
+
+  public static final Type BFLOAT =
       new Type() {
         @Override
-        Kind kind() {
+        public Kind kind() {
           return Kind.BFLOAT;
         }
 
         @Override
-        int bits() {
+        public int bits() {
           return 16;
         }
 
@@ -83,10 +87,11 @@ public abstract class Type implements Iterable<Type> {
           return "bfloat";
         }
       };
-  static final Type FLOAT =
+
+  public static final Type FLOAT =
       new Type() {
         @Override
-        Kind kind() {
+        public Kind kind() {
           return Kind.FLOAT;
         }
 
@@ -96,7 +101,7 @@ public abstract class Type implements Iterable<Type> {
         }
 
         @Override
-        int bits() {
+        public int bits() {
           return 32;
         }
 
@@ -105,15 +110,16 @@ public abstract class Type implements Iterable<Type> {
           return "float";
         }
       };
-  static final Type DOUBLE =
+
+  public static final Type DOUBLE =
       new Type() {
         @Override
-        Kind kind() {
+        public Kind kind() {
           return Kind.DOUBLE;
         }
 
         @Override
-        int bits() {
+        public int bits() {
           return 64;
         }
 
@@ -127,10 +133,11 @@ public abstract class Type implements Iterable<Type> {
           return "double";
         }
       };
-  static final Type FP128 =
+
+  public static final Type FP128 =
       new Type() {
         @Override
-        Kind kind() {
+        public Kind kind() {
           return Kind.FP128;
         }
 
@@ -140,7 +147,7 @@ public abstract class Type implements Iterable<Type> {
         }
 
         @Override
-        int bits() {
+        public int bits() {
           return 128;
         }
 
@@ -149,15 +156,16 @@ public abstract class Type implements Iterable<Type> {
           return "fp128";
         }
       };
-  static final Type X86_FP80 =
+
+  public static final Type X86_FP80 =
       new Type() {
         @Override
-        Kind kind() {
+        public Kind kind() {
           return Kind.X86_FP80;
         }
 
         @Override
-        int bits() {
+        public int bits() {
           return 80;
         }
 
@@ -171,10 +179,11 @@ public abstract class Type implements Iterable<Type> {
           return "x86_fp80";
         }
       };
-  static final Type PPC_FP128 =
+
+  public static final Type PPC_FP128 =
       new Type() {
         @Override
-        Kind kind() {
+        public Kind kind() {
           return Kind.PPC_FP128;
         }
 
@@ -184,7 +193,7 @@ public abstract class Type implements Iterable<Type> {
         }
 
         @Override
-        int bits() {
+        public int bits() {
           return 128;
         }
 
@@ -193,15 +202,16 @@ public abstract class Type implements Iterable<Type> {
           return "ppc_fp128";
         }
       };
-  static final Type I1 =
+
+  public static final Type I1 =
       new Type() {
         @Override
-        Kind kind() {
+        public Kind kind() {
           return Kind.INT;
         }
 
         @Override
-        int bits() {
+        public int bits() {
           return 1;
         }
 
@@ -210,15 +220,16 @@ public abstract class Type implements Iterable<Type> {
           return "i1";
         }
       };
-  static final Type I8 =
+
+  public static final Type I8 =
       new Type() {
         @Override
-        Kind kind() {
+        public Kind kind() {
           return Kind.INT;
         }
 
         @Override
-        int bits() {
+        public int bits() {
           return 8;
         }
 
@@ -227,15 +238,16 @@ public abstract class Type implements Iterable<Type> {
           return "i8";
         }
       };
-  static final Type I16 =
+
+  public static final Type I16 =
       new Type() {
         @Override
-        Kind kind() {
+        public Kind kind() {
           return Kind.INT;
         }
 
         @Override
-        int bits() {
+        public int bits() {
           return 16;
         }
 
@@ -244,15 +256,16 @@ public abstract class Type implements Iterable<Type> {
           return "i16";
         }
       };
-  static final Type I32 =
+
+  public static final Type I32 =
       new Type() {
         @Override
-        Kind kind() {
+        public Kind kind() {
           return Kind.INT;
         }
 
         @Override
-        int bits() {
+        public int bits() {
           return 32;
         }
 
@@ -261,15 +274,16 @@ public abstract class Type implements Iterable<Type> {
           return "i32";
         }
       };
-  static final Type I64 =
+
+  public static final Type I64 =
       new Type() {
         @Override
-        Kind kind() {
+        public Kind kind() {
           return Kind.INT;
         }
 
         @Override
-        int bits() {
+        public int bits() {
           return 64;
         }
 
@@ -278,15 +292,16 @@ public abstract class Type implements Iterable<Type> {
           return "i64";
         }
       };
-  static final Type I128 =
+
+  public static final Type I128 =
       new Type() {
         @Override
-        Kind kind() {
+        public Kind kind() {
           return Kind.INT;
         }
 
         @Override
-        int bits() {
+        public int bits() {
           return 128;
         }
 
@@ -296,7 +311,7 @@ public abstract class Type implements Iterable<Type> {
         }
       };
 
-  Type rewrite(Type[] types) {
+  public Type rewrite(Type[] types) {
     assert types.length == 0;
     return this;
   }
@@ -317,7 +332,7 @@ public abstract class Type implements Iterable<Type> {
     return new Array(count, this);
   }
 
-  int bits() {
+  public int bits() {
     throw new UnsupportedOperationException(toString());
   }
 
@@ -330,7 +345,7 @@ public abstract class Type implements Iterable<Type> {
     return Collections.emptyIterator();
   }
 
-  abstract Kind kind();
+  public abstract Kind kind();
 
   public Type get(int i) {
     throw new IndexOutOfBoundsException(toString());
@@ -344,19 +359,19 @@ public abstract class Type implements Iterable<Type> {
     return new Struct(fields.toArray(new Type[0]));
   }
 
-  Type resolve(Map<String, Type> typeMap) {
+  public Type resolve(Map<String, Type> typeMap) {
     var types = new Type[size()];
     for (var i = 0; i < types.length; i++) types[i] = get(i).resolve(typeMap);
     return rewrite(types);
   }
 
-  int count() {
+  public int count() {
     throw new UnsupportedOperationException(toString());
   }
 
   private abstract static class Sequential extends Type {
-    final int count;
-    final Type element;
+    public final int count;
+    public final Type element;
 
     private Sequential(int count, Type element) {
       this.count = count;
@@ -364,7 +379,7 @@ public abstract class Type implements Iterable<Type> {
     }
 
     @Override
-    int count() {
+    public int count() {
       return count;
     }
 
@@ -399,12 +414,12 @@ public abstract class Type implements Iterable<Type> {
   }
 
   private static final class Array extends Sequential {
-    Array(int count, Type element) {
+    public Array(int count, Type element) {
       super(count, element);
     }
 
     @Override
-    Type rewrite(Type[] types) {
+    public Type rewrite(Type[] types) {
       assert types.length == 1;
       return new Array(count, types[0]);
     }
@@ -415,18 +430,18 @@ public abstract class Type implements Iterable<Type> {
     }
 
     @Override
-    Kind kind() {
+    public Kind kind() {
       return Kind.ARRAY;
     }
   }
 
   private static final class Vector extends Sequential {
-    Vector(int count, Type element) {
+    public Vector(int count, Type element) {
       super(count, element);
     }
 
     @Override
-    Type rewrite(Type[] types) {
+    public Type rewrite(Type[] types) {
       assert types.length == 1;
       return new Vector(count, types[0]);
     }
@@ -437,15 +452,15 @@ public abstract class Type implements Iterable<Type> {
     }
 
     @Override
-    Kind kind() {
+    public Kind kind() {
       return Kind.VECTOR;
     }
   }
 
   private abstract static class Compound extends Type {
-    final Type[] elements;
+    public final Type[] elements;
 
-    Compound(Type[] elements) {
+    public Compound(Type[] elements) {
       this.elements = elements;
     }
 
@@ -479,12 +494,12 @@ public abstract class Type implements Iterable<Type> {
   }
 
   private static final class Struct extends Compound {
-    Struct(Type[] fields) {
+    public Struct(Type[] fields) {
       super(fields);
     }
 
     @Override
-    Type rewrite(Type[] types) {
+    public Type rewrite(Type[] types) {
       return new Struct(types);
     }
 
@@ -520,14 +535,14 @@ public abstract class Type implements Iterable<Type> {
   }
 
   private static final class FunctionType extends Compound {
-    final boolean varargs;
+    public final boolean varargs;
 
     @Override
-    Type rewrite(Type[] types) {
+    public Type rewrite(Type[] types) {
       return new FunctionType(types, varargs);
     }
 
-    FunctionType(Type[] elements, boolean varargs) {
+    public FunctionType(Type[] elements, boolean varargs) {
       super(elements);
       this.varargs = varargs;
     }

@@ -59,7 +59,7 @@ public final class LlvmParser {
     throw error(cause(), msg);
   }
 
-  String cause() {
+  public String cause() {
     return switch (token) {
       case '\n' -> "newline";
       case WORD, INT -> tokenString;

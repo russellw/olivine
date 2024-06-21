@@ -2,7 +2,7 @@ package olivine;
 
 public final class GlobalVariable extends Global {
   private final Type type;
-  Term value;
+  public Term value;
 
   public GlobalVariable(String name, Type type) {
     super(name);

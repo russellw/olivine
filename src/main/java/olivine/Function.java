@@ -10,7 +10,7 @@ public final class Function extends Global {
   public final boolean varargs;
   public Block entry;
 
-  void verifyFunction() {
+  public void verifyFunction() {
     for (var block : blocks()) {
       for (var instruction : block) instruction.verify();
       switch (block.last()) {

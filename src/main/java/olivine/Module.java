@@ -10,7 +10,7 @@ public final class Module {
   public final List<GlobalVariable> variables = new ArrayList<>();
   public final List<Function> functions = new ArrayList<>();
 
-  void verify() {
+  public void verify() {
     for (var function : functions) function.verifyFunction();
   }
 }

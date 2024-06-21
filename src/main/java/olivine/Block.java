@@ -5,7 +5,7 @@ import java.util.*;
 public final class Block implements Iterable<Instruction> {
   private final List<Instruction> instructions = new ArrayList<>();
 
-  List<Block> successors() {
+  public List<Block> successors() {
     if (instructions.isEmpty()) return List.of();
     return switch (last()) {
       case BrUnconditional brUnconditional -> List.of(brUnconditional.dest);
@@ -14,11 +14,11 @@ public final class Block implements Iterable<Instruction> {
     };
   }
 
-  Instruction get(int i) {
+  public Instruction get(int i) {
     return instructions.get(i);
   }
 
-  void replace(List<Instruction> replacement) {
+  public void replace(List<Instruction> replacement) {
     instructions.clear();
     instructions.addAll(replacement);
   }

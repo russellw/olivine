@@ -1,11 +1,11 @@
 package olivine;
 
 public final class Br extends Instruction {
-  final Term cond;
-  final Block ifTrue, ifFalse;
+  public final Term cond;
+  public final Block ifTrue, ifFalse;
 
   @Override
-  void verify() {
+  public void verify() {
     cond.verify();
     assert cond.type() == Type.I1;
   }

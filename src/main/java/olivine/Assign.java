@@ -1,11 +1,11 @@
 package olivine;
 
 public final class Assign extends Instruction {
-  final Variable variable;
-  final Term value;
+  public final Variable variable;
+  public final Term value;
 
   @Override
-  void verify() {
+  public void verify() {
     value.verify();
     var type = value.type();
     assert type != Type.VOID;

@@ -130,6 +130,10 @@ def closes(dent, s):
     return s == " " * dent + "}"
 
 
+def closes_semi(dent, s):
+    return s == " " * dent + "};"
+
+
 def compose(a):
     r = []
     a.compose(r)

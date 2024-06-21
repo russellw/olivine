@@ -1,10 +1,10 @@
 package olivine;
 
 public final class Ret extends Instruction {
-  final Term value;
+  public final Term value;
 
   @Override
-  void verify() {
+  public void verify() {
     value.verify();
     assert value.type() != Type.VOID;
   }

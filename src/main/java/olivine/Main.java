@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.Objects;
 import java.util.Properties;
 
-final class Main {
+public final class Main {
   private static final Option[] OPTIONS =
       new Option[] {
         new Option('h', "help", null, "Show help") {

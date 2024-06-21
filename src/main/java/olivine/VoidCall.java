@@ -1,10 +1,10 @@
 package olivine;
 
 public final class VoidCall extends Instruction {
-  final Term call;
+  public final Term call;
 
   @Override
-  void verify() {
+  public void verify() {
     call.verify();
     assert call.tag() == Tag.CALL;
     var function = (Function) call.get(0);

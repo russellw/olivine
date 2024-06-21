@@ -6,11 +6,11 @@ public final class UnresolvedType extends Type {
   private final String name;
 
   @Override
-  Type resolve(Map<String, Type> typeMap) {
+  public Type resolve(Map<String, Type> typeMap) {
     return typeMap.get(name).resolve(typeMap);
   }
 
-  UnresolvedType(String name) {
+  public UnresolvedType(String name) {
     this.name = name;
   }
 
