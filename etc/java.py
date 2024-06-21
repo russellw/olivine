@@ -152,6 +152,10 @@ class Field:
         self.value = []
 
     def category(self):
+        if re.search(r"\bstatic\b", self.signature):
+            if re.search(r"\bfinal\b", self.signature):
+                return "static final field"
+            return "static field"
         return "field"
 
     def compose(self, r):
