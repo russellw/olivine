@@ -1,5 +1,5 @@
 black .||exit /b
-isort .||exit /b
+isort -p java .||exit /b
 
 google-java-format -i src/main/java/olivine/*.java||exit /b
 google-java-format -i src/test/java/olivine/*.java||exit /b

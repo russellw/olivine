@@ -1,6 +1,5 @@
-import java
-
 import etc
+import java
 
 
 def f(a):
