@@ -95,6 +95,8 @@ def parse(v):
             while dent < etc.indentation(v[i]):
                 a.value.append(v[i])
                 i += 1
+            while not a.value[-1]:
+                a.value.pop()
             return a
 
         raise Exception(f"{i}: {signature}")
@@ -114,25 +116,33 @@ def compose(a):
     return r
 
 
+def separate(a, b):
+    if not isinstance(a, Field):
+        return True
+    if not isinstance(b, Field):
+        return True
+    return a.category() != b.category()
+
+
 class Class:
     def __init__(self, header, signature):
         self.header = header
         self.signature = signature
         self.members = []
 
+    def category(self):
+        return "class"
+
     def compose(self, r):
         r.extend(self.header)
         r.append(self.signature)
         for i in range(len(self.members)):
             a = self.members[i]
-            if i and (a.separate() or self.members[i - 1].separate()):
+            if i and separate(self.members[i - 1], a):
                 r.append("")
             a.compose(r)
         if not self.signature.endswith("}"):
             r.append(" " * etc.indentation(self.signature) + "}")
-
-    def separate(self):
-        return True
 
 
 class Field:
@@ -141,13 +151,13 @@ class Field:
         self.signature = signature
         self.value = []
 
+    def category(self):
+        return "field"
+
     def compose(self, r):
         r.extend(self.header)
         r.append(self.signature)
         r.extend(self.value)
-
-    def separate(self):
-        return False
 
 
 class Method:
@@ -156,15 +166,15 @@ class Method:
         self.signature = signature
         self.body = []
 
+    def category(self):
+        return "method"
+
     def compose(self, r):
         r.extend(self.header)
         r.append(self.signature)
         r.extend(self.body)
         if not self.signature.endswith("}"):
             r.append(" " * etc.indentation(self.signature) + "}")
-
-    def separate(self):
-        return True
 
 
 class Enum:
@@ -173,12 +183,12 @@ class Enum:
         self.signature = signature
         self.members = []
 
+    def category(self):
+        return "enum"
+
     def compose(self, r):
         r.extend(self.header)
         r.append(self.signature)
         r.extend(self.members)
         if not self.signature.endswith("}"):
             r.append(" " * etc.indentation(self.signature) + "}")
-
-    def separate(self):
-        return True
