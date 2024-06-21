@@ -4,10 +4,10 @@ import java
 
 def f(a):
     if not java.visibility(a):
-        s = a.signature
+        s = a.sig
         i = etc.indentation(s)
         s = s[:i] + "public " + s[i:]
-        a.signature = s
+        a.sig = s
 
 
 for file in java.src_files():

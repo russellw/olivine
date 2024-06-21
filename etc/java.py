@@ -43,13 +43,13 @@ def parse(v):
 
         # Signature
         assert re.match(r" *\w", v[i])
-        signature = v[i]
-        dent = etc.indentation(signature)
+        sig = v[i]
+        dent = etc.indentation(sig)
         i += 1
 
         # Enum
-        if re.search(r"\benum \w", signature):
-            a = Enum(header, signature)
+        if re.search(r"\benum \w", sig):
+            a = Enum(header, sig)
             while not closes(dent, v[i]):
                 a.members.append(v[i])
                 i += 1
@@ -57,12 +57,12 @@ def parse(v):
             return a
 
         # Empty class
-        if re.search(r"\bclass \w.*{}$", signature):
-            return Class(header, signature)
+        if re.search(r"\bclass \w.*{}$", sig):
+            return Class(header, sig)
 
         # Class
-        if re.search(r"\bclass \w", signature):
-            a = Class(header, signature)
+        if re.search(r"\bclass \w", sig):
+            a = Class(header, sig)
             while 1:
                 while not v[i]:
                     i += 1
@@ -73,12 +73,12 @@ def parse(v):
             return a
 
         # Field whose value is an anonymous class
-        if signature.endswith("="):
+        if sig.endswith("="):
             sig1 = v[i]
             if re.match(r" *new \w+\(\) {$", sig1):
                 dent = etc.indentation(sig1)
                 i += 1
-                a = FieldClass(header, signature, sig1)
+                a = FieldClass(header, sig, sig1)
                 while 1:
                     while not v[i]:
                         i += 1
@@ -89,16 +89,16 @@ def parse(v):
                 return a
 
         # Abstract method
-        if re.search(r"\babstract .*\w\(.*\).*;$", signature):
-            return Method(header, signature)
+        if re.search(r"\babstract .*\w\(.*\).*;$", sig):
+            return Method(header, sig)
 
         # Empty method
-        if re.search(r"\w\(.*\) .*{}$", signature):
-            return Method(header, signature)
+        if re.search(r"\w\(.*\) .*{}$", sig):
+            return Method(header, sig)
 
         # Method
-        if re.search(r"\w\(.*\) .*{$", signature):
-            a = Method(header, signature)
+        if re.search(r"\w\(.*\) .*{$", sig):
+            a = Method(header, sig)
             while not closes(dent, v[i]):
                 a.body.append(v[i])
                 i += 1
@@ -106,12 +106,12 @@ def parse(v):
             return a
 
         # One-line field
-        if signature.endswith(";"):
-            return Field(header, signature)
+        if sig.endswith(";"):
+            return Field(header, sig)
 
         # Multiline field
-        if signature.endswith("="):
-            a = Field(header, signature)
+        if sig.endswith("="):
+            a = Field(header, sig)
             while dent < etc.indentation(v[i]):
                 a.value.append(v[i])
                 i += 1
@@ -119,7 +119,7 @@ def parse(v):
                 a.value.pop()
             return a
 
-        raise Exception(f"{i}: {signature}")
+        raise Exception(f"{i}: {sig}")
 
     a = member()
     a.header = header + a.header
@@ -149,9 +149,9 @@ def separate(a, b):
 
 
 class Class:
-    def __init__(self, header, signature):
+    def __init__(self, header, sig):
         self.header = header
-        self.signature = signature
+        self.sig = sig
         self.members = []
 
     def category(self):
@@ -159,14 +159,14 @@ class Class:
 
     def compose(self, r):
         r.extend(self.header)
-        r.append(self.signature)
+        r.append(self.sig)
         for i in range(len(self.members)):
             a = self.members[i]
             if i and separate(self.members[i - 1], a):
                 r.append("")
             a.compose(r)
-        if not self.signature.endswith("}"):
-            r.append(" " * etc.indentation(self.signature) + "}")
+        if not self.sig.endswith("}"):
+            r.append(" " * etc.indentation(self.sig) + "}")
 
     def walk(self, f):
         for a in self.members:
@@ -175,9 +175,9 @@ class Class:
 
 
 class FieldClass:
-    def __init__(self, header, signature, sig1):
+    def __init__(self, header, sig, sig1):
         self.header = header
-        self.signature = signature
+        self.sig = sig
         self.sig1 = sig1
         self.members = []
 
@@ -186,7 +186,7 @@ class FieldClass:
 
     def compose(self, r):
         r.extend(self.header)
-        r.append(self.signature)
+        r.append(self.sig)
         r.append(self.sig1)
         for i in range(len(self.members)):
             a = self.members[i]
@@ -202,21 +202,21 @@ class FieldClass:
 
 
 class Field:
-    def __init__(self, header, signature):
+    def __init__(self, header, sig):
         self.header = header
-        self.signature = signature
+        self.sig = sig
         self.value = []
 
     def category(self):
-        if re.search(r"\bstatic\b", self.signature):
-            if re.search(r"\bfinal int\b", self.signature):
+        if re.search(r"\bstatic\b", self.sig):
+            if re.search(r"\bfinal int\b", self.sig):
                 return "constant"
             return "static field"
         return "field"
 
     def compose(self, r):
         r.extend(self.header)
-        r.append(self.signature)
+        r.append(self.sig)
         r.extend(self.value)
 
     def walk(self, f):
@@ -224,7 +224,7 @@ class Field:
 
 
 def visibility(a):
-    s = a.signature
+    s = a.sig
     if re.search(r"\bpublic\b", s):
         return "public"
     if re.search(r"\bprivate\b", s):
@@ -235,9 +235,9 @@ def visibility(a):
 
 
 class Method:
-    def __init__(self, header, signature):
+    def __init__(self, header, sig):
         self.header = header
-        self.signature = signature
+        self.sig = sig
         self.body = []
 
     def category(self):
@@ -245,19 +245,19 @@ class Method:
 
     def compose(self, r):
         r.extend(self.header)
-        r.append(self.signature)
+        r.append(self.sig)
         r.extend(self.body)
-        if self.signature[-1] not in ";}":
-            r.append(" " * etc.indentation(self.signature) + "}")
+        if self.sig[-1] not in ";}":
+            r.append(" " * etc.indentation(self.sig) + "}")
 
     def walk(self, f):
         f(self)
 
 
 class Enum:
-    def __init__(self, header, signature):
+    def __init__(self, header, sig):
         self.header = header
-        self.signature = signature
+        self.sig = sig
         self.members = []
 
     def category(self):
@@ -265,10 +265,10 @@ class Enum:
 
     def compose(self, r):
         r.extend(self.header)
-        r.append(self.signature)
+        r.append(self.sig)
         r.extend(self.members)
-        if not self.signature.endswith("}"):
-            r.append(" " * etc.indentation(self.signature) + "}")
+        if not self.sig.endswith("}"):
+            r.append(" " * etc.indentation(self.sig) + "}")
 
     def walk(self, f):
         f(self)
