@@ -140,6 +140,26 @@ def compose(a):
     return r
 
 
+def category_rank(a):
+    s = a.category()
+    ranks = [
+        "constant",
+        "class",
+        "field class",
+        "static field",
+        "field",
+        "method",
+    ]
+    for i in range(len(ranks)):
+        if s == ranks[i]:
+            return i
+    raise Exception(s)
+
+
+def key(a):
+    return category_rank(a), a.name, a.sig
+
+
 def separate(a, b):
     if not isinstance(a, Field):
         return True
@@ -177,6 +197,7 @@ class Class:
     def sort(self):
         for a in self.members:
             a.sort()
+        self.members.sort(key=key)
 
     def walk(self, f):
         for a in self.members:
@@ -214,6 +235,7 @@ class FieldClass:
     def sort(self):
         for a in self.members:
             a.sort()
+        self.members.sort(key=key)
 
     def walk(self, f):
         for a in self.members:
