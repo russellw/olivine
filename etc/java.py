@@ -72,6 +72,22 @@ def parse(v):
             i += 1
             return a
 
+        # Field whose value is an anonymous class
+        if signature.endswith("="):
+            sig1 = v[i]
+            if re.match(r" *new \w+\(\) {$", sig1):
+                dent = etc.indentation(sig1)
+                i += 1
+                a = FieldClass(header, signature, sig1)
+                while 1:
+                    while not v[i]:
+                        i += 1
+                    if closes_semi(dent, v[i]):
+                        break
+                    a.members.append(member())
+                i += 1
+                return a
+
         # Abstract method
         if re.search(r"\babstract .*\w\(.*\).*;$", signature):
             return Method(header, signature)
@@ -147,6 +163,33 @@ class Class:
             a.compose(r)
         if not self.signature.endswith("}"):
             r.append(" " * etc.indentation(self.signature) + "}")
+
+    def walk(self, f):
+        for a in self.members:
+            a.walk(f)
+        f(self)
+
+
+class FieldClass:
+    def __init__(self, header, signature, sig1):
+        self.header = header
+        self.signature = signature
+        self.sig1 = sig1
+        self.members = []
+
+    def category(self):
+        return "field class"
+
+    def compose(self, r):
+        r.extend(self.header)
+        r.append(self.signature)
+        r.append(self.sig1)
+        for i in range(len(self.members)):
+            a = self.members[i]
+            if i and separate(self.members[i - 1], a):
+                r.append("")
+            a.compose(r)
+        r.append(" " * etc.indentation(self.sig1) + "};")
 
     def walk(self, f):
         for a in self.members:
