@@ -144,6 +144,7 @@ class Field:
     def compose(self, r):
         r.extend(self.header)
         r.append(self.signature)
+        r.extend(self.value)
 
     def separate(self):
         return False
