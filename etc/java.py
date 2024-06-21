@@ -108,11 +108,29 @@ def closes(dent, s):
     return s == " " * dent + "}"
 
 
+def compose(a):
+    r = []
+    a.compose(r)
+    return r
+
+
 class Class:
     def __init__(self, header, signature):
         self.header = header
         self.signature = signature
         self.members = []
+
+    def compose(self, r):
+        r.extend(self.header)
+        r.append(self.signature)
+        more = False
+        for a in self.members:
+            if more:
+                r.append("")
+            more = True
+            a.compose(r)
+        if not self.signature.endswith("}"):
+            r.append(" " * etc.indentation(self.signature) + "}")
 
 
 class Field:
@@ -121,6 +139,10 @@ class Field:
         self.signature = signature
         self.value = []
 
+    def compose(self, r):
+        r.extend(self.header)
+        r.append(self.signature)
+
 
 class Method:
     def __init__(self, header, signature):
@@ -128,9 +150,23 @@ class Method:
         self.signature = signature
         self.body = []
 
+    def compose(self, r):
+        r.extend(self.header)
+        r.append(self.signature)
+        r.extend(self.body)
+        if not self.signature.endswith("}"):
+            r.append(" " * etc.indentation(self.signature) + "}")
+
 
 class Enum:
     def __init__(self, header, signature):
         self.header = header
         self.signature = signature
         self.members = []
+
+    def compose(self, r):
+        r.extend(self.header)
+        r.append(self.signature)
+        r.extend(self.members)
+        if not self.signature.endswith("}"):
+            r.append(" " * etc.indentation(self.signature) + "}")
