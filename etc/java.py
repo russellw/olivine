@@ -72,6 +72,10 @@ def parse(v):
             i += 1
             return a
 
+        # Abstract method
+        if re.search(r"\babstract .*\w\(.*\).*;$", signature):
+            return Method(header, signature)
+
         # Empty method
         if re.search(r"\w\(.*\) .*{}$", signature):
             return Method(header, signature)
@@ -177,7 +181,7 @@ class Method:
         r.extend(self.header)
         r.append(self.signature)
         r.extend(self.body)
-        if not self.signature.endswith("}"):
+        if self.signature[-1] not in ";}":
             r.append(" " * etc.indentation(self.signature) + "}")
 
 
