@@ -153,8 +153,8 @@ class Field:
 
     def category(self):
         if re.search(r"\bstatic\b", self.signature):
-            if re.search(r"\bfinal\b", self.signature):
-                return "static final field"
+            if re.search(r"\bfinal int\b", self.signature):
+                return "constant"
             return "static field"
         return "field"
 
