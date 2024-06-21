@@ -154,6 +154,12 @@ class Class:
         self.sig = sig
         self.members = []
 
+        r = re.search(r"class (\w+)", sig)
+        self.name = r[1]
+
+    def __repr__(self):
+        return self.name
+
     def category(self):
         return "class"
 
@@ -181,6 +187,12 @@ class FieldClass:
         self.sig1 = sig1
         self.members = []
 
+        r = re.search(r"(\w+) =", sig)
+        self.name = r[1]
+
+    def __repr__(self):
+        return self.name
+
     def category(self):
         return "field class"
 
@@ -206,6 +218,16 @@ class Field:
         self.header = header
         self.sig = sig
         self.value = []
+
+        r = re.search(r"(\w+) =", sig)
+        if r:
+            self.name = r[1]
+        else:
+            r = re.search(r"(\w+);", sig)
+            self.name = r[1]
+
+    def __repr__(self):
+        return self.name
 
     def category(self):
         if re.search(r"\bstatic\b", self.sig):
@@ -240,6 +262,12 @@ class Method:
         self.sig = sig
         self.body = []
 
+        r = re.search(r"(\w+)\(.*\)", sig)
+        self.name = r[1]
+
+    def __repr__(self):
+        return self.name
+
     def category(self):
         return "method"
 
@@ -259,6 +287,12 @@ class Enum:
         self.header = header
         self.sig = sig
         self.members = []
+
+        r = re.search(r"enum (\w+)", sig)
+        self.name = r[1]
+
+    def __repr__(self):
+        return self.name
 
     def category(self):
         return "enum"
