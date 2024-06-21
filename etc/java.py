@@ -123,14 +123,16 @@ class Class:
     def compose(self, r):
         r.extend(self.header)
         r.append(self.signature)
-        more = False
-        for a in self.members:
-            if more:
+        for i in range(len(self.members)):
+            a = self.members[i]
+            if i and a.separate() and self.members[i - 1].separate():
                 r.append("")
-            more = True
             a.compose(r)
         if not self.signature.endswith("}"):
             r.append(" " * etc.indentation(self.signature) + "}")
+
+    def separate(self):
+        return True
 
 
 class Field:
@@ -142,6 +144,9 @@ class Field:
     def compose(self, r):
         r.extend(self.header)
         r.append(self.signature)
+
+    def separate(self):
+        return False
 
 
 class Method:
@@ -157,6 +162,9 @@ class Method:
         if not self.signature.endswith("}"):
             r.append(" " * etc.indentation(self.signature) + "}")
 
+    def separate(self):
+        return True
+
 
 class Enum:
     def __init__(self, header, signature):
@@ -170,3 +178,6 @@ class Enum:
         r.extend(self.members)
         if not self.signature.endswith("}"):
             r.append(" " * etc.indentation(self.signature) + "}")
+
+    def separate(self):
+        return True
