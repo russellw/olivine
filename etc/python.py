@@ -107,19 +107,19 @@ def parse(v):
         s = v[i]
         i += 1
 
-        # class
+        # Class
         if re.match(" *class ", s):
             a = Class(s)
             block(etc.indentation(s), a.contents)
             return a
 
-        # function
+        # Function
         if re.match(" *def ", s):
             a = Function(s)
             block(etc.indentation(s), a.contents)
             return a
 
-        # other
+        # Other
         return Line(s)
 
     def block(dent, r):
