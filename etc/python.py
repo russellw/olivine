@@ -1,7 +1,20 @@
+import re
+
 import etc
 
 
+class Line:
+    def __init__(self, s):
+        self.s = s
+
+    def compose(self, r):
+        r.append(self.s)
+
+
 class Class:
+    def __repr__(self):
+        return self.name
+
     def __init__(self, sig):
         self.sig = sig
         self.contents = []
@@ -13,8 +26,19 @@ class Class:
     def category(self):
         return "class"
 
+    def compose(self, r):
+        r.append(self.sig)
+        compose1(self.contents, r)
+
 
 class Function:
+    def compose(self, r):
+        r.append(self.sig)
+        compose1(self.contents, r)
+
+    def __repr__(self):
+        return self.name
+
     def __init__(self, sig):
         self.sig = sig
         self.contents = []
@@ -27,9 +51,25 @@ class Function:
         return "function"
 
 
-def compose(a):
+def separate(a, b):
+    return not comment(a) and comment(b)
+
+
+def comment(a):
+    return isinstance(a, Line) and re.match(" *#", a.s)
+
+
+def compose1(v, r):
+    for i in range(len(v)):
+        a = v[i]
+        if i and separate(v[i - 1], a):
+            r.append("")
+        a.compose(r)
+
+
+def compose(v):
     r = []
-    a.compose(r)
+    compose1(v, r)
     return r
 
 
@@ -57,3 +97,31 @@ def key(a):
 
 def parse(v):
     v = [s for s in v if s]
+    i = 0
+
+    def element():
+        nonlocal i
+        s = v[i]
+        i += 1
+        # class
+        if re.match(" *class ", s):
+            a = Class(s)
+            block(etc.indentation(s), a.contents)
+            return a
+        # function
+        if re.match(" *def ", s):
+            a = Function(s)
+            block(etc.indentation(s), a.contents)
+            return a
+        # other
+        return Line(s)
+
+    def block(dent, r):
+        nonlocal i
+        while etc.indentation(v[i]) > dent:
+            r.append(element())
+
+    r = []
+    while i < len(v):
+        r.append(element())
+    return r
