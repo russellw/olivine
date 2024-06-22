@@ -10,6 +10,9 @@ class Line:
     def compose(self, r):
         r.append(self.s)
 
+    def sort(self):
+        pass
+
 
 class Class:
     def __repr__(self):
@@ -30,6 +33,11 @@ class Class:
         r.append(self.sig)
         compose1(self.contents, r)
 
+    def sort(self):
+        for a in self.contents:
+            a.sort()
+        self.contents.sort(key=key)
+
 
 class Function:
     def compose(self, r):
@@ -49,6 +57,21 @@ class Function:
 
     def category(self):
         return "function"
+
+    def sort(self):
+        for a in self.contents:
+            a.sort()
+        sort(self.contents)
+
+
+def sortable(a):
+    return isinstance(a, Function) or isinstance(a, Class)
+
+
+def sort(v):
+    u = etc.runs(sortable, v)
+    for i, j in u:
+        v[i:j] = sorted(v[i:j])
 
 
 def separate(a, b):
