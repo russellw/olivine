@@ -6,13 +6,13 @@ import etc
 
 def src_files():
     directory = os.path.join("src", "main", "java", "olivine")
-    java_files = []
-    for root, _, files in os.walk(directory):
-        for file in files:
+    r = []
+    for entry in os.scandir(directory):
+        if entry.is_file():
+            file = entry.name
             if file.endswith(".java"):
-                file_path = os.path.join(root, file)
-                java_files.append(file_path)
-    return java_files
+                r.append(os.path.join(directory, file))
+    return r
 
 
 def parse(v):
