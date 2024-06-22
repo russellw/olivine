@@ -7,6 +7,21 @@ def get_files(directory, extension, r):
             r.append(os.path.join(directory, entry.name))
 
 
+def indentation(s):
+    if not s:
+        return 1000
+    i = 0
+    while s[i] == " ":
+        i += 1
+    assert s[i] != "\t"
+    return i
+
+
+def read_lines(file):
+    with open(file) as f:
+        return [s.rstrip() for s in f]
+
+
 def runs(f, v):
     i = 0
     r = []
@@ -21,22 +36,7 @@ def runs(f, v):
         r.append((j, i))
 
 
-def read_lines(file):
-    with open(file) as f:
-        return [s.rstrip() for s in f]
-
-
 def write_lines(file, v):
     with open(file, "w", newline="\n") as f:
         for s in v:
             f.write(s + "\n")
-
-
-def indentation(s):
-    if not s:
-        return 1000
-    i = 0
-    while s[i] == " ":
-        i += 1
-    assert s[i] != "\t"
-    return i

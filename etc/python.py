@@ -3,17 +3,6 @@ import re
 import etc
 
 
-class Line:
-    def __init__(self, s):
-        self.s = s
-
-    def compose(self, r):
-        r.append(self.s)
-
-    def sort(self):
-        pass
-
-
 class Class:
     def __repr__(self):
         return self.name
@@ -64,36 +53,15 @@ class Function:
         sort(self.contents)
 
 
-def sortable(a):
-    return isinstance(a, Function) or isinstance(a, Class)
+class Line:
+    def __init__(self, s):
+        self.s = s
 
+    def compose(self, r):
+        r.append(self.s)
 
-def sort(v):
-    u = etc.runs(sortable, v)
-    for i, j in u:
-        v[i:j] = sorted(v[i:j], key=key)
-
-
-def separate(a, b):
-    return not comment(a) and comment(b)
-
-
-def comment(a):
-    return isinstance(a, Line) and re.match(" *#", a.s)
-
-
-def compose1(v, r):
-    for i in range(len(v)):
-        a = v[i]
-        if i and separate(v[i - 1], a):
-            r.append("")
-        a.compose(r)
-
-
-def compose(v):
-    r = []
-    compose1(v, r)
-    return r
+    def sort(self):
+        pass
 
 
 def category_rank(a):
@@ -108,10 +76,22 @@ def category_rank(a):
     raise Exception(s)
 
 
-def src_files():
+def comment(a):
+    return isinstance(a, Line) and re.match(" *#", a.s)
+
+
+def compose(v):
     r = []
-    etc.get_files("etc", ".py", r)
+    compose1(v, r)
     return r
+
+
+def compose1(v, r):
+    for i in range(len(v)):
+        a = v[i]
+        if i and separate(v[i - 1], a):
+            r.append("")
+        a.compose(r)
 
 
 def key(a):
@@ -150,4 +130,24 @@ def parse(v):
     r = []
     while i < len(v):
         r.append(element())
+    return r
+
+
+def separate(a, b):
+    return not comment(a) and comment(b)
+
+
+def sort(v):
+    u = etc.runs(sortable, v)
+    for i, j in u:
+        v[i:j] = sorted(v[i:j], key=key)
+
+
+def sortable(a):
+    return isinstance(a, Function) or isinstance(a, Class)
+
+
+def src_files():
+    r = []
+    etc.get_files("etc", ".py", r)
     return r

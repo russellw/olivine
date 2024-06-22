@@ -4,10 +4,211 @@ import re
 import etc
 
 
-def src_files():
+class Class:
+    def __init__(self, header, sig):
+        self.header = header
+        self.sig = sig
+        self.members = []
+
+        # Name
+        r = re.search(r"\bclass (\w+)", sig)
+        self.name = r[1]
+
+    def __repr__(self):
+        return self.name
+
+    def category(self):
+        return "class"
+
+    def compose(self, r):
+        r.extend(self.header)
+        r.append(self.sig)
+        for i in range(len(self.members)):
+            a = self.members[i]
+            if i and separate(self.members[i - 1], a):
+                r.append("")
+            a.compose(r)
+        if not self.sig.endswith("}"):
+            r.append(" " * etc.indentation(self.sig) + "}")
+
+    def sort(self):
+        for a in self.members:
+            a.sort()
+        self.members.sort(key=key)
+
+    def walk(self, f):
+        for a in self.members:
+            a.walk(f)
+        f(self)
+
+
+class Enum:
+    def __init__(self, header, sig):
+        self.header = header
+        self.sig = sig
+        self.members = []
+
+        # Name
+        r = re.search(r"\benum (\w+)", sig)
+        self.name = r[1]
+
+    def __repr__(self):
+        return self.name
+
+    def category(self):
+        return "enum"
+
+    def compose(self, r):
+        r.extend(self.header)
+        r.append(self.sig)
+        r.extend(self.members)
+        if not self.sig.endswith("}"):
+            r.append(" " * etc.indentation(self.sig) + "}")
+
+    def sort(self):
+        self.members.sort()
+
+    def walk(self, f):
+        f(self)
+
+
+class Field:
+    def __init__(self, header, sig):
+        self.header = header
+        self.sig = sig
+        self.value = []
+
+        # Name
+        r = re.search(r"(\w+) =", sig)
+        if r:
+            self.name = r[1]
+        else:
+            r = re.search(r"(\w+);", sig)
+            self.name = r[1]
+
+    def __repr__(self):
+        return self.name
+
+    def category(self):
+        if re.search(r"\bstatic\b", self.sig):
+            if re.search(r"\bfinal int\b", self.sig):
+                return "constant"
+            return "static field"
+        return "field"
+
+    def compose(self, r):
+        r.extend(self.header)
+        r.append(self.sig)
+        r.extend(self.value)
+
+    def sort(self):
+        pass
+
+    def walk(self, f):
+        f(self)
+
+
+class FieldClass:
+    def __init__(self, header, sig, sig1):
+        self.header = header
+        self.sig = sig
+        self.sig1 = sig1
+        self.members = []
+
+        # Name
+        r = re.search(r"(\w+) =", sig)
+        self.name = r[1]
+
+    def __repr__(self):
+        return self.name
+
+    def category(self):
+        return "field class"
+
+    def compose(self, r):
+        r.extend(self.header)
+        r.append(self.sig)
+        r.append(self.sig1)
+        for i in range(len(self.members)):
+            a = self.members[i]
+            if i and separate(self.members[i - 1], a):
+                r.append("")
+            a.compose(r)
+        r.append(" " * etc.indentation(self.sig1) + "};")
+
+    def sort(self):
+        for a in self.members:
+            a.sort()
+        self.members.sort(key=key)
+
+    def walk(self, f):
+        for a in self.members:
+            a.walk(f)
+        f(self)
+
+
+class Method:
+    def __init__(self, header, sig):
+        self.header = header
+        self.sig = sig
+        self.body = []
+
+        # Name
+        r = re.search(r"(\w+)\(.*\)", sig)
+        self.name = r[1]
+
+    def __repr__(self):
+        return self.name
+
+    def category(self):
+        return "method"
+
+    def compose(self, r):
+        r.extend(self.header)
+        r.append(self.sig)
+        r.extend(self.body)
+        if self.sig[-1] not in ";}":
+            r.append(" " * etc.indentation(self.sig) + "}")
+
+    def sort(self):
+        pass
+
+    def walk(self, f):
+        f(self)
+
+
+def category_rank(a):
+    s = a.category()
+    ranks = [
+        "constant",
+        "class",
+        "field class",
+        "static field",
+        "field",
+        "method",
+    ]
+    for i in range(len(ranks)):
+        if s == ranks[i]:
+            return i
+    raise Exception(s)
+
+
+def closes(dent, s):
+    return s == " " * dent + "}"
+
+
+def closes_semi(dent, s):
+    return s == " " * dent + "};"
+
+
+def compose(a):
     r = []
-    etc.get_files(os.path.join("src", "main", "java", "olivine"), ".java", r)
+    a.compose(r)
     return r
+
+
+def key(a):
+    return category_rank(a), a.name, a.sig
 
 
 def parse(v):
@@ -122,40 +323,6 @@ def parse(v):
     return a
 
 
-def closes(dent, s):
-    return s == " " * dent + "}"
-
-
-def closes_semi(dent, s):
-    return s == " " * dent + "};"
-
-
-def compose(a):
-    r = []
-    a.compose(r)
-    return r
-
-
-def category_rank(a):
-    s = a.category()
-    ranks = [
-        "constant",
-        "class",
-        "field class",
-        "static field",
-        "field",
-        "method",
-    ]
-    for i in range(len(ranks)):
-        if s == ranks[i]:
-            return i
-    raise Exception(s)
-
-
-def key(a):
-    return category_rank(a), a.name, a.sig
-
-
 def separate(a, b):
     if not isinstance(a, Field):
         return True
@@ -164,117 +331,10 @@ def separate(a, b):
     return a.category() != b.category()
 
 
-class Class:
-    def __init__(self, header, sig):
-        self.header = header
-        self.sig = sig
-        self.members = []
-
-        # Name
-        r = re.search(r"\bclass (\w+)", sig)
-        self.name = r[1]
-
-    def __repr__(self):
-        return self.name
-
-    def category(self):
-        return "class"
-
-    def compose(self, r):
-        r.extend(self.header)
-        r.append(self.sig)
-        for i in range(len(self.members)):
-            a = self.members[i]
-            if i and separate(self.members[i - 1], a):
-                r.append("")
-            a.compose(r)
-        if not self.sig.endswith("}"):
-            r.append(" " * etc.indentation(self.sig) + "}")
-
-    def sort(self):
-        for a in self.members:
-            a.sort()
-        self.members.sort(key=key)
-
-    def walk(self, f):
-        for a in self.members:
-            a.walk(f)
-        f(self)
-
-
-class FieldClass:
-    def __init__(self, header, sig, sig1):
-        self.header = header
-        self.sig = sig
-        self.sig1 = sig1
-        self.members = []
-
-        # Name
-        r = re.search(r"(\w+) =", sig)
-        self.name = r[1]
-
-    def __repr__(self):
-        return self.name
-
-    def category(self):
-        return "field class"
-
-    def compose(self, r):
-        r.extend(self.header)
-        r.append(self.sig)
-        r.append(self.sig1)
-        for i in range(len(self.members)):
-            a = self.members[i]
-            if i and separate(self.members[i - 1], a):
-                r.append("")
-            a.compose(r)
-        r.append(" " * etc.indentation(self.sig1) + "};")
-
-    def sort(self):
-        for a in self.members:
-            a.sort()
-        self.members.sort(key=key)
-
-    def walk(self, f):
-        for a in self.members:
-            a.walk(f)
-        f(self)
-
-
-class Field:
-    def __init__(self, header, sig):
-        self.header = header
-        self.sig = sig
-        self.value = []
-
-        # Name
-        r = re.search(r"(\w+) =", sig)
-        if r:
-            self.name = r[1]
-        else:
-            r = re.search(r"(\w+);", sig)
-            self.name = r[1]
-
-    def __repr__(self):
-        return self.name
-
-    def category(self):
-        if re.search(r"\bstatic\b", self.sig):
-            if re.search(r"\bfinal int\b", self.sig):
-                return "constant"
-            return "static field"
-        return "field"
-
-    def compose(self, r):
-        r.extend(self.header)
-        r.append(self.sig)
-        r.extend(self.value)
-
-    def sort(self):
-        pass
-
-    def walk(self, f):
-        f(self)
+def src_files():
+    r = []
+    etc.get_files(os.path.join("src", "main", "java", "olivine"), ".java", r)
+    return r
 
 
 def visibility(a):
@@ -286,63 +346,3 @@ def visibility(a):
     if re.search(r"\bprotected\b", s):
         return "protected"
     return ""
-
-
-class Method:
-    def __init__(self, header, sig):
-        self.header = header
-        self.sig = sig
-        self.body = []
-
-        # Name
-        r = re.search(r"(\w+)\(.*\)", sig)
-        self.name = r[1]
-
-    def __repr__(self):
-        return self.name
-
-    def category(self):
-        return "method"
-
-    def compose(self, r):
-        r.extend(self.header)
-        r.append(self.sig)
-        r.extend(self.body)
-        if self.sig[-1] not in ";}":
-            r.append(" " * etc.indentation(self.sig) + "}")
-
-    def sort(self):
-        pass
-
-    def walk(self, f):
-        f(self)
-
-
-class Enum:
-    def __init__(self, header, sig):
-        self.header = header
-        self.sig = sig
-        self.members = []
-
-        # Name
-        r = re.search(r"\benum (\w+)", sig)
-        self.name = r[1]
-
-    def __repr__(self):
-        return self.name
-
-    def category(self):
-        return "enum"
-
-    def compose(self, r):
-        r.extend(self.header)
-        r.append(self.sig)
-        r.extend(self.members)
-        if not self.sig.endswith("}"):
-            r.append(" " * etc.indentation(self.sig) + "}")
-
-    def sort(self):
-        self.members.sort()
-
-    def walk(self, f):
-        f(self)
