@@ -1,4 +1,4 @@
-# Sort Python functions and classes, normalize blank lines
+# Uppercase first letter of comments
 # Internal tool, designed for this project only
 # Does NOT work for arbitrary Python code
 import etc
