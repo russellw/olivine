@@ -21,13 +21,23 @@ for file in java.src_files():
             j, i = java.lex(s, i)
             labels.append(s[j:i])
 
-            # punctuation
+            # punctuation?
             j, i = java.lex(s, i)
             t = s[j:i]
+            if t == ",":
+                continue
             if t == "->":
                 break
-            if t != ",":
+
+            # pattern match
+            if not t[0].isalpha():
                 raise Exception(t)
+            assert len(labels) == 1
+            r.extend(labels)
+            r.append(" ")
+            r.append(t)
+            labels.clear()
+            break
         labels.sort()
         r.append(",".join(labels))
         r.append("->")
