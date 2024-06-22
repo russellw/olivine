@@ -16,5 +16,7 @@ def f(s):
 
 for file in java.src_files():
     v = etc.read_lines(file)
-    v = map(f, v)
+    for i in range(len(v)):
+        if java.comment(v[i]) and not (i and java.comment(v[i - 1])):
+            v[i] = f(v[i])
     etc.write_lines(file, v)

@@ -211,6 +211,10 @@ def key(a):
     return category_rank(a), a.name, a.sig
 
 
+def comment(s):
+    return re.match(" *//", s)
+
+
 def parse(v):
     i = 0
 
