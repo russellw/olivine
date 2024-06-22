@@ -26,7 +26,8 @@ for file in java.src_files():
             t = s[j:i]
             if t == "->":
                 break
-            assert t == ","
+            if t != ",":
+                raise Exception(t)
         labels.sort()
         r.append(",".join(labels))
         r.append("->")
