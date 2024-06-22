@@ -73,7 +73,7 @@ public final class LlvmParser {
       switch (token) {
         case WORD -> {
           switch (lex1()) {
-            case "define", "declare" -> {
+            case "declare", "define" -> {
               linkage();
               preemptionSpecifier();
               paramAttrs();
@@ -228,7 +228,7 @@ public final class LlvmParser {
   public String cause() {
     return switch (token) {
       case '\n' -> "newline";
-      case WORD, INT -> tokenString;
+      case INT, WORD -> tokenString;
       default -> {
         if (Etc.isPrint(token)) yield "'%c'".formatted(token);
         yield null;
@@ -326,7 +326,7 @@ public final class LlvmParser {
   private void fastMathFlags() {
     while (token == WORD)
       switch (tokenString) {
-        case "nnan", "ninf", "nsz", "arcp", "contract", "afn", "reassoc", "fast" -> lex();
+        case "afn", "arcp", "contract", "fast", "ninf", "nnan", "nsz", "reassoc" -> lex();
         default -> {
           return;
         }
@@ -662,19 +662,19 @@ public final class LlvmParser {
             value = expr(type).load(type);
           }
           case "bitcast",
-              "trunc",
-              "fptrunc",
               "fpext",
-              "zext",
               "fptoui",
-              "uitofp",
+              "fptrunc",
+              "inttoptr",
               "ptrtoint",
-              "inttoptr" -> {
+              "trunc",
+              "uitofp",
+              "zext" -> {
             var a = typeExpr();
             expect("to");
             value = a.cast(type());
           }
-          case "sext", "fptosi", "sitofp" -> {
+          case "fptosi", "sext", "sitofp" -> {
             var a = typeExpr();
             expect("to");
             value = a.scast(type());
@@ -744,7 +744,7 @@ public final class LlvmParser {
   public static boolean isIdPart(int c) {
     if (Etc.isAlnum(c)) return true;
     return switch (c) {
-      case '-', '_', '.', '$' -> true;
+      case '$', '-', '.', '_' -> true;
       default -> false;
     };
   }
@@ -757,7 +757,7 @@ public final class LlvmParser {
   private void lex() {
     while (textIdx < text.length) {
       switch (text[textIdx]) {
-        case ' ', '\r', '\t', '\f' -> {
+        case ' ', '\f', '\r', '\t' -> {
           textIdx++;
           continue;
         }
@@ -817,6 +817,7 @@ public final class LlvmParser {
                 'X',
                 'Y',
                 'Z',
+                '_',
                 'a',
                 'b',
                 'd',
@@ -841,10 +842,9 @@ public final class LlvmParser {
                 'w',
                 'x',
                 'y',
-                'z',
-                '_' ->
+                'z' ->
             word();
-        case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-' -> {
+        case '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> {
           var sb = new StringBuilder();
           sb.append((char) text[textIdx++]);
           token = INT;
@@ -887,17 +887,17 @@ public final class LlvmParser {
   private void linkage() {
     if (token == WORD)
       switch (tokenString) {
-        case "private",
-                "internal",
+        case "appending",
                 "available_externally",
-                "linkonce",
-                "weak",
                 "common",
-                "appending",
                 "extern_weak",
+                "external",
+                "internal",
+                "linkonce",
                 "linkonce_odr",
-                "weak_odr",
-                "external" ->
+                "private",
+                "weak",
+                "weak_odr" ->
             lex();
       }
   }
@@ -916,7 +916,7 @@ public final class LlvmParser {
   private void paramAttrs() {
     while (token == WORD)
       switch (tokenString) {
-        case "noundef", "readnone", "readonly", "nonnull", "immarg", "nocapture", "returned" ->
+        case "immarg", "nocapture", "nonnull", "noundef", "readnone", "readonly", "returned" ->
             lex();
         case "dereferenceable" -> {
           lex();
@@ -1021,18 +1021,18 @@ public final class LlvmParser {
               '7',
               '8',
               '9',
-              'a',
-              'b',
-              'c',
-              'd',
-              'e',
-              'f',
               'A',
               'B',
               'C',
               'D',
               'E',
-              'F' -> {
+              'F',
+              'a',
+              'b',
+              'c',
+              'd',
+              'e',
+              'f' -> {
             c = Etc.parseHexDigit(text[textIdx]) << 4 + Etc.parseHexDigit(text[textIdx + 1]);
             textIdx += 2;
           }
@@ -1088,7 +1088,7 @@ public final class LlvmParser {
   private void unnamedAddr() {
     if (token == WORD)
       switch (tokenString) {
-        case "unnamed_addr", "local_unnamed_addr" -> lex();
+        case "local_unnamed_addr", "unnamed_addr" -> lex();
       }
   }
 
