@@ -103,16 +103,19 @@ def parse(v):
         nonlocal i
         s = v[i]
         i += 1
+
         # class
         if re.match(" *class ", s):
             a = Class(s)
             block(etc.indentation(s), a.contents)
             return a
+
         # function
         if re.match(" *def ", s):
             a = Function(s)
             block(etc.indentation(s), a.contents)
             return a
+
         # other
         return Line(s)
 

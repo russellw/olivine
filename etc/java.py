@@ -114,6 +114,7 @@ def parse(v):
                 a.value.pop()
             return a
 
+        # unknown syntax
         raise Exception(f"{i}: {sig}")
 
     a = member()
