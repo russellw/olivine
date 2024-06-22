@@ -30,13 +30,15 @@ for file in java.src_files():
                 break
 
             # pattern match
-            if not t[0].isalpha():
+            if not (t[0].isalpha() or t == "_"):
                 raise Exception(t)
             assert len(labels) == 1
             r.extend(labels)
             r.append(" ")
             r.append(t)
             labels.clear()
+            i, j = java.lex(s, j)
+            assert s[i:j] == "->"
             break
         labels.sort()
         r.append(",".join(labels))
