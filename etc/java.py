@@ -220,7 +220,7 @@ def lex(s, i):
         i += 1
     j = i
     if s[j].isalnum():
-        while s[j].isalnum():
+        while s[j].isalnum() or s[j] == "_":
             j += 1
     elif s[j] in "'\"":
         q = s[j]
