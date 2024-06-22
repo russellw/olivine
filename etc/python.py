@@ -71,7 +71,7 @@ def sortable(a):
 def sort(v):
     u = etc.runs(sortable, v)
     for i, j in u:
-        v[i:j] = sorted(v[i:j])
+        v[i:j] = sorted(v[i:j], key=key)
 
 
 def separate(a, b):
