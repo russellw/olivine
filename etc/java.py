@@ -175,7 +175,7 @@ class Class:
         self.members = []
 
         # Name
-        r = re.search(r"class (\w+)", sig)
+        r = re.search(r"\bclass (\w+)", sig)
         self.name = r[1]
 
     def __repr__(self):
@@ -329,7 +329,7 @@ class Enum:
         self.members = []
 
         # Name
-        r = re.search(r"enum (\w+)", sig)
+        r = re.search(r"\benum (\w+)", sig)
         self.name = r[1]
 
     def __repr__(self):
