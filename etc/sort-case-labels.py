@@ -6,24 +6,24 @@ import java
 
 for file in java.src_files():
     s = open(file).read()
-    j = 0
+    i = 0
     r = []
     while 1:
-        i = s.find(" case ")
-        if i < 0:
-            r.append(s[j:])
+        j = s.find(" case ", i)
+        if j < 0:
+            r.append(s[i:])
             break
-        i += 6
-        r.append(s[j:i])
+        j += 6
+        r.append(s[i:j])
         labels = []
         while 1:
             # label
-            j, i = java.lex(s, i)
-            labels.append(s[j:i])
+            i, j = java.lex(s, j)
+            labels.append(s[i:j])
 
             # punctuation?
-            j, i = java.lex(s, i)
-            t = s[j:i]
+            i, j = java.lex(s, j)
+            t = s[i:j]
             if t == ",":
                 continue
             if t == "->":
@@ -41,5 +41,5 @@ for file in java.src_files():
         labels.sort()
         r.append(",".join(labels))
         r.append("->")
-        j = i
+        i = j
     open(file, "w", newline="\n").write("".join(r))

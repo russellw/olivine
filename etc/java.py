@@ -219,22 +219,22 @@ def lex(s, i):
     while s[i].isspace():
         i += 1
     j = i
-    if s[i].isalnum():
-        while s[i].isalnum():
-            i += 1
-    elif s[i] in "'\"":
-        q = s[i]
-        i += 1
-        while s[i] != q:
-            if s[i] == "\\":
-                i += 1
-            i += 1
-        i += 1
-    elif s[i : i + 2] == "->":
-        i += 2
+    if s[j].isalnum():
+        while s[j].isalnum():
+            j += 1
+    elif s[j] in "'\"":
+        q = s[j]
+        j += 1
+        while s[j] != q:
+            if s[j] == "\\":
+                j += 1
+            j += 1
+        j += 1
+    elif s[j : j + 2] == "->":
+        j += 2
     else:
-        i += 1
-    return j, i
+        j += 1
+    return i, j
 
 
 def parse(v):
