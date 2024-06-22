@@ -37,8 +37,12 @@ for file in java.src_files():
             r.append(" ")
             r.append(t)
             labels.clear()
+
+            # eat punctuation
             i, j = java.lex(s, j)
-            assert s[i:j] == "->"
+            t = s[i:j]
+            if t != "->":
+                raise Exception(t)
             break
         labels.sort()
         r.append(",".join(labels))
