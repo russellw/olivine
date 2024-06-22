@@ -5,13 +5,8 @@ import etc
 
 
 def src_files():
-    directory = os.path.join("src", "main", "java", "olivine")
     r = []
-    for entry in os.scandir(directory):
-        if entry.is_file():
-            file = entry.name
-            if file.endswith(".java"):
-                r.append(os.path.join(directory, file))
+    etc.get_files(os.path.join("src", "main", "java", "olivine"), ".java", r)
     return r
 
 

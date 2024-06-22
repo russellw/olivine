@@ -1,6 +1,14 @@
 import os
 
 
+def get_files(directory, extension, r):
+    for entry in os.scandir(directory):
+        if entry.is_file():
+            file = entry.name
+            if file.endswith(extension):
+                r.append(os.path.join(directory, file))
+
+
 def read_lines(file):
     with open(file) as f:
         return [s.rstrip() for s in f]
