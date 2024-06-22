@@ -118,7 +118,7 @@ def parse(v):
 
     def block(dent, r):
         nonlocal i
-        while etc.indentation(v[i]) > dent:
+        while i < len(v) and etc.indentation(v[i]) > dent:
             r.append(element())
 
     r = []
