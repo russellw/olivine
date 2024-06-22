@@ -5,6 +5,7 @@ import etc
 import java
 
 for file in java.src_files():
+    etc.debug(file)
     s = open(file).read()
     i = 0
     r = []

@@ -1,4 +1,16 @@
+import inspect
+import logging
 import os
+import sys
+
+logger = logging.getLogger()
+logger.addHandler(logging.StreamHandler(sys.stdout))
+logger.setLevel(logging.DEBUG)
+
+
+def debug(a):
+    info = inspect.getframeinfo(inspect.currentframe().f_back)
+    logger.debug(f"{info.filename}:{info.function}:{info.lineno}: {repr(a)}")
 
 
 def get_files(directory, extension, r):
