@@ -45,6 +45,12 @@ def category_rank(a):
     raise Exception(s)
 
 
+def src_files():
+    r = []
+    etc.get_files("etc", ".py", r)
+    return r
+
+
 def key(a):
     return category_rank(a), a.name, a.sig
 
