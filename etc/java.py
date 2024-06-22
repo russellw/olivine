@@ -215,6 +215,28 @@ def comment(s):
     return re.match(" *//", s)
 
 
+def lex(s, i):
+    while s[i].isspace():
+        i += 1
+    j = i
+    if s[i].isalnum():
+        while s[i].isalnum():
+            i += 1
+    elif s[i] in "'\"":
+        q = s[i]
+        i += 1
+        while s[i] != q:
+            if s[i] == "\\":
+                i += 1
+            i += 1
+        i += 1
+    elif s[i : i + 2] == "->":
+        i += 2
+    else:
+        i += 1
+    return j, i
+
+
 def parse(v):
     i = 0
 
