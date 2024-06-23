@@ -76,8 +76,8 @@ def category_rank(a):
     raise Exception(s)
 
 
-def comment(a):
-    return isinstance(a, Line) and re.match(" *#", a.s)
+def comment(s):
+    return re.match(" *#", s)
 
 
 def compose(v):
@@ -134,7 +134,32 @@ def parse(v):
 
 
 def separate(a, b):
-    return not comment(a) and comment(b)
+    # if either element is a class or function, it doesn't matter
+    # black will do it anyway
+    # so simplify subsequent analysis by immediately returning
+    if not isinstance(a, Line):
+        return
+    if not isinstance(b, Line):
+        return
+
+    # now it depends on the text
+    a = a.s
+    b = b.s
+
+    # blank line before comment
+    if not comment(b):
+        return
+
+    # but not between comments
+    if comment(a):
+        return
+
+    # and not at the beginning of a block
+    if etc.indentation(a) < etc.indentation(b):
+        return
+
+    # all criteria pass
+    return True
 
 
 def sort(v):
