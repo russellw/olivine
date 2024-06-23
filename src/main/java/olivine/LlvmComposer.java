@@ -105,7 +105,6 @@ public final class LlvmComposer {
 
   private void atom(Term term) {
     switch (term.tag()) {
-      case NULL -> print("null");
       case ADDR -> {
         switch (term.get(0)) {
           case GlobalVariable globalVariable -> atom(globalVariable);
@@ -117,6 +116,7 @@ public final class LlvmComposer {
         var globalVariable = (GlobalVariable) term;
         id(globalVariable.name);
       }
+      case NULL -> print("null");
       case VARIABLE -> {
         print('%');
         local(term);
@@ -295,11 +295,6 @@ public final class LlvmComposer {
           default -> atom(value);
         }
       }
-      case RetVoid _ -> print("ret void");
-      case Ret ret -> {
-        print("ret ");
-        typeAtom(ret.value);
-      }
       case Br br -> {
         print("br i1 ");
         atom(br.cond);
@@ -312,6 +307,11 @@ public final class LlvmComposer {
         print("br %");
         local(brUnconditional.dest);
       }
+      case Ret ret -> {
+        print("ret ");
+        typeAtom(ret.value);
+      }
+      case RetVoid _ -> print("ret void");
       case Store store -> {
         print("store ");
         typeAtom(store.value);

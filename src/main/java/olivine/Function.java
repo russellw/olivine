@@ -37,12 +37,12 @@ public final class Function extends Global {
     for (var block : blocks()) {
       for (var instruction : block) instruction.verify();
       switch (block.last()) {
-        case RetVoid _ -> {
-          assert returnType == Type.VOID;
-        }
         case Ret ret -> {
           assert returnType != Type.VOID;
           assert ret.value.type().equals(returnType);
+        }
+        case RetVoid _ -> {
+          assert returnType == Type.VOID;
         }
         default -> {}
       }

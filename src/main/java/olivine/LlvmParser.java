@@ -39,6 +39,12 @@ public final class LlvmParser {
     reset();
     while (token != EOF) {
       switch (token) {
+        case COMDAT_ID -> {
+          module.comdats.add(lex1());
+          expect('=');
+          expect("comdat");
+          expect("any");
+        }
         case LOCAL_ID -> {
           var name = lex1();
           expect('=');
@@ -56,12 +62,6 @@ public final class LlvmParser {
             }
           }
         }
-        case COMDAT_ID -> {
-          module.comdats.add(lex1());
-          expect('=');
-          expect("comdat");
-          expect("any");
-        }
       }
       eol();
     }
@@ -71,6 +71,20 @@ public final class LlvmParser {
     reset();
     while (token != EOF) {
       switch (token) {
+        case GLOBAL_ID -> {
+          var name = lex1();
+          expect('=');
+          linkage();
+          preemptionSpecifier();
+          unnamedAddr();
+          if (token == WORD)
+            switch (tokenString) {
+              case "constant", "global" -> lex();
+            }
+          var a = new GlobalVariable(name, type());
+          declare(name, a);
+          module.variables.add(a);
+        }
         case WORD -> {
           switch (lex1()) {
             case "declare", "define" -> {
@@ -100,20 +114,6 @@ public final class LlvmParser {
             }
           }
         }
-        case GLOBAL_ID -> {
-          var name = lex1();
-          expect('=');
-          linkage();
-          preemptionSpecifier();
-          unnamedAddr();
-          if (token == WORD)
-            switch (tokenString) {
-              case "constant", "global" -> lex();
-            }
-          var a = new GlobalVariable(name, type());
-          declare(name, a);
-          module.variables.add(a);
-        }
       }
       eol();
     }
@@ -123,6 +123,18 @@ public final class LlvmParser {
     while (token != EOF) {
       // TODO: refactor?
       switch (token) {
+        case GLOBAL_ID -> {
+          var variable = (GlobalVariable) globals.get(lex1());
+          expect('=');
+          linkage();
+          preemptionSpecifier();
+          unnamedAddr();
+          if (token == WORD)
+            switch (tokenString) {
+              case "constant", "global" -> lex();
+            }
+          variable.value = typeExpr();
+        }
         case WORD -> {
           // Function definition
           if (tokenString.equals("define")) {
@@ -183,18 +195,6 @@ public final class LlvmParser {
             }
             phis.clear();
           }
-        }
-        case GLOBAL_ID -> {
-          var variable = (GlobalVariable) globals.get(lex1());
-          expect('=');
-          linkage();
-          preemptionSpecifier();
-          unnamedAddr();
-          if (token == WORD)
-            switch (tokenString) {
-              case "constant", "global" -> lex();
-            }
-          variable.value = typeExpr();
         }
       }
       eol();
@@ -282,6 +282,21 @@ public final class LlvmParser {
 
   private Term expr(Type type) {
     return switch (token) {
+      case FLOAT, HEX_FLOAT -> Term.floatConstant(type, lex1());
+      case GLOBAL_ID -> {
+        var a = globals.get(lex1());
+        if (a == null) throw error("name not found");
+        if (a instanceof GlobalVariable) yield a.addr();
+        yield a;
+      }
+      case INT -> Term.intConstant(type, new BigInteger(lex1()));
+      case LOCAL_ID -> variable(lex1(), type);
+      case STRING -> {
+        var v = new Term[tokenString.length()];
+        for (var i = 0; i < v.length; i++) v[i] = Term.intConstant(Type.I8, tokenString.charAt(i));
+        lex();
+        yield Term.array(Type.I8, v);
+      }
       case WORD -> {
         var s = lex1();
         yield switch (s) {
@@ -303,21 +318,6 @@ public final class LlvmParser {
           case "zeroinitializer" -> Term.zeroinitializer(type);
           default -> throw error(s, "expected expression");
         };
-      }
-      case INT -> Term.intConstant(type, new BigInteger(lex1()));
-      case FLOAT, HEX_FLOAT -> Term.floatConstant(type, lex1());
-      case GLOBAL_ID -> {
-        var a = globals.get(lex1());
-        if (a == null) throw error("name not found");
-        if (a instanceof GlobalVariable) yield a.addr();
-        yield a;
-      }
-      case LOCAL_ID -> variable(lex1(), type);
-      case STRING -> {
-        var v = new Term[tokenString.length()];
-        for (var i = 0; i < v.length; i++) v[i] = Term.intConstant(Type.I8, tokenString.charAt(i));
-        lex();
-        yield Term.array(Type.I8, v);
       }
       default -> throw error("expected expression");
     };
@@ -373,6 +373,7 @@ public final class LlvmParser {
 
   private void instruction(Block block) {
     switch (token) {
+      case '\n' -> {}
       case LOCAL_ID -> {
         var name = lex1();
         expect('=');
@@ -736,7 +737,6 @@ public final class LlvmParser {
           default -> throw error(mnemonic, "unknown instruction");
         }
       }
-      case '\n' -> {}
       default -> throw error(cause(), "expected instruction");
     }
   }
@@ -761,35 +761,47 @@ public final class LlvmParser {
           textIdx++;
           continue;
         }
-        case ';' -> {
-          do textIdx++;
-          while (text[textIdx] != '\n');
-          continue;
-        }
-        case '%' -> {
-          token = LOCAL_ID;
-          id();
-        }
-        case '@' -> {
-          token = GLOBAL_ID;
-          id();
+        case '"' -> {
+          token = STRING;
+          quote();
         }
         case '$' -> {
           token = COMDAT_ID;
           id();
         }
-        case '"' -> {
-          token = STRING;
-          quote();
+        case '%' -> {
+          token = LOCAL_ID;
+          id();
         }
-        case 'c' -> {
-          if (text[textIdx + 1] == '"') {
-            textIdx++;
-            token = STRING;
-            quote();
+        case '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> {
+          var sb = new StringBuilder();
+          sb.append((char) text[textIdx++]);
+          token = INT;
+          if (text[textIdx] == 'x') token = HEX_FLOAT;
+          while (Etc.isAlnum(text[textIdx]) || text[textIdx] == '.' || Etc.isSign(text[textIdx])) {
+            int c = text[textIdx++];
+            if (!Etc.isDigit(c) && token == INT) token = FLOAT;
+            sb.append((char) c);
+          }
+          maybeLabel();
+          tokenString = sb.toString();
+        }
+        case '.' -> {
+          if (text[textIdx + 1] == '.' && text[textIdx + 2] == '.') {
+            textIdx += 3;
+            token = DOTS;
             break;
           }
-          word();
+          textIdx++;
+        }
+        case ';' -> {
+          do textIdx++;
+          while (text[textIdx] != '\n');
+          continue;
+        }
+        case '@' -> {
+          token = GLOBAL_ID;
+          id();
         }
         case 'A',
                 'B',
@@ -844,26 +856,14 @@ public final class LlvmParser {
                 'y',
                 'z' ->
             word();
-        case '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> {
-          var sb = new StringBuilder();
-          sb.append((char) text[textIdx++]);
-          token = INT;
-          if (text[textIdx] == 'x') token = HEX_FLOAT;
-          while (Etc.isAlnum(text[textIdx]) || text[textIdx] == '.' || Etc.isSign(text[textIdx])) {
-            int c = text[textIdx++];
-            if (!Etc.isDigit(c) && token == INT) token = FLOAT;
-            sb.append((char) c);
-          }
-          maybeLabel();
-          tokenString = sb.toString();
-        }
-        case '.' -> {
-          if (text[textIdx + 1] == '.' && text[textIdx + 2] == '.') {
-            textIdx += 3;
-            token = DOTS;
+        case 'c' -> {
+          if (text[textIdx + 1] == '"') {
+            textIdx++;
+            token = STRING;
+            quote();
             break;
           }
-          textIdx++;
+          word();
         }
         default -> token = text[textIdx++];
       }
@@ -916,14 +916,14 @@ public final class LlvmParser {
   private void paramAttrs() {
     while (token == WORD)
       switch (tokenString) {
-        case "immarg", "nocapture", "nonnull", "noundef", "readnone", "readonly", "returned" ->
-            lex();
         case "dereferenceable" -> {
           lex();
           expect('(');
           expect(INT);
           expect(')');
         }
+        case "immarg", "nocapture", "nonnull", "noundef", "readnone", "readonly", "returned" ->
+            lex();
         default -> {
           return;
         }
@@ -947,6 +947,36 @@ public final class LlvmParser {
 
   private Type primaryType() {
     switch (token) {
+      case '<' -> {
+        lex();
+        var n = Integer.parseInt(expect(INT));
+        expect("x");
+        var x = type();
+        expect('>');
+        return x.vector(n);
+      }
+      case '[' -> {
+        lex();
+        var n = Integer.parseInt(expect(INT));
+        expect("x");
+        var x = type();
+        expect(']');
+        return x.array(n);
+      }
+      case '{' -> {
+        lex();
+        var fields = new ArrayList<Type>();
+        do fields.add(type());
+        while (eat(','));
+        expect('}');
+        return Type.struct(fields);
+      }
+      case LOCAL_ID -> {
+        var type = types.get(tokenString);
+        if (type == null) type = new UnresolvedType(tokenString);
+        lex();
+        return type;
+      }
       case WORD -> {
         var s = lex1();
         return switch (s) {
@@ -968,36 +998,6 @@ public final class LlvmParser {
           default -> throw error(s, "unknown type");
         };
       }
-      case '[' -> {
-        lex();
-        var n = Integer.parseInt(expect(INT));
-        expect("x");
-        var x = type();
-        expect(']');
-        return x.array(n);
-      }
-      case '<' -> {
-        lex();
-        var n = Integer.parseInt(expect(INT));
-        expect("x");
-        var x = type();
-        expect('>');
-        return x.vector(n);
-      }
-      case '{' -> {
-        lex();
-        var fields = new ArrayList<Type>();
-        do fields.add(type());
-        while (eat(','));
-        expect('}');
-        return Type.struct(fields);
-      }
-      case LOCAL_ID -> {
-        var type = types.get(tokenString);
-        if (type == null) type = new UnresolvedType(tokenString);
-        lex();
-        return type;
-      }
     }
     throw error("expected type");
   }
@@ -1010,7 +1010,6 @@ public final class LlvmParser {
       int c = text[textIdx++];
       if (c == '\\')
         switch (text[textIdx]) {
-          case '\\' -> textIdx++;
           case '0',
               '1',
               '2',
@@ -1036,6 +1035,7 @@ public final class LlvmParser {
             c = Etc.parseHexDigit(text[textIdx]) << 4 + Etc.parseHexDigit(text[textIdx + 1]);
             textIdx += 2;
           }
+          case '\\' -> textIdx++;
           default -> throw error(Integer.toString(c), "unknown escape sequence");
         }
       sb.append((char) c);
@@ -1052,16 +1052,6 @@ public final class LlvmParser {
   private Type type() {
     var type = primaryType();
     switch (token) {
-      case WORD -> {
-        if (eat("align")) expect(INT);
-      }
-      case '*' -> {
-        //noinspection StatementWithEmptyBody
-        do
-          ;
-        while (eat('*'));
-        return Type.PTR;
-      }
       case '(' -> {
         lex();
         var params = new ArrayList<Type>();
@@ -1076,6 +1066,16 @@ public final class LlvmParser {
           } while (eat(','));
         expect(')');
         return Type.function(type, params, varargs);
+      }
+      case '*' -> {
+        //noinspection StatementWithEmptyBody
+        do
+          ;
+        while (eat('*'));
+        return Type.PTR;
+      }
+      case WORD -> {
+        if (eat("align")) expect(INT);
       }
     }
     return type;

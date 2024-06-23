@@ -1509,7 +1509,6 @@ public abstract class Term implements Iterable<Term> {
 
   public static Term zeroinitializer(Type type) {
     return switch (type.kind()) {
-      case INT -> intConstant(type, 0);
       case ARRAY -> {
         var count = type.count();
         type = type.get(0);
@@ -1517,6 +1516,7 @@ public abstract class Term implements Iterable<Term> {
         Arrays.fill(elements, zeroinitializer(type));
         yield array(type, elements);
       }
+      case INT -> intConstant(type, 0);
       default -> {
         if (type.isFloat()) yield floatConstant(type, "0");
         throw new IllegalArgumentException(type.toString());

@@ -50,8 +50,8 @@ public final class Block implements Iterable<Instruction> {
   public List<Block> successors() {
     if (instructions.isEmpty()) return List.of();
     return switch (last()) {
-      case BrUnconditional brUnconditional -> List.of(brUnconditional.dest);
       case Br br -> List.of(br.ifTrue, br.ifFalse);
+      case BrUnconditional brUnconditional -> List.of(brUnconditional.dest);
       default -> List.of();
     };
   }

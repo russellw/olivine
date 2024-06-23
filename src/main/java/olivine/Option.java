@@ -98,13 +98,6 @@ public abstract class Option {
       var s = args[i];
       if (parsingOptions)
         switch (s.charAt(0)) {
-          case '@' -> {
-            parse(
-                options,
-                Files.readAllLines(Path.of(s.substring(1)), StandardCharsets.UTF_8)
-                    .toArray(new String[0]));
-            continue;
-          }
           case '-' -> {
             // -
             if (s.length() == 1) {
@@ -164,6 +157,13 @@ public abstract class Option {
               System.exit(1);
             } else arg = args[++i];
             option.accept(arg);
+            continue;
+          }
+          case '@' -> {
+            parse(
+                options,
+                Files.readAllLines(Path.of(s.substring(1)), StandardCharsets.UTF_8)
+                    .toArray(new String[0]));
             continue;
           }
         }
