@@ -29,7 +29,7 @@ class Class:
                 r.append("")
             a.compose(r)
         if not self.sig.endswith("}"):
-            r.append(" " * etc.indentation(self.sig) + "}")
+            r.append("}")
 
     def sort(self):
         for a in self.members:
@@ -63,7 +63,7 @@ class Enum:
         r.append(self.sig)
         r.extend(self.members)
         if not self.sig.endswith("}"):
-            r.append(" " * etc.indentation(self.sig) + "}")
+            r.append("}")
 
     def sort(self):
         self.members.sort()
@@ -134,7 +134,7 @@ class FieldClass:
             if i and separate(self.members[i - 1], a):
                 r.append("")
             a.compose(r)
-        r.append(" " * etc.indentation(self.sig1) + "};")
+        r.append("};")
 
     def sort(self):
         for a in self.members:
@@ -168,7 +168,7 @@ class Method:
         r.append(self.sig)
         r.extend(self.body)
         if self.sig[-1] not in ";}":
-            r.append(" " * etc.indentation(self.sig) + "}")
+            r.append("}")
 
     def sort(self):
         pass
