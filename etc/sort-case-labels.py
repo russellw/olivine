@@ -17,11 +17,11 @@ for file in java.src_files():
         r.append(s[i:j])
         labels = []
         while 1:
-            # label
+            # Label
             i, j = java.lex(s, j)
             labels.append(s[i:j])
 
-            # punctuation?
+            # Punctuation?
             i, j = java.lex(s, j)
             t = s[i:j]
             if t == ",":
@@ -29,7 +29,7 @@ for file in java.src_files():
             if t == "->":
                 break
 
-            # pattern match
+            # Pattern match
             if not (t[0].isalpha() or t == "_"):
                 raise Exception(t)
             assert len(labels) == 1
@@ -38,7 +38,7 @@ for file in java.src_files():
             r.append(t)
             labels.clear()
 
-            # eat punctuation
+            # Eat punctuation
             i, j = java.lex(s, j)
             t = s[i:j]
             if t != "->":

@@ -134,7 +134,7 @@ def parse(v):
 
 
 def separate(a, b):
-    # if either element is a class or function, it doesn't matter
+    # If either element is a class or function, it doesn't matter
     # black will do it anyway
     # so simplify subsequent analysis by immediately returning
     if not isinstance(a, Line):
@@ -142,23 +142,23 @@ def separate(a, b):
     if not isinstance(b, Line):
         return
 
-    # now it depends on the text
+    # Now it depends on the text
     a = a.s
     b = b.s
 
-    # blank line before comment
+    # Blank line before comment
     if not comment(b):
         return
 
-    # but not between comments
+    # But not between comments
     if comment(a):
         return
 
-    # and not at the beginning of a block
+    # And not at the beginning of a block
     if etc.indentation(a) < etc.indentation(b):
         return
 
-    # all criteria pass
+    # All criteria pass
     return True
 
 

@@ -7,21 +7,6 @@ import etc
 import java
 
 
-def find(f, n, i):
-    while i < n:
-        if f(i):
-            return i
-        i += 1
-    return -1
-
-
-def is_case(i):
-    if re.match(" *case ", v[i]):
-        return True
-    if re.match(" *default ", v[i]):
-        return True
-
-
 def case(i):
     assert is_case(i)
     dent = etc.indentation(v[i])
@@ -44,6 +29,21 @@ def cases(i):
         r.append(c)
         j += len(c)
     return i, r
+
+
+def find(f, n, i):
+    while i < n:
+        if f(i):
+            return i
+        i += 1
+    return -1
+
+
+def is_case(i):
+    if re.match(" *case ", v[i]):
+        return True
+    if re.match(" *default ", v[i]):
+        return True
 
 
 for file in java.src_files():

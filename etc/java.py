@@ -201,6 +201,10 @@ def closes_semi(dent, s):
     return s == " " * dent + "};"
 
 
+def comment(s):
+    return re.match(" *//", s)
+
+
 def compose(a):
     r = []
     a.compose(r)
@@ -209,10 +213,6 @@ def compose(a):
 
 def key(a):
     return category_rank(a), a.name, a.sig
-
-
-def comment(s):
-    return re.match(" *//", s)
 
 
 def lex(s, i):
