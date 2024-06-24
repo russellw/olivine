@@ -89,7 +89,7 @@ public final class LlvmComposer {
     }
   }
 
-  private void args(Iterable<Term> terms) {
+  private void args(Term[] terms) {
     print(' ');
     var more = false;
     for (var term : terms) {
@@ -205,6 +205,107 @@ public final class LlvmComposer {
     print(s);
   }
 
+  private Term ssa(Term term) {
+    print("\t%");
+    var variable = new Variable(term.type());
+    local(variable);
+    print('=');
+    return variable;
+  }
+
+  private Term load(Term term) {
+    var args = new Term[term.size()];
+    for (var i = 0; i < args.length; i++) args[i] = load(term.get(i));
+    switch (term.tag()) {
+      case SCAST -> {
+        print(scast(term));
+        print(' ');
+        typeAtom(args[0]);
+        print(" to ");
+        print(term.type());
+      }
+      case CAST -> {
+        print(cast(term));
+        print(' ');
+        typeAtom(args[0]);
+        print(" to ");
+        print(term.type());
+      }
+      case NE -> {
+        print("icmp ne");
+        args(args);
+      }
+      case EQ -> {
+        print("icmp eq");
+        args(args);
+      }
+      case SLT -> {
+        print("icmp slt");
+        args(args);
+      }
+      case FMUL -> {
+        print("fmul");
+        args(args);
+      }
+      case MUL -> {
+        print("mul");
+        args(args);
+      }
+      case OR -> {
+        print("or");
+        args(args);
+      }
+      case ADDR -> {
+        print('@');
+        var variable = (GlobalVariable) args[0];
+        id(variable.name);
+      }
+      case ARRAY -> {
+        print('[');
+        var more = false;
+        for (var element : args) {
+          if (more) print(',');
+          more = true;
+          typeAtom(element);
+        }
+        print(']');
+      }
+      case CALL -> call(term);
+      case LOAD -> {
+        print("load ");
+        print(term.type());
+        print(',');
+        typeAtom(args[0]);
+      }
+      case FIELD_PTR -> {
+        print("getelementptr ");
+        print(term.struct());
+        print(',');
+        typeAtom(args[0]);
+        print(",i32 0,i32 ");
+        print(Integer.toString(term.intValueExact()));
+      }
+      case ELEMENT_PTR -> {
+        print("getelementptr ptr,");
+        typeAtom(args[0]);
+        print(',');
+        typeAtom(args[1]);
+      }
+      case ALLOCA -> {
+        print("alloca ");
+        print(term.type());
+      }
+      case VARIABLE, GLOBAL_VARIABLE -> {
+        var variable = ssa(term);
+        print("load ");
+        typeAtom(term);
+        print('\n');
+        return variable;
+      }
+    }
+    return term;
+  }
+
   private void print(Instruction instruction) {
     print('\t');
     switch (instruction) {
@@ -212,88 +313,6 @@ public final class LlvmComposer {
         print('%');
         local(assign.variable);
         print('=');
-        var value = assign.value;
-        switch (value.tag()) {
-          case SCAST -> {
-            print(scast(value));
-            print(' ');
-            typeAtom(value.get(0));
-            print(" to ");
-            print(value.type());
-          }
-          case CAST -> {
-            print(cast(value));
-            print(' ');
-            typeAtom(value.get(0));
-            print(" to ");
-            print(value.type());
-          }
-          case NE -> {
-            print("icmp ne");
-            args(value);
-          }
-          case EQ -> {
-            print("icmp eq");
-            args(value);
-          }
-          case SLT -> {
-            print("icmp slt");
-            args(value);
-          }
-          case FMUL -> {
-            print("fmul");
-            args(value);
-          }
-          case MUL -> {
-            print("mul");
-            args(value);
-          }
-          case OR -> {
-            print("or");
-            args(value);
-          }
-          case ADDR -> {
-            print('@');
-            var variable = (GlobalVariable) value.get(0);
-            id(variable.name);
-          }
-          case ARRAY -> {
-            print('[');
-            var more = false;
-            for (var b : value) {
-              if (more) print(',');
-              more = true;
-              typeAtom(b);
-            }
-            print(']');
-          }
-          case CALL -> call(value);
-          case LOAD -> {
-            print("load ");
-            print(value.type());
-            print(',');
-            typeAtom(value.get(0));
-          }
-          case FIELD_PTR -> {
-            print("getelementptr ");
-            print(value.struct());
-            print(',');
-            typeAtom(value.get(0));
-            print(",i32 0,i32 ");
-            print(Integer.toString(value.intValueExact()));
-          }
-          case ELEMENT_PTR -> {
-            print("getelementptr ptr,");
-            typeAtom(value.get(0));
-            print(',');
-            typeAtom(value.get(1));
-          }
-          case ALLOCA -> {
-            print("alloca ");
-            print(value.type());
-          }
-          default -> atom(value);
-        }
       }
       case Br br -> {
         print("br i1 ");
