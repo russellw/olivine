@@ -52,8 +52,6 @@ public final class Main {
 
     var module = modules.getFirst();
     module.verify();
-    Flatten.run(module);
-    module.verify();
     Files.write(Path.of("a.ll"), LlvmComposer.compose(module));
   }
 
@@ -93,10 +91,10 @@ public final class Main {
     process.waitFor();
 
     // Check for error
-    var e = process.exitValue();
-    if (e != 0) {
-      System.err.println("Process exit value: " + e);
-      System.exit(e);
+    var exitValue = process.exitValue();
+    if (exitValue != 0) {
+      System.err.println("Process exit value: " + exitValue);
+      System.exit(exitValue);
     }
   }
 
