@@ -249,6 +249,7 @@ public final class LlvmComposer {
         args(args);
       }
       case GLOBAL_VARIABLE, VARIABLE -> {
+        //noinspection SuspiciousMethodCalls
         if (params.contains(term)) return term;
         ssa = ssa(term);
         print("load ");
