@@ -323,7 +323,7 @@ public final class LlvmComposer {
         var value = load(assign.value);
         print("store ");
         typeAtom(value);
-        print(",ptr ");
+        print(",ptr %");
         local(assign.variable);
       }
       case Br br -> {
