@@ -279,6 +279,11 @@ public final class LlvmComposer {
         print("or");
         args(args);
       }
+      case ADD -> {
+        ssa = ssa(term);
+        print("add");
+        args(args);
+      }
       case SCAST -> {
         ssa = ssa(term);
         print(scast(term));
