@@ -5,6 +5,10 @@ import java.util.*;
 public final class Block implements Iterable<Instruction> {
   private final List<Instruction> instructions = new ArrayList<>();
 
+  void dump() {
+    System.out.printf("%x:\n", hashCode());
+  }
+
   public void add(Instruction instruction) {
     instructions.add(instruction);
   }

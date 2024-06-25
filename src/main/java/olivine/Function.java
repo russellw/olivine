@@ -17,6 +17,19 @@ public final class Function extends Global {
     this.varargs = varargs;
   }
 
+  void dump() {
+    System.out.printf("Function %s %s(", returnType, name);
+    var more = false;
+    for (var param : params) {
+      if (more) System.out.print(", ");
+      more = true;
+      System.out.printf("%s %s", param.type(), param);
+    }
+    System.out.println(") {");
+    for (var block : blocks()) block.dump();
+    System.out.println('}');
+  }
+
   public List<Block> blocks() {
     var blocks = new ArrayList<Block>();
     if (entry != null) entry.getBlocks(new HashSet<>(), blocks);
