@@ -21,7 +21,7 @@ public final class Function extends Global {
     System.out.printf("Function %s %s(", returnType, name);
     var more = false;
     for (var param : params) {
-      if (more) System.out.print(", ");
+      if (more) System.out.print(',');
       more = true;
       System.out.printf("%s %s", param.type(), param);
     }

@@ -10,6 +10,11 @@ public final class Assign extends Instruction {
   }
 
   @Override
+  void dump() {
+    System.out.printf("\t%s = %s\n", variable, value);
+  }
+
+  @Override
   public void verify() {
     value.verify();
     var type = value.type();

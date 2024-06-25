@@ -10,6 +10,11 @@ public final class Store extends Instruction {
   }
 
   @Override
+  void dump() {
+    System.out.printf("\tStore %s, %s\n", value, pointer);
+  }
+
+  @Override
   public void verify() {
     value.verify();
     assert value.type() != Type.VOID;

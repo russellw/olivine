@@ -8,6 +8,11 @@ public final class Ret extends Instruction {
   }
 
   @Override
+  void dump() {
+    System.out.printf("\tRet %s\n", value);
+  }
+
+  @Override
   public void verify() {
     value.verify();
     assert value.type() != Type.VOID;

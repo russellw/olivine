@@ -7,6 +7,7 @@ public final class Block implements Iterable<Instruction> {
 
   void dump() {
     System.out.printf("%x:\n", hashCode());
+    for (var instruction : instructions) instruction.dump();
   }
 
   public void add(Instruction instruction) {
