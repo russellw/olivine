@@ -70,6 +70,11 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    public String toString() {
+      return "alloca(%s,%s)".formatted(type, arg);
+    }
+
+    @Override
     public boolean equals(Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
@@ -656,7 +661,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public String toString() {
-      return "%s(%s,%s,%d)".formatted(tag(), struct, arg, idx);
+      return "field_ptr(%s,%s,%d)".formatted(struct, arg, idx);
     }
 
     @Override
@@ -777,6 +782,11 @@ public abstract class Term implements Iterable<Term> {
     public Load(Type type, Term pointer) {
       super(pointer);
       this.type = type;
+    }
+
+    @Override
+    public String toString() {
+      return "load(%s,%s)".formatted(type, arg);
     }
 
     @Override
