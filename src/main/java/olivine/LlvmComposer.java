@@ -7,6 +7,7 @@ import java.util.*;
 public final class LlvmComposer {
   private final Map<Object, String> locals = new HashMap<>();
   private final ByteArrayOutputStream stream = new ByteArrayOutputStream();
+  private List<Variable> params;
 
   private LlvmComposer(Module module) {
     // Global variables
@@ -27,17 +28,18 @@ public final class LlvmComposer {
 
     // Functions
     for (var function : module.functions) {
+      locals.clear();
+      params = function.params;
+
+      // declaration
       print('\n');
       print(function.entry == null ? "declare " : "define ");
       print(function.returnType);
-
-      // Name
       print(" @");
       id(function.name);
 
       // Parameters
       print('(');
-      locals.clear();
       var more = false;
       for (var a : function.params) {
         if (more) print(',');
@@ -247,6 +249,7 @@ public final class LlvmComposer {
         args(args);
       }
       case GLOBAL_VARIABLE, VARIABLE -> {
+        if (params.contains(term)) return term;
         ssa = ssa(term);
         print("load ");
         print(term.type());
