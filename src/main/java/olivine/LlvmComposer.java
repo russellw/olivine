@@ -54,26 +54,23 @@ public final class LlvmComposer {
       // Empty function is only declared, not defined
       if (function.entry == null) continue;
 
-      // Count how many times each local variable is assigned
+      // local variables
       var blocks = function.blocks();
-      var assigned = new LinkedHashMap<Variable, Integer>();
+      var assigned = new LinkedHashSet<Variable>();
       for (var block : blocks)
         for (var instruction : block)
-          if (instruction instanceof Assign assign) {
-            var variable = assign.variable;
-            assigned.put(variable, assigned.getOrDefault(variable, 0) + 1);
-          }
+          if (instruction instanceof Assign assign) assigned.add(assign.variable);
 
-      // Look at the ones that are assigned more than once
-      var reassigned = new HashSet<Variable>();
-      for (var entry : assigned.entrySet())
-        if (entry.getValue() > 1) reassigned.add(entry.getKey());
-
-      // They need to be converted to alloca
+      // must be converted to alloca
       local(function.entry);
       print(":\n");
-      for (var variable : reassigned)
-        print(new Assign(variable, Term.alloca(variable.type(), Term.intConstant(Type.I32, 1))));
+      for (var variable : assigned) {
+        print('%');
+        local(variable);
+        print("=alloca ");
+        print(variable.type());
+        print('\n');
+      }
 
       // Print body
       for (var block : blocks) {
