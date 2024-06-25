@@ -1399,8 +1399,7 @@ public abstract class Term implements Iterable<Term> {
   }
 
   public static Term intConstant(Type type, long value) {
-    assert value >= 0;
-    return new IntConstant(type, BigInteger.valueOf(value));
+    return intConstant(type, BigInteger.valueOf(value));
   }
 
   public int intValueExact() {
