@@ -316,6 +316,7 @@ public final class LlvmComposer {
         typeAtom(value);
         print(",ptr %");
         local(assign.variable);
+        print("; Assign");
       }
       case Br br -> {
         var cond = load(br.cond);
@@ -343,6 +344,7 @@ public final class LlvmComposer {
         typeAtom(value);
         print(',');
         typeAtom(pointer);
+        print("; Store");
       }
       case VoidCall voidCall -> call(voidCall.call);
       default -> throw new IllegalArgumentException(instruction.toString());
