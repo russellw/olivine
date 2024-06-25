@@ -190,73 +190,15 @@ public final class LlvmComposer {
     return true;
   }
 
-  private void local(Object o) {
-    var s = locals.get(o);
-    if (s == null) {
-      s = Integer.toString(locals.size());
-      locals.put(o, s);
-    }
-    print(s);
-  }
-
-  private Term ssa(Term term) {
-    print('%');
-    var variable = new Variable(term.type());
-    local(variable);
-    print('=');
-    return variable;
-  }
-
   private Term load(Term term) {
     var args = new Term[term.size()];
     for (var i = 0; i < args.length; i++) args[i] = load(term.get(i));
     Term ssa;
     switch (term.tag()) {
-      case SCAST -> {
+      case ALLOCA -> {
         ssa = ssa(term);
-        print(scast(term));
-        print(' ');
-        typeAtom(args[0]);
-        print(" to ");
+        print("alloca ");
         print(term.type());
-      }
-      case CAST -> {
-        ssa = ssa(term);
-        print(cast(term));
-        print(' ');
-        typeAtom(args[0]);
-        print(" to ");
-        print(term.type());
-      }
-      case NE -> {
-        ssa = ssa(term);
-        print("icmp ne");
-        args(args);
-      }
-      case EQ -> {
-        ssa = ssa(term);
-        print("icmp eq");
-        args(args);
-      }
-      case SLT -> {
-        ssa = ssa(term);
-        print("icmp slt");
-        args(args);
-      }
-      case FMUL -> {
-        ssa = ssa(term);
-        print("fmul");
-        args(args);
-      }
-      case MUL -> {
-        ssa = ssa(term);
-        print("mul");
-        args(args);
-      }
-      case OR -> {
-        ssa = ssa(term);
-        print("or");
-        args(args);
       }
       case ARRAY -> {
         ssa = ssa(term);
@@ -273,12 +215,25 @@ public final class LlvmComposer {
         ssa = ssa(term);
         call(term);
       }
-      case LOAD -> {
+      case CAST -> {
         ssa = ssa(term);
-        print("load ");
-        print(term.type());
-        print(',');
+        print(cast(term));
+        print(' ');
         typeAtom(args[0]);
+        print(" to ");
+        print(term.type());
+      }
+      case ELEMENT_PTR -> {
+        ssa = ssa(term);
+        print("getelementptr ptr,");
+        typeAtom(args[0]);
+        print(',');
+        typeAtom(args[1]);
+      }
+      case EQ -> {
+        ssa = ssa(term);
+        print("icmp eq");
+        args(args);
       }
       case FIELD_PTR -> {
         ssa = ssa(term);
@@ -289,24 +244,52 @@ public final class LlvmComposer {
         print(",i32 0,i32 ");
         print(Integer.toString(term.intValueExact()));
       }
-      case ELEMENT_PTR -> {
+      case FMUL -> {
         ssa = ssa(term);
-        print("getelementptr ptr,");
-        typeAtom(args[0]);
-        print(',');
-        typeAtom(args[1]);
+        print("fmul");
+        args(args);
       }
-      case ALLOCA -> {
-        ssa = ssa(term);
-        print("alloca ");
-        print(term.type());
-      }
-      case VARIABLE, GLOBAL_VARIABLE -> {
+      case GLOBAL_VARIABLE, VARIABLE -> {
         ssa = ssa(term);
         print("load ");
         print(term.type());
         print(",ptr ");
         atom(term);
+      }
+      case LOAD -> {
+        ssa = ssa(term);
+        print("load ");
+        print(term.type());
+        print(',');
+        typeAtom(args[0]);
+      }
+      case MUL -> {
+        ssa = ssa(term);
+        print("mul");
+        args(args);
+      }
+      case NE -> {
+        ssa = ssa(term);
+        print("icmp ne");
+        args(args);
+      }
+      case OR -> {
+        ssa = ssa(term);
+        print("or");
+        args(args);
+      }
+      case SCAST -> {
+        ssa = ssa(term);
+        print(scast(term));
+        print(' ');
+        typeAtom(args[0]);
+        print(" to ");
+        print(term.type());
+      }
+      case SLT -> {
+        ssa = ssa(term);
+        print("icmp slt");
+        args(args);
       }
       default -> {
         return term;
@@ -314,6 +297,15 @@ public final class LlvmComposer {
     }
     print('\n');
     return ssa;
+  }
+
+  private void local(Object o) {
+    var s = locals.get(o);
+    if (s == null) {
+      s = Integer.toString(locals.size());
+      locals.put(o, s);
+    }
+    print(s);
   }
 
   private void print(Instruction instruction) {
@@ -382,6 +374,14 @@ public final class LlvmComposer {
       if (to.isFloat()) return "sitofp";
     } else if (from.isFloat()) if (to.isInt()) return "fptosi";
     throw new IllegalArgumentException(a.toString());
+  }
+
+  private Term ssa(Term term) {
+    print('%');
+    var variable = new Variable(term.type());
+    local(variable);
+    print('=');
+    return variable;
   }
 
   private void typeAtom(Term term) {

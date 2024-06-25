@@ -3,11 +3,6 @@ package olivine;
 public final class Variable extends Term {
   private final Type type;
 
-  @Override
-  public String toString() {
-    return '%' + Integer.toHexString(hashCode());
-  }
-
   public Variable(Type type) {
     this.type = type;
   }
@@ -15,6 +10,11 @@ public final class Variable extends Term {
   @Override
   public Tag tag() {
     return Tag.VARIABLE;
+  }
+
+  @Override
+  public String toString() {
+    return '%' + Integer.toHexString(hashCode());
   }
 
   @Override

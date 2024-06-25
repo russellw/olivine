@@ -17,6 +17,12 @@ public final class Function extends Global {
     this.varargs = varargs;
   }
 
+  public List<Block> blocks() {
+    var blocks = new ArrayList<Block>();
+    if (entry != null) entry.getBlocks(new HashSet<>(), blocks);
+    return blocks;
+  }
+
   void dump() {
     System.out.printf("Function %s %s(", returnType, name);
     var more = false;
@@ -28,12 +34,6 @@ public final class Function extends Global {
     System.out.println(") {");
     for (var block : blocks()) block.dump();
     System.out.println('}');
-  }
-
-  public List<Block> blocks() {
-    var blocks = new ArrayList<Block>();
-    if (entry != null) entry.getBlocks(new HashSet<>(), blocks);
-    return blocks;
   }
 
   @Override

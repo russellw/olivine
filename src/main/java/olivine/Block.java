@@ -5,13 +5,13 @@ import java.util.*;
 public final class Block implements Iterable<Instruction> {
   private final List<Instruction> instructions = new ArrayList<>();
 
+  public void add(Instruction instruction) {
+    instructions.add(instruction);
+  }
+
   void dump() {
     System.out.printf("%x:\n", hashCode());
     for (var instruction : instructions) instruction.dump();
-  }
-
-  public void add(Instruction instruction) {
-    instructions.add(instruction);
   }
 
   public Instruction get(int i) {

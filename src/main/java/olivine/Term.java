@@ -70,11 +70,6 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
-    public String toString() {
-      return "alloca(%s,%s)".formatted(type, arg);
-    }
-
-    @Override
     public boolean equals(Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
@@ -97,6 +92,11 @@ public abstract class Term implements Iterable<Term> {
     @Override
     public Tag tag() {
       return Tag.ALLOCA;
+    }
+
+    @Override
+    public String toString() {
+      return "alloca(%s,%s)".formatted(type, arg);
     }
 
     @Override
@@ -304,11 +304,6 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
-    public String toString() {
-      return "element_ptr(%s,%s,%s)".formatted(type, arg0, arg1);
-    }
-
-    @Override
     public boolean equals(Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
@@ -331,6 +326,11 @@ public abstract class Term implements Iterable<Term> {
     @Override
     public Tag tag() {
       return Tag.ELEMENT_PTR;
+    }
+
+    @Override
+    public String toString() {
+      return "element_ptr(%s,%s,%s)".formatted(type, arg0, arg1);
     }
 
     @Override
@@ -790,11 +790,6 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
-    public String toString() {
-      return "load(%s,%s)".formatted(type, arg);
-    }
-
-    @Override
     public boolean equals(Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
@@ -817,6 +812,11 @@ public abstract class Term implements Iterable<Term> {
     @Override
     public Tag tag() {
       return Tag.LOAD;
+    }
+
+    @Override
+    public String toString() {
+      return "load(%s,%s)".formatted(type, arg);
     }
 
     @Override
