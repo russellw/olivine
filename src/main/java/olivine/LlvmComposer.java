@@ -304,7 +304,9 @@ public final class LlvmComposer {
       case VARIABLE, GLOBAL_VARIABLE -> {
         ssa = ssa(term);
         print("load ");
-        typeAtom(term);
+        print(term.type());
+        print(",ptr ");
+        atom(term);
       }
       default -> {
         return term;
@@ -319,14 +321,15 @@ public final class LlvmComposer {
     switch (instruction) {
       case Assign assign -> {
         var value = load(assign.value);
-        print('%');
-        local(assign.variable);
-        print('=');
+        print("store ");
         typeAtom(value);
+        print(",ptr ");
+        local(assign.variable);
       }
       case Br br -> {
+        var cond = load(br.cond);
         print("br i1 ");
-        atom(br.cond);
+        atom(cond);
         print(",label %");
         local(br.ifTrue);
         print(",label %");
@@ -337,15 +340,18 @@ public final class LlvmComposer {
         local(brUnconditional.dest);
       }
       case Ret ret -> {
+        var value = load(ret.value);
         print("ret ");
-        typeAtom(ret.value);
+        typeAtom(value);
       }
       case RetVoid _ -> print("ret void");
       case Store store -> {
+        var value = load(store.value);
+        var pointer = load(store.pointer);
         print("store ");
-        typeAtom(store.value);
+        typeAtom(value);
         print(',');
-        typeAtom(store.pointer);
+        typeAtom(pointer);
       }
       case VoidCall voidCall -> call(voidCall.call);
       default -> throw new IllegalArgumentException(instruction.toString());
