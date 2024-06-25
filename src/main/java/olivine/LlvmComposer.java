@@ -62,8 +62,7 @@ public final class LlvmComposer {
           if (instruction instanceof Assign assign) assigned.add(assign.variable);
 
       // must be converted to alloca
-      local(function.entry);
-      print(":\n");
+      locals.put(new Variable(Type.I32), null);
       for (var variable : assigned) {
         print('%');
         local(variable);
@@ -71,13 +70,14 @@ public final class LlvmComposer {
         print(variable.type());
         print('\n');
       }
+      print("br label %");
+      local(function.entry);
+      print('\n');
 
       // Print body
       for (var block : blocks) {
-        if (block != function.entry) {
-          local(block);
-          print(":\n");
-        }
+        local(block);
+        print(":\n");
         for (var instruction : block) {
           print(instruction);
         }
