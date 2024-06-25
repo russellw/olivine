@@ -304,6 +304,11 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
+    public String toString() {
+      return "element_ptr(%s,%s,%s)".formatted(type, arg0, arg1);
+    }
+
+    @Override
     public boolean equals(Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
