@@ -6,8 +6,8 @@ import java.util.*;
 
 public final class LlvmComposer {
   private final Map<Object, String> locals = new HashMap<>();
-  private final ByteArrayOutputStream stream = new ByteArrayOutputStream();
   private List<Variable> params;
+  private final ByteArrayOutputStream stream = new ByteArrayOutputStream();
 
   private LlvmComposer(Module module) {
     // Global variables
@@ -31,7 +31,7 @@ public final class LlvmComposer {
       locals.clear();
       params = function.params;
 
-      // declaration
+      // Declaration
       print('\n');
       print(function.entry == null ? "declare " : "define ");
       print(function.returnType);
@@ -56,14 +56,14 @@ public final class LlvmComposer {
       // Empty function is only declared, not defined
       if (function.entry == null) continue;
 
-      // local variables
+      // Local variables
       var blocks = function.blocks();
       var assigned = new LinkedHashSet<Variable>();
       for (var block : blocks)
         for (var instruction : block)
           if (instruction instanceof Assign assign) assigned.add(assign.variable);
 
-      // must be converted to alloca
+      // Must be converted to alloca
       locals.put(new Variable(Type.I32), null);
       for (var variable : assigned) {
         print('%');
@@ -194,6 +194,11 @@ public final class LlvmComposer {
     for (var i = 0; i < args.length; i++) args[i] = load(term.get(i));
     Term ssa;
     switch (term.tag()) {
+      case ADD -> {
+        ssa = ssa(term);
+        print("add");
+        args(args);
+      }
       case ALLOCA -> {
         ssa = ssa(term);
         print("alloca ");
@@ -277,11 +282,6 @@ public final class LlvmComposer {
       case OR -> {
         ssa = ssa(term);
         print("or");
-        args(args);
-      }
-      case ADD -> {
-        ssa = ssa(term);
-        print("add");
         args(args);
       }
       case SCAST -> {

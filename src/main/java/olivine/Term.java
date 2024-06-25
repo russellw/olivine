@@ -1297,6 +1297,11 @@ public abstract class Term implements Iterable<Term> {
   public static final Term FALSE = intConstant(Type.I1, 0);
   public static final Term ONE = intConstant(Type.I32, 1);
   public static final Term TRUE = intConstant(Type.I1, 1);
+  private static final BigInteger ones128 = BigInteger.valueOf(2).pow(128).subtract(BigInteger.ONE);
+  private static final BigInteger ones16 = BigInteger.valueOf((1 << 16) - 1);
+  private static final BigInteger ones32 = BigInteger.valueOf((1L << 32) - 1);
+  private static final BigInteger ones64 = BigInteger.valueOf(2).pow(64).subtract(BigInteger.ONE);
+  private static final BigInteger ones8 = BigInteger.valueOf((1 << 8) - 1);
 
   public Term add(Term b) {
     return new Add(this, b);
@@ -1393,20 +1398,14 @@ public abstract class Term implements Iterable<Term> {
     throw new IndexOutOfBoundsException("%s, %s".formatted(this, i));
   }
 
-  private static final BigInteger ones128 = BigInteger.valueOf(2).pow(128).subtract(BigInteger.ONE);
-  private static final BigInteger ones64 = BigInteger.valueOf(2).pow(64).subtract(BigInteger.ONE);
-  private static final BigInteger ones32 = BigInteger.valueOf((1L << 32) - 1);
-  private static final BigInteger ones8 = BigInteger.valueOf((1 << 8) - 1);
-  private static final BigInteger ones16 = BigInteger.valueOf((1 << 16) - 1);
-
   public static Term intConstant(Type type, BigInteger value) {
     if (value.signum() < 0)
       value =
           switch (type.bits()) {
             case 128 -> value.and(ones128);
-            case 64 -> value.and(ones64);
             case 16 -> value.and(ones16);
             case 32 -> value.and(ones32);
+            case 64 -> value.and(ones64);
             case 8 -> value.and(ones8);
             default -> throw new IllegalArgumentException("%s %s".formatted(type, value));
           };
