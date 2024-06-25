@@ -200,7 +200,7 @@ public final class LlvmComposer {
   }
 
   private Term ssa(Term term) {
-    print("\t%");
+    print('%');
     var variable = new Variable(term.type());
     local(variable);
     print('=');
@@ -317,7 +317,6 @@ public final class LlvmComposer {
   }
 
   private void print(Instruction instruction) {
-    print('\t');
     switch (instruction) {
       case Assign assign -> {
         var value = load(assign.value);
