@@ -89,17 +89,11 @@ public final class LlvmComposer {
   }
 
   private void args(Term[] terms) {
+    assert terms.length == 2;
     print(' ');
-    var more = false;
-    for (var term : terms) {
-      if (more) print(',');
-      else {
-        print(term.type());
-        print(' ');
-      }
-      more = true;
-      atom(term);
-    }
+    typeAtom(terms[0]);
+    print(',');
+    atom(terms[1]);
   }
 
   private void atom(Term term) {
