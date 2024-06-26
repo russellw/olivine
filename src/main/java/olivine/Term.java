@@ -96,7 +96,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public String toString() {
-      return "alloca(%s,%s)".formatted(type, arg);
+      return "alloca(%s, %s)".formatted(type, arg);
     }
 
     @Override
@@ -160,7 +160,7 @@ public abstract class Term implements Iterable<Term> {
       sb.append('[');
       var more = false;
       for (var element : terms) {
-        if (more) sb.append(',');
+        if (more) sb.append(", ");
         more = true;
         sb.append(element.type());
         sb.append(' ');
@@ -330,7 +330,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public String toString() {
-      return "element_ptr(%s,%s,%s)".formatted(type, arg0, arg1);
+      return "element_ptr(%s, %s, %s)".formatted(type, arg0, arg1);
     }
 
     @Override
@@ -666,7 +666,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public String toString() {
-      return "field_ptr(%s,%s,%d)".formatted(struct, arg, idx);
+      return "field_ptr(%s, %s, %d)".formatted(struct, arg, idx);
     }
 
     @Override
@@ -816,7 +816,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public String toString() {
-      return "load(%s,%s)".formatted(type, arg);
+      return "load(%s, %s)".formatted(type, arg);
     }
 
     @Override
@@ -1500,7 +1500,7 @@ public abstract class Term implements Iterable<Term> {
       sb.append('(');
       var more = false;
       for (var arg : this) {
-        if (more) sb.append(',');
+        if (more) sb.append(", ");
         more = true;
         sb.append(arg);
       }

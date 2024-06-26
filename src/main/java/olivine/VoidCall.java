@@ -8,6 +8,11 @@ public final class VoidCall extends Instruction {
   }
 
   @Override
+  void dump() {
+    System.out.println("\t" + call);
+  }
+
+  @Override
   public void verify() {
     call.verify();
     assert call.tag() == Tag.CALL;
