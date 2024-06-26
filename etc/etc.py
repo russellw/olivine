@@ -11,7 +11,7 @@ logger.setLevel(logging.DEBUG)
 
 def quasinumeric_key(s):
     v = re.split(r"(\d+)", s)
-    return (int(t) if t.isdigit() else t for t in v)
+    return tuple(int(t) if t.isdigit() else t for t in v)
 
 
 def debug(a):
