@@ -95,7 +95,7 @@ def compose1(v, r):
 
 
 def key(a):
-    return category_rank(a), a.name, a.sig
+    return category_rank(a), quasinumeric_key(a.name), a.sig
 
 
 def parse(v):
