@@ -9,11 +9,6 @@ logger.addHandler(logging.StreamHandler(sys.stdout))
 logger.setLevel(logging.DEBUG)
 
 
-def quasinumeric_key(s):
-    v = re.split(r"(\d+)", s)
-    return tuple(int(t) if t.isdigit() else t for t in v)
-
-
 def debug(a):
     info = inspect.getframeinfo(inspect.currentframe().f_back)
     logger.debug(f"{info.filename}:{info.function}:{info.lineno}: {repr(a)}")
@@ -33,6 +28,11 @@ def indentation(s):
         i += 1
     assert s[i] != "\t"
     return i
+
+
+def quasinumeric_key(s):
+    v = re.split(r"(\d+)", s)
+    return tuple(int(t) if t.isdigit() else t for t in v)
 
 
 def read_lines(file):

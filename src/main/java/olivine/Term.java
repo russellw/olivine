@@ -1297,11 +1297,11 @@ public abstract class Term implements Iterable<Term> {
   public static final Term FALSE = intConstant(Type.I1, 0);
   public static final Term ONE = intConstant(Type.I32, 1);
   public static final Term TRUE = intConstant(Type.I1, 1);
-  private static final BigInteger ones128 = BigInteger.valueOf(2).pow(128).subtract(BigInteger.ONE);
+  private static final BigInteger ones8 = BigInteger.valueOf((1 << 8) - 1);
   private static final BigInteger ones16 = BigInteger.valueOf((1 << 16) - 1);
   private static final BigInteger ones32 = BigInteger.valueOf((1L << 32) - 1);
   private static final BigInteger ones64 = BigInteger.valueOf(2).pow(64).subtract(BigInteger.ONE);
-  private static final BigInteger ones8 = BigInteger.valueOf((1 << 8) - 1);
+  private static final BigInteger ones128 = BigInteger.valueOf(2).pow(128).subtract(BigInteger.ONE);
 
   public Term add(Term b) {
     return new Add(this, b);

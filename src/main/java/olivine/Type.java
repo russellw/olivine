@@ -338,11 +338,11 @@ public abstract class Type implements Iterable<Type> {
         }
       };
 
-  public static final Type I128 =
+  public static final Type I8 =
       new Type() {
         @Override
         public int bits() {
-          return 128;
+          return 8;
         }
 
         @Override
@@ -352,7 +352,7 @@ public abstract class Type implements Iterable<Type> {
 
         @Override
         public String toString() {
-          return "i128";
+          return "i8";
         }
       };
 
@@ -410,11 +410,11 @@ public abstract class Type implements Iterable<Type> {
         }
       };
 
-  public static final Type I8 =
+  public static final Type I128 =
       new Type() {
         @Override
         public int bits() {
-          return 8;
+          return 128;
         }
 
         @Override
@@ -424,7 +424,7 @@ public abstract class Type implements Iterable<Type> {
 
         @Override
         public String toString() {
-          return "i8";
+          return "i128";
         }
       };
 
