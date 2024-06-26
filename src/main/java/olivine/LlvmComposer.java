@@ -301,6 +301,8 @@ public final class LlvmComposer {
         return term;
       }
     }
+    print("; ");
+    print(term.toString());
     print('\n');
     return ssa;
   }
