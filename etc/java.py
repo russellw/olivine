@@ -212,7 +212,7 @@ def compose(a):
 
 
 def key(a):
-    return category_rank(a), quasinumeric_key(a.name), a.sig
+    return category_rank(a), etc.quasinumeric_key(a.name), a.sig
 
 
 def lex(s, i):
