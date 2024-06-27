@@ -10,7 +10,7 @@ public final class LlvmComposer {
   private final ByteArrayOutputStream stream = new ByteArrayOutputStream();
 
   private LlvmComposer(Module module) {
-    // comdats
+    // Comdats
     var comdats = new LinkedHashSet<String>();
     for (var variable : module.variables) if (variable.comdat) comdats.add(variable.name);
     for (var function : module.functions) if (function.comdat) comdats.add(function.name);

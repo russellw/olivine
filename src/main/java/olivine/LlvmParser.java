@@ -240,7 +240,7 @@ public final class LlvmParser {
     loop:
     for (; ; ) {
       switch (token) {
-        case '{', '\n' -> {
+        case '\n', '{' -> {
           break loop;
         }
         case WORD -> {
