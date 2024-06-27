@@ -88,14 +88,6 @@ public final class LlvmComposer {
     }
   }
 
-  private void args(Term[] terms) {
-    assert terms.length == 2;
-    print(' ');
-    typeAtom(terms[0]);
-    print(',');
-    atom(terms[1]);
-  }
-
   private void atom(Term term) {
     switch (term.tag()) {
       case ADDR -> atom(term.get(0));
@@ -184,14 +176,16 @@ public final class LlvmComposer {
   }
 
   private Term load(Term term) {
-    var args = new Term[term.size()];
-    for (var i = 0; i < args.length; i++) args[i] = load(term.get(i));
     Term ssa;
     switch (term.tag()) {
       case ADD -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
         ssa = ssa(term);
-        print("add");
-        args(args);
+        print("add ");
+        typeAtom(a);
+        print(',');
+        atom(b);
       }
       case ALLOCA -> {
         ssa = ssa(term);
@@ -199,10 +193,12 @@ public final class LlvmComposer {
         print(term.type());
       }
       case ARRAY -> {
+        var elements = new Term[term.size()];
+        for (var i = 0; i < elements.length; i++) elements[i] = load(term.get(i));
         ssa = ssa(term);
         print('[');
         var more = false;
-        for (var element : args) {
+        for (var element : elements) {
           if (more) print(',');
           more = true;
           typeAtom(element);
@@ -210,51 +206,67 @@ public final class LlvmComposer {
         print(']');
       }
       case CALL -> {
+        var args = new Term[term.size() - 1];
+        for (var i = 0; i < args.length; i++) args[i] = load(term.get(1 + i));
         ssa = ssa(term);
         print("call ");
         print(term.type());
         print(" @");
         id(term.get(0).toString());
         print('(');
-        for (var i = 1; i < term.size(); i++) {
-          if (i != 1) print(',');
-          typeAtom(args[i]);
+        var more = false;
+        for (var arg : args) {
+          if (more) print(',');
+          more = true;
+          typeAtom(arg);
         }
         print(')');
       }
       case CAST -> {
+        var a = load(term.get(0));
         ssa = ssa(term);
         print(cast(term));
         print(' ');
-        typeAtom(args[0]);
+        typeAtom(a);
         print(" to ");
         print(term.type());
       }
       case ELEMENT_PTR -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
         ssa = ssa(term);
         print("getelementptr ptr,");
-        typeAtom(args[0]);
+        typeAtom(a);
         print(',');
-        typeAtom(args[1]);
+        typeAtom(b);
       }
       case EQ -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
         ssa = ssa(term);
-        print("icmp eq");
-        args(args);
+        print("icmp eq ");
+        typeAtom(a);
+        print(',');
+        atom(b);
       }
       case FIELD_PTR -> {
+        var a = load(term.get(0));
         ssa = ssa(term);
         print("getelementptr ");
         print(term.struct());
         print(',');
-        typeAtom(args[0]);
+        typeAtom(a);
         print(",i32 0,i32 ");
         print(Integer.toString(term.intValueExact()));
       }
       case FMUL -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
         ssa = ssa(term);
-        print("fmul");
-        args(args);
+        print("fmul ");
+        typeAtom(a);
+        print(',');
+        atom(b);
       }
       case GLOBAL_VARIABLE, VARIABLE -> {
         //noinspection SuspiciousMethodCalls
@@ -266,39 +278,57 @@ public final class LlvmComposer {
         atom(term);
       }
       case LOAD -> {
+        var a = load(term.get(0));
         ssa = ssa(term);
         print("load ");
         print(term.type());
         print(',');
-        typeAtom(args[0]);
+        typeAtom(a);
       }
       case MUL -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
         ssa = ssa(term);
-        print("mul");
-        args(args);
+        print("mul ");
+        typeAtom(a);
+        print(',');
+        atom(b);
       }
       case NE -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
         ssa = ssa(term);
-        print("icmp ne");
-        args(args);
+        print("icmp ne ");
+        typeAtom(a);
+        print(',');
+        atom(b);
       }
       case OR -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
         ssa = ssa(term);
-        print("or");
-        args(args);
+        print("or ");
+        typeAtom(a);
+        print(',');
+        atom(b);
       }
       case SCAST -> {
+        var a = load(term.get(0));
         ssa = ssa(term);
         print(scast(term));
         print(' ');
-        typeAtom(args[0]);
+        typeAtom(a);
         print(" to ");
         print(term.type());
       }
       case SLT -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
         ssa = ssa(term);
-        print("icmp slt");
-        args(args);
+        print("icmp slt ");
+        typeAtom(a);
+        print(',');
+        atom(b);
       }
       default -> {
         return term;
