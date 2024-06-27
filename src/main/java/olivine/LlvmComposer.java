@@ -211,7 +211,16 @@ public final class LlvmComposer {
       }
       case CALL -> {
         ssa = ssa(term);
-        call(term);
+        print("call ");
+        print(term.type());
+        print(" @");
+        id(term.get(0).toString());
+        print('(');
+        for (var i = 1; i < term.size(); i++) {
+          if (i != 1) print(',');
+          typeAtom(args[i]);
+        }
+        print(')');
       }
       case CAST -> {
         ssa = ssa(term);
