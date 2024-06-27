@@ -12,6 +12,7 @@ public final class LlvmComposer {
   private LlvmComposer(Module module) {
     // comdats
     var comdats = new LinkedHashSet<String>();
+    for (var variable : module.variables) if (variable.comdat) comdats.add(variable.name);
     for (var function : module.functions) if (function.comdat) comdats.add(function.name);
     for (var s : comdats) {
       print('$');
@@ -32,6 +33,7 @@ public final class LlvmComposer {
         // TODO: could be gep
         atom(variable.value);
       }
+      if (variable.comdat) print(",comdat");
       print('\n');
     }
 

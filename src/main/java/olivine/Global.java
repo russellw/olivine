@@ -1,6 +1,7 @@
 package olivine;
 
 public abstract class Global extends Term {
+  public boolean comdat;
   public final String name;
 
   protected Global(String name) {

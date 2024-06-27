@@ -81,9 +81,9 @@ public final class LlvmParser {
             switch (tokenString) {
               case "constant", "global" -> lex();
             }
-          var a = new GlobalVariable(name, type());
-          declare(name, a);
-          module.variables.add(a);
+          var variable = new GlobalVariable(name, type());
+          declare(name, variable);
+          module.variables.add(variable);
         }
         case WORD -> {
           switch (lex1()) {
@@ -109,18 +109,6 @@ public final class LlvmParser {
                 } while (eat(','));
               expect(')');
               var function = new Function(name, rtype, params, varargs);
-              loop:
-              for (; ; ) {
-                switch (token) {
-                  case '{', '\n' -> {
-                    break loop;
-                  }
-                  case WORD -> {
-                    if (tokenString.equals("comdat")) function.comdat = true;
-                  }
-                }
-                lex();
-              }
               declare(name, function);
               module.functions.add(function);
             }
@@ -248,8 +236,20 @@ public final class LlvmParser {
     };
   }
 
-  private void declare(String name, Global a) {
-    if (globals.put(name, a) != null) throw error(name, "duplicate name");
+  private void declare(String name, Global global) {
+    loop:
+    for (; ; ) {
+      switch (token) {
+        case '{', '\n' -> {
+          break loop;
+        }
+        case WORD -> {
+          if (tokenString.equals("comdat")) global.comdat = true;
+        }
+      }
+      lex();
+    }
+    if (globals.put(name, global) != null) throw error(name, "duplicate name");
   }
 
   private boolean eat(String s) {
