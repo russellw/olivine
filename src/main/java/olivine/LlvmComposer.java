@@ -43,7 +43,6 @@ public final class LlvmComposer {
       params = function.params;
 
       // Declaration
-      print('\n');
       print(function.entry == null ? "declare " : "define ");
       print(function.returnType);
       print(" @");
