@@ -203,11 +203,20 @@ public final class LlvmComposer {
         for (var i = 0; i < args.length; i++) args[i] = load(term.get(1 + i));
         ssa = ssa(term);
         print("call ");
-        print(term.type());
-        print(" @");
-        id(term.get(0).toString());
+        var function = (Function) term.get(0);
+        print(function.returnType);
         print('(');
         var more = false;
+        for (var param : function.params) {
+          if (more) print(',');
+          more = true;
+          print(param.type());
+        }
+        if (function.varargs) print(",...");
+        print(")@");
+        id(function.name);
+        print('(');
+        more = false;
         for (var arg : args) {
           if (more) print(',');
           more = true;
