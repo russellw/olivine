@@ -16,7 +16,7 @@ size_t fnv(const void *p, size_t bytes) {
 
 int main(int argc, char **argv) {
   if (argc != 2) {
-    fprintf(stderr, "Usage: fnv string\n");
+    fprintf(stderr, "Expected arg\n");
     return 1;
   }
   printf("%zu\n", fnv(argv[1], strlen(argv[1])));

@@ -5,7 +5,7 @@
 
 int main(int argc, char **argv) {
   if (argc != 2) {
-    fprintf(stderr, "Usage: sqrt x\n");
+    fprintf(stderr, "Expected arg\n");
     return 1;
   }
   errno = 0;

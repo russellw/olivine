@@ -16,7 +16,7 @@ static double tod(const char *s) {
 
 int main(int argc, char **argv) {
   if (argc != 3) {
-    fprintf(stderr, "Usage: fops a b\n");
+    fprintf(stderr, "Expected args\n");
     return 1;
   }
   double a = tod(argv[1]);

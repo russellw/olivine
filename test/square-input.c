@@ -7,7 +7,7 @@ uint64_t square(uint64_t n) { return n * n; }
 
 int main(int argc, char **argv) {
   if (argc != 2) {
-    fprintf(stderr, "Usage: square n\n");
+    fprintf(stderr, "Expected arg\n");
     return 1;
   }
   errno = 0;

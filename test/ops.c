@@ -15,7 +15,7 @@ static uint64_t tou64(const char *s) {
 
 int main(int argc, char **argv) {
   if (argc != 3) {
-    fprintf(stderr, "Usage: ops a b\n");
+    fprintf(stderr, "Expected args\n");
     return 1;
   }
   uint64_t a = tou64(argv[1]);
