@@ -10,6 +10,15 @@ public final class LlvmComposer {
   private final ByteArrayOutputStream stream = new ByteArrayOutputStream();
 
   private LlvmComposer(Module module) {
+    // comdats
+    var comdats = new LinkedHashSet<String>();
+    for (var function : module.functions) if (function.comdat) comdats.add(function.name);
+    for (var s : comdats) {
+      print('$');
+      id(s);
+      print("=comdat any\n");
+    }
+
     // Global variables
     for (var variable : module.variables) {
       print('@');
@@ -50,6 +59,7 @@ public final class LlvmComposer {
       print(')');
 
       // End of declaration
+      if (function.comdat) print("comdat");
       if (function.entry != null) print('{');
       print('\n');
 

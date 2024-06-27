@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.List;
 
 public final class Function extends Global {
+  public boolean comdat;
   public Block entry;
   public final List<Variable> params;
   public final Type returnType;

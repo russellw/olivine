@@ -40,7 +40,7 @@ public final class LlvmParser {
     while (token != EOF) {
       switch (token) {
         case COMDAT_ID -> {
-          module.comdats.add(lex1());
+          lex();
           expect('=');
           expect("comdat");
           expect("any");
@@ -109,6 +109,18 @@ public final class LlvmParser {
                 } while (eat(','));
               expect(')');
               var function = new Function(name, rtype, params, varargs);
+              loop:
+              for (; ; ) {
+                switch (token) {
+                  case '{', '\n' -> {
+                    break loop;
+                  }
+                  case WORD -> {
+                    if (tokenString.equals("comdat")) function.comdat = true;
+                  }
+                }
+                lex();
+              }
               declare(name, function);
               module.functions.add(function);
             }
