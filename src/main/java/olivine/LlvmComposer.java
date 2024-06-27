@@ -112,21 +112,6 @@ public final class LlvmComposer {
     }
   }
 
-  private void call(Term call) {
-    assert call.tag() == Tag.CALL;
-    print("call ");
-    var function = (Function) call.get(0);
-    print(function.returnType);
-    print(" @");
-    id(function.name);
-    print('(');
-    for (var i = 1; i < call.size(); i++) {
-      if (i > 1) print(',');
-      typeAtom(call.get(i));
-    }
-    print(')');
-  }
-
   public static String cast(Term a) {
     var from = a.get(0).type();
     var to = a.type();
@@ -396,7 +381,23 @@ public final class LlvmComposer {
         typeAtom(pointer);
         print("; Store");
       }
-      case VoidCall voidCall -> call(voidCall.call);
+      case VoidCall voidCall -> {
+        var call = voidCall.call;
+        var args = new Term[call.size() - 1];
+        for (var i = 0; i < args.length; i++) args[i] = load(call.get(1 + i));
+        print("call ");
+        print(call.type());
+        print(" @");
+        id(call.get(0).toString());
+        print('(');
+        var more = false;
+        for (var arg : args) {
+          if (more) print(',');
+          more = true;
+          typeAtom(arg);
+        }
+        print(')');
+      }
       default -> throw new IllegalArgumentException(instruction.toString());
     }
     print('\n');
