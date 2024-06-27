@@ -168,6 +168,34 @@ public final class LlvmComposer {
     return true;
   }
 
+  private void call(Term call, Term[] args) {
+    print("call ");
+
+    // function
+    var function = (Function) call.get(0);
+    print(function.returnType);
+    print('(');
+    var more = false;
+    for (var param : function.params) {
+      if (more) print(',');
+      more = true;
+      print(param.type());
+    }
+    if (function.varargs) print(",...");
+    print(")@");
+    id(function.name);
+
+    // args
+    print('(');
+    more = false;
+    for (var arg : args) {
+      if (more) print(',');
+      more = true;
+      typeAtom(arg);
+    }
+    print(')');
+  }
+
   private Term load(Term term) {
     Term ssa;
     switch (term.tag()) {
@@ -202,27 +230,7 @@ public final class LlvmComposer {
         var args = new Term[term.size() - 1];
         for (var i = 0; i < args.length; i++) args[i] = load(term.get(1 + i));
         ssa = ssa(term);
-        print("call ");
-        var function = (Function) term.get(0);
-        print(function.returnType);
-        print('(');
-        var more = false;
-        for (var param : function.params) {
-          if (more) print(',');
-          more = true;
-          print(param.type());
-        }
-        if (function.varargs) print(",...");
-        print(")@");
-        id(function.name);
-        print('(');
-        more = false;
-        for (var arg : args) {
-          if (more) print(',');
-          more = true;
-          typeAtom(arg);
-        }
-        print(')');
+        call(term, args);
       }
       case CAST -> {
         var a = load(term.get(0));
@@ -394,18 +402,7 @@ public final class LlvmComposer {
         var call = voidCall.call;
         var args = new Term[call.size() - 1];
         for (var i = 0; i < args.length; i++) args[i] = load(call.get(1 + i));
-        print("call ");
-        print(call.type());
-        print(" @");
-        id(call.get(0).toString());
-        print('(');
-        var more = false;
-        for (var arg : args) {
-          if (more) print(',');
-          more = true;
-          typeAtom(arg);
-        }
-        print(')');
+        call(call, args);
       }
       default -> throw new IllegalArgumentException(instruction.toString());
     }
