@@ -564,6 +564,7 @@ public final class LlvmParser {
             value = a.frem(expr(type));
           }
           case "add" -> {
+            // TODO: cases not sorting
             noWrap();
             var type = type();
             var a = expr(type);
