@@ -90,9 +90,7 @@ public final class LlvmComposer {
       for (var block : blocks) {
         local(block);
         print(":\n");
-        for (var instruction : block) {
-          print(instruction);
-        }
+        for (var instruction : block) print(instruction);
       }
       print("}\n");
     }
