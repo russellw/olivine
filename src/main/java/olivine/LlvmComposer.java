@@ -64,7 +64,6 @@ public final class LlvmComposer {
           if (instruction instanceof Assign assign) assigned.add(assign.variable);
 
       // Must be converted to alloca
-      locals.put(new Variable(Type.I32), null);
       for (var variable : assigned) {
         print('%');
         local(variable);
@@ -343,9 +342,10 @@ public final class LlvmComposer {
   private void local(Object o) {
     var s = locals.get(o);
     if (s == null) {
-      s = Integer.toString(locals.size());
+      s = Integer.toHexString(locals.size());
       locals.put(o, s);
     }
+    print('_');
     print(s);
   }
 
