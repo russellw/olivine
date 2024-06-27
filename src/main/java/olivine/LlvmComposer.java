@@ -369,7 +369,7 @@ public final class LlvmComposer {
         local(br.ifFalse);
       }
       case BrUnconditional brUnconditional -> {
-        print("br %");
+        print("br label %");
         local(brUnconditional.dest);
       }
       case Ret ret -> {
