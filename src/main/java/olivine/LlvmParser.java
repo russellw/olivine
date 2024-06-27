@@ -1043,7 +1043,7 @@ public final class LlvmParser {
               'd',
               'e',
               'f' -> {
-            c = Etc.parseHexDigit(text[textIdx]) << 4 + Etc.parseHexDigit(text[textIdx + 1]);
+            c = (Etc.parseHexDigit(text[textIdx]) << 4) + Etc.parseHexDigit(text[textIdx + 1]);
             textIdx += 2;
           }
           case '\\' -> textIdx++;
