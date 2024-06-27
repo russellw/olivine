@@ -112,6 +112,34 @@ public final class LlvmComposer {
     }
   }
 
+  private void call(Term call, Term[] args) {
+    print("call ");
+
+    // Function
+    var function = (Function) call.get(0);
+    print(function.returnType);
+    print('(');
+    var more = false;
+    for (var param : function.params) {
+      if (more) print(',');
+      more = true;
+      print(param.type());
+    }
+    if (function.varargs) print(",...");
+    print(")@");
+    id(function.name);
+
+    // Args
+    print('(');
+    more = false;
+    for (var arg : args) {
+      if (more) print(',');
+      more = true;
+      typeAtom(arg);
+    }
+    print(')');
+  }
+
   public static String cast(Term a) {
     var from = a.get(0).type();
     var to = a.type();
@@ -166,34 +194,6 @@ public final class LlvmComposer {
     if (Etc.isDigit(s.charAt(0))) return false;
     for (var i = 0; i < s.length(); i++) if (!LlvmParser.isIdPart(s.charAt(i))) return false;
     return true;
-  }
-
-  private void call(Term call, Term[] args) {
-    print("call ");
-
-    // function
-    var function = (Function) call.get(0);
-    print(function.returnType);
-    print('(');
-    var more = false;
-    for (var param : function.params) {
-      if (more) print(',');
-      more = true;
-      print(param.type());
-    }
-    if (function.varargs) print(",...");
-    print(")@");
-    id(function.name);
-
-    // args
-    print('(');
-    more = false;
-    for (var arg : args) {
-      if (more) print(',');
-      more = true;
-      typeAtom(arg);
-    }
-    print(')');
   }
 
   private Term load(Term term) {
