@@ -635,12 +635,14 @@ public final class LlvmParser {
             value = a.shl(expr(type));
           }
           case "ashr" -> {
+            eat("exact");
             var type = type();
             var a = expr(type);
             expect(',');
             value = a.ashr(expr(type));
           }
           case "lshr" -> {
+            eat("exact");
             var type = type();
             var a = expr(type);
             expect(',');
