@@ -398,9 +398,9 @@ public final class LlvmParser {
           case "select" -> {
             fastMathFlags();
             var cond = typeExpr();
-            expect(",");
+            expect(',');
             var ifTrue = typeExpr();
-            expect(",");
+            expect(',');
             value = cond.select(ifTrue, typeExpr());
           }
           case "fcmp" -> {
@@ -927,6 +927,7 @@ public final class LlvmParser {
   }
 
   private void noWrap() {
+    eat("nuw");
     eat("nsw");
   }
 
