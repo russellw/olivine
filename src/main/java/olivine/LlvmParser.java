@@ -175,6 +175,10 @@ public final class LlvmParser {
               eol();
             }
 
+            // Check everything referenced was defined
+            for (var entry : blocks.entrySet())
+              if (entry.getValue().size() == 0) throw error('%' + entry.getKey(), "not defined");
+
             // Phis
             for (var entry : phis.entrySet()) {
               var from = entry.getKey();
