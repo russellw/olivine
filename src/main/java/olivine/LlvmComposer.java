@@ -313,11 +313,38 @@ public final class LlvmComposer {
         print(',');
         atom(b);
       }
+      case ULT -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
+        ssa = ssa(term);
+        print("icmp ult ");
+        typeAtom(a);
+        print(',');
+        atom(b);
+      }
       case OR -> {
         var a = load(term.get(0));
         var b = load(term.get(1));
         ssa = ssa(term);
         print("or ");
+        typeAtom(a);
+        print(',');
+        atom(b);
+      }
+      case UREM -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
+        ssa = ssa(term);
+        print("urem ");
+        typeAtom(a);
+        print(',');
+        atom(b);
+      }
+      case UDIV -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
+        ssa = ssa(term);
+        print("udiv ");
         typeAtom(a);
         print(',');
         atom(b);
