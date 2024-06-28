@@ -389,6 +389,7 @@ public final class LlvmComposer {
         typeAtom(value);
       }
       case RetVoid _ -> print("ret void");
+      case Unreachable _ -> print("unreachable");
       case Store store -> {
         var value = load(store.value);
         var pointer = load(store.pointer);
