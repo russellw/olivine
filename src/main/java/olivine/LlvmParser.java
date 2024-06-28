@@ -4,17 +4,17 @@ import java.math.BigInteger;
 import java.util.*;
 
 public final class LlvmParser {
-  private static final int COMDAT_ID = 131;
-  private static final int DOTS = 136;
-  private static final int EOF = 128;
-  private static final int FLOAT = 137;
-  private static final int GLOBAL_ID = 130;
-  private static final int HEX_FLOAT = 138;
+  private static final int COMDAT = 128;
+  private static final int DOTS = 129;
+  private static final int EOF = 130;
+  private static final int FLOAT = 131;
+  private static final int GLOBAL = 132;
+  private static final int HEX_FLOAT = 133;
   private static final int INT = 134;
-  private static final int LABEL = 132;
-  private static final int LOCAL_ID = 129;
-  private static final int STRING = 135;
-  private static final int WORD = 133;
+  private static final int LABEL = 135;
+  private static final int LOCAL = 136;
+  private static final int STRING = 137;
+  private static final int WORD = 138;
 
   public static String datalayout;
   public static String triple;
@@ -39,13 +39,13 @@ public final class LlvmParser {
     reset();
     while (token != EOF) {
       switch (token) {
-        case COMDAT_ID -> {
+        case COMDAT -> {
           lex();
           expect('=');
           expect("comdat");
           expect("any");
         }
-        case LOCAL_ID -> {
+        case LOCAL -> {
           var name = lex1();
           expect('=');
           if (eat("type")) types.put(name, type());
@@ -71,7 +71,7 @@ public final class LlvmParser {
     reset();
     while (token != EOF) {
       switch (token) {
-        case GLOBAL_ID -> {
+        case GLOBAL -> {
           var name = lex1();
           expect('=');
           linkage();
@@ -93,7 +93,7 @@ public final class LlvmParser {
               paramAttrs();
 
               var rtype = type();
-              var name = expect(GLOBAL_ID);
+              var name = expect(GLOBAL);
               expect('(');
               var params = new ArrayList<Variable>();
               var varargs = false;
@@ -105,7 +105,7 @@ public final class LlvmParser {
                   }
                   params.add(new Variable(type()));
                   paramAttrs();
-                  eat(LOCAL_ID);
+                  eat(LOCAL);
                 } while (eat(','));
               expect(')');
               var function = new Function(name, rtype, params, varargs);
@@ -123,7 +123,7 @@ public final class LlvmParser {
     while (token != EOF) {
       // TODO: refactor?
       switch (token) {
-        case GLOBAL_ID -> {
+        case GLOBAL -> {
           var variable = (GlobalVariable) globals.get(lex1());
           expect('=');
           linkage();
@@ -144,7 +144,7 @@ public final class LlvmParser {
 
             // name
             do lex();
-            while (token != GLOBAL_ID);
+            while (token != GLOBAL);
             var function = (Function) globals.get(lex1());
 
             // Already parsed parameters for the function declaration
@@ -156,14 +156,15 @@ public final class LlvmParser {
                 if (eat(DOTS)) continue;
                 type();
                 paramAttrs();
-                locals.put(expect(LOCAL_ID), function.params.get(i++));
+                locals.put(expect(LOCAL), function.params.get(i++));
               } while (eat(','));
             eol();
 
             // Entry block
+            var entryName = token == LABEL ? lex1() : Integer.toString(function.params.size());
             var block = new Block();
+            blocks.put(entryName, block);
             function.entry = block;
-            if (token == LABEL) blocks.put(lex1(), block);
 
             // Body
             while (token != '}') {
@@ -176,6 +177,7 @@ public final class LlvmParser {
             }
 
             // Check everything referenced was defined
+            // TODO: also check locals
             for (var entry : blocks.entrySet())
               if (entry.getValue().size() == 0) throw error('%' + entry.getKey(), "not defined");
 
@@ -209,6 +211,7 @@ public final class LlvmParser {
   }
 
   private Block block() {
+    assert token == LABEL || token == LOCAL;
     var block = blocks.get(tokenString);
     if (block == null) {
       block = new Block();
@@ -302,14 +305,14 @@ public final class LlvmParser {
   private Term expr(Type type) {
     return switch (token) {
       case FLOAT, HEX_FLOAT -> Term.floatConstant(type, lex1());
-      case GLOBAL_ID -> {
+      case GLOBAL -> {
         var a = globals.get(lex1());
         if (a == null) throw error("name not found");
         if (a instanceof GlobalVariable) yield a.addr();
         yield a;
       }
       case INT -> Term.intConstant(type, new BigInteger(lex1()));
-      case LOCAL_ID -> variable(lex1(), type);
+      case LOCAL -> variable(lex1(), type);
       case STRING -> {
         var v = new Term[tokenString.length()];
         for (var i = 0; i < v.length; i++) v[i] = Term.intConstant(Type.I8, tokenString.charAt(i));
@@ -393,7 +396,7 @@ public final class LlvmParser {
   private void instruction(Block block) {
     switch (token) {
       case '\n' -> {}
-      case LOCAL_ID -> {
+      case LOCAL -> {
         var name = lex1();
         expect('=');
         String cause;
@@ -787,11 +790,11 @@ public final class LlvmParser {
           quote();
         }
         case '$' -> {
-          token = COMDAT_ID;
+          token = COMDAT;
           id();
         }
         case '%' -> {
-          token = LOCAL_ID;
+          token = LOCAL;
           id();
         }
         case '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' -> {
@@ -821,7 +824,7 @@ public final class LlvmParser {
           continue;
         }
         case '@' -> {
-          token = GLOBAL_ID;
+          token = GLOBAL;
           id();
         }
         case 'A',
@@ -993,7 +996,7 @@ public final class LlvmParser {
         expect('}');
         return Type.struct(fields);
       }
-      case LOCAL_ID -> {
+      case LOCAL -> {
         var type = types.get(tokenString);
         if (type == null) type = new UnresolvedType(tokenString);
         lex();
