@@ -138,6 +138,10 @@ public final class LlvmParser {
         case WORD -> {
           // Function definition
           if (tokenString.equals("define")) {
+            blocks.clear();
+            locals.clear();
+
+            // name
             do lex();
             while (token != GLOBAL_ID);
             var function = (Function) globals.get(lex1());
@@ -146,7 +150,6 @@ public final class LlvmParser {
             // but do so again to get the local variable names of the parameters
             expect('(');
             var i = 0;
-            locals.clear();
             if (token != ')')
               do {
                 if (eat(DOTS)) continue;
