@@ -140,6 +140,7 @@ public final class LlvmParser {
           if (tokenString.equals("define")) {
             blocks.clear();
             locals.clear();
+            phis.clear();
 
             // name
             do lex();
@@ -196,7 +197,6 @@ public final class LlvmParser {
               // Put the terminator back, after the phi assignments
               from.add(terminator);
             }
-            phis.clear();
           }
         }
       }
