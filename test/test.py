@@ -31,10 +31,10 @@ def compare(prg1, prg2, v):
         exit(1)
 
 
-def exe_file(f):
+def exe_file(file):
     if os.name == "nt":
-        return f + ".exe"
-    return f
+        return file + ".exe"
+    return file
 
 
 def subst(s):
@@ -62,10 +62,10 @@ random.seed(0)
 test_dir = os.path.dirname(os.path.realpath(__file__))
 
 
-def do(f):
-    print(f)
+def do(file):
+    print(file)
     v = []
-    for s in open(f):
+    for s in open(file):
         m = re.match(r"//\s*argv:(.*)", s)
         if m:
             v = shlex.split(m[1])
@@ -78,19 +78,19 @@ def do(f):
             "-S",
             "-emit-llvm",
             "-O2",
-            f,
+            file,
         ]
     )
-    f = os.path.basename(f)
-    f = os.path.splitext(f)[0]
-    subprocess.check_call(["clang", "-o", exe_file(f), f + ".ll"])
-    subprocess.check_call(["olivine", f + ".ll"], shell=True)
+    file = os.path.basename(file)
+    file = os.path.splitext(file)[0]
+    subprocess.check_call(["clang", "-o", exe_file(file), file + ".ll"])
+    subprocess.check_call(["olivine", file + ".ll"], shell=True)
     subprocess.check_call(["clang", "a.ll"])
     if any(map(lambda s: s.startswith("$"), v)):
         for i in range(10):
-            compare(f, "a", list(map(subst, v)))
+            compare(file, "a", list(map(subst, v)))
     else:
-        compare(f, "a", v)
+        compare(file, "a", v)
 
 
 tests = [test_dir]
@@ -104,10 +104,10 @@ for test in tests:
         print(test + ": not found")
         exit(1)
     for root, dirs, files in os.walk(test):
-        for f in files:
+        for file in files:
             # TODO
-            if f == "fnv.c":
+            if file == "fnv.c":
                 continue
-            ext = os.path.splitext(f)[1]
+            ext = os.path.splitext(file)[1]
             if ext in (".c", ".cpp"):
-                do(os.path.join(root, f))
+                do(os.path.join(root, file))
