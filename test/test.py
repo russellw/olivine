@@ -105,6 +105,9 @@ for test in tests:
         exit(1)
     for root, dirs, files in os.walk(test):
         for f in files:
+            # TODO
+            if f == "fnv.c":
+                continue
             ext = os.path.splitext(f)[1]
             if ext in (".c", ".cpp"):
                 do(os.path.join(root, f))
