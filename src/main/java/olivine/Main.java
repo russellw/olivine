@@ -51,7 +51,8 @@ public final class Main {
     }
     var module = modules.getFirst();
     module.verify();
-    //output
+
+    // output
     Files.write(Path.of("a.ll"), LlvmComposer.compose(module));
   }
 

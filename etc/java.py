@@ -177,31 +177,6 @@ class Method:
         f(self)
 
 
-def compose1(v, r):
-    for i in range(len(v)):
-        a = v[i]
-        if i and separate1(v[i - 1], a):
-            r.append("")
-        r.append(a)
-
-
-def separate1(a, b):
-    # Blank line before comment
-    if not comment(b):
-        return
-
-    # But not between comments
-    if comment(a):
-        return
-
-    # And not at the beginning of a block
-    if etc.indentation(a) < etc.indentation(b):
-        return
-
-    # All criteria pass
-    return True
-
-
 def category_rank(a):
     s = a.category()
     ranks = [
@@ -234,6 +209,14 @@ def compose(a):
     r = []
     a.compose(r)
     return r
+
+
+def compose1(v, r):
+    for i in range(len(v)):
+        a = v[i]
+        if i and separate1(v[i - 1], a):
+            r.append("")
+        r.append(a)
 
 
 def key(a):
@@ -381,6 +364,23 @@ def separate(a, b):
     if not isinstance(b, Field):
         return True
     return a.category() != b.category()
+
+
+def separate1(a, b):
+    # Blank line before comment
+    if not comment(b):
+        return
+
+    # But not between comments
+    if comment(a):
+        return
+
+    # And not at the beginning of a block
+    if etc.indentation(a) < etc.indentation(b):
+        return
+
+    # All criteria pass
+    return True
 
 
 def src_files():
