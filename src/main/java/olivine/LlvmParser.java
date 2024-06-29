@@ -337,6 +337,7 @@ public final class LlvmParser {
           case "null" -> Term.NULL;
           case "true" -> Term.TRUE;
           case "false" -> Term.FALSE;
+          case "undef" -> Term.undef(type);
           case "zeroinitializer" -> Term.zeroinitializer(type);
           default -> throw error(s, "expected expression");
         };

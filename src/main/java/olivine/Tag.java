@@ -4,6 +4,7 @@ public enum Tag {
   ADD,
   ADDR,
   ALLOCA,
+  UNDEF,
   AND,
   ARRAY,
   ASHR,

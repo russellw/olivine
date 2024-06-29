@@ -957,6 +957,41 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
+  public static Term undef(Type type) {
+    return new Undef(type);
+  }
+
+  private static final class Undef extends Term {
+    private final Type type;
+
+    public Undef(Type type) {
+      this.type = type;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      Undef terms = (Undef) o;
+      return Objects.equals(type, terms.type);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(type);
+    }
+
+    @Override
+    public Tag tag() {
+      return Tag.UNDEF;
+    }
+
+    @Override
+    public Type type() {
+      return type;
+    }
+  }
+
   private static final class SDiv extends BinaryTerm {
     public SDiv(Term arg0, Term arg1) {
       super(arg0, arg1);

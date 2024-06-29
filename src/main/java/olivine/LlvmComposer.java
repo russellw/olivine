@@ -104,6 +104,7 @@ public final class LlvmComposer {
         id(term.toString());
       }
       case NULL -> print("null");
+      case UNDEF -> print("undef");
       case VARIABLE -> {
         print('%');
         local(term);
@@ -366,6 +367,15 @@ public final class LlvmComposer {
         var b = load(term.get(1));
         ssa = ssa(term);
         print("urem ");
+        typeAtom(a);
+        print(',');
+        atom(b);
+      }
+      case XOR -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
+        ssa = ssa(term);
+        print("xor ");
         typeAtom(a);
         print(',');
         atom(b);
