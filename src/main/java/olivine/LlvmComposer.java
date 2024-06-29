@@ -331,6 +331,36 @@ public final class LlvmComposer {
         print(',');
         atom(b);
       }
+      case LSHR -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
+        ssa = ssa(term);
+        print("lshr ");
+        typeAtom(a);
+        print(',');
+        atom(b);
+      }
+      case AND -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
+        ssa = ssa(term);
+        print("and ");
+        typeAtom(a);
+        print(',');
+        atom(b);
+      }
+      case SELECT -> {
+        var cond = load(term.get(0));
+        var ifTrue = load(term.get(1));
+        var ifFalse = load(term.get(2));
+        ssa = ssa(term);
+        print("select ");
+        typeAtom(cond);
+        print(',');
+        typeAtom(ifTrue);
+        print(',');
+        typeAtom(ifFalse);
+      }
       case UREM -> {
         var a = load(term.get(0));
         var b = load(term.get(1));
