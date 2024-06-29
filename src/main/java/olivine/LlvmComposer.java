@@ -10,7 +10,7 @@ public final class LlvmComposer {
   private final ByteArrayOutputStream stream = new ByteArrayOutputStream();
 
   private LlvmComposer(Module module) {
-    // target
+    // Target
     if (LlvmParser.triple != null) {
       print("target triple=\"");
       print(LlvmParser.triple);
