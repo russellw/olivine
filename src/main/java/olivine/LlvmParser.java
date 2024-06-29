@@ -142,7 +142,7 @@ public final class LlvmParser {
             locals.clear();
             phis.clear();
 
-            // name
+            // Name
             do lex();
             while (token != GLOBAL);
             var function = (Function) globals.get(lex1());

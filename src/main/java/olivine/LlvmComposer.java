@@ -214,6 +214,15 @@ public final class LlvmComposer {
         print("alloca ");
         print(term.type());
       }
+      case AND -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
+        ssa = ssa(term);
+        print("and ");
+        typeAtom(a);
+        print(',');
+        atom(b);
+      }
       case ARRAY -> {
         var elements = new Term[term.size()];
         for (var i = 0; i < elements.length; i++) elements[i] = load(term.get(i));
@@ -260,6 +269,33 @@ public final class LlvmComposer {
         print(',');
         atom(b);
       }
+      case FADD -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
+        ssa = ssa(term);
+        print("fadd ");
+        typeAtom(a);
+        print(',');
+        atom(b);
+      }
+      case FDIV -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
+        ssa = ssa(term);
+        print("fdiv ");
+        typeAtom(a);
+        print(',');
+        atom(b);
+      }
+      case FEQ -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
+        ssa = ssa(term);
+        print("fcmp oeq ");
+        typeAtom(a);
+        print(',');
+        atom(b);
+      }
       case FIELD_PTR -> {
         var a = load(term.get(0));
         ssa = ssa(term);
@@ -270,11 +306,53 @@ public final class LlvmComposer {
         print(",i32 0,i32 ");
         print(Integer.toString(term.intValueExact()));
       }
+      case FLE -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
+        ssa = ssa(term);
+        print("fcmp ole ");
+        typeAtom(a);
+        print(',');
+        atom(b);
+      }
+      case FLT -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
+        ssa = ssa(term);
+        print("fcmp olt ");
+        typeAtom(a);
+        print(',');
+        atom(b);
+      }
       case FMUL -> {
         var a = load(term.get(0));
         var b = load(term.get(1));
         ssa = ssa(term);
         print("fmul ");
+        typeAtom(a);
+        print(',');
+        atom(b);
+      }
+      case FNE -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
+        ssa = ssa(term);
+        print("fcmp une ");
+        typeAtom(a);
+        print(',');
+        atom(b);
+      }
+      case FNEG -> {
+        var a = load(term.get(0));
+        ssa = ssa(term);
+        print("fneg ");
+        typeAtom(a);
+      }
+      case FSUB -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
+        ssa = ssa(term);
+        print("fsub ");
         typeAtom(a);
         print(',');
         atom(b);
@@ -296,6 +374,15 @@ public final class LlvmComposer {
         print(',');
         typeAtom(a);
       }
+      case LSHR -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
+        ssa = ssa(term);
+        print("lshr ");
+        typeAtom(a);
+        print(',');
+        atom(b);
+      }
       case MUL -> {
         var a = load(term.get(0));
         var b = load(term.get(1));
@@ -314,51 +401,6 @@ public final class LlvmComposer {
         print(',');
         atom(b);
       }
-      case FNE -> {
-        var a = load(term.get(0));
-        var b = load(term.get(1));
-        ssa = ssa(term);
-        print("fcmp une ");
-        typeAtom(a);
-        print(',');
-        atom(b);
-      }
-      case FLT -> {
-        var a = load(term.get(0));
-        var b = load(term.get(1));
-        ssa = ssa(term);
-        print("fcmp olt ");
-        typeAtom(a);
-        print(',');
-        atom(b);
-      }
-      case FLE -> {
-        var a = load(term.get(0));
-        var b = load(term.get(1));
-        ssa = ssa(term);
-        print("fcmp ole ");
-        typeAtom(a);
-        print(',');
-        atom(b);
-      }
-      case FEQ -> {
-        var a = load(term.get(0));
-        var b = load(term.get(1));
-        ssa = ssa(term);
-        print("fcmp oeq ");
-        typeAtom(a);
-        print(',');
-        atom(b);
-      }
-      case ULT -> {
-        var a = load(term.get(0));
-        var b = load(term.get(1));
-        ssa = ssa(term);
-        print("icmp ult ");
-        typeAtom(a);
-        print(',');
-        atom(b);
-      }
       case OR -> {
         var a = load(term.get(0));
         var b = load(term.get(1));
@@ -368,23 +410,14 @@ public final class LlvmComposer {
         print(',');
         atom(b);
       }
-      case LSHR -> {
+      case SCAST -> {
         var a = load(term.get(0));
-        var b = load(term.get(1));
         ssa = ssa(term);
-        print("lshr ");
+        print(scast(term));
+        print(' ');
         typeAtom(a);
-        print(',');
-        atom(b);
-      }
-      case AND -> {
-        var a = load(term.get(0));
-        var b = load(term.get(1));
-        ssa = ssa(term);
-        print("and ");
-        typeAtom(a);
-        print(',');
-        atom(b);
+        print(" to ");
+        print(term.type());
       }
       case SELECT -> {
         var cond = load(term.get(0));
@@ -397,6 +430,33 @@ public final class LlvmComposer {
         typeAtom(ifTrue);
         print(',');
         typeAtom(ifFalse);
+      }
+      case SLT -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
+        ssa = ssa(term);
+        print("icmp slt ");
+        typeAtom(a);
+        print(',');
+        atom(b);
+      }
+      case UDIV -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
+        ssa = ssa(term);
+        print("udiv ");
+        typeAtom(a);
+        print(',');
+        atom(b);
+      }
+      case ULT -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
+        ssa = ssa(term);
+        print("icmp ult ");
+        typeAtom(a);
+        print(',');
+        atom(b);
       }
       case UREM -> {
         var a = load(term.get(0));
@@ -412,66 +472,6 @@ public final class LlvmComposer {
         var b = load(term.get(1));
         ssa = ssa(term);
         print("xor ");
-        typeAtom(a);
-        print(',');
-        atom(b);
-      }
-      case FADD -> {
-        var a = load(term.get(0));
-        var b = load(term.get(1));
-        ssa = ssa(term);
-        print("fadd ");
-        typeAtom(a);
-        print(',');
-        atom(b);
-      }
-      case FDIV -> {
-        var a = load(term.get(0));
-        var b = load(term.get(1));
-        ssa = ssa(term);
-        print("fdiv ");
-        typeAtom(a);
-        print(',');
-        atom(b);
-      }
-      case FSUB -> {
-        var a = load(term.get(0));
-        var b = load(term.get(1));
-        ssa = ssa(term);
-        print("fsub ");
-        typeAtom(a);
-        print(',');
-        atom(b);
-      }
-      case FNEG -> {
-        var a = load(term.get(0));
-        ssa = ssa(term);
-        print("fneg ");
-        typeAtom(a);
-      }
-      case UDIV -> {
-        var a = load(term.get(0));
-        var b = load(term.get(1));
-        ssa = ssa(term);
-        print("udiv ");
-        typeAtom(a);
-        print(',');
-        atom(b);
-      }
-      case SCAST -> {
-        var a = load(term.get(0));
-        ssa = ssa(term);
-        print(scast(term));
-        print(' ');
-        typeAtom(a);
-        print(" to ");
-        print(term.type());
-      }
-      case SLT -> {
-        var a = load(term.get(0));
-        var b = load(term.get(1));
-        ssa = ssa(term);
-        print("icmp slt ");
         typeAtom(a);
         print(',');
         atom(b);
@@ -525,7 +525,6 @@ public final class LlvmComposer {
         typeAtom(value);
       }
       case RetVoid _ -> print("ret void");
-      case Unreachable _ -> print("unreachable");
       case Store store -> {
         var value = load(store.value);
         var pointer = load(store.pointer);
@@ -535,6 +534,7 @@ public final class LlvmComposer {
         typeAtom(pointer);
         print("; Store");
       }
+      case Unreachable _ -> print("unreachable");
       case VoidCall voidCall -> {
         var call = voidCall.call;
         var args = new Term[call.size() - 1];
