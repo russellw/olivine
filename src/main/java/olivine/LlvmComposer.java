@@ -314,6 +314,42 @@ public final class LlvmComposer {
         print(',');
         atom(b);
       }
+      case FNE -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
+        ssa = ssa(term);
+        print("fcmp une ");
+        typeAtom(a);
+        print(',');
+        atom(b);
+      }
+      case FLT -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
+        ssa = ssa(term);
+        print("fcmp olt ");
+        typeAtom(a);
+        print(',');
+        atom(b);
+      }
+      case FLE -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
+        ssa = ssa(term);
+        print("fcmp ole ");
+        typeAtom(a);
+        print(',');
+        atom(b);
+      }
+      case FEQ -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
+        ssa = ssa(term);
+        print("fcmp oeq ");
+        typeAtom(a);
+        print(',');
+        atom(b);
+      }
       case ULT -> {
         var a = load(term.get(0));
         var b = load(term.get(1));
@@ -379,6 +415,39 @@ public final class LlvmComposer {
         typeAtom(a);
         print(',');
         atom(b);
+      }
+      case FADD -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
+        ssa = ssa(term);
+        print("fadd ");
+        typeAtom(a);
+        print(',');
+        atom(b);
+      }
+      case FDIV -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
+        ssa = ssa(term);
+        print("fdiv ");
+        typeAtom(a);
+        print(',');
+        atom(b);
+      }
+      case FSUB -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
+        ssa = ssa(term);
+        print("fsub ");
+        typeAtom(a);
+        print(',');
+        atom(b);
+      }
+      case FNEG -> {
+        var a = load(term.get(0));
+        ssa = ssa(term);
+        print("fneg ");
+        typeAtom(a);
       }
       case UDIV -> {
         var a = load(term.get(0));
