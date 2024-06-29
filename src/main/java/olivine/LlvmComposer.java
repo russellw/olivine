@@ -10,6 +10,12 @@ public final class LlvmComposer {
   private final ByteArrayOutputStream stream = new ByteArrayOutputStream();
 
   private LlvmComposer(Module module) {
+    // target
+    if (LlvmParser.triple != null) {
+      print("target triple=\"");
+      print(LlvmParser.triple);
+      print("\"\n");
+    }
     // Comdats
     var comdats = new LinkedHashSet<String>();
     for (var variable : module.variables) if (variable.comdat) comdats.add(variable.name);
