@@ -1,4 +1,4 @@
-# Sort members of classes etc
+# Sort members of classes etc, normalize blank lines
 # Internal tool, designed for this project only
 # Does NOT work for arbitrary Java code
 import etc
@@ -9,6 +9,4 @@ for file in java.src_files():
     a = java.parse(v)
     a.sort()
     r = java.compose(a)
-    if r != v:
-        print(file)
-        etc.write_lines(file, r)
+    etc.write_lines(file, r)

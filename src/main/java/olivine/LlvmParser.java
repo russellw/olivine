@@ -91,7 +91,6 @@ public final class LlvmParser {
               linkage();
               preemptionSpecifier();
               paramAttrs();
-
               var rtype = type();
               var name = expect(GLOBAL);
               expect('(');

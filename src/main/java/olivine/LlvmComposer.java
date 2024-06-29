@@ -16,6 +16,7 @@ public final class LlvmComposer {
       print(LlvmParser.triple);
       print("\"\n");
     }
+
     // Comdats
     var comdats = new LinkedHashSet<String>();
     for (var variable : module.variables) if (variable.comdat) comdats.add(variable.name);
@@ -36,6 +37,7 @@ public final class LlvmComposer {
       print(variable.type());
       if (variable.value != null) {
         print(' ');
+
         // TODO: could be gep
         atom(variable.value);
       }
@@ -165,6 +167,7 @@ public final class LlvmComposer {
       if (to.isInt()) return "fptoui";
       if (to.isFloat()) {
         if (from.bits() < to.bits()) return "fpext";
+
         // TODO: what happens when float types are the same size?
         assert from.bits() > to.bits();
         return "fptrunc";

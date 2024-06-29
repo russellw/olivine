@@ -49,9 +49,9 @@ public final class Main {
       }
       modules.add(LlvmParser.parse(file, Files.readAllBytes(Path.of(file))));
     }
-
     var module = modules.getFirst();
     module.verify();
+    //output
     Files.write(Path.of("a.ll"), LlvmComposer.compose(module));
   }
 

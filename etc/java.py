@@ -166,7 +166,7 @@ class Method:
     def compose(self, r):
         r.extend(self.header)
         r.append(self.sig)
-        r.extend(self.body)
+        compose1(self.body, r)
         if self.sig[-1] not in ";}":
             r.append("}")
 
@@ -175,6 +175,31 @@ class Method:
 
     def walk(self, f):
         f(self)
+
+
+def compose1(v, r):
+    for i in range(len(v)):
+        a = v[i]
+        if i and separate1(v[i - 1], a):
+            r.append("")
+        r.append(a)
+
+
+def separate1(a, b):
+    # Blank line before comment
+    if not comment(b):
+        return
+
+    # But not between comments
+    if comment(a):
+        return
+
+    # And not at the beginning of a block
+    if etc.indentation(a) < etc.indentation(b):
+        return
+
+    # All criteria pass
+    return True
 
 
 def category_rank(a):
@@ -238,6 +263,7 @@ def lex(s, i):
 
 
 def parse(v):
+    v = [s for s in v if s]
     i = 0
 
     # Package
