@@ -50,11 +50,9 @@ def is_case(i):
 parser = argparse.ArgumentParser(description="Sort cases in new-style switch")
 parser.add_argument("files", nargs="*")
 args = parser.parse_args()
-
 files = args.files
 if not files:
     files = java.src_files()
-
 for file in files:
     v = etc.read_lines(file)
     i = 0
