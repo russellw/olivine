@@ -47,9 +47,9 @@ def is_case(i):
         return True
 
 
-parser = argparse.ArgumentParser(description="Sort cases in new-style switch")
+parser = argparse.ArgumentParser(description="sort cases in new-style switch")
 parser.add_argument(
-    "-d", "--debug", action="store_true", help="Run the program in debug mode"
+    "-d", "--debug", action="store_true", help="run the program in debug mode"
 )
 parser.add_argument("files", nargs="*")
 args = parser.parse_args()
