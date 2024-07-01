@@ -1,7 +1,7 @@
 rem Python
-python etc\case-comments-python.py||exit /b
+python etc\case-comments-py.py||exit /b
 
-python etc\sort-python.py||exit /b
+python etc\sort-py.py||exit /b
 black .||exit /b
 isort .||exit /b
 

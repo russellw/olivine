@@ -61,14 +61,30 @@ for file in files:
     i = 0
     r = []
     while 1:
+        # Next switch
         j, cs = cases(i)
         if j < 0:
             r.extend(v[i:])
             break
         r.extend(v[i:j])
         i = j
+        if args.debug:
+            print(etc.RED + "[[[[[[" + etc.RESET)
+            for c in cs:
+                print(etc.YELLOW + "[[[" + etc.RESET)
+                for s in c:
+                    print(s)
+                print(etc.YELLOW + "]]]" + etc.RESET)
+            print(etc.RED + "]]]]]]" + etc.RESET)
+
+        # Sort
         cs.sort()
+
+        # Add to output
         for c in cs:
             r.extend(c)
             i += len(c)
-    etc.write_lines(file, r)
+
+    # Write sorted code
+    if not args.debug:
+        etc.write_lines(file, r)
