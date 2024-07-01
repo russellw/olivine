@@ -303,6 +303,14 @@ public final class LlvmParser {
 
   private Term expr(Type type) {
     return switch (token) {
+      case '{' -> {
+        lex();
+        var fields = new ArrayList<Term>();
+        do fields.add(expr(type()));
+        while (eat(','));
+        expect('}');
+        yield Term.struct(type, fields);
+      }
       case FLOAT, HEX_FLOAT -> Term.floatConstant(type, lex1());
       case GLOBAL -> {
         var a = globals.get(lex1());
@@ -313,10 +321,11 @@ public final class LlvmParser {
       case INT -> Term.intConstant(type, new BigInteger(lex1()));
       case LOCAL -> variable(lex1(), type);
       case STRING -> {
-        var v = new Term[tokenString.length()];
-        for (var i = 0; i < v.length; i++) v[i] = Term.intConstant(Type.I8, tokenString.charAt(i));
+        var bytes = new Term[tokenString.length()];
+        for (var i = 0; i < bytes.length; i++)
+          bytes[i] = Term.intConstant(Type.I8, tokenString.charAt(i));
         lex();
-        yield Term.array(Type.I8, v);
+        yield Term.array(Type.I8, bytes);
       }
       case WORD -> {
         var s = lex1();

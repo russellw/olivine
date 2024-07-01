@@ -182,6 +182,68 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
+  private static final class Struct extends NaryTerm {
+    private final Type type;
+
+    public Struct(Type type, Term[] fields) {
+      super(fields);
+      this.type = type;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+      if (!super.equals(o)) return false;
+      Struct terms = (Struct) o;
+      return Objects.equals(type, terms.type);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(super.hashCode(), type);
+    }
+
+    @Override
+    public Term rewrite(Term[] terms) {
+      return new Struct(type, terms);
+    }
+
+    @Override
+    public Tag tag() {
+      return Tag.STRUCT;
+    }
+
+    @Override
+    public String toString() {
+      var sb = new StringBuilder();
+      sb.append('{');
+      var more = false;
+      for (var element : terms) {
+        if (more) sb.append(", ");
+        more = true;
+        sb.append(element.type());
+        sb.append(' ');
+        sb.append(element);
+      }
+      sb.append('}');
+      return sb.toString();
+    }
+
+    @Override
+    public Type type() {
+      return type;
+    }
+
+    @Override
+    public void verify() {
+      super.verify();
+      assert type.kind() == Kind.STRUCT;
+      assert terms.length == type.size();
+      for (var i = 0; i < terms.length; i++) assert terms[i].type().equals(type.get(i));
+    }
+  }
+
   private abstract static class BinaryTerm extends Term {
     public final Term arg0, arg1;
 
@@ -1350,6 +1412,14 @@ public abstract class Term implements Iterable<Term> {
     return new And(this, b);
   }
 
+  public static Term struct(Type type, List<Term> fields) {
+    return new Struct(type, fields.toArray(new Term[0]));
+  }
+
+  public static Term struct(Type type, Term[] fields) {
+    return new Struct(type, fields);
+  }
+
   public static Term array(Type type, Term[] elements) {
     return new Array(type, elements);
   }
@@ -1579,6 +1649,12 @@ public abstract class Term implements Iterable<Term> {
         Arrays.fill(elements, zeroinitializer(type));
         yield array(type, elements);
       }
+      case STRUCT -> {
+        var fields = new Term[type.size()];
+        for (var i = 0; i < fields.length; i++) fields[i] = zeroinitializer(type.get(i));
+        yield struct(type, fields);
+      }
+      case PTR -> Term.NULL;
       case INT -> intConstant(type, 0);
       default -> {
         if (type.isFloat()) yield floatConstant(type, "0");

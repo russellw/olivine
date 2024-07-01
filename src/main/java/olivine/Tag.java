@@ -11,6 +11,7 @@ public enum Tag {
   CAST,
   ELEMENT_PTR,
   EQ,
+  STRUCT,
   FADD,
   FDIV,
   FEQ,
