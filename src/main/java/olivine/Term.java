@@ -1035,7 +1035,7 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  public static final class Select extends Term3 {
+  public static final class Select extends TernaryTerm {
     public Select(Term cond, Term ifTrue, Term ifFalse) {
       super(cond, ifTrue, ifFalse);
     }
@@ -1098,10 +1098,10 @@ public abstract class Term implements Iterable<Term> {
     }
   }
 
-  private abstract static class Term3 extends Term {
+  private abstract static class TernaryTerm extends Term {
     public final Term arg0, arg1, arg2;
 
-    public Term3(Term arg0, Term arg1, Term arg2) {
+    public TernaryTerm(Term arg0, Term arg1, Term arg2) {
       this.arg0 = arg0;
       this.arg1 = arg1;
       this.arg2 = arg2;
@@ -1111,7 +1111,7 @@ public abstract class Term implements Iterable<Term> {
     public boolean equals(Object o) {
       if (this == o) return true;
       if (o == null || getClass() != o.getClass()) return false;
-      Term3 terms = (Term3) o;
+      TernaryTerm terms = (TernaryTerm) o;
       return Objects.equals(arg0, terms.arg0)
           && Objects.equals(arg1, terms.arg1)
           && Objects.equals(arg2, terms.arg2);
