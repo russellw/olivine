@@ -321,6 +321,7 @@ public final class LlvmParser {
       case WORD -> {
         var s = lex1();
         yield switch (s) {
+          case "false" -> Term.FALSE;
           case "getelementptr" -> {
             expect('(');
             type = type();
@@ -335,7 +336,6 @@ public final class LlvmParser {
           }
           case "null" -> Term.NULL;
           case "true" -> Term.TRUE;
-          case "false" -> Term.FALSE;
           case "undef" -> Term.undef(type);
           case "zeroinitializer" -> Term.zeroinitializer(type);
           default -> throw error(s, "expected expression");
@@ -402,13 +402,52 @@ public final class LlvmParser {
         String cause;
         Term value;
         switch (cause = expect(WORD)) {
-          case "select" -> {
+          case "add" -> {
+            noWrap();
+            var type = type();
+            var a = expr(type);
+            expect(',');
+            value = a.add(expr(type));
+          }
+          case "alloca" -> {
+            var type = type();
+            var numElements = Term.ONE;
+            if (eat(',') && !eat("align")) numElements = typeExpr();
+            value = Term.alloca(type, numElements);
+          }
+          case "and" -> {
+            var type = type();
+            var a = expr(type);
+            expect(',');
+            value = a.and(expr(type));
+          }
+          case "ashr" -> {
+            eat("exact");
+            var type = type();
+            var a = expr(type);
+            expect(',');
+            value = a.ashr(expr(type));
+          }
+          case "bitcast",
+              "fpext",
+              "fptoui",
+              "fptrunc",
+              "inttoptr",
+              "ptrtoint",
+              "trunc",
+              "uitofp",
+              "zext" -> {
+            var a = typeExpr();
+            expect("to");
+            value = a.cast(type());
+          }
+          case "call" -> value = call();
+          case "fadd" -> {
             fastMathFlags();
-            var cond = typeExpr();
+            var type = type();
+            var a = expr(type);
             expect(',');
-            var ifTrue = typeExpr();
-            expect(',');
-            value = cond.select(ifTrue, typeExpr());
+            value = a.fadd(expr(type));
           }
           case "fcmp" -> {
             fastMathFlags();
@@ -420,23 +459,11 @@ public final class LlvmParser {
                     expect(',');
                     yield a.feq(expr(type));
                   }
-                  case "une" -> {
+                  case "oge" -> {
                     var type = type();
-                    var a = expr(type);
+                    var b = expr(type);
                     expect(',');
-                    yield a.fne(expr(type));
-                  }
-                  case "olt" -> {
-                    var type = type();
-                    var a = expr(type);
-                    expect(',');
-                    yield a.flt(expr(type));
-                  }
-                  case "ole" -> {
-                    var type = type();
-                    var a = expr(type);
-                    expect(',');
-                    yield a.fle(expr(type));
+                    yield expr(type).fle(b);
                   }
                   case "ogt" -> {
                     var type = type();
@@ -444,14 +471,73 @@ public final class LlvmParser {
                     expect(',');
                     yield expr(type).flt(b);
                   }
-                  case "oge" -> {
+                  case "ole" -> {
                     var type = type();
-                    var b = expr(type);
+                    var a = expr(type);
                     expect(',');
-                    yield expr(type).fle(b);
+                    yield a.fle(expr(type));
+                  }
+                  case "olt" -> {
+                    var type = type();
+                    var a = expr(type);
+                    expect(',');
+                    yield a.flt(expr(type));
+                  }
+                  case "une" -> {
+                    var type = type();
+                    var a = expr(type);
+                    expect(',');
+                    yield a.fne(expr(type));
                   }
                   default -> throw error("unknown condition");
                 };
+          }
+          case "fdiv" -> {
+            fastMathFlags();
+            var type = type();
+            var a = expr(type);
+            expect(',');
+            value = a.fdiv(expr(type));
+          }
+          case "fmul" -> {
+            fastMathFlags();
+            var type = type();
+            var a = expr(type);
+            expect(',');
+            value = a.fmul(expr(type));
+          }
+          case "fneg" -> {
+            fastMathFlags();
+            value = typeExpr().fneg();
+          }
+          case "fptosi", "sext", "sitofp" -> {
+            var a = typeExpr();
+            expect("to");
+            value = a.scast(type());
+          }
+          case "frem" -> {
+            fastMathFlags();
+            var type = type();
+            var a = expr(type);
+            expect(',');
+            value = a.frem(expr(type));
+          }
+          case "fsub" -> {
+            fastMathFlags();
+            var type = type();
+            var a = expr(type);
+            expect(',');
+            value = a.fsub(expr(type));
+          }
+          case "getelementptr" -> {
+            eat("inbounds");
+            var type = type();
+            expect(',');
+            expect("ptr");
+            var ptrVal = expr(Type.PTR);
+            var idxs = new ArrayList<Term>();
+            while (eat(',')) idxs.add(typeExpr());
+            value = getelementptr(type, ptrVal, idxs);
           }
           case "icmp" ->
               value =
@@ -468,41 +554,11 @@ public final class LlvmParser {
                       expect(',');
                       yield a.ne(expr(type));
                     }
-                    case "ult" -> {
-                      var type = type();
-                      var a = expr(type);
-                      expect(',');
-                      yield a.ult(expr(type));
-                    }
-                    case "ule" -> {
-                      var type = type();
-                      var a = expr(type);
-                      expect(',');
-                      yield a.ule(expr(type));
-                    }
-                    case "slt" -> {
-                      var type = type();
-                      var a = expr(type);
-                      expect(',');
-                      yield a.slt(expr(type));
-                    }
-                    case "sle" -> {
-                      var type = type();
-                      var a = expr(type);
-                      expect(',');
-                      yield a.sle(expr(type));
-                    }
-                    case "ugt" -> {
+                    case "sge" -> {
                       var type = type();
                       var b = expr(type);
                       expect(',');
-                      yield expr(type).ult(b);
-                    }
-                    case "uge" -> {
-                      var type = type();
-                      var b = expr(type);
-                      expect(',');
-                      yield expr(type).ule(b);
+                      yield expr(type).sle(b);
                     }
                     case "sgt" -> {
                       var type = type();
@@ -510,14 +566,70 @@ public final class LlvmParser {
                       expect(',');
                       yield expr(type).slt(b);
                     }
-                    case "sge" -> {
+                    case "sle" -> {
+                      var type = type();
+                      var a = expr(type);
+                      expect(',');
+                      yield a.sle(expr(type));
+                    }
+                    case "slt" -> {
+                      var type = type();
+                      var a = expr(type);
+                      expect(',');
+                      yield a.slt(expr(type));
+                    }
+                    case "uge" -> {
                       var type = type();
                       var b = expr(type);
                       expect(',');
-                      yield expr(type).sle(b);
+                      yield expr(type).ule(b);
+                    }
+                    case "ugt" -> {
+                      var type = type();
+                      var b = expr(type);
+                      expect(',');
+                      yield expr(type).ult(b);
+                    }
+                    case "ule" -> {
+                      var type = type();
+                      var a = expr(type);
+                      expect(',');
+                      yield a.ule(expr(type));
+                    }
+                    case "ult" -> {
+                      var type = type();
+                      var a = expr(type);
+                      expect(',');
+                      yield a.ult(expr(type));
                     }
                     default -> throw error("unknown condition");
                   };
+          case "load" -> {
+            var type = type();
+            expect(',');
+            expect("ptr");
+            value = expr(type).load(type);
+          }
+          case "lshr" -> {
+            eat("exact");
+            var type = type();
+            var a = expr(type);
+            expect(',');
+            value = a.lshr(expr(type));
+          }
+          case "mul" -> {
+            noWrap();
+            var type = type();
+            var a = expr(type);
+            expect(',');
+            value = a.mul(expr(type));
+          }
+          case "or" -> {
+            var type = type();
+            var a = expr(type);
+            expect(',');
+            value = a.or(expr(type));
+          }
           case "phi" -> {
             fastMathFlags();
             var type = type();
@@ -534,52 +646,32 @@ public final class LlvmParser {
             } while (eat(','));
             return;
           }
-          case "fneg" -> {
-            fastMathFlags();
-            value = typeExpr().fneg();
-          }
-          case "fadd" -> {
-            fastMathFlags();
+          case "sdiv" -> {
+            eat("exact");
             var type = type();
             var a = expr(type);
             expect(',');
-            value = a.fadd(expr(type));
+            value = a.sdiv(expr(type));
           }
-          case "fsub" -> {
+          case "select" -> {
             fastMathFlags();
-            var type = type();
-            var a = expr(type);
+            var cond = typeExpr();
             expect(',');
-            value = a.fsub(expr(type));
+            var ifTrue = typeExpr();
+            expect(',');
+            value = cond.select(ifTrue, typeExpr());
           }
-          case "fmul" -> {
-            fastMathFlags();
+          case "shl" -> {
             var type = type();
             var a = expr(type);
             expect(',');
-            value = a.fmul(expr(type));
+            value = a.shl(expr(type));
           }
-          case "fdiv" -> {
-            fastMathFlags();
+          case "srem" -> {
             var type = type();
             var a = expr(type);
             expect(',');
-            value = a.fdiv(expr(type));
-          }
-          case "frem" -> {
-            fastMathFlags();
-            var type = type();
-            var a = expr(type);
-            expect(',');
-            value = a.frem(expr(type));
-          }
-          case "add" -> {
-            // TODO: cases not sorting
-            noWrap();
-            var type = type();
-            var a = expr(type);
-            expect(',');
-            value = a.add(expr(type));
+            value = a.srem(expr(type));
           }
           case "sub" -> {
             noWrap();
@@ -588,12 +680,9 @@ public final class LlvmParser {
             expect(',');
             value = a.sub(expr(type));
           }
-          case "mul" -> {
-            noWrap();
-            var type = type();
-            var a = expr(type);
-            expect(',');
-            value = a.mul(expr(type));
+          case "tail" -> {
+            expect("call");
+            value = call();
           }
           case "udiv" -> {
             eat("exact");
@@ -602,107 +691,17 @@ public final class LlvmParser {
             expect(',');
             value = a.udiv(expr(type));
           }
-          case "sdiv" -> {
-            eat("exact");
-            var type = type();
-            var a = expr(type);
-            expect(',');
-            value = a.sdiv(expr(type));
-          }
           case "urem" -> {
             var type = type();
             var a = expr(type);
             expect(',');
             value = a.urem(expr(type));
           }
-          case "srem" -> {
-            var type = type();
-            var a = expr(type);
-            expect(',');
-            value = a.srem(expr(type));
-          }
-          case "or" -> {
-            var type = type();
-            var a = expr(type);
-            expect(',');
-            value = a.or(expr(type));
-          }
-          case "and" -> {
-            var type = type();
-            var a = expr(type);
-            expect(',');
-            value = a.and(expr(type));
-          }
           case "xor" -> {
             var type = type();
             var a = expr(type);
             expect(',');
             value = a.xor(expr(type));
-          }
-          case "shl" -> {
-            var type = type();
-            var a = expr(type);
-            expect(',');
-            value = a.shl(expr(type));
-          }
-          case "ashr" -> {
-            eat("exact");
-            var type = type();
-            var a = expr(type);
-            expect(',');
-            value = a.ashr(expr(type));
-          }
-          case "lshr" -> {
-            eat("exact");
-            var type = type();
-            var a = expr(type);
-            expect(',');
-            value = a.lshr(expr(type));
-          }
-          case "getelementptr" -> {
-            eat("inbounds");
-            var type = type();
-            expect(',');
-            expect("ptr");
-            var ptrVal = expr(Type.PTR);
-            var idxs = new ArrayList<Term>();
-            while (eat(',')) idxs.add(typeExpr());
-            value = getelementptr(type, ptrVal, idxs);
-          }
-          case "tail" -> {
-            expect("call");
-            value = call();
-          }
-          case "call" -> value = call();
-          case "alloca" -> {
-            var type = type();
-            var numElements = Term.ONE;
-            if (eat(',') && !eat("align")) numElements = typeExpr();
-            value = Term.alloca(type, numElements);
-          }
-          case "load" -> {
-            var type = type();
-            expect(',');
-            expect("ptr");
-            value = expr(type).load(type);
-          }
-          case "bitcast",
-              "fpext",
-              "fptoui",
-              "fptrunc",
-              "inttoptr",
-              "ptrtoint",
-              "trunc",
-              "uitofp",
-              "zext" -> {
-            var a = typeExpr();
-            expect("to");
-            value = a.cast(type());
-          }
-          case "fptosi", "sext", "sitofp" -> {
-            var a = typeExpr();
-            expect("to");
-            value = a.scast(type());
           }
           default -> throw error(cause, "unknown instruction");
         }
@@ -711,24 +710,33 @@ public final class LlvmParser {
       case WORD -> {
         var mnemonic = lex1();
         switch (mnemonic) {
-          case "tail" -> {
-            expect("call");
-            block.add(new VoidCall(call()));
+          case "br" -> {
+            switch (expect(WORD)) {
+              case "i1" -> {
+                var cond = expr(Type.I1);
+                expect(',');
+                var ifTrue = label();
+                expect(',');
+                var ifFalse = label();
+                block.add(new Br(cond, ifTrue, ifFalse));
+              }
+              case "label" -> block.add(new BrUnconditional(block()));
+              default -> throw error("unknown branch type");
+            }
           }
           case "call" -> block.add(new VoidCall(call()));
-          case "store" -> {
-            var value = typeExpr();
-            expect(',');
-            var pointer = typeExpr();
-            block.add(new Store(value, pointer));
-          }
-          case "unreachable" -> block.add(new Unreachable());
           case "ret" -> {
             if (eat("void")) {
               block.add(new RetVoid());
               return;
             }
             block.add(new Ret(typeExpr()));
+          }
+          case "store" -> {
+            var value = typeExpr();
+            expect(',');
+            var pointer = typeExpr();
+            block.add(new Store(value, pointer));
           }
           case "switch" -> {
             var value = typeExpr();
@@ -744,20 +752,11 @@ public final class LlvmParser {
             } while (!eat(']'));
             block.add(switch1);
           }
-          case "br" -> {
-            switch (expect(WORD)) {
-              case "label" -> block.add(new BrUnconditional(block()));
-              case "i1" -> {
-                var cond = expr(Type.I1);
-                expect(',');
-                var ifTrue = label();
-                expect(',');
-                var ifFalse = label();
-                block.add(new Br(cond, ifTrue, ifFalse));
-              }
-              default -> throw error("unknown branch type");
-            }
+          case "tail" -> {
+            expect("call");
+            block.add(new VoidCall(call()));
           }
+          case "unreachable" -> block.add(new Unreachable());
           default -> throw error(mnemonic, "unknown instruction");
         }
       }
@@ -1005,21 +1004,21 @@ public final class LlvmParser {
       case WORD -> {
         var s = lex1();
         return switch (s) {
-          case "void" -> Type.VOID;
-          case "ptr" -> Type.PTR;
-          case "half" -> Type.HALF;
           case "bfloat" -> Type.BFLOAT;
-          case "float" -> Type.FLOAT;
           case "double" -> Type.DOUBLE;
+          case "float" -> Type.FLOAT;
           case "fp128" -> Type.FP128;
-          case "x86_fp80" -> Type.X86_FP80;
-          case "ppc_fp128" -> Type.PPC_FP128;
+          case "half" -> Type.HALF;
           case "i1" -> Type.I1;
-          case "i8" -> Type.I8;
+          case "i128" -> Type.I128;
           case "i16" -> Type.I16;
           case "i32" -> Type.I32;
           case "i64" -> Type.I64;
-          case "i128" -> Type.I128;
+          case "i8" -> Type.I8;
+          case "ppc_fp128" -> Type.PPC_FP128;
+          case "ptr" -> Type.PTR;
+          case "void" -> Type.VOID;
+          case "x86_fp80" -> Type.X86_FP80;
           default -> throw error(s, "unknown type");
         };
       }
