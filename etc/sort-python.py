@@ -2,11 +2,11 @@
 # Internal tool, designed for this project only
 # Does NOT work for arbitrary Python code
 import etc
-import python
+import py
 
-for file in python.src_files():
+for file in py.src_files():
     v = etc.read_lines(file)
-    a = python.parse(v)
-    python.sort(a)
-    v = python.compose(a)
+    a = py.parse(v)
+    py.sort(a)
+    v = py.compose(a)
     etc.write_lines(file, v)

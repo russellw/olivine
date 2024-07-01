@@ -4,7 +4,7 @@
 import re
 
 import etc
-import python
+import py
 
 
 def f(s):
@@ -14,9 +14,9 @@ def f(s):
     return s
 
 
-for file in python.src_files():
+for file in py.src_files():
     v = etc.read_lines(file)
     for i in range(len(v)):
-        if python.comment(v[i]) and not (i and python.comment(v[i - 1])):
+        if py.comment(v[i]) and not (i and py.comment(v[i - 1])):
             v[i] = f(v[i])
     etc.write_lines(file, v)
