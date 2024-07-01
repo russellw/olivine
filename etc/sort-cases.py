@@ -2,7 +2,6 @@
 # Internal tool, designed for this project only
 # Does NOT work for arbitrary Java code
 import argparse
-import re
 
 import etc
 import java
@@ -41,9 +40,9 @@ def find(f, n, i):
 
 
 def is_case(i):
-    if re.match(" *case ", v[i]):
+    if v[i].startswith(spaces + "case "):
         return True
-    if re.match(" *default ", v[i]):
+    if v[i].startswith(spaces + "default "):
         return True
 
 
@@ -58,32 +57,36 @@ if not files:
     files = java.src_files()
 for file in files:
     v = etc.read_lines(file)
-    i = 0
-    r = []
-    while 1:
-        # Next switch
-        j, cs = cases(i)
-        if j < 0:
-            r.extend(v[i:])
-            break
-        r.extend(v[i:j])
-        i = j
-        if args.debug:
-            print(etc.RED + "[[[[[[" + etc.RESET)
+    spaces = "  " * 20
+    while spaces:
+        i = 0
+        r = []
+        while 1:
+            # Next switch
+            j, cs = cases(i)
+            if j < 0:
+                r.extend(v[i:])
+                break
+            r.extend(v[i:j])
+            i = j
+            if args.debug:
+                print(etc.RED + "[[[[[[" + etc.RESET)
+                for c in cs:
+                    print(etc.YELLOW + "[[[" + etc.RESET)
+                    for s in c:
+                        print(s)
+                    print(etc.YELLOW + "]]]" + etc.RESET)
+                print(etc.RED + "]]]]]]" + etc.RESET)
+
+            # Sort
+            cs.sort()
+
+            # Add to output
             for c in cs:
-                print(etc.YELLOW + "[[[" + etc.RESET)
-                for s in c:
-                    print(s)
-                print(etc.YELLOW + "]]]" + etc.RESET)
-            print(etc.RED + "]]]]]]" + etc.RESET)
-
-        # Sort
-        cs.sort()
-
-        # Add to output
-        for c in cs:
-            r.extend(c)
-            i += len(c)
+                r.extend(c)
+                i += len(c)
+        v = r
+        spaces = spaces[:-2]
 
     # Write sorted code
     if not args.debug:
