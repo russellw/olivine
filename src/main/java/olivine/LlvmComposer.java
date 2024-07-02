@@ -215,18 +215,15 @@ public final class LlvmComposer {
     return true;
   }
 
-  private void print(Tag tag) {
-    print(tag.toString());
-  }
-
   private Term load(Term term) {
     Term ssa;
     switch (term.tag()) {
-      case add -> {
+      case add, and, ashr, fadd, fdiv, fmul, fsub, lshr, mul, or, sub, udiv, urem, xor -> {
         var a = load(term.get(0));
         var b = load(term.get(1));
         ssa = ssa(term);
-        print("add ");
+        print(term.tag());
+        print(' ');
         typeExpr(a);
         print(',');
         expr(b);
@@ -235,15 +232,6 @@ public final class LlvmComposer {
         ssa = ssa(term);
         print("alloca ");
         print(term.type());
-      }
-      case and -> {
-        var a = load(term.get(0));
-        var b = load(term.get(1));
-        ssa = ssa(term);
-        print("and ");
-        typeExpr(a);
-        print(',');
-        expr(b);
       }
       case array -> {
         var elements = new Term[term.size()];
@@ -257,15 +245,6 @@ public final class LlvmComposer {
           typeExpr(element);
         }
         print(']');
-      }
-      case ashr -> {
-        var a = load(term.get(0));
-        var b = load(term.get(1));
-        ssa = ssa(term);
-        print("ashr ");
-        typeExpr(a);
-        print(',');
-        expr(b);
       }
       case call -> {
         var args = new Term[term.size() - 1];
@@ -296,24 +275,6 @@ public final class LlvmComposer {
         var b = load(term.get(1));
         ssa = ssa(term);
         print("icmp eq ");
-        typeExpr(a);
-        print(',');
-        expr(b);
-      }
-      case fadd -> {
-        var a = load(term.get(0));
-        var b = load(term.get(1));
-        ssa = ssa(term);
-        print("fadd ");
-        typeExpr(a);
-        print(',');
-        expr(b);
-      }
-      case fdiv -> {
-        var a = load(term.get(0));
-        var b = load(term.get(1));
-        ssa = ssa(term);
-        print("fdiv ");
         typeExpr(a);
         print(',');
         expr(b);
@@ -355,15 +316,6 @@ public final class LlvmComposer {
         print(',');
         expr(b);
       }
-      case fmul -> {
-        var a = load(term.get(0));
-        var b = load(term.get(1));
-        ssa = ssa(term);
-        print("fmul ");
-        typeExpr(a);
-        print(',');
-        expr(b);
-      }
       case fne -> {
         var a = load(term.get(0));
         var b = load(term.get(1));
@@ -378,15 +330,6 @@ public final class LlvmComposer {
         ssa = ssa(term);
         print("fneg ");
         typeExpr(a);
-      }
-      case fsub -> {
-        var a = load(term.get(0));
-        var b = load(term.get(1));
-        ssa = ssa(term);
-        print("fsub ");
-        typeExpr(a);
-        print(',');
-        expr(b);
       }
       case globalVariable, variable -> {
         //noinspection SuspiciousMethodCalls
@@ -405,39 +348,11 @@ public final class LlvmComposer {
         print(',');
         typeExpr(a);
       }
-      case lshr -> {
-        var a = load(term.get(0));
-        var b = load(term.get(1));
-        ssa = ssa(term);
-        print(term.tag());
-        print(' ');
-        typeExpr(a);
-        print(',');
-        expr(b);
-      }
-      case mul -> {
-        var a = load(term.get(0));
-        var b = load(term.get(1));
-        ssa = ssa(term);
-        print("mul ");
-        typeExpr(a);
-        print(',');
-        expr(b);
-      }
       case ne -> {
         var a = load(term.get(0));
         var b = load(term.get(1));
         ssa = ssa(term);
         print("icmp ne ");
-        typeExpr(a);
-        print(',');
-        expr(b);
-      }
-      case or -> {
-        var a = load(term.get(0));
-        var b = load(term.get(1));
-        ssa = ssa(term);
-        print("or ");
         typeExpr(a);
         print(',');
         expr(b);
@@ -472,47 +387,11 @@ public final class LlvmComposer {
         print(',');
         expr(b);
       }
-      case sub -> {
-        var a = load(term.get(0));
-        var b = load(term.get(1));
-        ssa = ssa(term);
-        print("sub ");
-        typeExpr(a);
-        print(',');
-        expr(b);
-      }
-      case udiv -> {
-        var a = load(term.get(0));
-        var b = load(term.get(1));
-        ssa = ssa(term);
-        print("udiv ");
-        typeExpr(a);
-        print(',');
-        expr(b);
-      }
       case ult -> {
         var a = load(term.get(0));
         var b = load(term.get(1));
         ssa = ssa(term);
         print("icmp ult ");
-        typeExpr(a);
-        print(',');
-        expr(b);
-      }
-      case urem -> {
-        var a = load(term.get(0));
-        var b = load(term.get(1));
-        ssa = ssa(term);
-        print("urem ");
-        typeExpr(a);
-        print(',');
-        expr(b);
-      }
-      case xor -> {
-        var a = load(term.get(0));
-        var b = load(term.get(1));
-        ssa = ssa(term);
-        print("xor ");
         typeExpr(a);
         print(',');
         expr(b);
@@ -589,6 +468,10 @@ public final class LlvmComposer {
 
   private void print(String s) {
     stream.writeBytes(s.getBytes(StandardCharsets.UTF_8));
+  }
+
+  private void print(Tag tag) {
+    print(tag.toString());
   }
 
   private void print(Type type) {
