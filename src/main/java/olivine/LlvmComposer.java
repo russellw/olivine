@@ -39,7 +39,7 @@ public final class LlvmComposer {
         print(' ');
 
         // TODO: could be gep
-        atom(variable.value);
+        expr(variable.value);
       }
       if (variable.comdat) print(",comdat");
       print('\n');
@@ -62,7 +62,7 @@ public final class LlvmComposer {
       for (var a : function.params) {
         if (more) print(',');
         more = true;
-        typeAtom(a);
+        typeExpr(a);
       }
       if (function.varargs) print(",...");
       print(')');
@@ -104,23 +104,6 @@ public final class LlvmComposer {
     }
   }
 
-  private void atom(Term term) {
-    switch (term.tag()) {
-      case ADDR -> atom(term.get(0));
-      case GLOBAL_VARIABLE -> {
-        print('@');
-        id(term.toString());
-      }
-      case NULL -> print("null");
-      case UNDEF -> print("undef");
-      case VARIABLE -> {
-        print('%');
-        local(term);
-      }
-      default -> print(term.toString());
-    }
-  }
-
   private void call(Term call, Term[] args) {
     print("call ");
 
@@ -144,7 +127,7 @@ public final class LlvmComposer {
     for (var arg : args) {
       if (more) print(',');
       more = true;
-      typeAtom(arg);
+      typeExpr(arg);
     }
     print(')');
   }
@@ -178,6 +161,32 @@ public final class LlvmComposer {
 
   public static byte[] compose(Module module) {
     return new LlvmComposer(module).stream.toByteArray();
+  }
+
+  private void expr(Term term) {
+    switch (term.tag()) {
+      case ADDR -> expr(term.get(0));
+      case ELEMENT_PTR -> {
+        print("getelementptr(");
+        print(term.struct());
+        print(',');
+        typeExpr(term.get(0));
+        print(",i64 0,");
+        typeExpr(term.get(1));
+        print(')');
+      }
+      case GLOBAL_VARIABLE -> {
+        print('@');
+        id(term.toString());
+      }
+      case NULL -> print("null");
+      case UNDEF -> print("undef");
+      case VARIABLE -> {
+        print('%');
+        local(term);
+      }
+      default -> print(term.toString());
+    }
   }
 
   private void id(String s) {
@@ -214,9 +223,9 @@ public final class LlvmComposer {
         var b = load(term.get(1));
         ssa = ssa(term);
         print("add ");
-        typeAtom(a);
+        typeExpr(a);
         print(',');
-        atom(b);
+        expr(b);
       }
       case ALLOCA -> {
         ssa = ssa(term);
@@ -228,9 +237,9 @@ public final class LlvmComposer {
         var b = load(term.get(1));
         ssa = ssa(term);
         print("and ");
-        typeAtom(a);
+        typeExpr(a);
         print(',');
-        atom(b);
+        expr(b);
       }
       case ARRAY -> {
         var elements = new Term[term.size()];
@@ -241,7 +250,7 @@ public final class LlvmComposer {
         for (var element : elements) {
           if (more) print(',');
           more = true;
-          typeAtom(element);
+          typeExpr(element);
         }
         print(']');
       }
@@ -256,7 +265,7 @@ public final class LlvmComposer {
         ssa = ssa(term);
         print(cast(term));
         print(' ');
-        typeAtom(a);
+        typeExpr(a);
         print(" to ");
         print(term.type());
       }
@@ -265,45 +274,45 @@ public final class LlvmComposer {
         var b = load(term.get(1));
         ssa = ssa(term);
         print("getelementptr ptr,");
-        typeAtom(a);
+        typeExpr(a);
         print(',');
-        typeAtom(b);
+        typeExpr(b);
       }
       case EQ -> {
         var a = load(term.get(0));
         var b = load(term.get(1));
         ssa = ssa(term);
         print("icmp eq ");
-        typeAtom(a);
+        typeExpr(a);
         print(',');
-        atom(b);
+        expr(b);
       }
       case FADD -> {
         var a = load(term.get(0));
         var b = load(term.get(1));
         ssa = ssa(term);
         print("fadd ");
-        typeAtom(a);
+        typeExpr(a);
         print(',');
-        atom(b);
+        expr(b);
       }
       case FDIV -> {
         var a = load(term.get(0));
         var b = load(term.get(1));
         ssa = ssa(term);
         print("fdiv ");
-        typeAtom(a);
+        typeExpr(a);
         print(',');
-        atom(b);
+        expr(b);
       }
       case FEQ -> {
         var a = load(term.get(0));
         var b = load(term.get(1));
         ssa = ssa(term);
         print("fcmp oeq ");
-        typeAtom(a);
+        typeExpr(a);
         print(',');
-        atom(b);
+        expr(b);
       }
       case FIELD_PTR -> {
         var a = load(term.get(0));
@@ -311,7 +320,7 @@ public final class LlvmComposer {
         print("getelementptr ");
         print(term.struct());
         print(',');
-        typeAtom(a);
+        typeExpr(a);
         print(",i32 0,i32 ");
         print(Integer.toString(term.intValueExact()));
       }
@@ -320,51 +329,51 @@ public final class LlvmComposer {
         var b = load(term.get(1));
         ssa = ssa(term);
         print("fcmp ole ");
-        typeAtom(a);
+        typeExpr(a);
         print(',');
-        atom(b);
+        expr(b);
       }
       case FLT -> {
         var a = load(term.get(0));
         var b = load(term.get(1));
         ssa = ssa(term);
         print("fcmp olt ");
-        typeAtom(a);
+        typeExpr(a);
         print(',');
-        atom(b);
+        expr(b);
       }
       case FMUL -> {
         var a = load(term.get(0));
         var b = load(term.get(1));
         ssa = ssa(term);
         print("fmul ");
-        typeAtom(a);
+        typeExpr(a);
         print(',');
-        atom(b);
+        expr(b);
       }
       case FNE -> {
         var a = load(term.get(0));
         var b = load(term.get(1));
         ssa = ssa(term);
         print("fcmp une ");
-        typeAtom(a);
+        typeExpr(a);
         print(',');
-        atom(b);
+        expr(b);
       }
       case FNEG -> {
         var a = load(term.get(0));
         ssa = ssa(term);
         print("fneg ");
-        typeAtom(a);
+        typeExpr(a);
       }
       case FSUB -> {
         var a = load(term.get(0));
         var b = load(term.get(1));
         ssa = ssa(term);
         print("fsub ");
-        typeAtom(a);
+        typeExpr(a);
         print(',');
-        atom(b);
+        expr(b);
       }
       case GLOBAL_VARIABLE, VARIABLE -> {
         //noinspection SuspiciousMethodCalls
@@ -373,7 +382,7 @@ public final class LlvmComposer {
         print("load ");
         print(term.type());
         print(",ptr ");
-        atom(term);
+        expr(term);
       }
       case LOAD -> {
         var a = load(term.get(0));
@@ -381,50 +390,50 @@ public final class LlvmComposer {
         print("load ");
         print(term.type());
         print(',');
-        typeAtom(a);
+        typeExpr(a);
       }
       case LSHR -> {
         var a = load(term.get(0));
         var b = load(term.get(1));
         ssa = ssa(term);
         print("lshr ");
-        typeAtom(a);
+        typeExpr(a);
         print(',');
-        atom(b);
+        expr(b);
       }
       case MUL -> {
         var a = load(term.get(0));
         var b = load(term.get(1));
         ssa = ssa(term);
         print("mul ");
-        typeAtom(a);
+        typeExpr(a);
         print(',');
-        atom(b);
+        expr(b);
       }
       case NE -> {
         var a = load(term.get(0));
         var b = load(term.get(1));
         ssa = ssa(term);
         print("icmp ne ");
-        typeAtom(a);
+        typeExpr(a);
         print(',');
-        atom(b);
+        expr(b);
       }
       case OR -> {
         var a = load(term.get(0));
         var b = load(term.get(1));
         ssa = ssa(term);
         print("or ");
-        typeAtom(a);
+        typeExpr(a);
         print(',');
-        atom(b);
+        expr(b);
       }
       case SCAST -> {
         var a = load(term.get(0));
         ssa = ssa(term);
         print(scast(term));
         print(' ');
-        typeAtom(a);
+        typeExpr(a);
         print(" to ");
         print(term.type());
       }
@@ -434,56 +443,56 @@ public final class LlvmComposer {
         var ifFalse = load(term.get(2));
         ssa = ssa(term);
         print("select ");
-        typeAtom(cond);
+        typeExpr(cond);
         print(',');
-        typeAtom(ifTrue);
+        typeExpr(ifTrue);
         print(',');
-        typeAtom(ifFalse);
+        typeExpr(ifFalse);
       }
       case SLT -> {
         var a = load(term.get(0));
         var b = load(term.get(1));
         ssa = ssa(term);
         print("icmp slt ");
-        typeAtom(a);
+        typeExpr(a);
         print(',');
-        atom(b);
+        expr(b);
       }
       case UDIV -> {
         var a = load(term.get(0));
         var b = load(term.get(1));
         ssa = ssa(term);
         print("udiv ");
-        typeAtom(a);
+        typeExpr(a);
         print(',');
-        atom(b);
+        expr(b);
       }
       case ULT -> {
         var a = load(term.get(0));
         var b = load(term.get(1));
         ssa = ssa(term);
         print("icmp ult ");
-        typeAtom(a);
+        typeExpr(a);
         print(',');
-        atom(b);
+        expr(b);
       }
       case UREM -> {
         var a = load(term.get(0));
         var b = load(term.get(1));
         ssa = ssa(term);
         print("urem ");
-        typeAtom(a);
+        typeExpr(a);
         print(',');
-        atom(b);
+        expr(b);
       }
       case XOR -> {
         var a = load(term.get(0));
         var b = load(term.get(1));
         ssa = ssa(term);
         print("xor ");
-        typeAtom(a);
+        typeExpr(a);
         print(',');
-        atom(b);
+        expr(b);
       }
       default -> {
         return term;
@@ -510,7 +519,7 @@ public final class LlvmComposer {
       case Assign assign -> {
         var value = load(assign.value);
         print("store ");
-        typeAtom(value);
+        typeExpr(value);
         print(",ptr %");
         local(assign.variable);
         print("; Assign");
@@ -518,7 +527,7 @@ public final class LlvmComposer {
       case Br br -> {
         var cond = load(br.cond);
         print("br i1 ");
-        atom(cond);
+        expr(cond);
         print(",label %");
         local(br.ifTrue);
         print(",label %");
@@ -531,16 +540,16 @@ public final class LlvmComposer {
       case Ret ret -> {
         var value = load(ret.value);
         print("ret ");
-        typeAtom(value);
+        typeExpr(value);
       }
       case RetVoid _ -> print("ret void");
       case Store store -> {
         var value = load(store.value);
         var pointer = load(store.pointer);
         print("store ");
-        typeAtom(value);
+        typeExpr(value);
         print(',');
-        typeAtom(pointer);
+        typeExpr(pointer);
         print("; Store");
       }
       case Unreachable _ -> print("unreachable");
@@ -589,9 +598,9 @@ public final class LlvmComposer {
     return variable;
   }
 
-  private void typeAtom(Term term) {
+  private void typeExpr(Term term) {
     print(term.type());
     print(' ');
-    atom(term);
+    expr(term);
   }
 }
