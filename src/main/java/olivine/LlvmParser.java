@@ -382,11 +382,8 @@ public final class LlvmParser {
   }
 
   private Term getelementptr(Type type, Term ptr, List<Term> idxs) {
-    // The first index of getelementptr is for when the pointer is to an array
     type = type.array(0);
-    ptr = ptr.elementPtr(type, idxs.getFirst());
-    for (var i = 1; i < idxs.size(); i++) {
-      var idx = idxs.get(i);
+    for (var idx : idxs)
       switch (type.kind()) {
         case ARRAY -> {
           type = type.get(0);
@@ -399,7 +396,6 @@ public final class LlvmParser {
         }
         default -> throw error("expected compound type");
       }
-    }
     return ptr;
   }
 
