@@ -269,11 +269,12 @@ public final class LlvmComposer {
         print(',');
         typeExpr(b);
       }
-      case eq -> {
+      case eq, ne, slt, ult -> {
         var a = load(term.get(0));
         var b = load(term.get(1));
         ssa = ssa(term);
-        print("icmp eq ");
+        print("icmp ");
+        printSpace(term.tag());
         typeExpr(a);
         print(',');
         expr(b);
@@ -347,15 +348,6 @@ public final class LlvmComposer {
         print(',');
         typeExpr(a);
       }
-      case ne -> {
-        var a = load(term.get(0));
-        var b = load(term.get(1));
-        ssa = ssa(term);
-        print("icmp ne ");
-        typeExpr(a);
-        print(',');
-        expr(b);
-      }
       case scast -> {
         var a = load(term.get(0));
         ssa = ssa(term);
@@ -376,24 +368,6 @@ public final class LlvmComposer {
         typeExpr(ifTrue);
         print(',');
         typeExpr(ifFalse);
-      }
-      case slt -> {
-        var a = load(term.get(0));
-        var b = load(term.get(1));
-        ssa = ssa(term);
-        print("icmp slt ");
-        typeExpr(a);
-        print(',');
-        expr(b);
-      }
-      case ult -> {
-        var a = load(term.get(0));
-        var b = load(term.get(1));
-        ssa = ssa(term);
-        print("icmp ult ");
-        typeExpr(a);
-        print(',');
-        expr(b);
       }
       default -> {
         return term;
