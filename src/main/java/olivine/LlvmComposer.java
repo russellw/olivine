@@ -254,6 +254,15 @@ public final class LlvmComposer {
         }
         print(']');
       }
+      case ASHR -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
+        ssa = ssa(term);
+        print("ashr ");
+        typeExpr(a);
+        print(',');
+        expr(b);
+      }
       case CALL -> {
         var args = new Term[term.size() - 1];
         for (var i = 0; i < args.length; i++) args[i] = load(term.get(1 + i));
@@ -454,6 +463,15 @@ public final class LlvmComposer {
         var b = load(term.get(1));
         ssa = ssa(term);
         print("icmp slt ");
+        typeExpr(a);
+        print(',');
+        expr(b);
+      }
+      case SUB -> {
+        var a = load(term.get(0));
+        var b = load(term.get(1));
+        ssa = ssa(term);
+        print("sub ");
         typeExpr(a);
         print(',');
         expr(b);
