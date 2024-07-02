@@ -309,7 +309,7 @@ public final class LlvmParser {
         do fields.add(expr(type()));
         while (eat(','));
         expect('}');
-        yield Term.struct(type, fields);
+        yield Term.targetType(type, fields);
       }
       case FLOAT, HEX_FLOAT -> Term.floatConstant(type, lex1());
       case GLOBAL -> {

@@ -168,10 +168,10 @@ public final class LlvmComposer {
       case ADDR -> expr(term.get(0));
       case ELEMENT_PTR -> {
         print("getelementptr(");
-        print(term.struct());
+        print(term.targetType());
         print(',');
         typeExpr(term.get(0));
-        print(",i64 0,");
+        print(',');
         typeExpr(term.get(1));
         print(')');
       }
@@ -318,7 +318,7 @@ public final class LlvmComposer {
         var a = load(term.get(0));
         ssa = ssa(term);
         print("getelementptr ");
-        print(term.struct());
+        print(term.targetType());
         print(',');
         typeExpr(a);
         print(",i32 0,i32 ");

@@ -296,11 +296,16 @@ public abstract class Term implements Iterable<Term> {
   }
 
   private static final class ElementPtr extends BinaryTerm {
-    private final Type type;
+    private final Type elementType;
 
-    public ElementPtr(Type type, Term ptrVal, Term idx) {
+    @Override
+    public Type targetType() {
+      return elementType;
+    }
+
+    public ElementPtr(Type elementType, Term ptrVal, Term idx) {
       super(ptrVal, idx);
-      this.type = type;
+      this.elementType = elementType;
     }
 
     @Override
@@ -309,18 +314,18 @@ public abstract class Term implements Iterable<Term> {
       if (o == null || getClass() != o.getClass()) return false;
       if (!super.equals(o)) return false;
       ElementPtr terms = (ElementPtr) o;
-      return Objects.equals(type, terms.type);
+      return Objects.equals(elementType, terms.elementType);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(super.hashCode(), type);
+      return Objects.hash(super.hashCode(), elementType);
     }
 
     @Override
     public Term rewrite(Term[] terms) {
       assert terms.length == 2;
-      return new ElementPtr(type, terms[0], terms[1]);
+      return new ElementPtr(elementType, terms[0], terms[1]);
     }
 
     @Override
@@ -330,7 +335,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public String toString() {
-      return "element_ptr(%s, %s, %s)".formatted(type, arg0, arg1);
+      return "element_ptr(%s, %s, %s)".formatted(elementType, arg0, arg1);
     }
 
     @Override
@@ -657,7 +662,7 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
-    public Type struct() {
+    public Type targetType() {
       return struct;
     }
 
@@ -1431,8 +1436,8 @@ public abstract class Term implements Iterable<Term> {
     return new Cast(this, type);
   }
 
-  public Term elementPtr(Type type, Term idx) {
-    return new ElementPtr(type, this, idx);
+  public Term elementPtr(Type elementType, Term idx) {
+    return new ElementPtr(elementType, this, idx);
   }
 
   public Term eq(Term b) {
@@ -1580,15 +1585,15 @@ public abstract class Term implements Iterable<Term> {
     return new SRem(this, b);
   }
 
-  public Type struct() {
+  public Type targetType() {
     throw new UnsupportedOperationException(toString());
   }
 
-  public static Term struct(Type type, List<Term> fields) {
+  public static Term targetType(Type type, List<Term> fields) {
     return new Struct(type, fields.toArray(new Term[0]));
   }
 
-  public static Term struct(Type type, Term[] fields) {
+  public static Term targetType(Type type, Term[] fields) {
     return new Struct(type, fields);
   }
 
@@ -1659,7 +1664,7 @@ public abstract class Term implements Iterable<Term> {
       case STRUCT -> {
         var fields = new Term[type.size()];
         for (var i = 0; i < fields.length; i++) fields[i] = zeroinitializer(type.get(i));
-        yield struct(type, fields);
+        yield targetType(type, fields);
       }
       default -> {
         if (type.isFloat()) yield floatConstant(type, "0");
