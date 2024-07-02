@@ -11,7 +11,7 @@ public final class GlobalVariable extends Global {
 
   @Override
   public Tag tag() {
-    return Tag.GLOBAL_VARIABLE;
+    return Tag.globalVariable;
   }
 
   @Override

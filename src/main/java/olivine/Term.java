@@ -18,7 +18,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.ASHR;
+      return Tag.ashr;
     }
   }
 
@@ -35,7 +35,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.ADD;
+      return Tag.add;
     }
   }
 
@@ -52,7 +52,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.ADDR;
+      return Tag.addr;
     }
 
     @Override
@@ -91,7 +91,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.ALLOCA;
+      return Tag.alloca;
     }
 
     @Override
@@ -118,7 +118,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.AND;
+      return Tag.and;
     }
   }
 
@@ -151,7 +151,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.ARRAY;
+      return Tag.array;
     }
 
     @Override
@@ -246,7 +246,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.CALL;
+      return Tag.call;
     }
 
     @Override
@@ -286,7 +286,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.CAST;
+      return Tag.cast;
     }
 
     @Override
@@ -325,7 +325,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.ELEMENT_PTR;
+      return Tag.elementPtr;
     }
 
     @Override
@@ -365,7 +365,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.EQ;
+      return Tag.eq;
     }
 
     @Override
@@ -387,7 +387,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.FADD;
+      return Tag.fadd;
     }
 
     @Override
@@ -410,7 +410,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.FDIV;
+      return Tag.fdiv;
     }
 
     @Override
@@ -433,7 +433,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.FEQ;
+      return Tag.feq;
     }
 
     @Override
@@ -461,7 +461,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.FLE;
+      return Tag.fle;
     }
 
     @Override
@@ -489,7 +489,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.FLT;
+      return Tag.flt;
     }
 
     @Override
@@ -517,7 +517,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.FMUL;
+      return Tag.fmul;
     }
 
     @Override
@@ -540,7 +540,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.FNE;
+      return Tag.fne;
     }
 
     @Override
@@ -568,7 +568,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.FNEG;
+      return Tag.fneg;
     }
 
     @Override
@@ -591,7 +591,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.FREM;
+      return Tag.frem;
     }
 
     @Override
@@ -614,7 +614,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.FSUB;
+      return Tag.fsub;
     }
 
     @Override
@@ -663,7 +663,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.FIELD_PTR;
+      return Tag.fieldPtr;
     }
 
     @Override
@@ -712,7 +712,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.FLOAT;
+      return Tag.floatConstant;
     }
 
     @Override
@@ -755,7 +755,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.INT;
+      return Tag.intConstant;
     }
 
     @Override
@@ -782,7 +782,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.LSHR;
+      return Tag.lshr;
     }
   }
 
@@ -816,7 +816,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.LOAD;
+      return Tag.load;
     }
 
     @Override
@@ -843,7 +843,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.MUL;
+      return Tag.mul;
     }
   }
 
@@ -897,7 +897,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.NE;
+      return Tag.ne;
     }
 
     @Override
@@ -919,7 +919,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.OR;
+      return Tag.or;
     }
   }
 
@@ -953,7 +953,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.SCAST;
+      return Tag.scast;
     }
 
     @Override
@@ -975,7 +975,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.SDIV;
+      return Tag.sdiv;
     }
   }
 
@@ -992,7 +992,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.SLE;
+      return Tag.sle;
     }
 
     @Override
@@ -1014,7 +1014,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.SLT;
+      return Tag.slt;
     }
 
     @Override
@@ -1036,7 +1036,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.SREM;
+      return Tag.srem;
     }
   }
 
@@ -1053,7 +1053,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.SELECT;
+      return Tag.select;
     }
 
     @Override
@@ -1082,7 +1082,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.SHL;
+      return Tag.shl;
     }
   }
 
@@ -1115,7 +1115,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.STRUCT;
+      return Tag.struct;
     }
 
     @Override
@@ -1161,7 +1161,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.SUB;
+      return Tag.sub;
     }
   }
 
@@ -1223,7 +1223,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.UDIV;
+      return Tag.udiv;
     }
   }
 
@@ -1240,7 +1240,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.ULE;
+      return Tag.ule;
     }
 
     @Override
@@ -1262,7 +1262,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.ULT;
+      return Tag.ult;
     }
 
     @Override
@@ -1284,7 +1284,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.UREM;
+      return Tag.urem;
     }
   }
 
@@ -1353,7 +1353,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.UNDEF;
+      return Tag.undef;
     }
 
     @Override
@@ -1375,7 +1375,7 @@ public abstract class Term implements Iterable<Term> {
 
     @Override
     public Tag tag() {
-      return Tag.XOR;
+      return Tag.xor;
     }
   }
 
@@ -1383,7 +1383,7 @@ public abstract class Term implements Iterable<Term> {
       new Term() {
         @Override
         public Tag tag() {
-          return Tag.NULL;
+          return Tag.nullConstant;
         }
 
         @Override

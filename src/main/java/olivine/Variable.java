@@ -9,7 +9,7 @@ public final class Variable extends Term {
 
   @Override
   public Tag tag() {
-    return Tag.VARIABLE;
+    return Tag.variable;
   }
 
   @Override

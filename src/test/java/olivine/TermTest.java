@@ -11,8 +11,8 @@ import org.junit.jupiter.api.Test;
 class TermTest {
   @Test
   void tag() {
-    assertEquals(Tag.NULL, Term.NULL.tag());
-    assertEquals(Tag.INT, Term.intConstant(Type.I32, 1).tag());
+    assertEquals(Tag.nullConstant, Term.NULL.tag());
+    assertEquals(Tag.intConstant, Term.intConstant(Type.I32, 1).tag());
   }
 
   @Test
@@ -99,7 +99,7 @@ class TermTest {
   void testFNeg() {
     Term term = Term.intConstant(Type.I1, 5L);
     Term fneg = term.fneg();
-    assertEquals(Tag.FNEG, fneg.tag());
+    assertEquals(Tag.fneg, fneg.tag());
     assertEquals(term, fneg.get(0));
   }
 
@@ -108,7 +108,7 @@ class TermTest {
     Term term1 = Term.intConstant(Type.I1, 2L);
     Term term2 = Term.intConstant(Type.I1, 3L);
     Term add = term1.add(term2);
-    assertEquals(Tag.ADD, add.tag());
+    assertEquals(Tag.add, add.tag());
     assertEquals(term1, add.get(0));
     assertEquals(term2, add.get(1));
   }
@@ -119,7 +119,7 @@ class TermTest {
     Term ifTrue = Term.intConstant(Type.I1, 1L);
     Term ifFalse = Term.intConstant(Type.I1, 0L);
     Term select = cond.select(ifTrue, ifFalse);
-    assertEquals(Tag.SELECT, select.tag());
+    assertEquals(Tag.select, select.tag());
     assertEquals(cond, select.get(0));
     assertEquals(ifTrue, select.get(1));
     assertEquals(ifFalse, select.get(2));
@@ -131,7 +131,7 @@ class TermTest {
     Term arg1 = Term.intConstant(Type.I1, 2L);
     Term arg2 = Term.intConstant(Type.I1, 3L);
     Term call = func.call(List.of(arg1, arg2));
-    assertEquals(Tag.CALL, call.tag());
+    assertEquals(Tag.call, call.tag());
     assertEquals(func, call.get(0));
     assertEquals(arg1, call.get(1));
     assertEquals(arg2, call.get(2));
@@ -148,7 +148,7 @@ class TermTest {
   @Test
   void testNull() {
     Term term = Term.NULL;
-    assertEquals(Tag.NULL, term.tag());
+    assertEquals(Tag.nullConstant, term.tag());
     assertEquals(Type.PTR, term.type());
   }
 
@@ -185,17 +185,17 @@ class TermTest {
   public void testZeroInitializerForIntType() {
     // Test I1 type
     Term result = Term.zeroinitializer(Type.I1);
-    assertSame(result.tag(), Tag.INT);
+    assertSame(result.tag(), Tag.intConstant);
     assertEquals(0, result.intValueExact());
 
     // Test I32 type
     result = Term.zeroinitializer(Type.I32);
-    assertSame(result.tag(), Tag.INT);
+    assertSame(result.tag(), Tag.intConstant);
     assertEquals(0, result.intValueExact());
 
     // Test I64 type
     result = Term.zeroinitializer(Type.I64);
-    assertSame(result.tag(), Tag.INT);
+    assertSame(result.tag(), Tag.intConstant);
     assertEquals(0, result.intValueExact());
   }
 
@@ -203,17 +203,17 @@ class TermTest {
   public void testZeroInitializerForFloatType() {
     // Test FLOAT type
     Term result = Term.zeroinitializer(Type.FLOAT);
-    assertSame(result.tag(), Tag.FLOAT);
+    assertSame(result.tag(), Tag.floatConstant);
     assertEquals("0", result.toString());
 
     // Test DOUBLE type
     result = Term.zeroinitializer(Type.DOUBLE);
-    assertSame(result.tag(), Tag.FLOAT);
+    assertSame(result.tag(), Tag.floatConstant);
     assertEquals("0", result.toString());
 
     // Test HALF type
     result = Term.zeroinitializer(Type.HALF);
-    assertSame(result.tag(), Tag.FLOAT);
+    assertSame(result.tag(), Tag.floatConstant);
     assertEquals("0", result.toString());
   }
 
@@ -222,20 +222,20 @@ class TermTest {
     // Test array of I32
     Type arrayType = Type.I32.array(3);
     Term result = Term.zeroinitializer(arrayType);
-    assertSame(result.tag(), Tag.ARRAY);
+    assertSame(result.tag(), Tag.array);
     assertEquals(3, result.size());
     for (Term element : result) {
-      assertSame(element.tag(), Tag.INT);
+      assertSame(element.tag(), Tag.intConstant);
       assertEquals(0, element.intValueExact());
     }
 
     // Test array of FLOAT
     arrayType = Type.FLOAT.array(2);
     result = Term.zeroinitializer(arrayType);
-    assertSame(result.tag(), Tag.ARRAY);
+    assertSame(result.tag(), Tag.array);
     assertEquals(2, result.size());
     for (Term element : result) {
-      assertSame(element.tag(), Tag.FLOAT);
+      assertSame(element.tag(), Tag.floatConstant);
       assertEquals("0", element.toString());
     }
   }
@@ -262,7 +262,7 @@ class TermTest {
     Term[] terms = {Term.intConstant(Type.I32, 43)};
     Term result = term.rewrite(terms);
     assertNotSame(term, result);
-    assertEquals(Tag.FNEG, result.tag());
+    assertEquals(Tag.fneg, result.tag());
     assertEquals(terms[0], result.get(0));
   }
 
@@ -273,7 +273,7 @@ class TermTest {
     Term[] terms = {Term.intConstant(Type.I32, 43)};
     Term result = term.rewrite(terms);
     assertNotSame(term, result);
-    assertEquals(Tag.ADDR, result.tag());
+    assertEquals(Tag.addr, result.tag());
     assertEquals(terms[0], result.get(0));
   }
 
@@ -285,7 +285,7 @@ class TermTest {
     Term[] terms = {Term.intConstant(Type.I32, 43)};
     Term result = term.rewrite(terms);
     assertNotSame(term, result);
-    assertEquals(Tag.LOAD, result.tag());
+    assertEquals(Tag.load, result.tag());
     assertEquals(terms[0], result.get(0));
     assertEquals(type, result.type());
   }
@@ -298,7 +298,7 @@ class TermTest {
     Term[] terms = {Term.intConstant(Type.I32, 43)};
     Term result = term.rewrite(terms);
     assertNotSame(term, result);
-    assertEquals(Tag.ALLOCA, result.tag());
+    assertEquals(Tag.alloca, result.tag());
     assertEquals(terms[0], result.get(0));
     assertEquals(Type.PTR, result.type());
   }
@@ -312,7 +312,7 @@ class TermTest {
     Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
     Term result = term.rewrite(terms);
     assertNotSame(term, result);
-    assertEquals(Tag.ELEMENT_PTR, result.tag());
+    assertEquals(Tag.elementPtr, result.tag());
     assertEquals(terms[0], result.get(0));
     assertEquals(terms[1], result.get(1));
     assertEquals(Type.PTR, result.type());
@@ -326,7 +326,7 @@ class TermTest {
     Term[] terms = {Term.intConstant(Type.I32, 43)};
     Term result = term.rewrite(terms);
     assertNotSame(term, result);
-    assertEquals(Tag.CAST, result.tag());
+    assertEquals(Tag.cast, result.tag());
     assertEquals(terms[0], result.get(0));
     assertEquals(type, result.type());
   }
@@ -339,7 +339,7 @@ class TermTest {
     Term[] terms = {Term.intConstant(Type.I32, 43)};
     Term result = term.rewrite(terms);
     assertNotSame(term, result);
-    assertEquals(Tag.SCAST, result.tag());
+    assertEquals(Tag.scast, result.tag());
     assertEquals(terms[0], result.get(0));
     assertEquals(type, result.type());
   }
@@ -352,7 +352,7 @@ class TermTest {
     Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
     Term result = term.rewrite(terms);
     assertNotSame(term, result);
-    assertEquals(Tag.EQ, result.tag());
+    assertEquals(Tag.eq, result.tag());
     assertEquals(terms[0], result.get(0));
     assertEquals(terms[1], result.get(1));
   }
@@ -365,7 +365,7 @@ class TermTest {
     Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
     Term result = term.rewrite(terms);
     assertNotSame(term, result);
-    assertEquals(Tag.NE, result.tag());
+    assertEquals(Tag.ne, result.tag());
     assertEquals(terms[0], result.get(0));
     assertEquals(terms[1], result.get(1));
   }
@@ -378,7 +378,7 @@ class TermTest {
     Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
     Term result = term.rewrite(terms);
     assertNotSame(term, result);
-    assertEquals(Tag.SLE, result.tag());
+    assertEquals(Tag.sle, result.tag());
     assertEquals(terms[0], result.get(0));
     assertEquals(terms[1], result.get(1));
   }
@@ -391,7 +391,7 @@ class TermTest {
     Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
     Term result = term.rewrite(terms);
     assertNotSame(term, result);
-    assertEquals(Tag.SLT, result.tag());
+    assertEquals(Tag.slt, result.tag());
     assertEquals(terms[0], result.get(0));
     assertEquals(terms[1], result.get(1));
   }
@@ -404,7 +404,7 @@ class TermTest {
     Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
     Term result = term.rewrite(terms);
     assertNotSame(term, result);
-    assertEquals(Tag.ULE, result.tag());
+    assertEquals(Tag.ule, result.tag());
     assertEquals(terms[0], result.get(0));
     assertEquals(terms[1], result.get(1));
   }
@@ -417,7 +417,7 @@ class TermTest {
     Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
     Term result = term.rewrite(terms);
     assertNotSame(term, result);
-    assertEquals(Tag.ULT, result.tag());
+    assertEquals(Tag.ult, result.tag());
     assertEquals(terms[0], result.get(0));
     assertEquals(terms[1], result.get(1));
   }
@@ -430,7 +430,7 @@ class TermTest {
     Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
     Term result = term.rewrite(terms);
     assertNotSame(term, result);
-    assertEquals(Tag.ADD, result.tag());
+    assertEquals(Tag.add, result.tag());
     assertEquals(terms[0], result.get(0));
     assertEquals(terms[1], result.get(1));
   }
@@ -443,7 +443,7 @@ class TermTest {
     Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
     Term result = term.rewrite(terms);
     assertNotSame(term, result);
-    assertEquals(Tag.SUB, result.tag());
+    assertEquals(Tag.sub, result.tag());
     assertEquals(terms[0], result.get(0));
     assertEquals(terms[1], result.get(1));
   }
@@ -456,7 +456,7 @@ class TermTest {
     Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
     Term result = term.rewrite(terms);
     assertNotSame(term, result);
-    assertEquals(Tag.MUL, result.tag());
+    assertEquals(Tag.mul, result.tag());
     assertEquals(terms[0], result.get(0));
     assertEquals(terms[1], result.get(1));
   }
@@ -469,7 +469,7 @@ class TermTest {
     Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
     Term result = term.rewrite(terms);
     assertNotSame(term, result);
-    assertEquals(Tag.UDIV, result.tag());
+    assertEquals(Tag.udiv, result.tag());
     assertEquals(terms[0], result.get(0));
     assertEquals(terms[1], result.get(1));
   }
@@ -482,7 +482,7 @@ class TermTest {
     Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
     Term result = term.rewrite(terms);
     assertNotSame(term, result);
-    assertEquals(Tag.SDIV, result.tag());
+    assertEquals(Tag.sdiv, result.tag());
     assertEquals(terms[0], result.get(0));
     assertEquals(terms[1], result.get(1));
   }
@@ -495,7 +495,7 @@ class TermTest {
     Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
     Term result = term.rewrite(terms);
     assertNotSame(term, result);
-    assertEquals(Tag.UREM, result.tag());
+    assertEquals(Tag.urem, result.tag());
     assertEquals(terms[0], result.get(0));
     assertEquals(terms[1], result.get(1));
   }
@@ -508,7 +508,7 @@ class TermTest {
     Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
     Term result = term.rewrite(terms);
     assertNotSame(term, result);
-    assertEquals(Tag.SREM, result.tag());
+    assertEquals(Tag.srem, result.tag());
     assertEquals(terms[0], result.get(0));
     assertEquals(terms[1], result.get(1));
   }
@@ -521,7 +521,7 @@ class TermTest {
     Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
     Term result = term.rewrite(terms);
     assertNotSame(term, result);
-    assertEquals(Tag.AND, result.tag());
+    assertEquals(Tag.and, result.tag());
     assertEquals(terms[0], result.get(0));
     assertEquals(terms[1], result.get(1));
   }
@@ -534,7 +534,7 @@ class TermTest {
     Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
     Term result = term.rewrite(terms);
     assertNotSame(term, result);
-    assertEquals(Tag.OR, result.tag());
+    assertEquals(Tag.or, result.tag());
     assertEquals(terms[0], result.get(0));
     assertEquals(terms[1], result.get(1));
   }
@@ -547,7 +547,7 @@ class TermTest {
     Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
     Term result = term.rewrite(terms);
     assertNotSame(term, result);
-    assertEquals(Tag.XOR, result.tag());
+    assertEquals(Tag.xor, result.tag());
     assertEquals(terms[0], result.get(0));
     assertEquals(terms[1], result.get(1));
   }
@@ -560,7 +560,7 @@ class TermTest {
     Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
     Term result = term.rewrite(terms);
     assertNotSame(term, result);
-    assertEquals(Tag.SHL, result.tag());
+    assertEquals(Tag.shl, result.tag());
     assertEquals(terms[0], result.get(0));
     assertEquals(terms[1], result.get(1));
   }
@@ -573,7 +573,7 @@ class TermTest {
     Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
     Term result = term.rewrite(terms);
     assertNotSame(term, result);
-    assertEquals(Tag.LSHR, result.tag());
+    assertEquals(Tag.lshr, result.tag());
     assertEquals(terms[0], result.get(0));
     assertEquals(terms[1], result.get(1));
   }
@@ -586,7 +586,7 @@ class TermTest {
     Term[] terms = {Term.intConstant(Type.I32, 44), Term.intConstant(Type.I32, 45)};
     Term result = term.rewrite(terms);
     assertNotSame(term, result);
-    assertEquals(Tag.ASHR, result.tag());
+    assertEquals(Tag.ashr, result.tag());
     assertEquals(terms[0], result.get(0));
     assertEquals(terms[1], result.get(1));
   }

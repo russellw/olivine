@@ -37,7 +37,7 @@ public final class Function extends Global {
 
   @Override
   public Tag tag() {
-    return Tag.FUNCTION;
+    return Tag.function;
   }
 
   @Override

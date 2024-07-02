@@ -27,7 +27,7 @@ class FlattenTest {
     assertEquals(2, block.size());
     var assign = (Assign) block.get(0);
     assertEquals(Type.I32, assign.variable.type());
-    assertEquals(Tag.ADD, assign.value.tag());
+    assertEquals(Tag.add, assign.value.tag());
   }
 
   @Test
@@ -54,7 +54,7 @@ class FlattenTest {
     assertEquals(1, block.size());
     var ret = (Ret) block.get(0);
     assertEquals(Type.PTR, ret.value.type());
-    assertEquals(Tag.FIELD_PTR, ret.value.tag());
+    assertEquals(Tag.fieldPtr, ret.value.tag());
   }
 
   @Test
@@ -85,6 +85,6 @@ class FlattenTest {
     assertEquals(2, block.size());
     var assign = (Assign) block.get(0);
     assertEquals(Type.PTR, assign.variable.type());
-    assertEquals(Tag.FIELD_PTR, assign.value.tag());
+    assertEquals(Tag.fieldPtr, assign.value.tag());
   }
 }
