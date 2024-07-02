@@ -1534,6 +1534,11 @@ public abstract class Term implements Iterable<Term> {
     return new Ne(this, b);
   }
 
+  public Term not() {
+    assert type() == Type.I1;
+    return xor(TRUE);
+  }
+
   public Term or(Term b) {
     return new Or(this, b);
   }

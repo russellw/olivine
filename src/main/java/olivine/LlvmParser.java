@@ -492,6 +492,30 @@ public final class LlvmParser {
                     expect(',');
                     yield a.flt(expr(type));
                   }
+                  case "uge" -> {
+                    var type = type();
+                    var a = expr(type);
+                    expect(',');
+                    yield a.flt(expr(type)).not();
+                  }
+                  case "ugt" -> {
+                    var type = type();
+                    var a = expr(type);
+                    expect(',');
+                    yield a.fle(expr(type)).not();
+                  }
+                  case "ule" -> {
+                    var type = type();
+                    var b = expr(type);
+                    expect(',');
+                    yield expr(type).flt(b).not();
+                  }
+                  case "ult" -> {
+                    var type = type();
+                    var b = expr(type);
+                    expect(',');
+                    yield expr(type).fle(b).not();
+                  }
                   case "une" -> {
                     var type = type();
                     var a = expr(type);
