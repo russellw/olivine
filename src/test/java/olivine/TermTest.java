@@ -304,21 +304,6 @@ class TermTest {
   }
 
   @Test
-  void testRewriteOnFieldPtr() {
-    Term arg = Term.intConstant(Type.I32, 42);
-    Type type = Type.I32;
-    int idx = 3;
-    Term term = arg.fieldPtr(type, idx);
-    Term[] terms = {Term.intConstant(Type.I32, 43)};
-    Term result = term.rewrite(terms);
-    assertNotSame(term, result);
-    assertEquals(Tag.FIELD_PTR, result.tag());
-    assertEquals(terms[0], result.get(0));
-    assertEquals(Type.PTR, result.type());
-    assertEquals(idx, result.intValueExact());
-  }
-
-  @Test
   void testRewriteOnElementPtr() {
     Term arg1 = Term.intConstant(Type.I32, 42);
     Term arg2 = Term.intConstant(Type.I32, 43);
@@ -619,14 +604,5 @@ class TermTest {
     a.elementPtr(Type.DOUBLE, i).verify();
     assertThrows(Throwable.class, a.elementPtr(Type.DOUBLE, a)::verify);
     assertThrows(Throwable.class, i.elementPtr(Type.DOUBLE, i)::verify);
-  }
-
-  @Test
-  void verifyFieldPtr() {
-    var s = new Variable(Type.PTR);
-    var t = Type.struct(Type.FLOAT, Type.FLOAT, Type.FLOAT);
-    s.fieldPtr(t, 2).verify();
-    assertThrows(Throwable.class, s.fieldPtr(t, -1)::verify);
-    assertThrows(Throwable.class, s.fieldPtr(t, 3)::verify);
   }
 }

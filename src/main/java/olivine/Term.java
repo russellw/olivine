@@ -625,6 +625,8 @@ public abstract class Term implements Iterable<Term> {
 
     public FieldPtr(Type struct, Term ptrVal, int idx) {
       super(ptrVal);
+      assert struct.kind() == Kind.STRUCT;
+      assert 0 <= idx && idx < struct.size();
       this.struct = struct;
       this.idx = idx;
     }
@@ -678,8 +680,6 @@ public abstract class Term implements Iterable<Term> {
     public void verify() {
       arg.verify();
       assert arg.type() == Type.PTR;
-      assert struct.kind() == Kind.STRUCT;
-      assert 0 <= idx && idx < struct.size();
     }
   }
 
