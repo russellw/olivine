@@ -298,11 +298,6 @@ public abstract class Term implements Iterable<Term> {
   private static final class ElementPtr extends BinaryTerm {
     private final Type elementType;
 
-    @Override
-    public Type targetType() {
-      return elementType;
-    }
-
     public ElementPtr(Type elementType, Term ptrVal, Term idx) {
       super(ptrVal, idx);
       this.elementType = elementType;
@@ -331,6 +326,11 @@ public abstract class Term implements Iterable<Term> {
     @Override
     public Tag tag() {
       return Tag.ELEMENT_PTR;
+    }
+
+    @Override
+    public Type targetType() {
+      return elementType;
     }
 
     @Override
@@ -662,13 +662,13 @@ public abstract class Term implements Iterable<Term> {
     }
 
     @Override
-    public Type targetType() {
-      return struct;
+    public Tag tag() {
+      return Tag.FIELD_PTR;
     }
 
     @Override
-    public Tag tag() {
-      return Tag.FIELD_PTR;
+    public Type targetType() {
+      return struct;
     }
 
     @Override
@@ -1585,6 +1585,12 @@ public abstract class Term implements Iterable<Term> {
     return new SRem(this, b);
   }
 
+  public Term sub(Term b) {
+    return new Sub(this, b);
+  }
+
+  public abstract Tag tag();
+
   public Type targetType() {
     throw new UnsupportedOperationException(toString());
   }
@@ -1596,12 +1602,6 @@ public abstract class Term implements Iterable<Term> {
   public static Term targetType(Type type, Term[] fields) {
     return new Struct(type, fields);
   }
-
-  public Term sub(Term b) {
-    return new Sub(this, b);
-  }
-
-  public abstract Tag tag();
 
   @Override
   public String toString() {
