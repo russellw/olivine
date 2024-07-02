@@ -222,15 +222,14 @@ public final class LlvmComposer {
         var a = load(term.get(0));
         var b = load(term.get(1));
         ssa = ssa(term);
-        print(term.tag());
-        print(' ');
+        printSpace(term.tag());
         typeExpr(a);
         print(',');
         expr(b);
       }
       case alloca -> {
         ssa = ssa(term);
-        print("alloca ");
+        printSpace(term.tag());
         print(term.type());
       }
       case array -> {
@@ -328,7 +327,7 @@ public final class LlvmComposer {
       case fneg -> {
         var a = load(term.get(0));
         ssa = ssa(term);
-        print("fneg ");
+        printSpace(term.tag());
         typeExpr(a);
       }
       case globalVariable, variable -> {
@@ -343,7 +342,7 @@ public final class LlvmComposer {
       case load -> {
         var a = load(term.get(0));
         ssa = ssa(term);
-        print("load ");
+        printSpace(term.tag());
         print(term.type());
         print(',');
         typeExpr(a);
@@ -371,7 +370,7 @@ public final class LlvmComposer {
         var ifTrue = load(term.get(1));
         var ifFalse = load(term.get(2));
         ssa = ssa(term);
-        print("select ");
+        printSpace(term.tag());
         typeExpr(cond);
         print(',');
         typeExpr(ifTrue);
@@ -470,16 +469,17 @@ public final class LlvmComposer {
     stream.writeBytes(s.getBytes(StandardCharsets.UTF_8));
   }
 
-  private void print(Tag tag) {
-    print(tag.toString());
-  }
-
   private void print(Type type) {
     print(type.toString());
   }
 
   private void print(int c) {
     stream.write(c);
+  }
+
+  private void printSpace(Tag tag) {
+    print(tag.toString());
+    print(' ');
   }
 
   public static String scast(Term a) {
