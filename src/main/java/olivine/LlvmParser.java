@@ -332,6 +332,7 @@ public final class LlvmParser {
         yield switch (s) {
           case "false" -> Term.FALSE;
           case "getelementptr" -> {
+            eat("inbounds");
             expect('(');
             type = type();
             expect(',');
