@@ -330,6 +330,22 @@ public final class LlvmParser {
       case WORD -> {
         var s = lex1();
         yield switch (s) {
+          case "bitcast",
+              "fpext",
+              "fptoui",
+              "fptrunc",
+              "inttoptr",
+              "ptrtoint",
+              "trunc",
+              "uitofp",
+              "zext" -> {
+            expect('(');
+            var a = typeExpr();
+            expect("to");
+            var r = a.cast(type());
+            expect(')');
+            yield r;
+          }
           case "false" -> Term.FALSE;
           case "getelementptr" -> {
             eat("inbounds");
