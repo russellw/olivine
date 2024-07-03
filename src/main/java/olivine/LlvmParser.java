@@ -1121,7 +1121,8 @@ public final class LlvmParser {
   private void same(String oldValue, String newValue) {
     if (oldValue == null) return;
     if (oldValue.equals(newValue)) return;
-    throw error(newValue, "does not match previously declared '%s'".formatted(oldValue));
+    throw error(
+        "'%s'".formatted(newValue), "does not match previously declared '%s'".formatted(oldValue));
   }
 
   private Type type() {
