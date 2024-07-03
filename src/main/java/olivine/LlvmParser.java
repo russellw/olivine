@@ -54,7 +54,7 @@ public final class LlvmParser {
           if (eat("type")) types.put(name, type());
         }
         case WORD -> {
-          if (lex1().equals("target")) {
+          if (eat("target")) {
             var target = expect(WORD);
             expect('=');
             var value = expect(STRING);
