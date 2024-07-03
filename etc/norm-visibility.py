@@ -18,6 +18,4 @@ for file in java.src_files():
     a = java.parse(v)
     a.walk(f)
     r = java.compose(a)
-    if r != v:
-        print(file)
-        etc.write_lines(file, r)
+    etc.write_lines(file, r)

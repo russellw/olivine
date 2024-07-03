@@ -7,6 +7,7 @@ isort .||exit /b
 
 rem Java
 python etc\case-comments-java.py||exit /b
+python etc\norm-visibility.py||exit /b
 
 python etc\sort-case-labels.py||exit /b
 google-java-format -i src/main/java/olivine/*.java||exit /b
