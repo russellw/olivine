@@ -72,7 +72,7 @@ public final class LlvmParser {
           }
         }
       }
-      eol();
+      nextLine();
     }
     types.replaceAll((_, value) -> value.resolve(types));
 
@@ -97,7 +97,7 @@ public final class LlvmParser {
           }
         }
       }
-      eol();
+      nextLine();
     }
 
     // Third pass, fill in global values and function bodies
@@ -121,87 +121,12 @@ public final class LlvmParser {
         case WORD -> {
           // Function definition
           switch (lex1()) {
-            case "declare", "define" -> {
-              blocks.clear();
-              locals.clear();
-              phis.clear();
-
-              // preamble
-              linkage();
-              preemptionSpecifier();
-              paramAttrs();
-
-              // return type
-              var returnType = type();
-
-              // function
-              var name = expect(GLOBAL);
-              var function = (Function) globals.get(name);
-              function.returnType = returnType;
-
-              // parameters
-              expect('(');
-              if (token != ')')
-                do {
-                  if (eat(DOTS)) {
-                    function.varargs = true;
-                    continue;
-                  }
-                  var param = new Variable(type());
-                  function.params.add(param);
-                  paramAttrs();
-                  locals.put(expect(LOCAL), param);
-                } while (eat(','));
-              expect(')');
-
-              // Entry block
-              var entryName = token == LABEL ? lex1() : Integer.toString(function.params.size());
-              var block = new Block();
-              blocks.put(entryName, block);
-              function.entry = block;
-
-              // Body
-              while (token != '}') {
-                if (token == LABEL) {
-                  block = block();
-                  continue;
-                }
-                instruction(block);
-                eol();
-              }
-
-              // Check everything referenced was defined
-              // TODO: also check locals
-              for (var entry : blocks.entrySet())
-                if (entry.getValue().size() == 0) throw error('%' + entry.getKey(), "not defined");
-
-              // Phis
-              for (var entry : phis.entrySet()) {
-                var from = entry.getKey();
-
-                // Terminator instruction needs to follow the phi assignments from this block
-                // so get it out of the way for now
-                // If the terminator is a conditional branch
-                // then the phi assignments for blocks not jumped to on a particular occasion
-                // will be redundant but harmless
-                var terminator = from.pop();
-
-                // Assignments
-                var assign = entry.getValue();
-                for (var j = 0; j < assign.size(); j += 2) {
-                  var variable = (Variable) assign.get(j);
-                  var val = assign.get(j + 1);
-                  from.add(new Assign(variable, val));
-                }
-
-                // Put the terminator back, after the phi assignments
-                from.add(terminator);
-              }
-            }
+            case "declare" -> function(false);
+            case "define" -> function(true);
           }
         }
       }
-      eol();
+      nextLine();
     }
   }
 
@@ -271,11 +196,6 @@ public final class LlvmParser {
       return true;
     }
     return false;
-  }
-
-  private void eol() {
-    assert token != EOF;
-    while (!eat('\n')) lex();
   }
 
   private ParseException error(String cause, String msg) {
@@ -375,6 +295,88 @@ public final class LlvmParser {
           return;
         }
       }
+  }
+
+  private void function(boolean define) {
+    blocks.clear();
+    locals.clear();
+    phis.clear();
+
+    // Preamble
+    linkage();
+    preemptionSpecifier();
+    paramAttrs();
+
+    // Return type
+    var returnType = type();
+
+    // Function
+    var name = expect(GLOBAL);
+    var function = (Function) globals.get(name);
+    function.returnType = returnType;
+
+    // Parameters
+    expect('(');
+    if (token != ')')
+      do {
+        if (eat(DOTS)) {
+          function.varargs = true;
+          continue;
+        }
+        var param = new Variable(type());
+        function.params.add(param);
+        paramAttrs();
+        locals.put(expect(LOCAL), param);
+      } while (eat(','));
+    expect(')');
+
+    // Declarations can omit function body
+    if (!define) return;
+    nextLine();
+
+    // Entry block
+    var entryName = token == LABEL ? lex1() : Integer.toString(function.params.size());
+    var block = new Block();
+    blocks.put(entryName, block);
+    function.entry = block;
+
+    // Body
+    while (token != '}') {
+      if (token == LABEL) {
+        block = block();
+        continue;
+      }
+      instruction(block);
+      nextLine();
+    }
+
+    // Check everything referenced was defined
+    // TODO: also check locals
+    for (var entry : blocks.entrySet())
+      if (entry.getValue().size() == 0) throw error('%' + entry.getKey(), "not defined");
+
+    // Phis
+    for (var entry : phis.entrySet()) {
+      var from = entry.getKey();
+
+      // Terminator instruction needs to follow the phi assignments from this block
+      // so get it out of the way for now
+      // If the terminator is a conditional branch
+      // then the phi assignments for blocks not jumped to on a particular occasion
+      // will be redundant but harmless
+      var terminator = from.pop();
+
+      // Assignments
+      var assign = entry.getValue();
+      for (var j = 0; j < assign.size(); j += 2) {
+        var variable = (Variable) assign.get(j);
+        var val = assign.get(j + 1);
+        from.add(new Assign(variable, val));
+      }
+
+      // Put the terminator back, after the phi assignments
+      from.add(terminator);
+    }
   }
 
   private Term getelementptr(Type type, Term ptr, List<Term> idxs) {
@@ -968,6 +970,11 @@ public final class LlvmParser {
       textIdx++;
       token = LABEL;
     }
+  }
+
+  private void nextLine() {
+    assert token != EOF;
+    while (!eat('\n')) lex();
   }
 
   private void noWrap() {
