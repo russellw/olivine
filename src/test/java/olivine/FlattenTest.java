@@ -6,6 +6,13 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class FlattenTest {
+  private static Function fn(Type returnType, List<Variable> params) {
+    var function = new Function("f");
+    function.returnType = returnType;
+    function.params.addAll(params);
+    return function;
+  }
+
   @Test
   void testFlat() {
     assertTrue(Flatten.flat(Term.TRUE));
@@ -15,7 +22,7 @@ class FlattenTest {
 
   @Test
   void testFlatten() {
-    var function = new Function("f", Type.I32, List.of(), false);
+    var function = fn(Type.I32, List.of());
     var block = new Block();
     block.add(new Ret(Term.ONE.add(Term.ONE.add(Term.ONE))));
     function.entry = block;
@@ -36,7 +43,7 @@ class FlattenTest {
     var colorType = Type.struct(Type.FLOAT, Type.FLOAT, Type.FLOAT);
 
     var color = new Variable(Type.PTR);
-    var function = new Function("f", Type.PTR, List.of(color), false);
+    var function = fn(Type.PTR, List.of(color));
 
     // &color->blue
     var pblue = color.fieldPtr(colorType, 2);
@@ -66,7 +73,7 @@ class FlattenTest {
     var colorsType = Type.struct(colorType, colorType);
 
     var colors = new Variable(Type.PTR);
-    var function = new Function("f", Type.PTR, List.of(colors), false);
+    var function = fn(Type.PTR, List.of(colors));
 
     // &colors->background.blue
     var pbackground = colors.fieldPtr(colorsType, 1);

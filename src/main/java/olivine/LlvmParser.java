@@ -88,27 +88,10 @@ public final class LlvmParser {
         case WORD -> {
           switch (lex1()) {
             case "declare", "define" -> {
-              linkage();
-              preemptionSpecifier();
-              paramAttrs();
-              var returnType = type();
-              var name = expect(GLOBAL);
-              expect('(');
-              var params = new ArrayList<Variable>();
-              var varargs = false;
-              if (token != ')')
-                do {
-                  if (eat(DOTS)) {
-                    varargs = true;
-                    continue;
-                  }
-                  params.add(new Variable(type()));
-                  paramAttrs();
-                  eat(LOCAL);
-                } while (eat(','));
-              expect(')');
-              var function = new Function(name, returnType, params, varargs);
-              declare(name, function);
+              do lex();
+              while (token != GLOBAL);
+              var function = new Function(tokenString);
+              declare(tokenString, function);
               module.functions.add(function);
             }
           }
@@ -137,71 +120,83 @@ public final class LlvmParser {
         }
         case WORD -> {
           // Function definition
-          if (tokenString.equals("define")) {
-            blocks.clear();
-            locals.clear();
-            phis.clear();
+          switch (lex1()) {
+            case "declare", "define" -> {
+              blocks.clear();
+              locals.clear();
+              phis.clear();
 
-            // Name
-            do lex();
-            while (token != GLOBAL);
-            var function = (Function) globals.get(lex1());
+              // preamble
+              linkage();
+              preemptionSpecifier();
+              paramAttrs();
 
-            // Already parsed parameters for the function declaration
-            // but do so again to get the local variable names of the parameters
-            expect('(');
-            var i = 0;
-            if (token != ')')
-              do {
-                if (eat(DOTS)) continue;
-                type();
-                paramAttrs();
-                locals.put(expect(LOCAL), function.params.get(i++));
-              } while (eat(','));
-            eol();
+              // return type
+              var returnType = type();
 
-            // Entry block
-            var entryName = token == LABEL ? lex1() : Integer.toString(function.params.size());
-            var block = new Block();
-            blocks.put(entryName, block);
-            function.entry = block;
+              // function
+              var name = expect(GLOBAL);
+              var function = (Function) globals.get(name);
+              function.returnType = returnType;
 
-            // Body
-            while (token != '}') {
-              if (token == LABEL) {
-                block = block();
-                continue;
-              }
-              instruction(block);
-              eol();
-            }
+              // parameters
+              expect('(');
+              if (token != ')')
+                do {
+                  if (eat(DOTS)) {
+                    function.varargs = true;
+                    continue;
+                  }
+                  var param = new Variable(type());
+                  function.params.add(param);
+                  paramAttrs();
+                  locals.put(expect(LOCAL), param);
+                } while (eat(','));
+              expect(')');
 
-            // Check everything referenced was defined
-            // TODO: also check locals
-            for (var entry : blocks.entrySet())
-              if (entry.getValue().size() == 0) throw error('%' + entry.getKey(), "not defined");
+              // Entry block
+              var entryName = token == LABEL ? lex1() : Integer.toString(function.params.size());
+              var block = new Block();
+              blocks.put(entryName, block);
+              function.entry = block;
 
-            // Phis
-            for (var entry : phis.entrySet()) {
-              var from = entry.getKey();
-
-              // Terminator instruction needs to follow the phi assignments from this block
-              // so get it out of the way for now
-              // If the terminator is a conditional branch
-              // then the phi assignments for blocks not jumped to on a particular occasion
-              // will be redundant but harmless
-              var terminator = from.pop();
-
-              // Assignments
-              var assign = entry.getValue();
-              for (var j = 0; j < assign.size(); j += 2) {
-                var variable = (Variable) assign.get(j);
-                var val = assign.get(j + 1);
-                from.add(new Assign(variable, val));
+              // Body
+              while (token != '}') {
+                if (token == LABEL) {
+                  block = block();
+                  continue;
+                }
+                instruction(block);
+                eol();
               }
 
-              // Put the terminator back, after the phi assignments
-              from.add(terminator);
+              // Check everything referenced was defined
+              // TODO: also check locals
+              for (var entry : blocks.entrySet())
+                if (entry.getValue().size() == 0) throw error('%' + entry.getKey(), "not defined");
+
+              // Phis
+              for (var entry : phis.entrySet()) {
+                var from = entry.getKey();
+
+                // Terminator instruction needs to follow the phi assignments from this block
+                // so get it out of the way for now
+                // If the terminator is a conditional branch
+                // then the phi assignments for blocks not jumped to on a particular occasion
+                // will be redundant but harmless
+                var terminator = from.pop();
+
+                // Assignments
+                var assign = entry.getValue();
+                for (var j = 0; j < assign.size(); j += 2) {
+                  var variable = (Variable) assign.get(j);
+                  var val = assign.get(j + 1);
+                  from.add(new Assign(variable, val));
+                }
+
+                // Put the terminator back, after the phi assignments
+                from.add(terminator);
+              }
             }
           }
         }

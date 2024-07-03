@@ -19,10 +19,16 @@ class FunctionTest {
     block = new Block();
   }
 
+  private static Function fn(String name, Type returnType) {
+    var function = new Function(name);
+    function.returnType = returnType;
+    return function;
+  }
+
   @Test
   public void testBlocksSingleBlock() {
     Block entry = new Block();
-    Function function = new Function("testFunction", Type.VOID, List.of(), false);
+    Function function = fn("testFunction", Type.VOID);
     function.entry = entry;
 
     List<Block> blocks = function.blocks();
@@ -40,7 +46,7 @@ class FunctionTest {
     entry.add(new BrUnconditional(block2));
     block2.add(new BrUnconditional(block3));
 
-    Function function = new Function("testFunction", Type.VOID, List.of(), false);
+    Function function = fn("testFunction", Type.VOID);
     function.entry = entry;
 
     List<Block> blocks = function.blocks();
@@ -53,7 +59,7 @@ class FunctionTest {
 
   @Test
   public void testBlocksNoEntry() {
-    Function function = new Function("testFunction", Type.VOID, List.of(), false);
+    Function function = fn("testFunction", Type.VOID);
 
     List<Block> blocks = function.blocks();
 
@@ -62,7 +68,7 @@ class FunctionTest {
 
   @Test
   public void testVerifyFunctionWithVoidReturnTypeAndRetVoid() {
-    function = new Function("testFunction", voidType, List.of(), false);
+    function = fn("testFunction", voidType);
     block.add(new RetVoid());
     function.entry = block;
 
@@ -71,7 +77,7 @@ class FunctionTest {
 
   @Test
   public void testVerifyFunctionWithNonVoidReturnTypeAndRet() {
-    function = new Function("testFunction", intType, List.of(), false);
+    function = fn("testFunction", intType);
     Term returnValue = Term.intConstant(intType, 10);
     block.add(new Ret(returnValue));
     function.entry = block;
@@ -81,7 +87,7 @@ class FunctionTest {
 
   @Test
   public void testVerifyFunctionWithVoidReturnTypeAndRet() {
-    function = new Function("testFunction", voidType, List.of(), false);
+    function = fn("testFunction", voidType);
     Term returnValue = Term.intConstant(intType, 10);
     block.add(new Ret(returnValue));
     function.entry = block;
@@ -91,7 +97,7 @@ class FunctionTest {
 
   @Test
   public void testVerifyFunctionWithNonVoidReturnTypeAndRetVoid() {
-    function = new Function("testFunction", intType, List.of(), false);
+    function = fn("testFunction", intType);
     block.add(new RetVoid());
     function.entry = block;
 
@@ -100,7 +106,7 @@ class FunctionTest {
 
   @Test
   public void testVerifyFunctionWithNonVoidReturnTypeAndRetWithMismatchedType() {
-    function = new Function("testFunction", intType, List.of(), false);
+    function = fn("testFunction", intType);
     Term returnValue = Term.intConstant(Type.I1, 1);
     block.add(new Ret(returnValue));
     function.entry = block;

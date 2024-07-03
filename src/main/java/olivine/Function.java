@@ -6,15 +6,12 @@ import java.util.List;
 
 public final class Function extends Global {
   public Block entry;
-  public final List<Variable> params;
-  public final Type returnType;
-  public final boolean varargs;
+  public final List<Variable> params = new ArrayList<>();
+  public Type returnType;
+  public boolean varargs;
 
-  public Function(String name, Type returnType, List<Variable> params, boolean varargs) {
+  public Function(String name) {
     super(name);
-    this.returnType = returnType;
-    this.params = params;
-    this.varargs = varargs;
   }
 
   public List<Block> blocks() {
