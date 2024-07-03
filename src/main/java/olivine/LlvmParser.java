@@ -91,7 +91,7 @@ public final class LlvmParser {
               linkage();
               preemptionSpecifier();
               paramAttrs();
-              var rtype = type();
+              var returnType = type();
               var name = expect(GLOBAL);
               expect('(');
               var params = new ArrayList<Variable>();
@@ -107,7 +107,7 @@ public final class LlvmParser {
                   eat(LOCAL);
                 } while (eat(','));
               expect(')');
-              var function = new Function(name, rtype, params, varargs);
+              var function = new Function(name, returnType, params, varargs);
               declare(name, function);
               module.functions.add(function);
             }
