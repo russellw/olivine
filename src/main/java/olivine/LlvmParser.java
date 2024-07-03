@@ -53,13 +53,19 @@ public final class LlvmParser {
         }
         case WORD -> {
           if (lex1().equals("target")) {
-            var t = expect(WORD);
+            var target = expect(WORD);
             expect('=');
-            if (token != STRING) throw error("expected string");
-            switch (t) {
-              case "datalayout" -> datalayout = idem(datalayout);
-              case "triple" -> triple = idem(triple);
-              default -> throw error(t, "unknown target attribute");
+            var value = expect(STRING);
+            switch (target) {
+              case "datalayout" -> {
+                same(datalayout, value);
+                datalayout = value;
+              }
+              case "triple" -> {
+                same(triple, value);
+                triple = value;
+              }
+              default -> throw error(target, "unknown target attribute");
             }
           }
         }
@@ -410,11 +416,6 @@ public final class LlvmParser {
     do sb.append((char) text[textIdx++]);
     while (isIdPart(text[textIdx]));
     tokenString = sb.toString();
-  }
-
-  private String idem(String s) {
-    if (s == null || s.equals(tokenString)) return tokenString;
-    throw error("does not match previous declaration");
   }
 
   private void instruction(Block block) {
@@ -1119,6 +1120,12 @@ public final class LlvmParser {
   private void reset() {
     textIdx = 0;
     lex();
+  }
+
+  private void same(String oldValue, String newValue) {
+    if (oldValue == null) return;
+    if (oldValue.equals(newValue)) return;
+    throw error(newValue, "does not match previously declared '%s'".formatted(oldValue));
   }
 
   private Type type() {
