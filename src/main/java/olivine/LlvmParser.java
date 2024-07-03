@@ -44,7 +44,9 @@ public final class LlvmParser {
           var name = lex1();
           expect('=');
           expect("comdat");
-          comdats.put(name, expect(WORD));
+          var selectionKind = expect(WORD);
+          same(comdats.get(name), selectionKind);
+          comdats.put(name, selectionKind);
         }
         case LOCAL -> {
           var name = lex1();
