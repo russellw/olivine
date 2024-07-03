@@ -1,7 +1,7 @@
 package olivine;
 
 public abstract class Instruction {
-  void dump() {
+  public void dump() {
     System.out.printf("\t%s\n", getClass().getSimpleName());
   }
 

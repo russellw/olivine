@@ -8,7 +8,7 @@ public final class VoidCall extends Instruction {
   }
 
   @Override
-  void dump() {
+  public void dump() {
     System.out.println("\t" + call);
   }
 

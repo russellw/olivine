@@ -7,7 +7,7 @@ public final class Module {
   public final List<Function> functions = new ArrayList<>();
   public final List<GlobalVariable> variables = new ArrayList<>();
 
-  void dump() {
+  public void dump() {
     for (var function : functions) {
       System.out.println();
       function.dump();

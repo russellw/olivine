@@ -16,7 +16,7 @@ public final class LlvmParser {
   private static final int STRING = 137;
   private static final int WORD = 138;
 
-  static Map<String, String> comdats = new HashMap<>();
+  public static Map<String, String> comdats = new HashMap<>();
   public static String datalayout;
   public static String triple;
 

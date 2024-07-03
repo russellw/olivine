@@ -8,7 +8,7 @@ public final class Ret extends Instruction {
   }
 
   @Override
-  void dump() {
+  public void dump() {
     System.out.printf("\tRet %s\n", value);
   }
 

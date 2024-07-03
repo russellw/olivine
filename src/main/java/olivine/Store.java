@@ -10,7 +10,7 @@ public final class Store extends Instruction {
   }
 
   @Override
-  void dump() {
+  public void dump() {
     System.out.printf("\tStore %s, %s\n", value, pointer);
   }
 

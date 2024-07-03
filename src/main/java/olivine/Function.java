@@ -23,7 +23,7 @@ public final class Function extends Global {
     return blocks;
   }
 
-  void dump() {
+  public void dump() {
     System.out.printf("Function %s %s(", returnType, name);
     var more = false;
     for (var param : params) {

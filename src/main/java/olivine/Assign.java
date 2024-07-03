@@ -10,7 +10,7 @@ public final class Assign extends Instruction {
   }
 
   @Override
-  void dump() {
+  public void dump() {
     System.out.printf("\t%s = %s\n", variable, value);
   }
 
