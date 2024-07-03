@@ -36,7 +36,7 @@ public final class LlvmComposer {
       print('=');
       if (variable.value == null) print("external ");
       print("global ");
-      print(variable.type());
+      print(variable.type);
       if (variable.value != null) {
         print(' ');
 

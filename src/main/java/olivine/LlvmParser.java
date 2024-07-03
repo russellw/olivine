@@ -81,17 +81,8 @@ public final class LlvmParser {
     while (token != EOF) {
       switch (token) {
         case GLOBAL -> {
-          var name = lex1();
-          expect('=');
-          linkage();
-          preemptionSpecifier();
-          unnamedAddr();
-          if (token == WORD)
-            switch (tokenString) {
-              case "constant", "global" -> lex();
-            }
-          var variable = new GlobalVariable(name, type());
-          declare(name, variable);
+          var variable = new GlobalVariable(tokenString);
+          declare(tokenString, variable);
           module.variables.add(variable);
         }
         case WORD -> {
@@ -141,7 +132,8 @@ public final class LlvmParser {
             switch (tokenString) {
               case "constant", "global" -> lex();
             }
-          variable.value = typeExpr();
+          variable.type = type();
+          variable.value = expr(variable.type);
         }
         case WORD -> {
           // Function definition

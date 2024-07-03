@@ -1,12 +1,11 @@
 package olivine;
 
 public final class GlobalVariable extends Global {
-  private final Type type;
+  public Type type;
   public Term value;
 
-  public GlobalVariable(String name, Type type) {
+  public GlobalVariable(String name) {
     super(name);
-    this.type = type;
   }
 
   @Override
