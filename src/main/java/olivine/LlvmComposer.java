@@ -21,10 +21,12 @@ public final class LlvmComposer {
     var comdats = new LinkedHashSet<String>();
     for (var variable : module.variables) if (variable.comdat) comdats.add(variable.name);
     for (var function : module.functions) if (function.comdat) comdats.add(function.name);
-    for (var s : comdats) {
+    for (var name : comdats) {
       print('$');
-      id(s);
-      print("=comdat any\n");
+      id(name);
+      print("=comdat ");
+      print(LlvmParser.comdats.get(name));
+      print('\n');
     }
 
     // Global variables
