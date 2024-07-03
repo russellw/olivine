@@ -326,7 +326,7 @@ public final class LlvmParser {
         var param = new Variable(type());
         function.params.add(param);
         paramAttrs();
-        locals.put(expect(LOCAL), param);
+        if (define) locals.put(expect(LOCAL), param);
       } while (eat(','));
     expect(')');
 
