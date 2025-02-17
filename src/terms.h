@@ -1,6 +1,7 @@
 // Terms represent all code and data
 // including constants, variables, instructions and functions
 enum Tag {
+
 	// Logic operations are similar to arithmetic operations, but only work on integers
 	AShr,
 
@@ -11,6 +12,7 @@ enum Tag {
 	Add,
 
 	And,
+	Array,
 
 	// The left-hand side of an assignment instruction must be a variable of compatible type
 	// The assignment instruction itself has type void
@@ -26,6 +28,13 @@ enum Tag {
 	FAdd,
 
 	FDiv,
+
+	// Floating-point equality is a distinct operation
+	// that does not behave the same way as the usual notion of equality
+	FEq,
+
+	FLe,
+	FLt,
 	FMul,
 
 	// Unary arithmetic operations take one operand
@@ -44,11 +53,14 @@ enum Tag {
 	Int,
 	LShr,
 	Mul,
+
+	// Logical negation doesn't correspond to an LLVM instruction
+	// but is useful enough to be worth having in the internal representation
+	// and having introduced it, we don't need separate tags for Ne and FNe
+	Not,
+
 	Null,
 	Or,
-	Array,
-	Unreachable,
-	Tuple,
 
 	// A return instruction has a single operand
 	// of any type other than void
@@ -64,23 +76,12 @@ enum Tag {
 	SRem,
 	Shl,
 	Sub,
+	Tuple,
 	UDiv,
 	ULe,
 	ULt,
-	FLe,
-
-	// Logical negation doesn't correspond to an LLVM instruction
-	// but is useful enough to be worth having in the internal representation
-	// and having introduced it, we don't need separate tags for Ne and FNe
-	Not,
-
-	FLt,
-
-	// Floating-point equality is a distinct operation
-	// that does not behave the same way as the usual notion of equality
-	FEq,
-
 	URem,
+	Unreachable,
 	Var,
 	Xor,
 };
