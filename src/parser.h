@@ -63,19 +63,13 @@ class Parser {
 	}
 
 	Term expr(Type type) {
+		// SORT BLOCKS
 		if (token == "false") {
 			if (type != boolType()) {
 				throw error("type mismatch");
 			}
 			lex();
 			return falseConst;
-		}
-		if (token == "true") {
-			if (type != boolType()) {
-				throw error("type mismatch");
-			}
-			lex();
-			return trueConst;
 		}
 		if (token == "null") {
 			if (type != ptrType()) {
@@ -84,9 +78,17 @@ class Parser {
 			lex();
 			return nullConst;
 		}
+		if (token == "true") {
+			if (type != boolType()) {
+				throw error("type mismatch");
+			}
+			lex();
+			return trueConst;
+		}
 		if (token[0] == '%') {
 			return parseVar(type);
 		}
+		// END
 		if (isDigit(token[0])) {
 			auto a = intConst(type, cpp_int(token));
 			lex();
