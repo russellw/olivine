@@ -3,9 +3,9 @@
 Term simplify(const unordered_map<Term, Term>& env, Term a) {
 	// Base cases: constants and environmental lookups
 	switch (a.tag()) {
-	case Null:
-	case Int:
 	case Float:
+	case Int:
+	case Null:
 		return a;
 	case Var:
 		auto it = env.find(a);
@@ -188,10 +188,10 @@ Term simplify(const unordered_map<Term, Term>& env, Term a) {
 		// Skip floating-point evaluation as specified
 		break;
 	case FAdd:
-	case FSub:
-	case FMul:
 	case FDiv:
+	case FMul:
 	case FRem:
+	case FSub:
 		// Skip floating-point evaluation as specified
 		break;
 	}

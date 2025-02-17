@@ -107,9 +107,9 @@ void stackTrace(std::ostream& out) {
 bool isIdPart(int c) {
 	switch (c) {
 	case '$':
-	case '_':
 	case '-':
 	case '.':
+	case '_':
 		return true;
 	}
 	return isAlnum(c);
@@ -185,8 +185,8 @@ string unwrap(const string& s) {
 			pos++;
 		}
 		break;
-	case '%':
 	case '$':
+	case '%':
 	case '@':
 		pos++;
 		ASSERT(pos < s.size());

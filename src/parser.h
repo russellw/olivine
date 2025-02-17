@@ -90,8 +90,8 @@ class Parser {
 				quote();
 				maybeColon();
 				return;
-			case '@':
 			case '%':
+			case '@':
 				token = input.substr(pos++, 1);
 				id();
 				return;

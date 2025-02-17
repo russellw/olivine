@@ -126,8 +126,8 @@ Term intConst(Type type, const cpp_int& val) {
 
 Term floatConst(Type type, const string& val) {
 	switch (type.kind()) {
-	case FloatKind:
 	case DoubleKind:
+	case FloatKind:
 		break;
 	default:
 		ASSERT(false);

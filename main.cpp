@@ -11,8 +11,8 @@ int main(int argc, char** argv) {
 			switch (*s) {
 			case 'h':
 				return 0;
-			case 'v':
 			case 'V':
+			case 'v':
 				cout << "Olivine 0\n";
 				return 0;
 			}
