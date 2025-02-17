@@ -286,6 +286,7 @@ class Parser {
 	}
 
 	Term parseInstruction() {
+		// SORT BLOCKS
 		if (token == "ret") {
 			lex();
 			if (token == "void") {
@@ -320,6 +321,7 @@ class Parser {
 			auto lval = parseVar(rval.type(), lvalName);
 			return Term(Assign, voidType(), lval, rval);
 		}
+		// END
 		throw error('\'' + token + "': expected instruction");
 	}
 
