@@ -384,13 +384,7 @@ class Parser {
 	}
 
 	Term parseRval() {
-		if (token == "fneg") {
-			lex();
-			fastMathFlags();
-			auto type = parseType();
-			auto a = expr(type);
-			return Term(FNeg, type, a);
-		}
+		// SORT BLOCKS
 		if (token == "add") {
 			lex();
 			noWrap();
@@ -400,126 +394,13 @@ class Parser {
 			auto b = expr(type);
 			return Term(Add, type, a, b);
 		}
-		if (token == "fadd") {
-			lex();
-			fastMathFlags();
-			auto type = parseType();
-			auto a = expr(type);
-			expect(",");
-			auto b = expr(type);
-			return Term(FAdd, type, a, b);
-		}
-		if (token == "sub") {
-			lex();
-			noWrap();
-			auto type = parseType();
-			auto a = expr(type);
-			expect(",");
-			auto b = expr(type);
-			return Term(Sub, type, a, b);
-		}
-		if (token == "fsub") {
-			lex();
-			fastMathFlags();
-			auto type = parseType();
-			auto a = expr(type);
-			expect(",");
-			auto b = expr(type);
-			return Term(FSub, type, a, b);
-		}
-		if (token == "mul") {
-			lex();
-			noWrap();
-			auto type = parseType();
-			auto a = expr(type);
-			expect(",");
-			auto b = expr(type);
-			return Term(Mul, type, a, b);
-		}
-		if (token == "fmul") {
-			lex();
-			fastMathFlags();
-			auto type = parseType();
-			auto a = expr(type);
-			expect(",");
-			auto b = expr(type);
-			return Term(FMul, type, a, b);
-		}
-		if (token == "udiv") {
-			lex();
-			if (token == "exact") {
-				lex();
-			}
-			auto type = parseType();
-			auto a = expr(type);
-			expect(",");
-			auto b = expr(type);
-			return Term(UDiv, type, a, b);
-		}
-		if (token == "sdiv") {
-			lex();
-			if (token == "exact") {
-				lex();
-			}
-			auto type = parseType();
-			auto a = expr(type);
-			expect(",");
-			auto b = expr(type);
-			return Term(SDiv, type, a, b);
-		}
-		if (token == "fdiv") {
-			lex();
-			fastMathFlags();
-			auto type = parseType();
-			auto a = expr(type);
-			expect(",");
-			auto b = expr(type);
-			return Term(FDiv, type, a, b);
-		}
-		if (token == "urem") {
+		if (token == "and") {
 			lex();
 			auto type = parseType();
 			auto a = expr(type);
 			expect(",");
 			auto b = expr(type);
-			return Term(URem, type, a, b);
-		}
-		if (token == "srem") {
-			lex();
-			auto type = parseType();
-			auto a = expr(type);
-			expect(",");
-			auto b = expr(type);
-			return Term(SRem, type, a, b);
-		}
-		if (token == "frem") {
-			lex();
-			fastMathFlags();
-			auto type = parseType();
-			auto a = expr(type);
-			expect(",");
-			auto b = expr(type);
-			return Term(FRem, type, a, b);
-		}
-		if (token == "shl") {
-			lex();
-			noWrap();
-			auto type = parseType();
-			auto a = expr(type);
-			expect(",");
-			auto b = expr(type);
-			return Term(Shl, type, a, b);
-		}
-		if (token == "lshr") {
-			lex();
-			if (token == "exact") {
-				lex();
-			}
-			auto type = parseType();
-			auto a = expr(type);
-			expect(",");
-			auto b = expr(type);
-			return Term(LShr, type, a, b);
+			return Term(And, type, a, b);
 		}
 		if (token == "ashr") {
 			lex();
@@ -532,33 +413,19 @@ class Parser {
 			auto b = expr(type);
 			return Term(AShr, type, a, b);
 		}
-		if (token == "and") {
+		if (token == "fadd") {
 			lex();
+			fastMathFlags();
 			auto type = parseType();
 			auto a = expr(type);
 			expect(",");
 			auto b = expr(type);
-			return Term(And, type, a, b);
-		}
-		if (token == "or") {
-			lex();
-			auto type = parseType();
-			auto a = expr(type);
-			expect(",");
-			auto b = expr(type);
-			return Term(Or, type, a, b);
-		}
-		if (token == "xor") {
-			lex();
-			auto type = parseType();
-			auto a = expr(type);
-			expect(",");
-			auto b = expr(type);
-			return Term(Xor, type, a, b);
+			return Term(FAdd, type, a, b);
 		}
 		if (token == "fcmp") {
 			lex();
 			fastMathFlags();
+			// SORT BLOCKS
 			if (token == "oeq") {
 				lex();
 				auto type = parseType();
@@ -639,10 +506,55 @@ class Parser {
 				auto b = expr(type);
 				return Term(Not, boolType(), Term(FEq, boolType(), b, a));
 			}
+			// END
 			throw error('\'' + token + "': expected condition");
+		}
+		if (token == "fdiv") {
+			lex();
+			fastMathFlags();
+			auto type = parseType();
+			auto a = expr(type);
+			expect(",");
+			auto b = expr(type);
+			return Term(FDiv, type, a, b);
+		}
+		if (token == "fmul") {
+			lex();
+			fastMathFlags();
+			auto type = parseType();
+			auto a = expr(type);
+			expect(",");
+			auto b = expr(type);
+			return Term(FMul, type, a, b);
+		}
+		if (token == "fneg") {
+			lex();
+			fastMathFlags();
+			auto type = parseType();
+			auto a = expr(type);
+			return Term(FNeg, type, a);
+		}
+		if (token == "frem") {
+			lex();
+			fastMathFlags();
+			auto type = parseType();
+			auto a = expr(type);
+			expect(",");
+			auto b = expr(type);
+			return Term(FRem, type, a, b);
+		}
+		if (token == "fsub") {
+			lex();
+			fastMathFlags();
+			auto type = parseType();
+			auto a = expr(type);
+			expect(",");
+			auto b = expr(type);
+			return Term(FSub, type, a, b);
 		}
 		if (token == "icmp") {
 			lex();
+			// SORT BLOCKS
 			if (token == "eq") {
 				lex();
 				auto type = parseType();
@@ -723,8 +635,102 @@ class Parser {
 				auto b = expr(type);
 				return Term(ULt, boolType(), b, a);
 			}
+			// END
 			throw error('\'' + token + "': expected condition");
 		}
+		if (token == "lshr") {
+			lex();
+			if (token == "exact") {
+				lex();
+			}
+			auto type = parseType();
+			auto a = expr(type);
+			expect(",");
+			auto b = expr(type);
+			return Term(LShr, type, a, b);
+		}
+		if (token == "mul") {
+			lex();
+			noWrap();
+			auto type = parseType();
+			auto a = expr(type);
+			expect(",");
+			auto b = expr(type);
+			return Term(Mul, type, a, b);
+		}
+		if (token == "or") {
+			lex();
+			auto type = parseType();
+			auto a = expr(type);
+			expect(",");
+			auto b = expr(type);
+			return Term(Or, type, a, b);
+		}
+		if (token == "sdiv") {
+			lex();
+			if (token == "exact") {
+				lex();
+			}
+			auto type = parseType();
+			auto a = expr(type);
+			expect(",");
+			auto b = expr(type);
+			return Term(SDiv, type, a, b);
+		}
+		if (token == "shl") {
+			lex();
+			noWrap();
+			auto type = parseType();
+			auto a = expr(type);
+			expect(",");
+			auto b = expr(type);
+			return Term(Shl, type, a, b);
+		}
+		if (token == "srem") {
+			lex();
+			auto type = parseType();
+			auto a = expr(type);
+			expect(",");
+			auto b = expr(type);
+			return Term(SRem, type, a, b);
+		}
+		if (token == "sub") {
+			lex();
+			noWrap();
+			auto type = parseType();
+			auto a = expr(type);
+			expect(",");
+			auto b = expr(type);
+			return Term(Sub, type, a, b);
+		}
+		if (token == "udiv") {
+			lex();
+			if (token == "exact") {
+				lex();
+			}
+			auto type = parseType();
+			auto a = expr(type);
+			expect(",");
+			auto b = expr(type);
+			return Term(UDiv, type, a, b);
+		}
+		if (token == "urem") {
+			lex();
+			auto type = parseType();
+			auto a = expr(type);
+			expect(",");
+			auto b = expr(type);
+			return Term(URem, type, a, b);
+		}
+		if (token == "xor") {
+			lex();
+			auto type = parseType();
+			auto a = expr(type);
+			expect(",");
+			auto b = expr(type);
+			return Term(Xor, type, a, b);
+		}
+		// END
 		throw error('\'' + token + "': expected rval");
 	}
 
