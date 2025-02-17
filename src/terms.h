@@ -227,6 +227,10 @@ inline Term assign(Term a, Term b) {
 	return Term(Assign, voidType(), a, b);
 }
 
+inline Term ret() {
+	return Term(RetVoid);
+}
+
 inline Term ret(Term a) {
 	return Term(Ret, voidType(), a);
 }
