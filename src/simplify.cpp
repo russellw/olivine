@@ -31,42 +31,6 @@ Term simplify(const unordered_map<Term, Term>& env, Term a) {
 		Type ty = simplified[0].type();
 
 		switch (a.tag()) {
-		case Add:
-			return intConst(ty, v0 + v1);
-		case Sub:
-			return intConst(ty, v0 - v1);
-		case Mul:
-			return intConst(ty, v0 * v1);
-		case UDiv:
-			if (v1 != 0) {
-				return intConst(ty, v0 / v1);
-			}
-			break;
-		case SDiv:
-			if (v1 != 0) {
-				return intConst(ty, v0 / v1); // Assuming cpp_int handles signed division
-			}
-			break;
-		case URem:
-			if (v1 != 0) {
-				return intConst(ty, v0 % v1);
-			}
-			break;
-		case SRem:
-			if (v1 != 0) {
-				return intConst(ty, v0 % v1); // Assuming cpp_int handles signed remainder
-			}
-			break;
-		case Shl:
-			if (v1 >= 0 && v1 < ty.len()) {
-				return intConst(ty, v0 << v1.convert_to<unsigned>());
-			}
-			break;
-		case LShr:
-			if (v1 >= 0 && v1 < ty.len()) {
-				return intConst(ty, v0 >> v1.convert_to<unsigned>());
-			}
-			break;
 		case AShr:
 			if (v1 >= 0 && v1 < ty.len()) {
 				// Implement arithmetic right shift
@@ -80,22 +44,58 @@ Term simplify(const unordered_map<Term, Term>& env, Term a) {
 				return intConst(ty, result);
 			}
 			break;
+		case Add:
+			return intConst(ty, v0 + v1);
 		case And:
 			return intConst(ty, v0 & v1);
-		case Or:
-			return intConst(ty, v0 | v1);
-		case Xor:
-			return intConst(ty, v0 ^ v1);
 		case Eq:
 			return v0 == v1 ? trueConst : falseConst;
-		case ULt:
-			return v0 < v1 ? trueConst : falseConst;
-		case ULe:
+		case LShr:
+			if (v1 >= 0 && v1 < ty.len()) {
+				return intConst(ty, v0 >> v1.convert_to<unsigned>());
+			}
+			break;
+		case Mul:
+			return intConst(ty, v0 * v1);
+		case Or:
+			return intConst(ty, v0 | v1);
+		case SDiv:
+			if (v1 != 0) {
+				return intConst(ty, v0 / v1); // Assuming cpp_int handles signed division
+			}
+			break;
+		case SLe:
 			return v0 <= v1 ? trueConst : falseConst;
 		case SLt:
 			return v0 < v1 ? trueConst : falseConst; // cpp_int handles signed comparison
-		case SLe:
+		case SRem:
+			if (v1 != 0) {
+				return intConst(ty, v0 % v1); // Assuming cpp_int handles signed remainder
+			}
+			break;
+		case Shl:
+			if (v1 >= 0 && v1 < ty.len()) {
+				return intConst(ty, v0 << v1.convert_to<unsigned>());
+			}
+			break;
+		case Sub:
+			return intConst(ty, v0 - v1);
+		case UDiv:
+			if (v1 != 0) {
+				return intConst(ty, v0 / v1);
+			}
+			break;
+		case ULe:
 			return v0 <= v1 ? trueConst : falseConst;
+		case ULt:
+			return v0 < v1 ? trueConst : falseConst;
+		case URem:
+			if (v1 != 0) {
+				return intConst(ty, v0 % v1);
+			}
+			break;
+		case Xor:
+			return intConst(ty, v0 ^ v1);
 		}
 	}
 
@@ -184,14 +184,14 @@ Term simplify(const unordered_map<Term, Term>& env, Term a) {
 		}
 		break;
 	}
-	case FNeg:
-		// Skip floating-point evaluation as specified
-		break;
 	case FAdd:
 	case FDiv:
 	case FMul:
 	case FRem:
 	case FSub:
+		// Skip floating-point evaluation as specified
+		break;
+	case FNeg:
 		// Skip floating-point evaluation as specified
 		break;
 	}

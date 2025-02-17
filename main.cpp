@@ -9,11 +9,11 @@ int main(int argc, char** argv) {
 				s++;
 			}
 			switch (*s) {
-			case 'h':
-				return 0;
 			case 'V':
 			case 'v':
 				cout << "Olivine 0\n";
+				return 0;
+			case 'h':
 				return 0;
 			}
 			cerr << argv[i] << ": unknown option\n";

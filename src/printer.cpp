@@ -2,36 +2,14 @@
 
 ostream& operator<<(ostream& os, Type type) {
 	switch (type.kind()) {
-	case VoidKind:
-		os << "void";
-		break;
-	case IntKind:
-		os << 'i' << type.len();
-		break;
-	case FloatKind:
-		os << "float";
+	case ArrayKind:
+		os << '[' << type.len() << " x " << type[0] << ']';
 		break;
 	case DoubleKind:
 		os << "double";
 		break;
-	case PtrKind:
-		os << "ptr";
-		break;
-	case ArrayKind:
-		os << '[' << type.len() << " x " << type[0] << ']';
-		break;
-	case VecKind:
-		os << '<' << type.len() << " x " << type[0] << '>';
-		break;
-	case StructKind:
-		os << '{';
-		for (size_t i = 0; i < type.size(); i++) {
-			if (i) {
-				os << ", ";
-			}
-			os << type[i];
-		}
-		os << '}';
+	case FloatKind:
+		os << "float";
 		break;
 	case FuncKind:
 		os << type[0] << " (";
@@ -43,6 +21,28 @@ ostream& operator<<(ostream& os, Type type) {
 		}
 		os << ')';
 		break;
+	case IntKind:
+		os << 'i' << type.len();
+		break;
+	case PtrKind:
+		os << "ptr";
+		break;
+	case StructKind:
+		os << '{';
+		for (size_t i = 0; i < type.size(); i++) {
+			if (i) {
+				os << ", ";
+			}
+			os << type[i];
+		}
+		os << '}';
+		break;
+	case VecKind:
+		os << '<' << type.len() << " x " << type[0] << '>';
+		break;
+	case VoidKind:
+		os << "void";
+		break;
 	}
 	return os;
 }
@@ -50,9 +50,6 @@ ostream& operator<<(ostream& os, Type type) {
 ostream& operator<<(ostream& os, Term a) {
 	// Handle special cases first
 	switch (a.tag()) {
-	case Null:
-		os << "null";
-		return os;
 	case Float:
 		os << a.str();
 		return os;
@@ -62,6 +59,9 @@ ostream& operator<<(ostream& os, Term a) {
 			return os;
 		}
 		os << a.intVal();
+		return os;
+	case Null:
+		os << "null";
 		return os;
 	case Var:
 		os << '%';
@@ -79,77 +79,77 @@ ostream& operator<<(ostream& os, Term a) {
 	// First determine the operation name
 	string opName;
 	switch (a.tag()) {
-	case FNeg:
-		opName = "fneg";
+	case AShr:
+		opName = "ashr";
 		break;
 	case Add:
 		opName = "add";
 		break;
-	case FAdd:
-		opName = "fadd";
-		break;
-	case Sub:
-		opName = "sub";
-		break;
-	case FSub:
-		opName = "fsub";
-		break;
-	case Mul:
-		opName = "mul";
-		break;
-	case FMul:
-		opName = "fmul";
-		break;
-	case UDiv:
-		opName = "udiv";
-		break;
-	case SDiv:
-		opName = "sdiv";
-		break;
-	case FDiv:
-		opName = "fdiv";
-		break;
-	case URem:
-		opName = "urem";
-		break;
-	case SRem:
-		opName = "srem";
-		break;
-	case FRem:
-		opName = "frem";
-		break;
-	case Shl:
-		opName = "shl";
-		break;
-	case LShr:
-		opName = "lshr";
-		break;
-	case AShr:
-		opName = "ashr";
-		break;
 	case And:
 		opName = "and";
-		break;
-	case Or:
-		opName = "or";
-		break;
-	case Xor:
-		opName = "xor";
 		break;
 	case Eq:
 		opName = "icmp eq";
 		break;
-	case ULt:
-		opName = "icmp ult";
+	case FAdd:
+		opName = "fadd";
 		break;
-	case ULe:
-		opName = "icmp ule";
+	case FDiv:
+		opName = "fdiv";
+		break;
+	case FMul:
+		opName = "fmul";
+		break;
+	case FNeg:
+		opName = "fneg";
+		break;
+	case FRem:
+		opName = "frem";
+		break;
+	case FSub:
+		opName = "fsub";
+		break;
+	case LShr:
+		opName = "lshr";
+		break;
+	case Mul:
+		opName = "mul";
+		break;
+	case Or:
+		opName = "or";
+		break;
+	case SDiv:
+		opName = "sdiv";
+		break;
+	case SLe:
+		opName = "icmp sle";
 		break;
 	case SLt:
 		opName = "icmp slt";
 		break;
-	case SLe:
-		opName = "icmp sle";
+	case SRem:
+		opName = "srem";
+		break;
+	case Shl:
+		opName = "shl";
+		break;
+	case Sub:
+		opName = "sub";
+		break;
+	case UDiv:
+		opName = "udiv";
+		break;
+	case ULe:
+		opName = "icmp ule";
+		break;
+	case ULt:
+		opName = "icmp ult";
+		break;
+	case URem:
+		opName = "urem";
+		break;
+	case Xor:
+		opName = "xor";
 		break;
 	default:
 		// This should never happen due to the earlier switch

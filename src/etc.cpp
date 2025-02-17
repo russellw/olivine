@@ -180,16 +180,16 @@ string unwrap(const string& s) {
 
 	size_t pos = 0;
 	switch (s[0]) {
-	case 'c':
-		if (1 < s.size() && s[1] == '"') {
-			pos++;
-		}
-		break;
 	case '$':
 	case '%':
 	case '@':
 		pos++;
 		ASSERT(pos < s.size());
+		break;
+	case 'c':
+		if (1 < s.size() && s[1] == '"') {
+			pos++;
+		}
 		break;
 	}
 

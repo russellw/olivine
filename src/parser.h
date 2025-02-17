@@ -78,13 +78,12 @@ class Parser {
 				return;
 			}
 			switch (input[pos]) {
-			case 'c':
-				if (input[pos + 1] == '"') {
-					token = input.substr(pos++, 1);
-					quote();
-					return;
-				}
-				break;
+			case ' ':
+			case '\f':
+			case '\r':
+			case '\t':
+				pos++;
+				continue;
 			case '"':
 				token.clear();
 				quote();
@@ -95,17 +94,18 @@ class Parser {
 				token = input.substr(pos++, 1);
 				id();
 				return;
-			case ' ':
-			case '\f':
-			case '\r':
-			case '\t':
-				pos++;
-				continue;
 			case ';':
 				while (input[pos] != '\n') {
 					pos++;
 				}
 				continue;
+			case 'c':
+				if (input[pos + 1] == '"') {
+					token = input.substr(pos++, 1);
+					quote();
+					return;
+				}
+				break;
 			}
 			if (isIdPart(input[pos])) {
 				token.clear();
