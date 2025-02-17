@@ -1,7 +1,6 @@
 // Terms represent all code and data
 // including constants, variables, instructions and functions
 enum Tag {
-
 	// Logic operations are similar to arithmetic operations, but only work on integers
 	AShr,
 
