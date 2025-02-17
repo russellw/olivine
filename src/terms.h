@@ -54,7 +54,11 @@ enum Tag {
 	// is represented as a variable
 	Goto,
 
+	// A conditional branch (If instruction) has three operands
+	// The condition is an expression of Boolean type
+	// The true and false branches are goto instructions
 	If,
+
 	Int,
 	LShr,
 	Mul,
@@ -193,11 +197,13 @@ Term array(Type elementType, const vector<Term>& elements);
 // the parameter list of a function that takes no parameters
 Term tuple(const vector<Term>& elements);
 
-// A conditional branch (If instruction) has three operands
-// The condition is an expression of Boolean type
-// The true and false branches are goto instructions
-Term br(Term cond, Term ifTrue, Term ifFalse);
-Term br(Term cond, size_t ifTrue, size_t ifFalse);
+inline Term go(Term target) {
+	return Term(Goto, voidType(), target);
+}
+
+inline Term go(size_t target) {
+	return go(intConst(intType(64), target));
+}
 
 // A function is represented as a term whose elements are:
 // 0   GlobalRef, name or index number
@@ -226,12 +232,14 @@ inline Term assign(Term a, Term b) {
 	return Term(Assign, voidType(), a, b);
 }
 
-inline Term go(Term target) {
-	return Term(Goto, voidType(), target);
+inline Term br(Term cond, Term ifTrue, Term ifFalse) {
+	ASSERT(cond.type() == boolType());
+	return Term(If, voidType(), {cond, go(ifTrue), go(ifFalse)});
 }
 
-inline Term go(size_t target) {
-	return go(intConst(intType(64), target));
+inline Term br(Term cond, size_t ifTrue, size_t ifFalse) {
+	ASSERT(cond.type() == boolType());
+	return Term(If, voidType(), {cond, go(ifTrue), go(ifFalse)});
 }
 
 inline Term ret() {

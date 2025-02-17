@@ -173,18 +173,6 @@ Term tuple(const vector<Term>& elements) {
 	return Term(Tuple, structType(types), elements);
 }
 
-Term br(Term cond, Term ifTrue, Term ifFalse) {
-	ASSERT(cond.type() == boolType());
-	auto p = new TermImpl(If, voidType(), vector<Term>{cond, go(ifTrue), go(ifFalse)});
-	return Term(p);
-}
-
-Term br(Term cond, size_t ifTrue, size_t ifFalse) {
-	ASSERT(cond.type() == boolType());
-	auto p = new TermImpl(If, voidType(), vector<Term>{cond, go(ifTrue), go(ifFalse)});
-	return Term(p);
-}
-
 Term function(Type returnType, Term ref, const vector<Term>& params, const vector<Term>& instructions) {
 	// Validate the function reference
 	if (ref.tag() != GlobalRef) {
