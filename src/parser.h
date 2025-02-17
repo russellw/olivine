@@ -781,22 +781,7 @@ class Parser {
 	}
 
 	Type primaryType() {
-		if (token == "void") {
-			lex();
-			return voidType();
-		}
-		if (token == "float") {
-			lex();
-			return floatType();
-		}
-		if (token == "double") {
-			lex();
-			return doubleType();
-		}
-		if (token == "ptr") {
-			lex();
-			return ptrType();
-		}
+		// SORT BLOCKS
 		if (token == "<") {
 			lex();
 			auto len = parseInt();
@@ -813,11 +798,28 @@ class Parser {
 			expect("]");
 			return arrayType(len, element);
 		}
+		if (token == "double") {
+			lex();
+			return doubleType();
+		}
+		if (token == "float") {
+			lex();
+			return floatType();
+		}
+		if (token == "ptr") {
+			lex();
+			return ptrType();
+		}
+		if (token == "void") {
+			lex();
+			return voidType();
+		}
 		if (token[0] == 'i') {
 			auto len = stoi(token.substr(1));
 			lex();
 			return intType(len);
 		}
+		// END
 		throw error("expected type");
 	}
 
