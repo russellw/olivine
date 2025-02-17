@@ -47,7 +47,13 @@ enum Tag {
 	Function,
 	GlobalRef,
 	GlobalVar,
+
+	// A Goto instruction (unconditional branch) has an integer constant operand
+	// that is the index in the current function of the target instruction
+	// During parsing, a label that has not yet been resolved
+	// is represented as a variable
 	Goto,
+
 	If,
 	Int,
 	LShr,
@@ -187,13 +193,6 @@ Term array(Type elementType, const vector<Term>& elements);
 // the parameter list of a function that takes no parameters
 Term tuple(const vector<Term>& elements);
 
-// A Goto instruction (unconditional branch) has an integer constant operand
-// that is the index in the current function of the target instruction
-// During parsing, a label that has not yet been resolved
-// is represented as a variable
-Term go(Term target);
-Term go(size_t target);
-
 // A conditional branch (If instruction) has three operands
 // The condition is an expression of Boolean type
 // The true and false branches are goto instructions
@@ -225,6 +224,14 @@ vector<Term> getFunctionInstructions(Term f);
 
 inline Term assign(Term a, Term b) {
 	return Term(Assign, voidType(), a, b);
+}
+
+inline Term go(Term target) {
+	return Term(Goto, voidType(), target);
+}
+
+inline Term go(size_t target) {
+	return go(intConst(intType(64), target));
 }
 
 inline Term ret() {

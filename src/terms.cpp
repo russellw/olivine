@@ -173,15 +173,6 @@ Term tuple(const vector<Term>& elements) {
 	return Term(Tuple, structType(types), elements);
 }
 
-Term go(Term target) {
-	auto p = new TermImpl(Goto, voidType(), vector<Term>{target});
-	return Term(p);
-}
-
-Term go(size_t target) {
-	return go(intConst(intType(64), target));
-}
-
 Term br(Term cond, Term ifTrue, Term ifFalse) {
 	ASSERT(cond.type() == boolType());
 	auto p = new TermImpl(If, voidType(), vector<Term>{cond, go(ifTrue), go(ifFalse)});
