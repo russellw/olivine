@@ -234,3 +234,7 @@ inline Term ret() {
 inline Term ret(Term a) {
 	return Term(Ret, voidType(), a);
 }
+
+inline Term unreachable() {
+	return Term(Unreachable);
+}

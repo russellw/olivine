@@ -307,13 +307,13 @@ class Parser {
 		if (token == "ret") {
 			lex();
 			if (token == "void") {
-				return Term(RetVoid);
+				return ret();
 			}
-			return Term(Ret, voidType(), typeExpr());
+			return ret(typeExpr());
 		}
 		if (token == "unreachable") {
 			lex();
-			return Term(Unreachable);
+			return unreachable();
 		}
 		if (token[0] == '%') {
 			auto lvalName = token.substr(1);
