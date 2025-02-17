@@ -220,3 +220,13 @@ vector<Term> getFunctionInstructions(Term f);
 	auto ref = getFunctionRef(f);                                                                                              \
 	auto params = getFunctionParams(f);                                                                                        \
 	auto instructions = getFunctionInstructions(f)
+
+// SORT FUNCTIONS
+
+inline Term assign(Term a, Term b) {
+	return Term(Assign, voidType(), a, b);
+}
+
+inline Term ret(Term a) {
+	return Term(Ret, voidType(), a);
+}

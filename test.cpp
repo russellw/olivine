@@ -11,14 +11,6 @@ Term arithmetic(Tag tag, Term a, Term b) {
 	return Term(tag, a.type(), a, b);
 }
 
-Term assign(Term a, Term b) {
-	return Term(Assign, voidType(), vector<Term>{a, b});
-}
-
-Term ret(Term a) {
-	return Term(Ret, voidType(), a);
-}
-
 Term cmp(Tag tag, Term a, Term b) {
 	return Term(tag, boolType(), vector<Term>{a, b});
 }
