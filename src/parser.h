@@ -14,6 +14,33 @@ class Parser {
 	// but is still nonempty, so parsing code can safely check the first character of current token
 	const string eof = " ";
 
+	// SORT FUNCTIONS
+
+	// Count newlines before current position to get line number
+	size_t currentLine() const {
+		size_t line = 1;
+		for (size_t i = 0; i < pos; i++) {
+			if (input[i] == '\n') {
+				line++;
+			}
+		}
+		return line;
+	}
+
+	bool dsoPreemptable() {
+		if (token == "dso_local") {
+			lex();
+			return false;
+		}
+		if (token == "dso_preemptable") {
+			lex();
+			return true;
+		}
+
+		// If a preemption specifier isn’t given explicitly, then a symbol is assumed to be dso_preemptable.
+		return true;
+	}
+
 	// This function takes:
 	// The name of the input file, stored
 	// The current line number, calculated from the count of newline characters before pos
@@ -27,28 +54,51 @@ class Parser {
 		return runtime_error(errorMsg);
 	}
 
-	// Count newlines before current position to get line number
-	size_t currentLine() const {
-		size_t line = 1;
-		for (size_t i = 0; i < pos; i++) {
-			if (input[i] == '\n') {
-				line++;
-			}
+	void expect(const string& s) {
+		if (token == s) {
+			lex();
+			return;
 		}
-		return line;
+		throw error("expected '" + s + '\'');
 	}
 
-	void quote() {
-		ASSERT(input[pos] == '"');
-		for (auto i = pos + 1; i < input.size(); i++) {
-			if (input[i] == '"') {
-				i++;
-				token += input.substr(pos, i - pos);
-				pos = i;
-				return;
+	Term expr(Type type) {
+		if (token == "false") {
+			if (type != boolType()) {
+				throw error("type mismatch");
 			}
+			lex();
+			return falseConst;
 		}
-		throw error("unclosed quote");
+		if (token == "true") {
+			if (type != boolType()) {
+				throw error("type mismatch");
+			}
+			lex();
+			return trueConst;
+		}
+		if (token == "null") {
+			if (type != ptrType()) {
+				throw error("type mismatch");
+			}
+			lex();
+			return nullConst;
+		}
+		if (token[0] == '%') {
+			return parseVar(type);
+		}
+		if (isDigit(token[0])) {
+			auto a = intConst(type, cpp_int(token));
+			lex();
+			return a;
+		}
+		throw error('\'' + token + "': expected expression");
+	}
+
+	void fastMathFlags() {
+		while (token == "fast" || token == "nnan" || token == "ninf" || token == "nsz") {
+			lex();
+		}
 	}
 
 	void id() {
@@ -60,12 +110,6 @@ class Parser {
 			throw error("expected identifier");
 		}
 		while (isIdPart(input[pos])) {
-			token += input[pos++];
-		}
-	}
-
-	void maybeColon() {
-		if (input[pos] == ':') {
 			token += input[pos++];
 		}
 	}
@@ -119,20 +163,18 @@ class Parser {
 		token = eof;
 	}
 
-	void setConsistent(string& var, const string& val, const char* name) {
-		ASSERT(val.size());
-		if (var.size() && var != val) {
-			throw error(string("inconsistent ") + name);
+	void maybeColon() {
+		if (input[pos] == ':') {
+			token += input[pos++];
 		}
-		var = val;
 	}
 
-	void expect(const string& s) {
-		if (token == s) {
+	bool maybeComma() {
+		if (token == ",") {
 			lex();
-			return;
+			return true;
 		}
-		throw error("expected '" + s + '\'');
+		return false;
 	}
 
 	void newline() {
@@ -143,25 +185,29 @@ class Parser {
 		throw error("expected newline");
 	}
 
-	void parseTarget() {
-		expect("target");
-		if (token == "datalayout") {
-			lex();
-			expect("=");
-			if (token[0] != '"') {
-				throw error("expected string");
+	void nextLine() {
+		while (token != "\n") {
+			if (token == eof) {
+				stackTrace();
+				throw error("unexpected end of file");
 			}
-			setConsistent(target.datalayout, unwrap(token), "datalayout");
-			return;
+			lex();
 		}
-		if (token == "triple") {
+		lex();
+	}
+
+	void noWrap() {
+		if (token == "nuw") {
 			lex();
-			expect("=");
-			if (token[0] != '"') {
-				throw error("expected string");
-			}
-			setConsistent(target.triple, unwrap(token), "triple");
-			return;
+		}
+		if (token == "nsw") {
+			lex();
+		}
+	}
+
+	void paramAttrs() {
+		while (isLower(token[0])) {
+			lex();
 		}
 	}
 
@@ -176,21 +222,54 @@ class Parser {
 		}
 	}
 
-	void nextLine() {
-		while (token != "\n") {
-			if (token == eof) {
-				stackTrace();
-				throw error("unexpected end of file");
+	Term parseFunction() {
+		if (!(token == "declare" || token == "define")) {
+			throw error("expected 'declare' or 'define'");
+		}
+		auto define = token == "define";
+		lex();
+
+		dsoPreemptable();
+
+		// Return type
+		auto returnType = parseType();
+
+		// Name
+		if (token[0] != '@') {
+			throw error("expected global name");
+		}
+		auto name = token;
+		lex();
+
+		// Parameters
+		auto params = parseParams();
+		auto paramTypes = map(params, [](Term a) { return a.type(); });
+		auto ref = parseGlobal(functionType(returnType, paramTypes), name);
+
+		// Only declare
+		if (!define) {
+			return function(returnType, ref, params, {});
+		}
+
+		// Trailing tokens
+		while (token != "{") {
+			if (token == "\n" || token == eof) {
+				throw error("expected '{'");
 			}
 			lex();
 		}
-		lex();
-	}
 
-	void paramAttrs() {
-		while (isLower(token[0])) {
-			lex();
-		}
+		// Opening brace
+		expect("{");
+		newline();
+
+		// Instructions
+		auto instructions = parseInstructions();
+
+		// Closing brace
+		expect("}");
+
+		return function(returnType, ref, params, instructions);
 	}
 
 	Term parseGlobal(Type type, const string& token) const {
@@ -204,84 +283,6 @@ class Parser {
 			a = globalRef(type, unwrap(token));
 		}
 		return a;
-	}
-
-	// The code to parse a partly digested local variable token
-	// is factored out into a separate function
-	// so it can also be used for labels
-	static Term parseVar(Type type, const string& s) {
-		if (isDigit(s[1])) {
-			return var(type, stoi(s));
-		}
-		return var(type, unwrap(s));
-	}
-
-	Term parseVar(Type type) {
-		if (token[0] != '%') {
-			throw error("expected variable name");
-		}
-		auto a = parseVar(type, token.substr(1));
-		lex();
-		return a;
-	}
-
-	Term parseParam() {
-		auto type = parseType();
-		paramAttrs();
-		return parseVar(type);
-	}
-
-	bool maybeComma() {
-		if (token == ",") {
-			lex();
-			return true;
-		}
-		return false;
-	}
-
-	vector<Term> parseParams() {
-		expect("(");
-		vector<Term> v;
-		if (token != ")") {
-			do {
-				v.push_back(parseParam());
-			} while (maybeComma());
-		}
-		expect(")");
-		return v;
-	}
-
-	Term expr(Type type) {
-		if (token == "false") {
-			if (type != boolType()) {
-				throw error("type mismatch");
-			}
-			lex();
-			return falseConst;
-		}
-		if (token == "true") {
-			if (type != boolType()) {
-				throw error("type mismatch");
-			}
-			lex();
-			return trueConst;
-		}
-		if (token == "null") {
-			if (type != ptrType()) {
-				throw error("type mismatch");
-			}
-			lex();
-			return nullConst;
-		}
-		if (token[0] == '%') {
-			return parseVar(type);
-		}
-		if (isDigit(token[0])) {
-			auto a = intConst(type, cpp_int(token));
-			lex();
-			return a;
-		}
-		throw error('\'' + token + "': expected expression");
 	}
 
 	Term parseInstruction() {
@@ -320,6 +321,62 @@ class Parser {
 			return Term(Assign, voidType(), lval, rval);
 		}
 		throw error('\'' + token + "': expected instruction");
+	}
+
+	vector<Term> parseInstructions() {
+		unordered_map<Term, size_t> labels;
+		vector<Term> instructions;
+		while (token != "}") {
+			// Blank line
+			if (token == "\n") {
+				lex();
+				continue;
+			}
+
+			// Label
+			if (token.back() == ':') {
+				auto label = parseVar(ptrType(), token.substr(0, token.size() - 1));
+				if (labels.count(label)) {
+					throw error("duplicate label");
+				}
+				labels[label] = instructions.size();
+				nextLine();
+				continue;
+			}
+
+			// Instruction
+			instructions.push_back(parseInstruction());
+			nextLine();
+		}
+		resolveLabels(labels, instructions);
+		return instructions;
+	}
+
+	int parseInt() {
+		if (!all_of(token.begin(), token.end(), isDigit)) {
+			throw error("expected integer");
+		}
+		auto n = stoi(token);
+		lex();
+		return n;
+	}
+
+	Term parseParam() {
+		auto type = parseType();
+		paramAttrs();
+		return parseVar(type);
+	}
+
+	vector<Term> parseParams() {
+		expect("(");
+		vector<Term> v;
+		if (token != ")") {
+			do {
+				v.push_back(parseParam());
+			} while (maybeComma());
+		}
+		expect(")");
+		return v;
 	}
 
 	Term parseRval() {
@@ -667,19 +724,104 @@ class Parser {
 		throw error('\'' + token + "': expected rval");
 	}
 
-	void fastMathFlags() {
-		while (token == "fast" || token == "nnan" || token == "ninf" || token == "nsz") {
+	void parseTarget() {
+		expect("target");
+		if (token == "datalayout") {
 			lex();
+			expect("=");
+			if (token[0] != '"') {
+				throw error("expected string");
+			}
+			setConsistent(target.datalayout, unwrap(token), "datalayout");
+			return;
+		}
+		if (token == "triple") {
+			lex();
+			expect("=");
+			if (token[0] != '"') {
+				throw error("expected string");
+			}
+			setConsistent(target.triple, unwrap(token), "triple");
+			return;
 		}
 	}
 
-	void noWrap() {
-		if (token == "nuw") {
-			lex();
+	Type parseType() {
+		auto type = primaryType();
+		return type;
+	}
+
+	Term parseVar(Type type) {
+		if (token[0] != '%') {
+			throw error("expected variable name");
 		}
-		if (token == "nsw") {
-			lex();
+		auto a = parseVar(type, token.substr(1));
+		lex();
+		return a;
+	}
+
+	// The code to parse a partly digested local variable token
+	// is factored out into a separate function
+	// so it can also be used for labels
+	static Term parseVar(Type type, const string& s) {
+		if (isDigit(s[1])) {
+			return var(type, stoi(s));
 		}
+		return var(type, unwrap(s));
+	}
+
+	Type primaryType() {
+		if (token == "void") {
+			lex();
+			return voidType();
+		}
+		if (token == "float") {
+			lex();
+			return floatType();
+		}
+		if (token == "double") {
+			lex();
+			return doubleType();
+		}
+		if (token == "ptr") {
+			lex();
+			return ptrType();
+		}
+		if (token == "<") {
+			lex();
+			auto len = parseInt();
+			expect("x");
+			auto element = parseType();
+			expect(">");
+			return vecType(len, element);
+		}
+		if (token == "[") {
+			lex();
+			auto len = parseInt();
+			expect("x");
+			auto element = parseType();
+			expect("]");
+			return arrayType(len, element);
+		}
+		if (token[0] == 'i') {
+			auto len = stoi(token.substr(1));
+			lex();
+			return intType(len);
+		}
+		throw error("expected type");
+	}
+
+	void quote() {
+		ASSERT(input[pos] == '"');
+		for (auto i = pos + 1; i < input.size(); i++) {
+			if (input[i] == '"') {
+				i++;
+				token += input.substr(pos, i - pos);
+				pos = i;
+				return;
+			}
+		}
+		throw error("unclosed quote");
 	}
 
 	// After parsing, branch targets are unresolved labels, represented as variables
@@ -732,156 +874,16 @@ class Parser {
 		}
 	}
 
-	vector<Term> parseInstructions() {
-		unordered_map<Term, size_t> labels;
-		vector<Term> instructions;
-		while (token != "}") {
-			// Blank line
-			if (token == "\n") {
-				lex();
-				continue;
-			}
-
-			// Label
-			if (token.back() == ':') {
-				auto label = parseVar(ptrType(), token.substr(0, token.size() - 1));
-				if (labels.count(label)) {
-					throw error("duplicate label");
-				}
-				labels[label] = instructions.size();
-				nextLine();
-				continue;
-			}
-
-			// Instruction
-			instructions.push_back(parseInstruction());
-			nextLine();
+	void setConsistent(string& var, const string& val, const char* name) {
+		ASSERT(val.size());
+		if (var.size() && var != val) {
+			throw error(string("inconsistent ") + name);
 		}
-		resolveLabels(labels, instructions);
-		return instructions;
+		var = val;
 	}
 
 	Term typeExpr() {
 		return expr(parseType());
-	}
-
-	Term parseFunction() {
-		if (!(token == "declare" || token == "define")) {
-			throw error("expected 'declare' or 'define'");
-		}
-		auto define = token == "define";
-		lex();
-
-		dsoPreemptable();
-
-		// Return type
-		auto returnType = parseType();
-
-		// Name
-		if (token[0] != '@') {
-			throw error("expected global name");
-		}
-		auto name = token;
-		lex();
-
-		// Parameters
-		auto params = parseParams();
-		auto paramTypes = map(params, [](Term a) { return a.type(); });
-		auto ref = parseGlobal(functionType(returnType, paramTypes), name);
-
-		// Only declare
-		if (!define) {
-			return function(returnType, ref, params, {});
-		}
-
-		// Trailing tokens
-		while (token != "{") {
-			if (token == "\n" || token == eof) {
-				throw error("expected '{'");
-			}
-			lex();
-		}
-
-		// Opening brace
-		expect("{");
-		newline();
-
-		// Instructions
-		auto instructions = parseInstructions();
-
-		// Closing brace
-		expect("}");
-
-		return function(returnType, ref, params, instructions);
-	}
-
-	bool dsoPreemptable() {
-		if (token == "dso_local") {
-			lex();
-			return false;
-		}
-		if (token == "dso_preemptable") {
-			lex();
-			return true;
-		}
-
-		// If a preemption specifier isn’t given explicitly, then a symbol is assumed to be dso_preemptable.
-		return true;
-	}
-
-	Type primaryType() {
-		if (token == "void") {
-			lex();
-			return voidType();
-		}
-		if (token == "float") {
-			lex();
-			return floatType();
-		}
-		if (token == "double") {
-			lex();
-			return doubleType();
-		}
-		if (token == "ptr") {
-			lex();
-			return ptrType();
-		}
-		if (token == "<") {
-			lex();
-			auto len = parseInt();
-			expect("x");
-			auto element = parseType();
-			expect(">");
-			return vecType(len, element);
-		}
-		if (token == "[") {
-			lex();
-			auto len = parseInt();
-			expect("x");
-			auto element = parseType();
-			expect("]");
-			return arrayType(len, element);
-		}
-		if (token[0] == 'i') {
-			auto len = stoi(token.substr(1));
-			lex();
-			return intType(len);
-		}
-		throw error("expected type");
-	}
-
-	int parseInt() {
-		if (!all_of(token.begin(), token.end(), isDigit)) {
-			throw error("expected integer");
-		}
-		auto n = stoi(token);
-		lex();
-		return n;
-	}
-
-	Type parseType() {
-		auto type = primaryType();
-		return type;
 	}
 
 public:
