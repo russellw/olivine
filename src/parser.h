@@ -287,13 +287,6 @@ class Parser {
 
 	Term parseInstruction() {
 		// SORT BLOCKS
-		if (token == "ret") {
-			lex();
-			if (token == "void") {
-				return Term(RetVoid);
-			}
-			return Term(Ret, voidType(), typeExpr());
-		}
 		if (token == "br") {
 			lex();
 			if (token == "label") {
@@ -308,6 +301,13 @@ class Parser {
 			expect("label");
 			auto ifFalse = parseVar(ptrType());
 			return br(cond, ifTrue, ifFalse);
+		}
+		if (token == "ret") {
+			lex();
+			if (token == "void") {
+				return Term(RetVoid);
+			}
+			return Term(Ret, voidType(), typeExpr());
 		}
 		if (token == "unreachable") {
 			lex();
