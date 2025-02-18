@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <variant>
 #include <vector>
 using std::all_of;
 using std::back_inserter;
@@ -28,6 +29,7 @@ using std::to_string;
 using std::transform;
 using std::unordered_map;
 using std::unordered_set;
+using std::variant;
 using std::vector;
 
 // Boost

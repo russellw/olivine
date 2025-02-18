@@ -1,3 +1,6 @@
+// In LLVM, some things can be referred to by index numbers or strings
+typedef variant<size_t, string> Ref;
+
 // Terms represent all code and data
 // including constants, variables, instructions and functions
 enum Tag {
