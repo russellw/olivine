@@ -219,9 +219,9 @@ inline Term getFunctionParams(Term f) {
 
 vector<Term> getFunctionInstructions(Term f);
 
-#define unpackFunction(f)                                                                                                      \
-	auto ref = getFunctionRef(f);                                                                                              \
-	auto params = getFunctionParams(f);                                                                                        \
+#define unpackFunction(f)                                                                                                          \
+	auto ref = getFunctionRef(f);                                                                                                  \
+	auto params = getFunctionParams(f);                                                                                            \
 	auto instructions = getFunctionInstructions(f)
 
 // SORT FUNCTIONS

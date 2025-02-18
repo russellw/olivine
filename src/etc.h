@@ -21,11 +21,11 @@ inline string makeAssertMessage(const char* expression, const char* file, int li
 } // namespace message_detail
 
 // Basic assertion that throws std::runtime_error
-#define ASSERT(condition)                                                                                                      \
-	do {                                                                                                                       \
-		if (!(condition)) {                                                                                                    \
-			throw runtime_error(message_detail::makeAssertMessage(#condition, __FILE__, __LINE__));                            \
-		}                                                                                                                      \
+#define ASSERT(condition)                                                                                                          \
+	do {                                                                                                                           \
+		if (!(condition)) {                                                                                                        \
+			throw runtime_error(message_detail::makeAssertMessage(#condition, __FILE__, __LINE__));                                \
+		}                                                                                                                          \
 	} while (0)
 
 #define dbg(a) cout << __FILE__ << ':' << __LINE__ << ": " << (a) << '\n'

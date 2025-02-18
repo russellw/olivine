@@ -30,8 +30,7 @@ void stackTrace(std::ostream& out) {
 
 	// Symbol information buffer
 	constexpr int MAX_NAME_LENGTH = 256;
-	std::unique_ptr<SYMBOL_INFO[]> symbol_buffer(
-		reinterpret_cast<SYMBOL_INFO*>(new char[sizeof(SYMBOL_INFO) + MAX_NAME_LENGTH]));
+	std::unique_ptr<SYMBOL_INFO[]> symbol_buffer(reinterpret_cast<SYMBOL_INFO*>(new char[sizeof(SYMBOL_INFO) + MAX_NAME_LENGTH]));
 	SYMBOL_INFO* symbol = symbol_buffer.get();
 	symbol->MaxNameLen = MAX_NAME_LENGTH;
 	symbol->SizeOfStruct = sizeof(SYMBOL_INFO);

@@ -1530,16 +1530,14 @@ BOOST_AUTO_TEST_CASE(ParseTargetTriple) {
 }
 
 BOOST_AUTO_TEST_CASE(ParseTargetDatalayout) {
-	const std::string input =
-		"target datalayout = \"e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128\"\n";
+	const std::string input = "target datalayout = \"e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128\"\n";
 	this->parseFiles(input);
 	BOOST_CHECK_EQUAL(this->target.datalayout, "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128");
 }
 
 BOOST_AUTO_TEST_CASE(ParseBothTargets) {
-	const std::string input =
-		"target triple = \"x86_64-pc-linux-gnu\"\n"
-		"target datalayout = \"e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128\"\n";
+	const std::string input = "target triple = \"x86_64-pc-linux-gnu\"\n"
+							  "target datalayout = \"e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128\"\n";
 	this->parseFiles(input);
 	BOOST_CHECK_EQUAL(this->target.triple, "x86_64-pc-linux-gnu");
 	BOOST_CHECK_EQUAL(this->target.datalayout, "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128");
@@ -1559,10 +1557,8 @@ BOOST_AUTO_TEST_CASE(InconsistentTriple) {
 }
 
 BOOST_AUTO_TEST_CASE(InconsistentDatalayout) {
-	const std::string input1 =
-		"target datalayout = \"e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128\"\n";
-	const std::string input2 =
-		"target datalayout = \"e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128\"\n";
+	const std::string input1 = "target datalayout = \"e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128\"\n";
+	const std::string input2 = "target datalayout = \"e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128\"\n";
 	this->expectError(input1, input2, "test2.ll:1: inconsistent datalayout");
 }
 
