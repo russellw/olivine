@@ -21,7 +21,7 @@ enum Tag {
 	// as it is an instruction that changes the world, rather than an expression that returns a value
 	Assign,
 
-	// A conditional branch (If instruction) has three operands
+	// A conditional branch has three operands
 	// The condition is an expression of Boolean type
 	// The true and false branches are goto instructions
 	Br,
