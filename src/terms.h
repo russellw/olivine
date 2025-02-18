@@ -107,18 +107,24 @@ public:
 	// The default Term is Null
 	Term();
 
+	// For internal use
 	explicit Term(TermImpl* p): p(p) {
 	}
 
+	// Atom constructors
 	explicit Term(Tag tag);
 	Term(Tag tag, Type type, const Ref& ref);
+
+	// Compound constructors
 	Term(Tag tag, Type type, Term a);
 	Term(Tag tag, Type type, Term a, Term b);
 	Term(Tag tag, Type type, const vector<Term>& v);
 
+	// Every term has a tag and type
 	Tag tag() const;
 	Type type() const;
 
+	// Atom data
 	Ref ref() const;
 	string str() const;
 	cpp_int intVal() const;
@@ -146,18 +152,11 @@ template <> struct hash<Term> {
 	size_t operator()(const Term& t) const {
 		size_t h = hash<Tag>()(t.tag());
 		h ^= hash<Type>()(t.type()) + 0x9e3779b9 + (h << 6) + (h >> 2);
-
-		// Hash the components
+		h ^= hash<Ref>()(t.ref()) + 0x9e3779b9 + (h << 6) + (h >> 2);
+		h ^= hash<cpp_int>()(t.intVal()) + 0x9e3779b9 + (h << 6) + (h >> 2);
 		for (size_t i = 0; i < t.size(); ++i) {
 			h ^= hash<Term>()(t[i]) + 0x9e3779b9 + (h << 6) + (h >> 2);
 		}
-
-		// Hash integer value (used by Int constants, Var indices, etc)
-		h ^= hash<cpp_int>()(t.intVal()) + 0x9e3779b9 + (h << 6) + (h >> 2);
-
-		// Hash string value (used by Float constants, variable names, etc)
-		h ^= hash<string>()(t.str()) + 0x9e3779b9 + (h << 6) + (h >> 2);
-
 		return h;
 	}
 };

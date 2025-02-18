@@ -28,6 +28,7 @@ public:
 	// The default Type is void
 	Type();
 
+	// For internal use
 	explicit Type(TypeImpl* p): p(p) {
 	}
 

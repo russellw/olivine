@@ -5,7 +5,7 @@ struct TypeImpl {
 	const size_t len;
 	const vector<Type> v;
 
-	TypeImpl(Kind kind): kind(kind), len(0) {
+	explicit TypeImpl(Kind kind): kind(kind), len(0) {
 	}
 
 	TypeImpl(Kind kind, size_t len): kind(kind), len(len) {
