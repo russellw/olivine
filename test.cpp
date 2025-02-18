@@ -1244,7 +1244,7 @@ BOOST_AUTO_TEST_CASE(ConditionalBranchTest) {
 
 	// Basic conditional branch
 	Term branchInst = br(condition, 1, 2);
-	BOOST_CHECK_EQUAL(branchInst.tag(), If);
+	BOOST_CHECK_EQUAL(branchInst.tag(), Br);
 	BOOST_CHECK_EQUAL(branchInst.type().kind(), VoidKind);
 	BOOST_CHECK_EQUAL(branchInst.size(), 3); // condition + two branches
 
@@ -2095,7 +2095,7 @@ exit:
 	BOOST_REQUIRE_EQUAL(instructions.size(), 4);
 
 	// First instruction should be conditional branch
-	BOOST_CHECK_EQUAL(instructions[0].tag(), Tag::If);
+	BOOST_CHECK_EQUAL(instructions[0].tag(), Tag::Br);
 	BOOST_CHECK_EQUAL(instructions[0][0], trueConst);
 	// Targets should be resolved to offsets 1 and 2
 	BOOST_CHECK_EQUAL(instructions[0][1].tag(), Jmp);
@@ -2127,7 +2127,7 @@ exit:
 	BOOST_REQUIRE_EQUAL(instructions.size(), 4);
 
 	// First instruction should be conditional branch
-	BOOST_CHECK_EQUAL(instructions[0].tag(), Tag::If);
+	BOOST_CHECK_EQUAL(instructions[0].tag(), Tag::Br);
 	BOOST_CHECK_EQUAL(instructions[0][0], falseConst);
 }
 
@@ -2166,7 +2166,7 @@ exit:
 	BOOST_REQUIRE_EQUAL(instructions.size(), 3);
 
 	// Both branches should point to the same final offset
-	BOOST_CHECK_EQUAL(instructions[0].tag(), Tag::If);
+	BOOST_CHECK_EQUAL(instructions[0].tag(), Tag::Br);
 	BOOST_CHECK_EQUAL(instructions[1].tag(), Tag::Jmp);
 }
 

@@ -230,14 +230,14 @@ Term function(Type returnType, Term ref, const vector<Term>& params, const vecto
 				throw invalid_argument("Invalid goto target: " + to_string(target));
 			}
 		}
-		if (instr.tag() == If) {
+		if (instr.tag() == Br) {
 			if (instr[0].type() != boolType()) {
-				throw invalid_argument("If condition must be boolean type");
+				throw invalid_argument("Br condition must be boolean type");
 			}
 			size_t trueTarget = instr[1].intVal().convert_to<size_t>();
 			size_t falseTarget = instr[2].intVal().convert_to<size_t>();
 			if (trueTarget >= instructions.size() || falseTarget >= instructions.size()) {
-				throw invalid_argument("Invalid branch target in If instruction");
+				throw invalid_argument("Invalid branch target in Br instruction");
 			}
 		}
 	}
