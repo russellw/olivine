@@ -130,18 +130,6 @@ Term intConst(Type type, const cpp_int& val) {
 	return Term(p);
 }
 
-Term var(Type type, const string& name) {
-	ASSERT(type != voidType());
-	auto p = new TermImpl(Var, type, name);
-	return Term(p);
-}
-
-Term var(Type type, size_t i) {
-	ASSERT(type != voidType());
-	auto p = new TermImpl(Var, type, Ref(i));
-	return Term(p);
-}
-
 Term globalRef(Type type, const string& name) {
 	ASSERT(type != voidType());
 	auto p = new TermImpl(GlobalRef, type, name);

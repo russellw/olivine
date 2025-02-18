@@ -98,7 +98,11 @@ enum Tag {
 	ULt,
 	URem,
 	Unreachable,
+
+	// Var represents local variables, including function parameters
+	// All occurrences of a given variable in a given function must have the same type
 	Var,
+
 	Xor,
 };
 
@@ -175,12 +179,6 @@ extern Term nullConst;
 // Integer constants are arbitrary precision
 Term intConst(Type type, const cpp_int& val);
 
-// Var represents local variables, including function parameters
-// As in LLVM, local variables can be referred to by strings or index numbers
-// All occurrences of a given variable in a given function must have the same type
-Term var(Type type, const string& name);
-Term var(Type type, size_t i);
-
 // GlobalRef represents a reference to a global variable or function
 // Like local variables, these can be strings or index numbers
 Term globalRef(Type type, const string& name);
@@ -254,4 +252,8 @@ inline Term ret(Term a) {
 
 inline Term unreachable() {
 	return Term(Unreachable);
+}
+
+inline Term var(Type type, const Ref& ref) {
+	return Term(Var, type, ref);
 }
