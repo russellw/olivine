@@ -1,5 +1,10 @@
 #include "all.h"
 
+ostream& operator<<(ostream& os, const Ref& ref) {
+	std::visit([&os](const auto& value) { os << value; }, ref);
+	return os;
+}
+
 ostream& operator<<(ostream& os, Type type) {
 	switch (type.kind()) {
 	case ArrayKind:
@@ -64,12 +69,7 @@ ostream& operator<<(ostream& os, Term a) {
 		os << "null";
 		return os;
 	case Var:
-		os << '%';
-		if (a.named()) {
-			os << a.str();
-		} else {
-			os << a.intVal();
-		}
+		os << '%' << a.ref();
 		return os;
 	}
 

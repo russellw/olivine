@@ -4,15 +4,17 @@ struct TermImpl {
 	const Tag tag;
 	const Type type;
 
-	const string str;
+	// Atom
+	const Ref ref;
 	const cpp_int intVal;
 
+	// Compound
 	const vector<Term> v;
 
 	TermImpl(Tag tag, Type type): tag(tag), type(type) {
 	}
 
-	TermImpl(Tag tag, Type type, const string& str): tag(tag), type(type), str(str) {
+	TermImpl(Tag tag, Type type, const Ref& ref): tag(tag), type(type), ref(ref) {
 	}
 
 	TermImpl(Tag tag, Type type, const cpp_int& intVal): tag(tag), type(type), intVal(intVal) {
@@ -22,7 +24,7 @@ struct TermImpl {
 	}
 };
 
-TermImpl trueImpl(Int, boolType(), 1);
+TermImpl trueImpl(Int, boolType(), cpp_int(1));
 TermImpl falseImpl(Int, boolType(), cpp_int(0));
 
 TermImpl nullImpl(Null, ptrType());
@@ -32,6 +34,10 @@ Term::Term(): p(&nullImpl) {
 
 Term::Term(Tag tag) {
 	p = new TermImpl(tag, voidType());
+}
+
+Term::Term(Tag tag, Type type, const Ref& ref) {
+	p = new TermImpl(tag, type, ref);
 }
 
 Term::Term(Tag tag, Type type, Term a) {
@@ -54,12 +60,12 @@ Type Term::type() const {
 	return p->type;
 }
 
-bool Term::named() const {
-	return p->str.size();
+Ref Term::ref() const {
+	return p->ref;
 }
 
 string Term::str() const {
-	return p->str;
+	return std::get<string>(p->ref);
 }
 
 cpp_int Term::intVal() const {
@@ -100,7 +106,7 @@ bool Term::operator==(Term b0) const {
 	if (a->type != b->type) {
 		return false;
 	}
-	if (a->str != b->str) {
+	if (a->ref != b->ref) {
 		return false;
 	}
 	if (a->intVal != b->intVal) {
@@ -124,19 +130,6 @@ Term intConst(Type type, const cpp_int& val) {
 	return Term(p);
 }
 
-Term floatConst(Type type, const string& val) {
-	switch (type.kind()) {
-	case DoubleKind:
-	case FloatKind:
-		break;
-	default:
-		ASSERT(false);
-		break;
-	}
-	auto p = new TermImpl(Float, type, val);
-	return Term(p);
-}
-
 Term var(Type type, const string& name) {
 	ASSERT(type != voidType());
 	auto p = new TermImpl(Var, type, name);
@@ -145,7 +138,7 @@ Term var(Type type, const string& name) {
 
 Term var(Type type, size_t i) {
 	ASSERT(type != voidType());
-	auto p = new TermImpl(Var, type, i);
+	auto p = new TermImpl(Var, type, Ref(i));
 	return Term(p);
 }
 
@@ -157,7 +150,7 @@ Term globalRef(Type type, const string& name) {
 
 Term globalRef(Type type, size_t i) {
 	ASSERT(type != voidType());
-	auto p = new TermImpl(GlobalRef, type, i);
+	auto p = new TermImpl(GlobalRef, type, Ref(i));
 	return Term(p);
 }
 

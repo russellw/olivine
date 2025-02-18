@@ -1,5 +1,5 @@
 // In LLVM, some things can be referred to by index numbers or strings
-typedef variant<size_t, string> Ref;
+typedef std::variant<size_t, string> Ref;
 
 // Terms represent all code and data
 // including constants, variables, instructions and functions
@@ -111,6 +111,7 @@ public:
 	}
 
 	explicit Term(Tag tag);
+	Term(Tag tag, Type type, const Ref& ref);
 	Term(Tag tag, Type type, Term a);
 	Term(Tag tag, Type type, Term a, Term b);
 	Term(Tag tag, Type type, const vector<Term>& v);
@@ -118,12 +119,7 @@ public:
 	Tag tag() const;
 	Type type() const;
 
-	// An atom like a local variable or global reference
-	// may have either a name (string) or index number (integer)
-	// The `named` predicate distinguishes between the two possibilities
-	bool named() const;
-
-	// And there is an accessor for each type of value
+	Ref ref() const;
 	string str() const;
 	cpp_int intVal() const;
 
@@ -243,6 +239,10 @@ inline Term br(Term cond, Term ifTrue, Term ifFalse) {
 inline Term br(Term cond, size_t ifTrue, size_t ifFalse) {
 	ASSERT(cond.type() == boolType());
 	return Term(Br, voidType(), {cond, jmp(ifTrue), jmp(ifFalse)});
+}
+
+inline Term floatConst(Type type, const string& val) {
+	return Term(Float, type, Ref(val));
 }
 
 inline Term ret() {
