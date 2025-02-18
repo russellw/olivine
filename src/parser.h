@@ -16,17 +16,6 @@ class Parser {
 
 	// SORT FUNCTIONS
 
-	// Count newlines before current position to get line number
-	size_t currentLine() const {
-		size_t line = 1;
-		for (size_t i = 0; i < pos; i++) {
-			if (input[i] == '\n') {
-				line++;
-			}
-		}
-		return line;
-	}
-
 	bool dsoPreemptable() {
 		if (token == "dso_local") {
 			lex();
@@ -48,7 +37,7 @@ class Parser {
 	// and returns an exception with a composite error message suitable for printing
 	runtime_error error(const string& msg) const {
 		// Build error message with format "file:line: error message"
-		string errorMsg = file + ":" + to_string(currentLine()) + ": " + msg;
+		string errorMsg = file + ":" + to_string(currentLine(input, pos)) + ": " + msg;
 
 		// Return exception with the formatted message
 		return runtime_error(errorMsg);

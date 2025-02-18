@@ -113,3 +113,6 @@ template <class K, class V> ostream& operator<<(ostream& os, const unordered_map
 	}
 	return os << '}';
 }
+
+// Count newlines before current position to get line number
+size_t currentLine(const string& input, size_t pos);

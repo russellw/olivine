@@ -222,3 +222,14 @@ string unwrap(const string& s) {
 	ASSERT(pos == s.size() - 1);
 	return r;
 }
+
+// Count newlines before current position to get line number
+size_t currentLine(const string& input, size_t pos) {
+	size_t line = 1;
+	for (size_t i = 0; i < pos; i++) {
+		if (input[i] == '\n') {
+			line++;
+		}
+	}
+	return line;
+}
