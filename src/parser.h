@@ -293,7 +293,7 @@ class Parser {
 			lex();
 			if (token == "label") {
 				lex();
-				return go(parseVar(ptrType()));
+				return jmp(parseVar(ptrType()));
 			}
 			auto cond = typeExpr();
 			expect(",");

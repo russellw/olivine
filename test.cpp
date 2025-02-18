@@ -1222,17 +1222,17 @@ BOOST_AUTO_TEST_CASE(StructureAssignment) {
 // Test unconditional branch (goto) instruction
 BOOST_AUTO_TEST_CASE(UnconditionalBranchTest) {
 	// Basic goto instruction
-	Term gotoInst = go(5);
-	BOOST_CHECK_EQUAL(gotoInst.tag(), Goto);
+	Term gotoInst = jmp(5);
+	BOOST_CHECK_EQUAL(gotoInst.tag(), Jmp);
 	BOOST_CHECK_EQUAL(gotoInst.type().kind(), VoidKind);
 	BOOST_CHECK_EQUAL(gotoInst[0].intVal(), 5);
 
 	// Verify goto with different target
-	Term gotoInst2 = go(10);
+	Term gotoInst2 = jmp(10);
 	BOOST_CHECK_EQUAL(gotoInst2[0].intVal(), 10);
 
 	// Verify different goto instructions with same target are equal
-	Term gotoInst3 = go(5);
+	Term gotoInst3 = jmp(5);
 	BOOST_CHECK_EQUAL(gotoInst, gotoInst3);
 }
 
@@ -1252,11 +1252,11 @@ BOOST_AUTO_TEST_CASE(ConditionalBranchTest) {
 	BOOST_CHECK_EQUAL(branchInst[0], condition);
 
 	// Check true branch is a goto with target 1
-	BOOST_CHECK_EQUAL(branchInst[1].tag(), Goto);
+	BOOST_CHECK_EQUAL(branchInst[1].tag(), Jmp);
 	BOOST_CHECK_EQUAL(branchInst[1][0].intVal(), 1);
 
 	// Check false branch is a goto with target 2
-	BOOST_CHECK_EQUAL(branchInst[2].tag(), Goto);
+	BOOST_CHECK_EQUAL(branchInst[2].tag(), Jmp);
 	BOOST_CHECK_EQUAL(branchInst[2][0].intVal(), 2);
 
 	// Verify branches with same condition and targets are equal
@@ -2064,7 +2064,7 @@ exit:
 	BOOST_REQUIRE_EQUAL(instructions.size(), 2);
 
 	// First instruction should be an unconditional branch
-	BOOST_CHECK_EQUAL(instructions[0].tag(), Tag::Goto);
+	BOOST_CHECK_EQUAL(instructions[0].tag(), Tag::Jmp);
 
 	// Second instruction should be return void
 	BOOST_CHECK_EQUAL(instructions[1].tag(), Tag::RetVoid);
@@ -2098,8 +2098,8 @@ exit:
 	BOOST_CHECK_EQUAL(instructions[0].tag(), Tag::If);
 	BOOST_CHECK_EQUAL(instructions[0][0], trueConst);
 	// Targets should be resolved to offsets 1 and 2
-	BOOST_CHECK_EQUAL(instructions[0][1].tag(), Goto);
-	BOOST_CHECK_EQUAL(instructions[0][2].tag(), Goto);
+	BOOST_CHECK_EQUAL(instructions[0][1].tag(), Jmp);
+	BOOST_CHECK_EQUAL(instructions[0][2].tag(), Jmp);
 }
 
 // Test parsing a conditional branch using false constant
@@ -2167,7 +2167,7 @@ exit:
 
 	// Both branches should point to the same final offset
 	BOOST_CHECK_EQUAL(instructions[0].tag(), Tag::If);
-	BOOST_CHECK_EQUAL(instructions[1].tag(), Tag::Goto);
+	BOOST_CHECK_EQUAL(instructions[1].tag(), Tag::Jmp);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

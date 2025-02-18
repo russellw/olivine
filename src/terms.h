@@ -51,18 +51,19 @@ enum Tag {
 	GlobalRef,
 	GlobalVar,
 
-	// A Goto instruction (unconditional branch) has an integer constant operand
-	// that is the index in the current function of the target instruction
-	// During parsing, a label that has not yet been resolved
-	// is represented as a variable
-	Goto,
-
 	// A conditional branch (If instruction) has three operands
 	// The condition is an expression of Boolean type
 	// The true and false branches are goto instructions
 	If,
 
 	Int,
+
+	// A Jmp instruction (unconditional branch) has an integer constant operand
+	// that is the index in the current function of the target instruction
+	// During parsing, a label that has not yet been resolved
+	// is represented as a variable
+	Jmp,
+
 	LShr,
 	Mul,
 
@@ -200,12 +201,12 @@ Term array(Type elementType, const vector<Term>& elements);
 // the parameter list of a function that takes no parameters
 Term tuple(const vector<Term>& elements);
 
-inline Term go(Term target) {
-	return Term(Goto, voidType(), target);
+inline Term jmp(Term target) {
+	return Term(Jmp, voidType(), target);
 }
 
-inline Term go(size_t target) {
-	return go(intConst(intType(64), target));
+inline Term jmp(size_t target) {
+	return jmp(intConst(intType(64), target));
 }
 
 // A function is represented as a term whose elements are:
@@ -237,12 +238,12 @@ inline Term assign(Term a, Term b) {
 
 inline Term br(Term cond, Term ifTrue, Term ifFalse) {
 	ASSERT(cond.type() == boolType());
-	return Term(If, voidType(), {cond, go(ifTrue), go(ifFalse)});
+	return Term(If, voidType(), {cond, jmp(ifTrue), jmp(ifFalse)});
 }
 
 inline Term br(Term cond, size_t ifTrue, size_t ifFalse) {
 	ASSERT(cond.type() == boolType());
-	return Term(If, voidType(), {cond, go(ifTrue), go(ifFalse)});
+	return Term(If, voidType(), {cond, jmp(ifTrue), jmp(ifFalse)});
 }
 
 inline Term ret() {

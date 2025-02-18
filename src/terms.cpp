@@ -224,7 +224,7 @@ Term function(Type returnType, Term ref, const vector<Term>& params, const vecto
 		}
 
 		// Validate branch targets
-		if (instr.tag() == Goto) {
+		if (instr.tag() == Jmp) {
 			size_t target = instr.intVal().convert_to<size_t>();
 			if (target >= instructions.size()) {
 				throw invalid_argument("Invalid goto target: " + to_string(target));
