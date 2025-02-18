@@ -107,10 +107,10 @@ public:
 	// The default Term is Null
 	Term();
 
-	Term(TermImpl* p): p(p) {
+	explicit Term(TermImpl* p): p(p) {
 	}
 
-	Term(Tag tag);
+	explicit Term(Tag tag);
 	Term(Tag tag, Type type, Term a);
 	Term(Tag tag, Type type, Term a, Term b);
 	Term(Tag tag, Type type, const vector<Term>& v);

@@ -28,7 +28,7 @@ public:
 	// The default Type is void
 	Type();
 
-	Type(TypeImpl* p): p(p) {
+	explicit Type(TypeImpl* p): p(p) {
 	}
 
 	Kind kind() const;
