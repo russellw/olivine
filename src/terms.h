@@ -57,7 +57,11 @@ enum Tag {
 	Float,
 
 	Function,
+
+	// GlobalRef represents a reference to a global variable or function
+	// Like local variables, these can be strings or index numbers
 	GlobalRef,
+
 	GlobalVar,
 	Int,
 
@@ -179,11 +183,6 @@ extern Term nullConst;
 // Integer constants are arbitrary precision
 Term intConst(Type type, const cpp_int& val);
 
-// GlobalRef represents a reference to a global variable or function
-// Like local variables, these can be strings or index numbers
-Term globalRef(Type type, const string& name);
-Term globalRef(Type type, size_t i);
-
 // There are two varieties of general compound data terms
 // An array contains zero or more items, all the same type
 Term array(Type elementType, const vector<Term>& elements);
@@ -240,6 +239,10 @@ inline Term br(Term cond, size_t ifTrue, size_t ifFalse) {
 
 inline Term floatConst(Type type, const string& val) {
 	return Term(Float, type, Ref(val));
+}
+
+inline Term globalRef(Type type, const Ref& ref) {
+	return Term(GlobalRef, type, ref);
 }
 
 inline Term ret() {

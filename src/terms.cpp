@@ -130,18 +130,6 @@ Term intConst(Type type, const cpp_int& val) {
 	return Term(p);
 }
 
-Term globalRef(Type type, const string& name) {
-	ASSERT(type != voidType());
-	auto p = new TermImpl(GlobalRef, type, name);
-	return Term(p);
-}
-
-Term globalRef(Type type, size_t i) {
-	ASSERT(type != voidType());
-	auto p = new TermImpl(GlobalRef, type, Ref(i));
-	return Term(p);
-}
-
 Term array(Type elementType, const vector<Term>& elements) {
 	for (auto element : elements) {
 		ASSERT(element.type() == elementType);
