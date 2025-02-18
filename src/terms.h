@@ -51,7 +51,11 @@ enum Tag {
 
 	FRem,
 	FSub,
+
+	// Representing floating-point numbers is complicated
+	// For now, they are stored in their original string format
 	Float,
+
 	Function,
 	GlobalRef,
 	GlobalVar,
@@ -170,10 +174,6 @@ extern Term nullConst;
 
 // Integer constants are arbitrary precision
 Term intConst(Type type, const cpp_int& val);
-
-// Representing floating-point numbers is complicated
-// For now, they are stored in their original string format
-Term floatConst(Type type, const string& val);
 
 // Var represents local variables, including function parameters
 // As in LLVM, local variables can be referred to by strings or index numbers
