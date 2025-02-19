@@ -308,7 +308,7 @@ class Parser {
 			auto lval = parseRef(token);
 			lex();
 			expect("=");
-			auto rval = parseRval();
+			auto rval = parseRVal();
 			return Term(Assign, voidType(), var(rval.type(), lval), rval);
 		}
 		// END
@@ -370,7 +370,7 @@ class Parser {
 		return v;
 	}
 
-	Term parseRval() {
+	Term parseRVal() {
 		// SORT BLOCKS
 		if (token == "add") {
 			lex();
