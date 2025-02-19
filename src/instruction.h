@@ -57,16 +57,19 @@ public:
 	bool operator!=(Instruction b) const;
 };
 
-inline Instruction jmp(Ref target) {
-	return Instruction(Jmp, label(target));
+// SORT FUNCTIONS
+
+inline Instruction assign(Term a, Term b) {
+	return Instruction(Assign, a, b);
 }
 
 inline Instruction br(Term cond, Ref ifTrue, Ref ifFalse) {
 	ASSERT(cond.type() == boolType());
 	return Instruction(Br, cond, label(ifTrue), label(ifFalse));
 }
-inline Instruction assign(Term a, Term b) {
-	return Instruction(Assign, a, b);
+
+inline Instruction jmp(Ref target) {
+	return Instruction(Jmp, label(target));
 }
 
 inline Instruction ret() {
