@@ -131,18 +131,15 @@ public:
 	bool operator!=(Term b) const;
 };
 
-// TODO: variable name
-// TODO: use hash_combine etc
 namespace std {
 template <> struct hash<Term> {
-	size_t operator()(const Term& t) const {
-		size_t h = hash<Tag>()(t.tag());
-		h ^= hash<Type>()(t.type()) + 0x9e3779b9 + (h << 6) + (h >> 2);
-		h ^= hash<Ref>()(t.ref()) + 0x9e3779b9 + (h << 6) + (h >> 2);
-		h ^= hash<cpp_int>()(t.intVal()) + 0x9e3779b9 + (h << 6) + (h >> 2);
-		for (size_t i = 0; i < t.size(); ++i) {
-			h ^= hash<Term>()(t[i]) + 0x9e3779b9 + (h << 6) + (h >> 2);
-		}
+	size_t operator()(const Term& a) const {
+		size_t h = 0;
+		hash_combine(h, hash<Tag>()(a.tag()));
+		hash_combine(h, hash<Type>()(a.type()));
+		hash_combine(h, hash<Ref>()(a.ref()));
+		hash_combine(h, hash<cpp_int>()(a.intVal()));
+		hash_combine(h, hashRange(a.begin(), a.end()));
 		return h;
 	}
 };
@@ -160,9 +157,6 @@ Term intConst(Type type, const cpp_int& val);
 // SORT FUNCTIONS
 
 inline Term array(Type elementType, const vector<Term>& elements) {
-	for (auto element : elements) {
-		ASSERT(element.type() == elementType);
-	}
 	return Term(Array, arrayType(elements.size(), elementType), elements);
 }
 

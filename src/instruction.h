@@ -57,18 +57,6 @@ public:
 	bool operator!=(Instruction b) const;
 };
 
-namespace std {
-template <> struct hash<Instruction> {
-	size_t operator()(const Instruction& t) const {
-		size_t h = hash<Opcode>()(t.opcode());
-		for (size_t i = 0; i < t.size(); ++i) {
-			h ^= hash<Term>()(t[i]) + 0x9e3779b9 + (h << 6) + (h >> 2);
-		}
-		return h;
-	}
-};
-} // namespace std
-
 inline Instruction jmp(Ref target) {
 	return Instruction(Jmp, label(target));
 }
