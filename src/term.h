@@ -176,10 +176,6 @@ inline Term floatConst(Type type, const string& val) {
 	return Term(Float, type, Ref(val));
 }
 
-inline Term globalRef(Type type, const Ref& ref) {
-	return Term(GlobalRef, type, ref);
-}
-
 inline Term label(const Ref& ref) {
 	return Term(Label, ptrType(), ref);
 }
