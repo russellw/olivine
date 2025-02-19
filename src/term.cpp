@@ -11,7 +11,6 @@ struct TermImpl {
 	// Compound
 	const vector<Term> v;
 
-	// TODO: are all these still needed?
 	TermImpl(Tag tag, Type type): tag(tag), type(type) {
 	}
 
