@@ -305,12 +305,11 @@ class Parser {
 			return unreachable();
 		}
 		if (token[0] == '%') {
-			auto lvalName = token.substr(1);
+			auto lval = parseRef(token);
 			lex();
 			expect("=");
 			auto rval = parseRval();
-			auto lval = parseVar(rval.type(), lvalName);
-			return Term(Assign, voidType(), lval, rval);
+			return Term(Assign, voidType(), var(rval.type(), lval), rval);
 		}
 		// END
 		throw error('\'' + token + "': expected instruction");
@@ -328,7 +327,7 @@ class Parser {
 
 			// Label
 			if (token.back() == ':') {
-				auto label = parseVar(ptrType(), token.substr(0, token.size() - 1));
+				auto label = var(ptrType(), parseRef(token.substr(0, token.size() - 1)));
 				if (labels.count(label)) {
 					throw error("duplicate label");
 				}
@@ -753,19 +752,9 @@ class Parser {
 		if (token[0] != '%') {
 			throw error("expected variable name");
 		}
-		auto a = parseVar(type, token.substr(1));
+		auto a = var(type, parseRef(token));
 		lex();
 		return a;
-	}
-
-	// The code to parse a partly digested local variable token
-	// is factored out into a separate function
-	// so it can also be used for labels
-	static Term parseVar(Type type, const string& s) {
-		if (isDigit(s[1])) {
-			return var(type, stoull(s));
-		}
-		return var(type, unwrap(s));
 	}
 
 	Type primaryType() {

@@ -244,6 +244,9 @@ Ref parseRef(string s) {
 
 	// Index number
 	if (isDigit(s[0])) {
+		for (auto c : s) {
+			ASSERT(isDigit(c));
+		}
 		return Ref(stoull(s));
 	}
 

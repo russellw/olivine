@@ -2370,6 +2370,9 @@ BOOST_AUTO_TEST_CASE(ErrorCases) {
 	// Just sigil
 	BOOST_CHECK_THROW(parseRef("%"), std::runtime_error);
 
+	// Invalid number format
+	BOOST_CHECK_THROW(parseRef("%42a"), std::runtime_error);
+
 	// Unclosed quote
 	BOOST_CHECK_THROW(parseRef("%\"unclosed"), std::runtime_error);
 }
