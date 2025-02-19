@@ -208,7 +208,7 @@ class Parser {
 			return;
 		}
 		if (token == "declare" || token == "define") {
-			globals.push_back(parseFunction());
+			module->functions.push_back(parseFunction());
 			return;
 		}
 	}
@@ -259,19 +259,6 @@ class Parser {
 		expect("}");
 
 		return Function(returnType, ref, params, instructions);
-	}
-
-	Term parseGlobal(Type type, const string& token) const {
-		if (token[0] != '@') {
-			throw error("expected global name");
-		}
-		Term a;
-		if (isDigit(token[1])) {
-			a = globalRef(type, stoull(token.substr(1)));
-		} else {
-			a = globalRef(type, unwrap(token));
-		}
-		return a;
 	}
 
 	Instruction parseInstruction() {
@@ -825,7 +812,7 @@ class Parser {
 	}
 
 public:
-	vector<Function> globals;
+	Module* module = new Module;
 
 	Parser(const string& file, const string& input, Target& target): file(file), input(input), target(target) {
 		if (!endsWith(input, '\n')) {
