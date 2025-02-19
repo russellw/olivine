@@ -32,10 +32,10 @@ using std::unordered_set;
 using std::vector;
 
 // Boost
-#include <boost/multiprecision/cpp_int.hpp>
 #include <boost/container_hash/hash.hpp>
-using boost::multiprecision::cpp_int;
+#include <boost/multiprecision/cpp_int.hpp>
 using boost::hash_combine;
+using boost::multiprecision::cpp_int;
 
 // Project header files
 #include "etc.h"

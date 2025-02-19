@@ -131,7 +131,7 @@ Ref parseRef(string s);
 template <typename Iterator> size_t hashRange(Iterator first, Iterator last) {
 	size_t h = 0;
 	for (; first != last; ++first) {
-		hash_combine(h, hash<typename Iterator::value_type>()(*first) );
+		hash_combine(h, hash<typename Iterator::value_type>()(*first));
 	}
 	return h;
 }

@@ -229,7 +229,7 @@ class Parser {
 		if (token[0] != '@') {
 			throw error("expected global name");
 		}
-		auto ref=parseRef1();
+		auto ref = parseRef1();
 
 		// Parameters
 		auto params = parseParams();
