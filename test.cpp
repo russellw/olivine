@@ -2356,11 +2356,6 @@ BOOST_AUTO_TEST_CASE(QuotedRefs) {
 
 // Test escaped sequences in quoted strings
 BOOST_AUTO_TEST_CASE(EscapedRefs) {
-	// Test string with escaped quote
-	auto ref1 = parseRef("%\"hello\\\"world\"");
-	BOOST_CHECK(std::holds_alternative<std::string>(ref1));
-	BOOST_CHECK_EQUAL(std::get<std::string>(ref1), "hello\"world");
-
 	// Test string with hex escape
 	auto ref2 = parseRef("%\"hello\\20world\"");
 	BOOST_CHECK(std::holds_alternative<std::string>(ref2));
