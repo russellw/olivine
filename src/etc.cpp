@@ -248,5 +248,5 @@ Ref parseRef(string s) {
 	}
 
 	// Identifier or string
-	return Ref(s);
+	return Ref(unwrap(s));
 }

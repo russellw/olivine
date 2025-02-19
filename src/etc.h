@@ -126,4 +126,4 @@ typedef std::variant<size_t, string> Ref;
 // Parse an LLVM identifier or string to a reference containing index number or string as appropriate
 // after removing the leading sigil if there is one
 // Correctly distinguishes between %9 and %"9"
-Ref parseRef(const string& s);
+Ref parseRef(string s);
