@@ -262,6 +262,10 @@ class Parser {
 	}
 
 	Instruction parseInstruction() {
+		if (token.back() == ':') {
+			return block(parseRef(token.substr(0, token.size() - 1)));
+		}
+
 		// SORT BLOCKS
 		if (token == "br") {
 			lex();
@@ -286,7 +290,6 @@ class Parser {
 			return ret(typeExpr());
 		}
 		if (token == "unreachable") {
-			lex();
 			return unreachable();
 		}
 		if (token[0] == '%') {
@@ -297,27 +300,16 @@ class Parser {
 			return Instruction(Assign, var(rval.type(), lval), rval);
 		}
 		// END
+
 		throw error('\'' + token + "': expected instruction");
 	}
 
 	vector<Instruction> parseInstructions() {
 		vector<Instruction> instructions;
 		while (token != "}") {
-			// Blank line
-			if (token == "\n") {
-				lex();
-				continue;
+			if (token != "\n") {
+				instructions.push_back(parseInstruction());
 			}
-
-			// Label
-			if (token.back() == ':') {
-				instructions.push_back(block(parseRef(token.substr(0, token.size() - 1))));
-				nextLine();
-				continue;
-			}
-
-			// Instruction
-			instructions.push_back(parseInstruction());
 			nextLine();
 		}
 		return instructions;
@@ -698,6 +690,7 @@ class Parser {
 			return Term(Xor, type, a, b);
 		}
 		// END
+
 		throw error('\'' + token + "': expected rval");
 	}
 
