@@ -13,6 +13,13 @@ enum Tag {
 	// An array contains zero or more items, all the same type
 	Array,
 
+	// Convert the single operand to the specified type
+	// LLVM breaks this down into several different instructions
+	// Olivine amalgamates most of them into one
+	// Where applicable, source and destination are treated as unsigned
+	// Specifically signed conversions use SCast
+	Cast,
+
 	// Equality applies to integers and compound types
 	// but not to floating-point numbers, which have a separate equality operation
 	// Term(Eq, boolType(), a, b)
@@ -59,6 +66,11 @@ enum Tag {
 
 	Null,
 	Or,
+
+	// Convert the single operand to the specified type
+	// Treat source or destination as signed
+	SCast,
+
 	SDiv,
 	SLe,
 	SLt,
