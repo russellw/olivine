@@ -126,6 +126,8 @@ public:
 	bool operator!=(Term b) const;
 };
 
+// TODO: variable name
+// TODO: use hash_combine etc
 namespace std {
 template <> struct hash<Term> {
 	size_t operator()(const Term& t) const {
