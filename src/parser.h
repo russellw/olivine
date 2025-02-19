@@ -276,7 +276,7 @@ class Parser {
 		return a;
 	}
 
-	Term parseInstruction() {
+	Instruction parseInstruction() {
 		// SORT BLOCKS
 		if (token == "br") {
 			lex();
@@ -309,15 +309,14 @@ class Parser {
 			lex();
 			expect("=");
 			auto rval = parseRVal();
-			return Term(Assign, voidType(), var(rval.type(), lval), rval);
+			return Instruction(Assign, var(rval.type(), lval), rval);
 		}
 		// END
 		throw error('\'' + token + "': expected instruction");
 	}
 
-	vector<Term> parseInstructions() {
-		unordered_map<Term, size_t> labels;
-		vector<Term> instructions;
+	vector<Instruction> parseInstructions() {
+		vector<Instruction> instructions;
 		while (token != "}") {
 			// Blank line
 			if (token == "\n") {
@@ -328,10 +327,6 @@ class Parser {
 			// Label
 			if (token.back() == ':') {
 				auto label = var(ptrType(), parseRef(token.substr(0, token.size() - 1)));
-				if (labels.count(label)) {
-					throw error("duplicate label");
-				}
-				labels[label] = instructions.size();
 				nextLine();
 				continue;
 			}

@@ -1,5 +1,3 @@
-// Terms represent all code and data
-// including constants, variables, instructions and functions
 enum Tag {
 	// Logic operations are similar to arithmetic operations, but only work on integers
 	AShr,
@@ -12,16 +10,6 @@ enum Tag {
 
 	And,
 	Array,
-
-	// The left-hand side of an assignment instruction must be a variable of compatible type
-	// The assignment instruction itself has type void
-	// as it is an instruction that changes the world, rather than an expression that returns a value
-	Assign,
-
-	// A conditional branch has three operands
-	// The condition is an expression of Boolean type
-	// The true and false branches are goto instructions
-	Br,
 
 	// Equality applies to integers and compound types
 	// but not to floating-point numbers, which have a separate equality operation
@@ -53,22 +41,14 @@ enum Tag {
 	// For now, they are stored in their original string format
 	Float,
 
-	Function,
-
 	// GlobalRef represents a reference to a global variable or function
 	// Like local variables, these can be strings or index numbers
 	GlobalRef,
 
 	GlobalVar,
 	Int,
-
-	// A Jmp instruction (unconditional branch) has an integer constant operand
-	// that is the index in the current function of the target instruction
-	// During parsing, a label that has not yet been resolved
-	// is represented as a variable
-	Jmp,
-
 	LShr,
+	Label,
 	Mul,
 
 	// Logical negation doesn't correspond to an LLVM instruction
@@ -78,15 +58,6 @@ enum Tag {
 
 	Null,
 	Or,
-
-	// A return instruction has a single operand
-	// of any type other than void
-	// that must match the type of the host function
-	Ret,
-
-	// A `ret void` instruction has no operands
-	RetVoid,
-
 	SDiv,
 	SLe,
 	SLt,
@@ -98,7 +69,6 @@ enum Tag {
 	ULe,
 	ULt,
 	URem,
-	Unreachable,
 
 	// Var represents local variables, including function parameters
 	// All occurrences of a given variable in a given function must have the same type
@@ -212,10 +182,6 @@ vector<Term> getFunctionInstructions(Term f);
 
 // SORT FUNCTIONS
 
-inline Term assign(Term a, Term b) {
-	return Term(Assign, voidType(), a, b);
-}
-
 inline Term floatConst(Type type, const string& val) {
 	return Term(Float, type, Ref(val));
 }
@@ -224,16 +190,8 @@ inline Term globalRef(Type type, const Ref& ref) {
 	return Term(GlobalRef, type, ref);
 }
 
-inline Term ret() {
-	return Term(RetVoid);
-}
-
-inline Term ret(Term a) {
-	return Term(Ret, voidType(), a);
-}
-
-inline Term unreachable() {
-	return Term(Unreachable);
+inline Term label(const Ref& ref) {
+	return Term(Label, ptrType(), ref);
 }
 
 inline Term var(Type type, const Ref& ref) {
