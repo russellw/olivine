@@ -9,6 +9,8 @@ enum Tag {
 	Add,
 
 	And,
+
+	// An array contains zero or more items, all the same type
 	Array,
 
 	// Equality applies to integers and compound types
@@ -64,7 +66,10 @@ enum Tag {
 	SRem,
 	Shl,
 	Sub,
+
+	// A tuple contains zero or more items, that may be of different types
 	Tuple,
+
 	UDiv,
 	ULe,
 	ULt,
@@ -152,16 +157,14 @@ extern Term nullConst;
 // Integer constants are arbitrary precision
 Term intConst(Type type, const cpp_int& val);
 
-// There are two varieties of general compound data terms
-// An array contains zero or more items, all the same type
-Term array(Type elementType, const vector<Term>& elements);
-
-// A tuple contains zero or more items, that may be of different types
-// An example of where a tuple of zero items is useful in practice:
-// the parameter list of a function that takes no parameters
-Term tuple(const vector<Term>& elements);
-
 // SORT FUNCTIONS
+
+inline Term array(Type elementType, const vector<Term>& elements) {
+	for (auto element : elements) {
+		ASSERT(element.type() == elementType);
+	}
+	return Term(Array, arrayType(elements.size(), elementType), elements);
+}
 
 inline Term floatConst(Type type, const string& val) {
 	return Term(Float, type, Ref(val));
@@ -173,6 +176,11 @@ inline Term globalRef(Type type, const Ref& ref) {
 
 inline Term label(const Ref& ref) {
 	return Term(Label, ptrType(), ref);
+}
+
+inline Term tuple(const vector<Term>& elements) {
+	auto types = map(elements, [](Term a) { return a.type(); });
+	return Term(Tuple, structType(types), elements);
 }
 
 inline Term var(Type type, const Ref& ref) {

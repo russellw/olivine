@@ -130,15 +130,3 @@ Term intConst(Type type, const cpp_int& val) {
 	auto p = new TermImpl(Int, type, val);
 	return Term(p);
 }
-
-Term array(Type elementType, const vector<Term>& elements) {
-	for (auto element : elements) {
-		ASSERT(element.type() == elementType);
-	}
-	return Term(Array, arrayType(elements.size(), elementType), elements);
-}
-
-Term tuple(const vector<Term>& elements) {
-	auto types = map(elements, [](Term a) { return a.type(); });
-	return Term(Tuple, structType(types), elements);
-}
