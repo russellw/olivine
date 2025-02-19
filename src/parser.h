@@ -738,9 +738,7 @@ class Parser {
 		if (token[0] != '%') {
 			throw error("expected variable name");
 		}
-		auto a = var(type, parseRef(token));
-		lex();
-		return a;
+		return var(type, parseRef1());
 	}
 
 	Type primaryType() {
