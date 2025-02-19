@@ -324,7 +324,7 @@ class Parser {
 
 			// Label
 			if (token.back() == ':') {
-				auto label = var(ptrType(), parseRef(token.substr(0, token.size() - 1)));
+				instructions.push_back(block(parseRef(token.substr(0, token.size() - 1))));
 				nextLine();
 				continue;
 			}

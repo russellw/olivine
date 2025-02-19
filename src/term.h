@@ -47,7 +47,6 @@ enum Tag {
 	// Like local variables, these can be strings or index numbers
 	GlobalRef,
 
-	GlobalVar,
 	Int,
 	LShr,
 	Label,

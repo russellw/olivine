@@ -2,6 +2,10 @@ enum Opcode {
 	// The left-hand side of an assignment instruction must be a variable of compatible type
 	Assign,
 
+	// A Block instruction marks the beginning of a basic block
+	// Its operand is a label
+	Block,
+
 	// A conditional branch has three operands
 	// The condition is an expression of Boolean type
 	// The true and false branches are labels
@@ -63,12 +67,16 @@ inline Instruction assign(Term a, Term b) {
 	return Instruction(Assign, a, b);
 }
 
-inline Instruction br(Term cond, Ref ifTrue, Ref ifFalse) {
+inline Instruction block(const Ref& ref) {
+	return Instruction(Block, label(ref));
+}
+
+inline Instruction br(Term cond, const Ref& ifTrue, const Ref& ifFalse) {
 	ASSERT(cond.type() == boolType());
 	return Instruction(Br, cond, label(ifTrue), label(ifFalse));
 }
 
-inline Instruction jmp(Ref target) {
+inline Instruction jmp(const Ref& target) {
 	return Instruction(Jmp, label(target));
 }
 
