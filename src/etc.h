@@ -128,14 +128,14 @@ typedef std::variant<size_t, string> Ref;
 // Correctly distinguishes between %9 and %"9"
 Ref parseRef(string s);
 
-template <typename Iterator> size_t hashRange(Iterator first, Iterator last, size_t initial = 0) {
-	size_t h = initial;
+template <typename Iterator> size_t hashRange(Iterator first, Iterator last) {
+	size_t h = 0;
 	for (; first != last; ++first) {
-		h ^= hash<typename Iterator::value_type>()(*first) + 0x9e3779b9 + (h << 6) + (h >> 2);
+		hash_combine(h, hash<typename Iterator::value_type>()(*first) );
 	}
 	return h;
 }
 
-template <typename T> size_t hashVector()(const vector<T>& v) {
+template <typename T> size_t hashVector(const vector<T>& v) {
 	return hashRange(v.begin(), v.end());
 }

@@ -213,7 +213,7 @@ class Parser {
 		}
 	}
 
-	Term parseFunction() {
+	Function parseFunction() {
 		if (!(token == "declare" || token == "define")) {
 			throw error("expected 'declare' or 'define'");
 		}
@@ -229,17 +229,15 @@ class Parser {
 		if (token[0] != '@') {
 			throw error("expected global name");
 		}
-		auto name = token;
-		lex();
+		auto ref=parseRef1();
 
 		// Parameters
 		auto params = parseParams();
 		auto paramTypes = map(params, [](Term a) { return a.type(); });
-		auto ref = parseGlobal(functionType(returnType, paramTypes), name);
 
 		// Only declare
 		if (!define) {
-			return function(returnType, ref, params, {});
+			return Function(returnType, ref, params);
 		}
 
 		// Trailing tokens
@@ -260,7 +258,7 @@ class Parser {
 		// Closing brace
 		expect("}");
 
-		return function(returnType, ref, params, instructions);
+		return Function(returnType, ref, params, instructions);
 	}
 
 	Term parseGlobal(Type type, const string& token) const {
@@ -827,7 +825,7 @@ class Parser {
 	}
 
 public:
-	vector<Term> globals;
+	vector<Function> globals;
 
 	Parser(const string& file, const string& input, Target& target): file(file), input(input), target(target) {
 		if (!endsWith(input, '\n')) {

@@ -159,27 +159,6 @@ Term array(Type elementType, const vector<Term>& elements);
 // the parameter list of a function that takes no parameters
 Term tuple(const vector<Term>& elements);
 
-// A function is represented as a term whose elements are:
-// 0   GlobalRef, name or index number
-// 1   Parameter list
-// 2.. Instructions
-Term function(Type returnType, Term ref, const vector<Term>& params, const vector<Term>& instructions);
-
-inline Term getFunctionRef(Term f) {
-	return f[0];
-}
-
-inline Term getFunctionParams(Term f) {
-	return f[1];
-}
-
-vector<Term> getFunctionInstructions(Term f);
-
-#define unpackFunction(f)                                                                                                          \
-	auto ref = getFunctionRef(f);                                                                                                  \
-	auto params = getFunctionParams(f);                                                                                            \
-	auto instructions = getFunctionInstructions(f)
-
 // SORT FUNCTIONS
 
 inline Term floatConst(Type type, const string& val) {

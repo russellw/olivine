@@ -10,7 +10,12 @@ public:
 	explicit Function(FunctionImpl* p): p(p) {
 	}
 
+	Function(Type returnType, Ref ref, const vector<Term>& params);
 	Function(Type returnType, Ref ref, const vector<Term>& params, const vector<Instruction>& instructions);
+
+	Type returnType() const;
+	Ref ref()const;
+	vector<Term>params()const;
 
 	size_t size() const;
 	Instruction operator[](size_t i) const;
@@ -32,11 +37,11 @@ public:
 namespace std {
 template <> struct hash<Function> {
 	size_t operator()(const Function& t) const {
-		size_t h = hash<Type>()(t.returnType()) + 0x9e3779b9 + (h << 6) + (h >> 2);
-		h ^= hash<Ref>()(t.ref()) + 0x9e3779b9 + (h << 6) + (h >> 2);
-		for (size_t i = 0; i < t.size(); ++i) {
-			h ^= hash<Instruction>()(t[i]) + 0x9e3779b9 + (h << 6) + (h >> 2);
-		}
+		size_t h=0;
+		hash_combine(h, hash<Type>()(t.returnType()) );
+		hash_combine(h, hash<Ref>()(t.ref()) );
+		hash_combine(h,hashVector(t.params()));
+		hash_combine(h,hashRange(t.begin(),t.end()));
 		return h;
 	}
 };

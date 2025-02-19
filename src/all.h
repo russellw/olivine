@@ -33,7 +33,9 @@ using std::vector;
 
 // Boost
 #include <boost/multiprecision/cpp_int.hpp>
+#include <boost/container_hash/hash.hpp>
 using boost::multiprecision::cpp_int;
+using boost::hash_combine;
 
 // Project header files
 #include "etc.h"
