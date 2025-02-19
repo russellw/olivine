@@ -165,7 +165,6 @@ extern Term nullConst;
 // Integer constants are arbitrary precision
 Term intConst(Type type, const cpp_int& val);
 
-// TODO: Which factory functions do something useful enough to be worth having?
 // SORT FUNCTIONS
 
 inline Term array(Type elementType, const vector<Term>& elements) {
