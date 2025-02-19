@@ -33,7 +33,7 @@ using std::vector;
 
 // Boost
 #include <boost/multiprecision/cpp_int.hpp>
-using namespace boost::multiprecision;
+using boost::multiprecision::cpp_int;
 
 // Project header files
 #include "etc.h"
