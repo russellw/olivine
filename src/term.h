@@ -172,12 +172,20 @@ inline Term array(Type elementType, const vector<Term>& elements) {
 	return Term(Array, arrayType(elements.size(), elementType), elements);
 }
 
+inline Term cmp(Tag tag, Term a, Term b) {
+	return Term(tag, boolType(), a, b);
+}
+
 inline Term floatConst(Type type, const string& val) {
 	return Term(Float, type, Ref(val));
 }
 
 inline Term label(const Ref& ref) {
 	return Term(Label, ptrType(), ref);
+}
+
+inline Term not1(Term a) {
+	return Term(Not, a.type(), a);
 }
 
 inline Term tuple(const vector<Term>& elements) {

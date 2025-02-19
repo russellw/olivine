@@ -11,10 +11,6 @@ Term arithmetic(Tag tag, Term a, Term b) {
 	return Term(tag, a.type(), a, b);
 }
 
-Term cmp(Tag tag, Term a, Term b) {
-	return Term(tag, boolType(), vector<Term>{a, b});
-}
-
 Type functionType(const vector<Type>& v) {
 	ASSERT(v.size());
 	return functionType(v[0], tail(v));

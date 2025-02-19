@@ -391,7 +391,7 @@ class Parser {
 				auto a = expr(type);
 				expect(",");
 				auto b = expr(type);
-				return Term(FEq, boolType(), a, b);
+				return cmp(FEq, a, b);
 			}
 			if (token == "ole") {
 				lex();
@@ -399,7 +399,7 @@ class Parser {
 				auto a = expr(type);
 				expect(",");
 				auto b = expr(type);
-				return Term(FLe, boolType(), a, b);
+				return cmp(FLe, a, b);
 			}
 			if (token == "olt") {
 				lex();
@@ -407,7 +407,7 @@ class Parser {
 				auto a = expr(type);
 				expect(",");
 				auto b = expr(type);
-				return Term(FLt, boolType(), a, b);
+				return cmp(FLt, a, b);
 			}
 			if (token == "oge") {
 				lex();
@@ -415,7 +415,7 @@ class Parser {
 				auto a = expr(type);
 				expect(",");
 				auto b = expr(type);
-				return Term(FLe, boolType(), b, a);
+				return cmp(FLe, b, a);
 			}
 			if (token == "ogt") {
 				lex();
@@ -423,7 +423,7 @@ class Parser {
 				auto a = expr(type);
 				expect(",");
 				auto b = expr(type);
-				return Term(FLt, boolType(), b, a);
+				return cmp(FLt, b, a);
 			}
 			if (token == "uge") {
 				lex();
@@ -431,7 +431,7 @@ class Parser {
 				auto a = expr(type);
 				expect(",");
 				auto b = expr(type);
-				return Term(Not, boolType(), Term(FLt, boolType(), a, b));
+				return not1(cmp(FLt, a, b));
 			}
 			if (token == "ugt") {
 				lex();
@@ -439,7 +439,7 @@ class Parser {
 				auto a = expr(type);
 				expect(",");
 				auto b = expr(type);
-				return Term(Not, boolType(), Term(FLe, boolType(), a, b));
+				return not1(cmp(FLe, a, b));
 			}
 			if (token == "ule") {
 				lex();
@@ -447,7 +447,7 @@ class Parser {
 				auto a = expr(type);
 				expect(",");
 				auto b = expr(type);
-				return Term(Not, boolType(), Term(FLt, boolType(), b, a));
+				return not1(cmp(FLt, b, a));
 			}
 			if (token == "ult") {
 				lex();
@@ -455,7 +455,7 @@ class Parser {
 				auto a = expr(type);
 				expect(",");
 				auto b = expr(type);
-				return Term(Not, boolType(), Term(FLe, boolType(), b, a));
+				return not1(cmp(FLe, b, a));
 			}
 			if (token == "une") {
 				lex();
@@ -463,7 +463,7 @@ class Parser {
 				auto a = expr(type);
 				expect(",");
 				auto b = expr(type);
-				return Term(Not, boolType(), Term(FEq, boolType(), b, a));
+				return not1(cmp(FEq, b, a));
 			}
 			// END
 			throw error('\'' + token + "': expected condition");
@@ -520,7 +520,7 @@ class Parser {
 				auto a = expr(type);
 				expect(",");
 				auto b = expr(type);
-				return Term(Eq, boolType(), a, b);
+				return cmp(Eq, a, b);
 			}
 			if (token == "ne") {
 				lex();
@@ -528,7 +528,7 @@ class Parser {
 				auto a = expr(type);
 				expect(",");
 				auto b = expr(type);
-				return Term(Not, boolType(), Term(Eq, boolType(), b, a));
+				return not1(cmp(Eq, b, a));
 			}
 			if (token == "sle") {
 				lex();
@@ -536,7 +536,7 @@ class Parser {
 				auto a = expr(type);
 				expect(",");
 				auto b = expr(type);
-				return Term(SLe, boolType(), a, b);
+				return cmp(SLe, a, b);
 			}
 			if (token == "slt") {
 				lex();
@@ -544,7 +544,7 @@ class Parser {
 				auto a = expr(type);
 				expect(",");
 				auto b = expr(type);
-				return Term(SLt, boolType(), a, b);
+				return cmp(SLt, a, b);
 			}
 			if (token == "sge") {
 				lex();
@@ -552,7 +552,7 @@ class Parser {
 				auto a = expr(type);
 				expect(",");
 				auto b = expr(type);
-				return Term(SLe, boolType(), b, a);
+				return cmp(SLe, b, a);
 			}
 			if (token == "sgt") {
 				lex();
@@ -560,7 +560,7 @@ class Parser {
 				auto a = expr(type);
 				expect(",");
 				auto b = expr(type);
-				return Term(SLt, boolType(), b, a);
+				return cmp(SLt, b, a);
 			}
 			if (token == "ule") {
 				lex();
@@ -568,7 +568,7 @@ class Parser {
 				auto a = expr(type);
 				expect(",");
 				auto b = expr(type);
-				return Term(ULe, boolType(), a, b);
+				return cmp(ULe, a, b);
 			}
 			if (token == "ult") {
 				lex();
@@ -576,7 +576,7 @@ class Parser {
 				auto a = expr(type);
 				expect(",");
 				auto b = expr(type);
-				return Term(ULt, boolType(), a, b);
+				return cmp(ULt, a, b);
 			}
 			if (token == "uge") {
 				lex();
@@ -584,7 +584,7 @@ class Parser {
 				auto a = expr(type);
 				expect(",");
 				auto b = expr(type);
-				return Term(ULe, boolType(), b, a);
+				return cmp(ULe, b, a);
 			}
 			if (token == "ugt") {
 				lex();
@@ -592,7 +592,7 @@ class Parser {
 				auto a = expr(type);
 				expect(",");
 				auto b = expr(type);
-				return Term(ULt, boolType(), b, a);
+				return cmp(ULt, b, a);
 			}
 			// END
 			throw error('\'' + token + "': expected condition");
