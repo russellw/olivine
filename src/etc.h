@@ -127,3 +127,17 @@ typedef std::variant<size_t, string> Ref;
 // after removing the leading sigil if there is one
 // Correctly distinguishes between %9 and %"9"
 Ref parseRef(string s);
+
+template<typename Iterator>
+size_t hashRange(Iterator first, Iterator last, size_t initial = 0) {
+    size_t h = initial;
+    for (; first != last; ++first) {
+        h ^= hash<typename Iterator::value_type>()(*first) + 0x9e3779b9 + (h << 6) + (h >> 2);
+    }
+    return h;
+}
+
+    template<typename T>
+        size_t hashVector()(const vector<T>& v) {
+			return hashRange(v.begin(),v.end());
+        }

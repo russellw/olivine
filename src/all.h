@@ -37,14 +37,16 @@ using boost::multiprecision::cpp_int;
 
 // Project header files
 #include "etc.h"
-#include "types.h"
+#include "type.h"
 
 // clang-format sorts includes
 // This is normally useful, but in cases like this, where there is a required order
 // it is necessary to insert the occasional blank line to prevent inappropriate sorting
-#include "terms.h"
+#include "term.h"
 
-#include "code.h"
+#include "instruction.h"
+
+#include "function.h"
 
 // Logically the module for printing terms should perhaps be ordered later
 // but it is useful to place it earlier so that it can be used for debug output
