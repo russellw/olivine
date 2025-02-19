@@ -636,6 +636,13 @@ class Parser {
 			auto b = expr(type);
 			return Term(SDiv, type, a, b);
 		}
+		if (token == "sext" || token == "fptosi" || token == "sitofp") {
+			lex();
+			auto a = typeExpr();
+			expect("to");
+			auto type = parseType();
+			return Term(SCast, type, a);
+		}
 		if (token == "shl") {
 			lex();
 			noWrap();
@@ -661,6 +668,14 @@ class Parser {
 			expect(",");
 			auto b = expr(type);
 			return Term(Sub, type, a, b);
+		}
+		if (token == "trunc" || token == "zext" || token == "fptrunc" || token == "fpext" || token == "fptoui" ||
+			token == "uitofp" || token == "ptrtoint" || token == "inttoptr" || token == "bitcast") {
+			lex();
+			auto a = typeExpr();
+			expect("to");
+			auto type = parseType();
+			return Term(Cast, type, a);
 		}
 		if (token == "udiv") {
 			lex();
