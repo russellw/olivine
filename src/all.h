@@ -44,6 +44,8 @@ using boost::multiprecision::cpp_int;
 // it is necessary to insert the occasional blank line to prevent inappropriate sorting
 #include "terms.h"
 
+#include "code.h"
+
 // Logically the module for printing terms should perhaps be ordered later
 // but it is useful to place it earlier so that it can be used for debug output
 #include "printer.h"

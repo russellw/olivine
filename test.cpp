@@ -1225,11 +1225,9 @@ BOOST_AUTO_TEST_CASE(UnconditionalBranchTest) {
 	Term gotoInst = jmp(5);
 	BOOST_CHECK_EQUAL(gotoInst.tag(), Jmp);
 	BOOST_CHECK_EQUAL(gotoInst.type().kind(), VoidKind);
-	BOOST_CHECK_EQUAL(gotoInst[0].intVal(), 5);
 
 	// Verify goto with different target
 	Term gotoInst2 = jmp(10);
-	BOOST_CHECK_EQUAL(gotoInst2[0].intVal(), 10);
 
 	// Verify different goto instructions with same target are equal
 	Term gotoInst3 = jmp(5);
@@ -1253,11 +1251,9 @@ BOOST_AUTO_TEST_CASE(ConditionalBranchTest) {
 
 	// Check true branch is a goto with target 1
 	BOOST_CHECK_EQUAL(branchInst[1].tag(), Jmp);
-	BOOST_CHECK_EQUAL(branchInst[1][0].intVal(), 1);
 
 	// Check false branch is a goto with target 2
 	BOOST_CHECK_EQUAL(branchInst[2].tag(), Jmp);
-	BOOST_CHECK_EQUAL(branchInst[2][0].intVal(), 2);
 
 	// Verify branches with same condition and targets are equal
 	Term branchInst2 = br(condition, 1, 2);

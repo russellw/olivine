@@ -282,15 +282,15 @@ class Parser {
 			lex();
 			if (token == "label") {
 				lex();
-				return jmp(parseVar(ptrType()));
+				return jmp(parseRef1());
 			}
 			auto cond = typeExpr();
 			expect(",");
 			expect("label");
-			auto ifTrue = parseVar(ptrType());
+			auto ifTrue = parseRef1();
 			expect(",");
 			expect("label");
-			auto ifFalse = parseVar(ptrType());
+			auto ifFalse = parseRef1();
 			return br(cond, ifTrue, ifFalse);
 		}
 		if (token == "ret") {
@@ -719,6 +719,12 @@ class Parser {
 		}
 		// END
 		throw error('\'' + token + "': expected rval");
+	}
+
+	Ref parseRef1() {
+		auto r = parseRef(token);
+		lex();
+		return r;
 	}
 
 	void parseTarget() {
