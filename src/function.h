@@ -10,8 +10,8 @@ public:
 	explicit Function(FunctionImpl* p): p(p) {
 	}
 
-	Function(Type returnType, Ref ref, const vector<Term>& params);
-	Function(Type returnType, Ref ref, const vector<Term>& params, const vector<Instruction>& instructions);
+	Function(Type returnType, const Ref& ref, const vector<Term>& params);
+	Function(Type returnType, const Ref& ref, const vector<Term>& params, const vector<Instruction>& instructions);
 
 	Type returnType() const;
 	Ref ref() const;
