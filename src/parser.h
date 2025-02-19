@@ -269,7 +269,7 @@ class Parser {
 		}
 		Term a;
 		if (isDigit(token[1])) {
-			a = globalRef(type, stoi(token.substr(1)));
+			a = globalRef(type, stoull(token.substr(1)));
 		} else {
 			a = globalRef(type, unwrap(token));
 		}
@@ -348,7 +348,7 @@ class Parser {
 		if (!all_of(token.begin(), token.end(), isDigit)) {
 			throw error("expected integer");
 		}
-		auto n = stoi(token);
+		auto n = stoull(token);
 		lex();
 		return n;
 	}
@@ -763,7 +763,7 @@ class Parser {
 	// so it can also be used for labels
 	static Term parseVar(Type type, const string& s) {
 		if (isDigit(s[1])) {
-			return var(type, stoi(s));
+			return var(type, stoull(s));
 		}
 		return var(type, unwrap(s));
 	}
@@ -803,7 +803,7 @@ class Parser {
 			return voidType();
 		}
 		if (token[0] == 'i') {
-			auto len = stoi(token.substr(1));
+			auto len = stoull(token.substr(1));
 			lex();
 			return intType(len);
 		}

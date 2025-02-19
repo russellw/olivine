@@ -78,6 +78,9 @@ bool containsAt(const string& haystack, size_t position, const string& needle);
 // At least one hexadecimal digit must be present, or an exception is thrown
 unsigned parseHex(const string& s, size_t& pos, int maxLen = 8);
 
+// Remove the leading sigil from an LLVM identifier or string, if there is one
+string removeSigil(const string& s);
+
 // Unwrap an LLVM identifier or string
 // Remove the leading sigil if any
 // If there are quotes, remove them, and evaluate escape sequences
@@ -85,7 +88,7 @@ unsigned parseHex(const string& s, size_t& pos, int maxLen = 8);
 // The LLVM language manual doesn't say exactly what escape sequences are valid
 // Testing what the LLVM parser actually accepts, it seems to be just \ or two hex digits
 // Otherwise, the first \ is just treated as an ordinary character
-string unwrap(const string& s);
+string unwrap(string s);
 
 template <typename T> std::vector<T> tail(const std::vector<T>& vec) {
 	if (vec.empty()) {
@@ -116,3 +119,11 @@ template <class K, class V> ostream& operator<<(ostream& os, const unordered_map
 
 // Count newlines before current position to get line number
 size_t currentLine(const string& input, size_t pos);
+
+// In LLVM, some things can be referred to by index numbers or strings
+typedef std::variant<size_t, string> Ref;
+
+// Parse an LLVM identifier or string to a reference containing index number or string as appropriate
+// after removing the leading sigil if there is one
+// Correctly distinguishes between %9 and %"9"
+Ref parseRef(const string& s);

@@ -174,32 +174,36 @@ unsigned parseHex(const string& s, size_t& pos, int maxLen) {
 	return result;
 }
 
-string unwrap(const string& s) {
+string removeSigil(const string& s) {
 	ASSERT(s.size());
-
-	size_t pos = 0;
 	switch (s[0]) {
 	case '$':
 	case '%':
 	case '@':
-		pos++;
-		ASSERT(pos < s.size());
-		break;
+		return s.substr(1);
 	case 'c':
 		if (1 < s.size() && s[1] == '"') {
-			pos++;
+			return s.substr(1);
 		}
 		break;
 	}
+	return s;
+}
 
-	if (s[pos] != '"') {
-		for (auto i = pos; i < s.size(); i++) {
-			ASSERT(isIdPart(s[i]));
+string unwrap(string s) {
+	s = removeSigil(s);
+	ASSERT(s.size());
+
+	// Unquoted index number or identifier
+	if (s[0] != '"') {
+		for (auto c : s) {
+			ASSERT(isIdPart(c));
 		}
-		return s.substr(pos);
+		return s;
 	}
 
-	pos++;
+	// Quoted identifier or string
+	size_t pos = 1;
 	string r;
 	while (s[pos] != '"') {
 		ASSERT(pos < s.size());
@@ -232,4 +236,17 @@ size_t currentLine(const string& input, size_t pos) {
 		}
 	}
 	return line;
+}
+
+Ref parseRef(string s) {
+	s = removeSigil(s);
+	ASSERT(s.size());
+
+	// Index number
+	if (isDigit(s[0])) {
+		return Ref(stoull(s));
+	}
+
+	// Identifier or string
+	return Ref(s);
 }
