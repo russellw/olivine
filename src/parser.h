@@ -208,12 +208,12 @@ class Parser {
 			return;
 		}
 		if (token == "declare" || token == "define") {
-			module->functions.push_back(parseFunction());
+			module->funcs.push_back(parseFunc());
 			return;
 		}
 	}
 
-	Function parseFunction() {
+	Func parseFunc() {
 		if (!(token == "declare" || token == "define")) {
 			throw error("expected 'declare' or 'define'");
 		}
@@ -237,7 +237,7 @@ class Parser {
 
 		// Only declare
 		if (!define) {
-			return Function(returnType, ref, params);
+			return Func(returnType, ref, params);
 		}
 
 		// Trailing tokens
@@ -258,7 +258,7 @@ class Parser {
 		// Closing brace
 		expect("}");
 
-		return Function(returnType, ref, params, instructions);
+		return Func(returnType, ref, params, instructions);
 	}
 
 	Instruction parseInstruction() {

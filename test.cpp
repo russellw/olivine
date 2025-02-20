@@ -11,9 +11,9 @@ Term arithmetic(Tag tag, Term a, Term b) {
 	return Term(tag, a.type(), a, b);
 }
 
-Type functionType(const vector<Type>& v) {
+Type funcType(const vector<Type>& v) {
 	ASSERT(v.size());
-	return functionType(v[0], tail(v));
+	return funcType(v[0], tail(v));
 }
 
 BOOST_AUTO_TEST_CASE(BasicTypeProperties) {
@@ -233,7 +233,7 @@ BOOST_AUTO_TEST_CASE(StructTypeEquality) {
 	BOOST_CHECK(nested_struct1 == nested_struct2);
 }
 
-BOOST_AUTO_TEST_CASE(FunctionTypeProperties) {
+BOOST_AUTO_TEST_CASE(FuncTypeProperties) {
 	// Test function type with various parameter types
 	vector<Type> params = {
 		intType(32), // return type
@@ -241,7 +241,7 @@ BOOST_AUTO_TEST_CASE(FunctionTypeProperties) {
 		boolType(),	 // param 2
 		ptrType()	 // param 3
 	};
-	Type func_type = functionType(params);
+	Type func_type = funcType(params);
 
 	// Check kind
 	BOOST_CHECK_EQUAL(func_type.kind(), FuncKind);
@@ -259,20 +259,20 @@ BOOST_AUTO_TEST_CASE(FunctionTypeProperties) {
 
 	// Test function with no parameters (just return type)
 	vector<Type> void_return = {voidType()};
-	Type void_func = functionType(void_return);
+	Type void_func = funcType(void_return);
 	BOOST_CHECK_EQUAL(void_func.kind(), FuncKind);
 	BOOST_CHECK_EQUAL(void_func.size(), 1);
 	BOOST_CHECK(void_func[0] == voidType());
 }
 
-BOOST_AUTO_TEST_CASE(FunctionTypeEquality) {
+BOOST_AUTO_TEST_CASE(FuncTypeEquality) {
 	vector<Type> params1 = {intType(32), floatType(), boolType()};
 	vector<Type> params2 = {intType(32), floatType(), boolType()};
 	vector<Type> params3 = {intType(32), boolType(), floatType()};
 
-	Type func1 = functionType(params1);
-	Type func2 = functionType(params2);
-	Type func3 = functionType(params3);
+	Type func1 = funcType(params1);
+	Type func2 = funcType(params2);
+	Type func3 = funcType(params3);
 
 	// Test equality of identical function types
 	BOOST_CHECK(func1 == func2);
@@ -282,7 +282,7 @@ BOOST_AUTO_TEST_CASE(FunctionTypeEquality) {
 
 	// Test functions with different return types
 	vector<Type> params4 = {floatType(), floatType(), boolType()};
-	Type func4 = functionType(params4);
+	Type func4 = funcType(params4);
 	BOOST_CHECK(func1 != func4);
 }
 
@@ -303,7 +303,7 @@ BOOST_AUTO_TEST_CASE(ComplexTypeCompositions) {
 
 	// Create a function type that uses this struct
 	vector<Type> func_params = {voidType(), complex_struct, ptrType()};
-	Type complex_func = functionType(func_params);
+	Type complex_func = funcType(func_params);
 
 	BOOST_CHECK_EQUAL(complex_func.kind(), FuncKind);
 	BOOST_CHECK_EQUAL(complex_func.size(), 3);
@@ -489,25 +489,25 @@ BOOST_AUTO_TEST_CASE(StructTypeOutput) {
 	BOOST_CHECK_EQUAL(typeToString(structType(fields)), "{i32, float, {i8, double}}");
 }
 
-BOOST_AUTO_TEST_CASE(FunctionTypeOutput) {
+BOOST_AUTO_TEST_CASE(FuncTypeOutput) {
 	std::vector<Type> params;
 
 	// Test function with no parameters
 	params.push_back(voidType()); // return type
-	BOOST_CHECK_EQUAL(typeToString(functionType(params)), "void ()");
+	BOOST_CHECK_EQUAL(typeToString(funcType(params)), "void ()");
 
 	// Test function with basic parameters
 	params.push_back(intType(32));
 	params.push_back(floatType());
-	BOOST_CHECK_EQUAL(typeToString(functionType(params)), "void (i32, float)");
+	BOOST_CHECK_EQUAL(typeToString(funcType(params)), "void (i32, float)");
 
 	// Test function returning non-void
 	params[0] = ptrType();
-	BOOST_CHECK_EQUAL(typeToString(functionType(params)), "ptr (i32, float)");
+	BOOST_CHECK_EQUAL(typeToString(funcType(params)), "ptr (i32, float)");
 
 	// Test function with complex parameter types
 	params.push_back(arrayType(4, intType(8)));
-	BOOST_CHECK_EQUAL(typeToString(functionType(params)), "ptr (i32, float, [4 x i8])");
+	BOOST_CHECK_EQUAL(typeToString(funcType(params)), "ptr (i32, float, [4 x i8])");
 }
 
 BOOST_AUTO_TEST_CASE(ComplexTypeOutput) {
@@ -521,7 +521,7 @@ BOOST_AUTO_TEST_CASE(ComplexTypeOutput) {
 	funcParams.push_back(doubleType());
 	funcParams.push_back(arrayType(3, floatType()));
 
-	Type complexType = functionType(funcParams);
+	Type complexType = funcType(funcParams);
 
 	BOOST_CHECK_EQUAL(typeToString(complexType), "{[2 x <4 x i32>], ptr} (double, [3 x float])");
 }
@@ -578,16 +578,16 @@ BOOST_AUTO_TEST_CASE(StructureTypeMapping) {
 	BOOST_CHECK_EQUAL(typeMap[struct3], 2);
 }
 
-BOOST_AUTO_TEST_CASE(FunctionTypeMapping) {
+BOOST_AUTO_TEST_CASE(FuncTypeMapping) {
 	std::unordered_map<Type, std::string> typeMap;
 
 	// Function type: int32 (float, bool)
 	std::vector<Type> params1 = {intType(32), floatType(), boolType()};
-	Type func1 = functionType(params1);
+	Type func1 = funcType(params1);
 
 	// Same function type
 	std::vector<Type> params2 = {intType(32), floatType(), boolType()};
-	Type func2 = functionType(params2);
+	Type func2 = funcType(params2);
 
 	typeMap[func1] = "int32 (float, bool)";
 
@@ -1479,12 +1479,12 @@ BOOST_AUTO_TEST_CASE(StructTypeIterators) {
 }
 
 // Test function type iteration
-BOOST_AUTO_TEST_CASE(FunctionTypeIterators) {
+BOOST_AUTO_TEST_CASE(FuncTypeIterators) {
 	std::vector<Type> params = {intType(32), floatType(), ptrType()};
 	Type returnType = voidType();
-	std::vector<Type> functionTypes = params;
-	functionTypes.insert(functionTypes.begin(), returnType);
-	Type funcT = functionType(functionTypes);
+	std::vector<Type> funcTypes = params;
+	funcTypes.insert(funcTypes.begin(), returnType);
+	Type funcT = funcType(funcTypes);
 
 	BOOST_CHECK(funcT.begin() != funcT.end());
 	BOOST_CHECK(funcT.cbegin() != funcT.cend());

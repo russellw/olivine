@@ -1,17 +1,17 @@
-struct FunctionImpl;
+struct FuncImpl;
 
-class Function {
-	FunctionImpl* p;
+class Func {
+	FuncImpl* p;
 
 public:
-	Function();
+	Func();
 
 	// For internal use
-	explicit Function(FunctionImpl* p): p(p) {
+	explicit Func(FuncImpl* p): p(p) {
 	}
 
-	Function(Type returnType, const Ref& ref, const vector<Term>& params);
-	Function(Type returnType, const Ref& ref, const vector<Term>& params, const vector<Instruction>& instructions);
+	Func(Type returnType, const Ref& ref, const vector<Term>& params);
+	Func(Type returnType, const Ref& ref, const vector<Term>& params, const vector<Instruction>& instructions);
 
 	Type returnType() const;
 	Ref ref() const;
@@ -30,6 +30,6 @@ public:
 	const_iterator cend() const;
 
 	// Comparison by value
-	bool operator==(Function b) const;
-	bool operator!=(Function b) const;
+	bool operator==(Func b) const;
+	bool operator!=(Func b) const;
 };
