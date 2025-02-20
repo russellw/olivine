@@ -11,6 +11,10 @@ enum Opcode {
 	// The true and false branches are labels
 	Br,
 
+	// A Drop instruction evaluates its operand and discards the value
+	// It is used in particular for function calls that do not return a value, or whose value is not used
+	Drop,
+
 	// A Jmp instruction (unconditional branch) has one Label operand
 	Jmp,
 

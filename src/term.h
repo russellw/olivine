@@ -13,6 +13,9 @@ enum Tag {
 	// An array contains zero or more items, all the same type
 	Array,
 
+	// A Call expression has 1+N operands, the function itself plus the arguments
+	Call,
+
 	// Convert the single operand to the specified type
 	// LLVM breaks this down into several different instructions
 	// Olivine amalgamates most of them into one
@@ -176,6 +179,10 @@ Term intConst(Type type, const cpp_int& val);
 
 inline Term array(Type elementType, const vector<Term>& elements) {
 	return Term(Array, arrayType(elements.size(), elementType), elements);
+}
+
+inline Term call(Type type, Term f, const vector<Term>& args) {
+	// TODO: return Term(Call, type, {f}+args);
 }
 
 inline Term cmp(Tag tag, Term a, Term b) {
