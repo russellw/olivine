@@ -78,7 +78,7 @@ Type voidTy();
 Type boolTy();
 Type intType(size_t len);
 
-Type floatType();
+Type floatTy();
 Type doubleType();
 
 Type ptrType();

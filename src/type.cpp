@@ -141,7 +141,7 @@ Type intType(size_t len) {
 	return Type(typeInterner.intern(p));
 }
 
-Type floatType() {
+Type floatTy() {
 	static Type type(&floatImpl);
 	return type;
 }

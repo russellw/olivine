@@ -851,7 +851,7 @@ class Parser {
 		}
 		if (token == "float") {
 			lex();
-			return floatType();
+			return floatTy();
 		}
 		if (token == "ptr") {
 			lex();
