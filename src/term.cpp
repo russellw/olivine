@@ -129,3 +129,63 @@ Term intConst(Type ty, const cpp_int& val) {
 	auto p = new TermImpl(Int, ty, val);
 	return Term(p);
 }
+
+Term zeroVal(Type ty) {
+	switch (ty.kind()) {
+	case VoidKind:
+		// Void type has no value
+		return Term();
+
+	case IntKind:
+		// For integers, return a zero constant of the appropriate bit length
+		return intConst(ty, 0);
+
+	case FloatKind:
+		// For float type, return 0.0
+		return floatConst(ty, "0.0");
+
+	case DoubleKind:
+		// For double type, return 0.0
+		return floatConst(ty, "0.0");
+
+	case PtrKind:
+		// For pointers, return null
+		return nullConst;
+
+	case ArrayKind: {
+		// For arrays, create an array of zero values
+		vector<Term> elements;
+		Type elemType = ty[0]; // Get element type
+		for (size_t i = 0; i < ty.len(); i++) {
+			elements.push_back(zeroVal(elemType));
+		}
+		return array(elemType, elements);
+	}
+
+	case VecKind: {
+		// Vector types are handled similarly to arrays
+		vector<Term> elements;
+		Type elemType = ty[0]; // Get element type
+		for (size_t i = 0; i < ty.len(); i++) {
+			elements.push_back(zeroVal(elemType));
+		}
+		return array(elemType, elements);
+	}
+
+	case StructKind: {
+		// For structs, create a tuple of zero values for each field
+		vector<Term> fields;
+		for (Type fieldType : ty) {
+			fields.push_back(zeroVal(fieldType));
+		}
+		return tuple(fields);
+	}
+
+	case FuncKind:
+		// Function types cannot have zero values
+		throw std::runtime_error("Cannot create zero value for function type");
+
+	default:
+		throw std::runtime_error("Unknown type kind in zeroVal");
+	}
+}

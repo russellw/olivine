@@ -175,6 +175,11 @@ extern Term nullConst;
 // Integer constants are arbitrary precision
 Term intConst(Type ty, const cpp_int& val);
 
+// Returns the zero/null value for any data type
+// including recursively on structs, arrays etc.
+// Doesn't accept function types, of course
+Term zeroVal(Type ty);
+
 // SORT FUNCTIONS
 
 inline Term array(Type elementType, const vector<Term>& elements) {
