@@ -233,7 +233,7 @@ class Parser {
 	}
 
 	Term parseArg() {
-		auto ty = parseType();
+		auto ty = type();
 		argAttrs();
 		return expr(ty);
 	}
@@ -252,8 +252,7 @@ class Parser {
 
 	Term parseCall() {
 		expect("call");
-		// TODO: rename?
-		auto rty = parseType();
+		auto rty = type();
 		auto ref = parseGlobalRef();
 		auto args = parseArgs();
 		auto params = map(args, [](Term a) { return a.ty(); });
@@ -272,7 +271,7 @@ class Parser {
 		dsoPreemptable();
 
 		// Return type
-		auto rty = parseType();
+		auto rty = type();
 
 		// Name
 		if (token[0] != '@') {
@@ -392,7 +391,7 @@ class Parser {
 	}
 
 	Term parseParam() {
-		auto ty = parseType();
+		auto ty = type();
 		paramAttrs();
 		return parseVar(ty);
 	}
@@ -414,7 +413,7 @@ class Parser {
 		if (token == "add") {
 			lex();
 			noWrap();
-			auto ty = parseType();
+			auto ty = type();
 			auto a = expr(ty);
 			expect(",");
 			auto b = expr(ty);
@@ -422,7 +421,7 @@ class Parser {
 		}
 		if (token == "and") {
 			lex();
-			auto ty = parseType();
+			auto ty = type();
 			auto a = expr(ty);
 			expect(",");
 			auto b = expr(ty);
@@ -433,7 +432,7 @@ class Parser {
 			if (token == "exact") {
 				lex();
 			}
-			auto ty = parseType();
+			auto ty = type();
 			auto a = expr(ty);
 			expect(",");
 			auto b = expr(ty);
@@ -445,7 +444,7 @@ class Parser {
 		if (token == "fadd") {
 			lex();
 			fastMathFlags();
-			auto ty = parseType();
+			auto ty = type();
 			auto a = expr(ty);
 			expect(",");
 			auto b = expr(ty);
@@ -457,7 +456,7 @@ class Parser {
 			// SORT BLOCKS
 			if (token == "oeq") {
 				lex();
-				auto ty = parseType();
+				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
 				auto b = expr(ty);
@@ -465,7 +464,7 @@ class Parser {
 			}
 			if (token == "ole") {
 				lex();
-				auto ty = parseType();
+				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
 				auto b = expr(ty);
@@ -473,7 +472,7 @@ class Parser {
 			}
 			if (token == "olt") {
 				lex();
-				auto ty = parseType();
+				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
 				auto b = expr(ty);
@@ -481,7 +480,7 @@ class Parser {
 			}
 			if (token == "oge") {
 				lex();
-				auto ty = parseType();
+				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
 				auto b = expr(ty);
@@ -489,7 +488,7 @@ class Parser {
 			}
 			if (token == "ogt") {
 				lex();
-				auto ty = parseType();
+				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
 				auto b = expr(ty);
@@ -497,7 +496,7 @@ class Parser {
 			}
 			if (token == "uge") {
 				lex();
-				auto ty = parseType();
+				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
 				auto b = expr(ty);
@@ -505,7 +504,7 @@ class Parser {
 			}
 			if (token == "ugt") {
 				lex();
-				auto ty = parseType();
+				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
 				auto b = expr(ty);
@@ -513,7 +512,7 @@ class Parser {
 			}
 			if (token == "ule") {
 				lex();
-				auto ty = parseType();
+				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
 				auto b = expr(ty);
@@ -521,7 +520,7 @@ class Parser {
 			}
 			if (token == "ult") {
 				lex();
-				auto ty = parseType();
+				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
 				auto b = expr(ty);
@@ -529,7 +528,7 @@ class Parser {
 			}
 			if (token == "une") {
 				lex();
-				auto ty = parseType();
+				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
 				auto b = expr(ty);
@@ -541,7 +540,7 @@ class Parser {
 		if (token == "fdiv") {
 			lex();
 			fastMathFlags();
-			auto ty = parseType();
+			auto ty = type();
 			auto a = expr(ty);
 			expect(",");
 			auto b = expr(ty);
@@ -550,7 +549,7 @@ class Parser {
 		if (token == "fmul") {
 			lex();
 			fastMathFlags();
-			auto ty = parseType();
+			auto ty = type();
 			auto a = expr(ty);
 			expect(",");
 			auto b = expr(ty);
@@ -559,14 +558,14 @@ class Parser {
 		if (token == "fneg") {
 			lex();
 			fastMathFlags();
-			auto ty = parseType();
+			auto ty = type();
 			auto a = expr(ty);
 			return Term(FNeg, ty, a);
 		}
 		if (token == "frem") {
 			lex();
 			fastMathFlags();
-			auto ty = parseType();
+			auto ty = type();
 			auto a = expr(ty);
 			expect(",");
 			auto b = expr(ty);
@@ -575,7 +574,7 @@ class Parser {
 		if (token == "fsub") {
 			lex();
 			fastMathFlags();
-			auto ty = parseType();
+			auto ty = type();
 			auto a = expr(ty);
 			expect(",");
 			auto b = expr(ty);
@@ -586,7 +585,7 @@ class Parser {
 			// SORT BLOCKS
 			if (token == "eq") {
 				lex();
-				auto ty = parseType();
+				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
 				auto b = expr(ty);
@@ -594,7 +593,7 @@ class Parser {
 			}
 			if (token == "ne") {
 				lex();
-				auto ty = parseType();
+				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
 				auto b = expr(ty);
@@ -602,7 +601,7 @@ class Parser {
 			}
 			if (token == "sle") {
 				lex();
-				auto ty = parseType();
+				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
 				auto b = expr(ty);
@@ -610,7 +609,7 @@ class Parser {
 			}
 			if (token == "slt") {
 				lex();
-				auto ty = parseType();
+				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
 				auto b = expr(ty);
@@ -618,7 +617,7 @@ class Parser {
 			}
 			if (token == "sge") {
 				lex();
-				auto ty = parseType();
+				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
 				auto b = expr(ty);
@@ -626,7 +625,7 @@ class Parser {
 			}
 			if (token == "sgt") {
 				lex();
-				auto ty = parseType();
+				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
 				auto b = expr(ty);
@@ -634,7 +633,7 @@ class Parser {
 			}
 			if (token == "ule") {
 				lex();
-				auto ty = parseType();
+				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
 				auto b = expr(ty);
@@ -642,7 +641,7 @@ class Parser {
 			}
 			if (token == "ult") {
 				lex();
-				auto ty = parseType();
+				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
 				auto b = expr(ty);
@@ -650,7 +649,7 @@ class Parser {
 			}
 			if (token == "uge") {
 				lex();
-				auto ty = parseType();
+				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
 				auto b = expr(ty);
@@ -658,7 +657,7 @@ class Parser {
 			}
 			if (token == "ugt") {
 				lex();
-				auto ty = parseType();
+				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
 				auto b = expr(ty);
@@ -669,7 +668,7 @@ class Parser {
 		}
 		if (token == "load") {
 			lex();
-			auto ty = parseType();
+			auto ty = type();
 			expect(",");
 			expect("ptr");
 			auto a = expr(ty);
@@ -680,7 +679,7 @@ class Parser {
 			if (token == "exact") {
 				lex();
 			}
-			auto ty = parseType();
+			auto ty = type();
 			auto a = expr(ty);
 			expect(",");
 			auto b = expr(ty);
@@ -689,7 +688,7 @@ class Parser {
 		if (token == "mul") {
 			lex();
 			noWrap();
-			auto ty = parseType();
+			auto ty = type();
 			auto a = expr(ty);
 			expect(",");
 			auto b = expr(ty);
@@ -697,7 +696,7 @@ class Parser {
 		}
 		if (token == "or") {
 			lex();
-			auto ty = parseType();
+			auto ty = type();
 			auto a = expr(ty);
 			expect(",");
 			auto b = expr(ty);
@@ -708,7 +707,7 @@ class Parser {
 			if (token == "exact") {
 				lex();
 			}
-			auto ty = parseType();
+			auto ty = type();
 			auto a = expr(ty);
 			expect(",");
 			auto b = expr(ty);
@@ -718,13 +717,13 @@ class Parser {
 			lex();
 			auto a = typeExpr();
 			expect("to");
-			auto ty = parseType();
+			auto ty = type();
 			return Term(SCast, ty, a);
 		}
 		if (token == "shl") {
 			lex();
 			noWrap();
-			auto ty = parseType();
+			auto ty = type();
 			auto a = expr(ty);
 			expect(",");
 			auto b = expr(ty);
@@ -732,7 +731,7 @@ class Parser {
 		}
 		if (token == "srem") {
 			lex();
-			auto ty = parseType();
+			auto ty = type();
 			auto a = expr(ty);
 			expect(",");
 			auto b = expr(ty);
@@ -741,7 +740,7 @@ class Parser {
 		if (token == "sub") {
 			lex();
 			noWrap();
-			auto ty = parseType();
+			auto ty = type();
 			auto a = expr(ty);
 			expect(",");
 			auto b = expr(ty);
@@ -752,7 +751,7 @@ class Parser {
 			lex();
 			auto a = typeExpr();
 			expect("to");
-			auto ty = parseType();
+			auto ty = type();
 			return Term(Cast, ty, a);
 		}
 		if (token == "udiv") {
@@ -760,7 +759,7 @@ class Parser {
 			if (token == "exact") {
 				lex();
 			}
-			auto ty = parseType();
+			auto ty = type();
 			auto a = expr(ty);
 			expect(",");
 			auto b = expr(ty);
@@ -768,7 +767,7 @@ class Parser {
 		}
 		if (token == "urem") {
 			lex();
-			auto ty = parseType();
+			auto ty = type();
 			auto a = expr(ty);
 			expect(",");
 			auto b = expr(ty);
@@ -776,7 +775,7 @@ class Parser {
 		}
 		if (token == "xor") {
 			lex();
-			auto ty = parseType();
+			auto ty = type();
 			auto a = expr(ty);
 			expect(",");
 			auto b = expr(ty);
@@ -815,11 +814,6 @@ class Parser {
 		}
 	}
 
-	Type parseType() {
-		auto ty = primaryType();
-		return ty;
-	}
-
 	Term parseVar(Type ty) {
 		if (token[0] != '%') {
 			throw error("expected variable name");
@@ -833,7 +827,7 @@ class Parser {
 			lex();
 			auto len = parseInt();
 			expect("x");
-			auto element = parseType();
+			auto element = type();
 			expect(">");
 			return vecTy(len, element);
 		}
@@ -841,7 +835,7 @@ class Parser {
 			lex();
 			auto len = parseInt();
 			expect("x");
-			auto element = parseType();
+			auto element = type();
 			expect("]");
 			return arrayTy(len, element);
 		}
@@ -879,8 +873,13 @@ class Parser {
 		var = val;
 	}
 
+	Type type() {
+		auto ty = primaryType();
+		return ty;
+	}
+
 	Term typeExpr() {
-		return expr(parseType());
+		return expr(type());
 	}
 
 public:
