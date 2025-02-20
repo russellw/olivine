@@ -115,10 +115,6 @@ bool Term::operator==(Term b0) const {
 	return a->v == b->v;
 }
 
-bool Term::operator!=(Term b) const {
-	return !(*this == b);
-}
-
 Term trueConst(&trueImpl);
 Term falseConst(&falseImpl);
 

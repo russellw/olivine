@@ -149,7 +149,10 @@ public:
 
 	// Comparison by value
 	bool operator==(Term b) const;
-	bool operator!=(Term b) const;
+
+	bool operator!=(Term b) const {
+		return !(*this == b);
+	}
 };
 
 namespace std {
