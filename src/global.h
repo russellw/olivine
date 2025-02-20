@@ -1,21 +1,21 @@
-struct GlobalVarImpl;
+struct GlobalImpl;
 
-class GlobalVar {
-	GlobalVarImpl* p;
+class Global {
+	GlobalImpl* p;
 
 public:
-	GlobalVar();
+	Global();
 
 	// For internal use
-	explicit GlobalVar(GlobalVarImpl* p): p(p) {
+	explicit Global(GlobalImpl* p): p(p) {
 	}
 
-	GlobalVar(Type type, const Ref& ref);
+	Global(Type type, const Ref& ref);
 
 	Type type() const;
 	Ref ref() const;
 
 	// Comparison by value
-	bool operator==(GlobalVar b) const;
-	bool operator!=(GlobalVar b) const;
+	bool operator==(Global b) const;
+	bool operator!=(Global b) const;
 };

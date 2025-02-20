@@ -1,13 +1,13 @@
 #include "all.h"
 
-struct GlobalVarImpl {
+struct GlobalImpl {
 	const Type type;
 	const Ref ref;
 
-	GlobalVarImpl(Type type, const Ref& ref): type(type), ref(ref) {
+	GlobalImpl(Type type, const Ref& ref): type(type), ref(ref) {
 	}
 };
 
-GlobalVar::GlobalVar(Type type, const Ref& ref) {
-	p = new GlobalVarImpl(type, ref);
+Global::Global(Type type, const Ref& ref) {
+	p = new GlobalImpl(type, ref);
 }

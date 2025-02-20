@@ -1,4 +1,4 @@
 struct Module {
-	vector<GlobalVar> globalVars;
+	vector<Global> globalVars;
 	vector<Func> funcs;
 };
