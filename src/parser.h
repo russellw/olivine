@@ -16,6 +16,12 @@ class Parser {
 
 	// SORT FUNCTIONS
 
+	void argAttrs() {
+		if (token == "noundef") {
+			lex();
+		}
+	}
+
 	bool dsoPreemptable() {
 		if (token == "dso_local") {
 			lex();
@@ -213,6 +219,36 @@ class Parser {
 		}
 	}
 
+	Term parseArg() {
+		auto type = parseType();
+		argAttrs();
+		return expr(type);
+	}
+
+	vector<Term> parseArgs() {
+		expect("(");
+		vector<Term> v;
+		if (token != ")") {
+			do {
+				v.push_back(parseArg());
+			} while (maybeComma());
+		}
+		expect(")");
+		return v;
+	}
+
+	Term parseCall() {
+		expect("call");
+		// TODO: rename?
+		auto retType = parseType();
+		auto ref = parseGlobalRef();
+		auto args = parseArgs();
+		auto params = map(args, [](Term a) { return a.type(); });
+		auto ftype = funcType(retType, params);
+		auto f = globalRef(ftype, ref);
+		return call(retType, f, args);
+	}
+
 	Func parseFunc() {
 		if (!(token == "declare" || token == "define")) {
 			throw error("expected 'declare' or 'define'");
@@ -259,6 +295,14 @@ class Parser {
 		expect("}");
 
 		return Func(retType, ref, params, insts);
+	}
+
+	Ref parseGlobalRef() {
+		// TODO: factor out quoting
+		if (token[0] != '@') {
+			throw error('\'' + token + "': expected global name");
+		}
+		return parseRef1();
 	}
 
 	Inst parseInst() {
@@ -379,6 +423,9 @@ class Parser {
 			expect(",");
 			auto b = expr(type);
 			return Term(AShr, type, a, b);
+		}
+		if (token == "call") {
+			return parseCall();
 		}
 		if (token == "fadd") {
 			lex();
