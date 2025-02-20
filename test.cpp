@@ -23,8 +23,8 @@ BOOST_AUTO_TEST_CASE(BasicTypeProperties) {
 	BOOST_CHECK_EQUAL(floatTy().kind(), FloatKind);
 	BOOST_CHECK_EQUAL(floatTy().size(), 0);
 
-	BOOST_CHECK_EQUAL(doubleType().kind(), DoubleKind);
-	BOOST_CHECK_EQUAL(doubleType().size(), 0);
+	BOOST_CHECK_EQUAL(doubleTy().kind(), DoubleKind);
+	BOOST_CHECK_EQUAL(doubleTy().size(), 0);
 
 	BOOST_CHECK_EQUAL(boolTy().kind(), IntKind);
 	BOOST_CHECK_EQUAL(boolTy().size(), 0);
@@ -33,12 +33,12 @@ BOOST_AUTO_TEST_CASE(BasicTypeProperties) {
 BOOST_AUTO_TEST_CASE(TypeEquality) {
 	BOOST_CHECK(voidTy() == voidTy());
 	BOOST_CHECK(floatTy() == floatTy());
-	BOOST_CHECK(doubleType() == doubleType());
+	BOOST_CHECK(doubleTy() == doubleTy());
 	BOOST_CHECK(boolTy() == boolTy());
 
 	BOOST_CHECK(voidTy() != floatTy());
-	BOOST_CHECK(floatTy() != doubleType());
-	BOOST_CHECK(doubleType() != boolTy());
+	BOOST_CHECK(floatTy() != doubleTy());
+	BOOST_CHECK(doubleTy() != boolTy());
 }
 
 BOOST_AUTO_TEST_CASE(IntegerTypeProperties) {
@@ -86,7 +86,7 @@ BOOST_AUTO_TEST_CASE(IntegerTypeEquality) {
 
 	// Test inequality with other types
 	BOOST_CHECK(int32 != floatTy());
-	BOOST_CHECK(int64 != doubleType());
+	BOOST_CHECK(int64 != doubleTy());
 	BOOST_CHECK(int16 != voidTy());
 }
 
@@ -430,7 +430,7 @@ BOOST_AUTO_TEST_CASE(BasicTypeOutput) {
 
 	// Test float and double
 	BOOST_CHECK_EQUAL(typeToString(floatTy()), "float");
-	BOOST_CHECK_EQUAL(typeToString(doubleType()), "double");
+	BOOST_CHECK_EQUAL(typeToString(doubleTy()), "double");
 
 	// Test bool (1-bit integer)
 	BOOST_CHECK_EQUAL(typeToString(boolTy()), "i1");
@@ -484,7 +484,7 @@ BOOST_AUTO_TEST_CASE(StructTypeOutput) {
 	// Test nested struct
 	std::vector<Type> innerFields;
 	innerFields.push_back(intType(8));
-	innerFields.push_back(doubleType());
+	innerFields.push_back(doubleTy());
 	fields.push_back(structType(innerFields));
 	BOOST_CHECK_EQUAL(typeToString(structType(fields)), "{i32, float, {i8, double}}");
 }
@@ -518,7 +518,7 @@ BOOST_AUTO_TEST_CASE(ComplexTypeOutput) {
 
 	std::vector<Type> funcParams;
 	funcParams.push_back(structType(fields)); // return type
-	funcParams.push_back(doubleType());
+	funcParams.push_back(doubleTy());
 	funcParams.push_back(arrayType(3, floatTy()));
 
 	Type complexType = funcType(funcParams);
@@ -654,7 +654,7 @@ BOOST_AUTO_TEST_CASE(FloatTermMapping) {
 
 	Term float1 = floatConst(floatTy(), "1.0");
 	Term float2 = floatConst(floatTy(), "2.0");
-	Term double1 = floatConst(doubleType(), "1.0"); // Same value, different type
+	Term double1 = floatConst(doubleTy(), "1.0"); // Same value, different type
 
 	termMap[float1] = 1;
 	termMap[float2] = 2;
@@ -1024,12 +1024,12 @@ BOOST_AUTO_TEST_CASE(test_fneg_float_constant) {
 
 BOOST_AUTO_TEST_CASE(test_fneg_double_constant) {
 	// Create a double constant to negate
-	Term d = floatConst(doubleType(), "2.5");
+	Term d = floatConst(doubleTy(), "2.5");
 	Term neg = arithmetic(FNeg, d);
 
 	// Verify properties
 	BOOST_CHECK_EQUAL(neg.tag(), FNeg);
-	BOOST_CHECK_EQUAL(neg.type(), doubleType());
+	BOOST_CHECK_EQUAL(neg.type(), doubleTy());
 	BOOST_CHECK_EQUAL(neg.size(), 1);
 	BOOST_CHECK_EQUAL(neg[0], d);
 }
@@ -1082,7 +1082,7 @@ BOOST_AUTO_TEST_CASE(test_fneg_hash_consistency) {
 BOOST_AUTO_TEST_CASE(test_fneg_type_preservation) {
 	// Test with both float and double
 	Term f = floatConst(floatTy(), "1.0");
-	Term d = floatConst(doubleType(), "1.0");
+	Term d = floatConst(doubleTy(), "1.0");
 
 	Term negF = arithmetic(FNeg, f);
 	Term negD = arithmetic(FNeg, d);
@@ -1450,7 +1450,7 @@ BOOST_AUTO_TEST_CASE(VectorTypeIterators) {
 
 // Test array type iteration
 BOOST_AUTO_TEST_CASE(ArrayTypeIterators) {
-	Type elementType = doubleType();
+	Type elementType = doubleTy();
 	Type arrT = arrayType(10, elementType);
 
 	BOOST_CHECK(arrT.begin() != arrT.end());
@@ -1463,7 +1463,7 @@ BOOST_AUTO_TEST_CASE(ArrayTypeIterators) {
 
 // Test struct type iteration
 BOOST_AUTO_TEST_CASE(StructTypeIterators) {
-	std::vector<Type> fields = {intType(32), floatTy(), doubleType()};
+	std::vector<Type> fields = {intType(32), floatTy(), doubleTy()};
 	Type structT = structType(fields);
 
 	BOOST_CHECK(structT.begin() != structT.end());
@@ -1534,7 +1534,7 @@ BOOST_AUTO_TEST_CASE(IteratorInvalidation) {
 	auto it1 = structT1.begin();
 
 	// Create a new struct type
-	Type structT2 = structType({doubleType(), ptrType()});
+	Type structT2 = structType({doubleTy(), ptrType()});
 
 	// Original iterator should still be valid and point to the original type
 	BOOST_CHECK(*it1 == intType(32));
@@ -1558,7 +1558,7 @@ BOOST_AUTO_TEST_CASE(EmptyTermTest) {
 // Test iteration over function parameters
 BOOST_AUTO_TEST_CASE(ParametersIterationTest) {
 	// Create parameters with different types
-	std::vector<Term> params = {var(intType(32), "a"), var(doubleType(), "b"), var(ptrType(), "c")};
+	std::vector<Term> params = {var(intType(32), "a"), var(doubleTy(), "b"), var(ptrType(), "c")};
 
 	Term paramTerm = tuple(params);
 
@@ -1569,7 +1569,7 @@ BOOST_AUTO_TEST_CASE(ParametersIterationTest) {
 	auto it = paramTerm.begin();
 	BOOST_CHECK_EQUAL((*it).type(), intType(32));
 	++it;
-	BOOST_CHECK_EQUAL((*it).type(), doubleType());
+	BOOST_CHECK_EQUAL((*it).type(), doubleTy());
 	++it;
 	BOOST_CHECK_EQUAL((*it).type(), ptrType());
 	++it;

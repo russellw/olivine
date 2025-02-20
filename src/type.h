@@ -79,7 +79,7 @@ Type boolTy();
 Type intType(size_t len);
 
 Type floatTy();
-Type doubleType();
+Type doubleTy();
 
 Type ptrType();
 

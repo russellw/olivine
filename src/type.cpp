@@ -146,7 +146,7 @@ Type floatTy() {
 	return type;
 }
 
-Type doubleType() {
+Type doubleTy() {
 	static Type type(&doubleImpl);
 	return type;
 }

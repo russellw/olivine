@@ -847,7 +847,7 @@ class Parser {
 		}
 		if (token == "double") {
 			lex();
-			return doubleType();
+			return doubleTy();
 		}
 		if (token == "float") {
 			lex();
