@@ -253,13 +253,13 @@ class Parser {
 	Term parseCall() {
 		expect("call");
 		// TODO: rename?
-		auto retType = parseType();
+		auto rty = parseType();
 		auto ref = parseGlobalRef();
 		auto args = parseArgs();
 		auto params = map(args, [](Term a) { return a.type(); });
-		auto ftype = funcType(retType, params);
+		auto ftype = funcType(rty, params);
 		auto f = globalRef(ftype, ref);
-		return call(retType, f, args);
+		return call(rty, f, args);
 	}
 
 	Func parseFunc() {
@@ -272,7 +272,7 @@ class Parser {
 		dsoPreemptable();
 
 		// Return type
-		auto retType = parseType();
+		auto rty = parseType();
 
 		// Name
 		if (token[0] != '@') {
@@ -286,7 +286,7 @@ class Parser {
 
 		// Only declare
 		if (!define) {
-			return Func(retType, ref, params);
+			return Func(rty, ref, params);
 		}
 
 		// Trailing tokens
@@ -307,7 +307,7 @@ class Parser {
 		// Closing brace
 		expect("}");
 
-		return Func(retType, ref, params, insts);
+		return Func(rty, ref, params, insts);
 	}
 
 	Ref parseGlobalRef() {
