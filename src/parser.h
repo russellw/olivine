@@ -326,6 +326,9 @@ class Parser {
 			auto ifFalse = parseRef1();
 			return br(cond, ifTrue, ifFalse);
 		}
+		if (token == "call") {
+			return Inst(Drop, parseCall());
+		}
 		if (token == "ret") {
 			lex();
 			if (token == "void") {
