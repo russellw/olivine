@@ -162,7 +162,7 @@ Type vecTy(size_t len, Type element) {
 	return Type(typeInterner.intern(p));
 }
 
-Type arrayType(size_t len, Type element) {
+Type arrayTy(size_t len, Type element) {
 	ASSERT(element != voidTy());
 	auto p = new TypeImpl(ArrayKind, len, element);
 	return Type(typeInterner.intern(p));

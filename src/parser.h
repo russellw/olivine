@@ -843,7 +843,7 @@ class Parser {
 			expect("x");
 			auto element = parseType();
 			expect("]");
-			return arrayType(len, element);
+			return arrayTy(len, element);
 		}
 		if (token == "double") {
 			lex();

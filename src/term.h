@@ -178,7 +178,7 @@ Term intConst(Type type, const cpp_int& val);
 // SORT FUNCTIONS
 
 inline Term array(Type elementType, const vector<Term>& elements) {
-	return Term(Array, arrayType(elements.size(), elementType), elements);
+	return Term(Array, arrayTy(elements.size(), elementType), elements);
 }
 
 inline Term call(Type type, Term f, const vector<Term>& args) {

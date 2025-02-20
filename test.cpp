@@ -118,9 +118,9 @@ BOOST_AUTO_TEST_CASE(IntegerTypeEdgeCases) {
 BOOST_AUTO_TEST_CASE(ArrayTypeProperties) {
 	// Test array types with different element types and lengths
 	Type int32 = intTy(32);
-	Type float_arr_10 = arrayType(10, floatTy());
-	Type int_arr_5 = arrayType(5, int32);
-	Type bool_arr_2 = arrayType(2, boolTy());
+	Type float_arr_10 = arrayTy(10, floatTy());
+	Type int_arr_5 = arrayTy(5, int32);
+	Type bool_arr_2 = arrayTy(2, boolTy());
 
 	// Check kinds
 	BOOST_CHECK_EQUAL(float_arr_10.kind(), ArrayKind);
@@ -147,21 +147,21 @@ BOOST_AUTO_TEST_CASE(ArrayTypeEquality) {
 	Type int32 = intTy(32);
 
 	// Test equality of arrays with same element type and length
-	Type int_arr_5_1 = arrayType(5, int32);
-	Type int_arr_5_2 = arrayType(5, int32);
+	Type int_arr_5_1 = arrayTy(5, int32);
+	Type int_arr_5_2 = arrayTy(5, int32);
 	BOOST_CHECK(int_arr_5_1 == int_arr_5_2);
 
 	// Test inequality with different lengths
-	Type int_arr_10 = arrayType(10, int32);
+	Type int_arr_10 = arrayTy(10, int32);
 	BOOST_CHECK(int_arr_5_1 != int_arr_10);
 
 	// Test inequality with different element types
-	Type float_arr_5 = arrayType(5, floatTy());
+	Type float_arr_5 = arrayTy(5, floatTy());
 	BOOST_CHECK(int_arr_5_1 != float_arr_5);
 
 	// Test nested arrays
-	Type nested_arr = arrayType(3, arrayType(2, int32));
-	Type nested_arr_2 = arrayType(3, arrayType(2, int32));
+	Type nested_arr = arrayTy(3, arrayTy(2, int32));
+	Type nested_arr_2 = arrayTy(3, arrayTy(2, int32));
 	BOOST_CHECK(nested_arr == nested_arr_2);
 }
 
@@ -291,7 +291,7 @@ BOOST_AUTO_TEST_CASE(ComplexTypeCompositions) {
 
 	// Create a struct containing an array of vectors
 	Type vec4_float = vecTy(4, floatTy());
-	Type arr3_vec = arrayType(3, vec4_float);
+	Type arr3_vec = arrayTy(3, vec4_float);
 	vector<Type> struct_fields = {int32, arr3_vec};
 	Type complex_struct = structType(struct_fields);
 
@@ -453,11 +453,11 @@ BOOST_AUTO_TEST_CASE(IntegerTypeOutput) {
 
 BOOST_AUTO_TEST_CASE(ArrayTypeOutput) {
 	// Test arrays of basic types
-	BOOST_CHECK_EQUAL(typeToString(arrayType(4, intTy(32))), "[4 x i32]");
-	BOOST_CHECK_EQUAL(typeToString(arrayType(2, floatTy())), "[2 x float]");
+	BOOST_CHECK_EQUAL(typeToString(arrayTy(4, intTy(32))), "[4 x i32]");
+	BOOST_CHECK_EQUAL(typeToString(arrayTy(2, floatTy())), "[2 x float]");
 
 	// Test nested arrays
-	Type nestedArray = arrayType(3, arrayType(2, intTy(8)));
+	Type nestedArray = arrayTy(3, arrayTy(2, intTy(8)));
 	BOOST_CHECK_EQUAL(typeToString(nestedArray), "[3 x [2 x i8]]");
 }
 
@@ -506,20 +506,20 @@ BOOST_AUTO_TEST_CASE(FuncTypeOutput) {
 	BOOST_CHECK_EQUAL(typeToString(funcType(params)), "ptr (i32, float)");
 
 	// Test function with complex parameter types
-	params.push_back(arrayType(4, intTy(8)));
+	params.push_back(arrayTy(4, intTy(8)));
 	BOOST_CHECK_EQUAL(typeToString(funcType(params)), "ptr (i32, float, [4 x i8])");
 }
 
 BOOST_AUTO_TEST_CASE(ComplexTypeOutput) {
 	// Test combination of various type constructs
 	std::vector<Type> fields;
-	fields.push_back(arrayType(2, vecTy(4, intTy(32))));
+	fields.push_back(arrayTy(2, vecTy(4, intTy(32))));
 	fields.push_back(ptrTy());
 
 	std::vector<Type> funcParams;
 	funcParams.push_back(structType(fields)); // return type
 	funcParams.push_back(doubleTy());
-	funcParams.push_back(arrayType(3, floatTy()));
+	funcParams.push_back(arrayTy(3, floatTy()));
 
 	Type complexType = funcType(funcParams);
 
@@ -543,7 +543,7 @@ BOOST_AUTO_TEST_CASE(CompoundTypeMapping) {
 	std::unordered_map<Type, std::string> typeMap;
 
 	// Create some compound types
-	Type arrayOfInt = arrayType(10, intTy(32));
+	Type arrayOfInt = arrayTy(10, intTy(32));
 	Type vectorOfFloat = vecTy(4, floatTy());
 
 	typeMap[arrayOfInt] = "array of int";
@@ -553,7 +553,7 @@ BOOST_AUTO_TEST_CASE(CompoundTypeMapping) {
 	BOOST_CHECK_EQUAL(typeMap[vectorOfFloat], "vector of float");
 
 	// Test that identical types map to the same value
-	Type sameArrayType = arrayType(10, intTy(32));
+	Type sameArrayType = arrayTy(10, intTy(32));
 	BOOST_CHECK_EQUAL(typeMap[sameArrayType], "array of int");
 }
 
@@ -1451,7 +1451,7 @@ BOOST_AUTO_TEST_CASE(VectorTypeIterators) {
 // Test array type iteration
 BOOST_AUTO_TEST_CASE(ArrayTypeIterators) {
 	Type elementType = doubleTy();
-	Type arrT = arrayType(10, elementType);
+	Type arrT = arrayTy(10, elementType);
 
 	BOOST_CHECK(arrT.begin() != arrT.end());
 	BOOST_CHECK(arrT.cbegin() != arrT.cend());
