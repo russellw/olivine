@@ -253,12 +253,12 @@ class Parser {
 		newline();
 
 		// Instructions
-		auto instructions = parseInsts();
+		auto insts = parseInsts();
 
 		// Closing brace
 		expect("}");
 
-		return Func(returnType, ref, params, instructions);
+		return Func(returnType, ref, params, insts);
 	}
 
 	Inst parseInst() {
@@ -309,18 +309,18 @@ class Parser {
 		}
 		// END
 
-		throw error('\'' + token + "': expected instruction");
+		throw error('\'' + token + "': expected inst");
 	}
 
 	vector<Inst> parseInsts() {
-		vector<Inst> instructions;
+		vector<Inst> insts;
 		while (token != "}") {
 			if (token != "\n") {
-				instructions.push_back(parseInst());
+				insts.push_back(parseInst());
 			}
 			nextLine();
 		}
-		return instructions;
+		return insts;
 	}
 
 	int parseInt() {

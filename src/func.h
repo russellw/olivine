@@ -11,7 +11,7 @@ public:
 	}
 
 	Func(Type returnType, const Ref& ref, const vector<Term>& params);
-	Func(Type returnType, const Ref& ref, const vector<Term>& params, const vector<Inst>& instructions);
+	Func(Type returnType, const Ref& ref, const vector<Term>& params, const vector<Inst>& insts);
 
 	Type returnType() const;
 	Ref ref() const;
