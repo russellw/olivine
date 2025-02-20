@@ -67,7 +67,7 @@ public:
 			return *it;
 		}
 		tys.insert(ty);
-		return type;
+		return ty;
 	}
 };
 
@@ -127,12 +127,12 @@ bool Type::operator!=(Type b) const {
 
 Type voidTy() {
 	static Type ty(&voidImpl);
-	return type;
+	return ty;
 }
 
 Type boolTy() {
 	static Type ty(&boolImpl);
-	return type;
+	return ty;
 }
 
 Type intTy(size_t len) {
@@ -143,17 +143,17 @@ Type intTy(size_t len) {
 
 Type floatTy() {
 	static Type ty(&floatImpl);
-	return type;
+	return ty;
 }
 
 Type doubleTy() {
 	static Type ty(&doubleImpl);
-	return type;
+	return ty;
 }
 
 Type ptrTy() {
 	static Type ty(&ptrImpl);
-	return type;
+	return ty;
 }
 
 Type vecTy(size_t len, Type element) {

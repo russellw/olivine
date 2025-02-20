@@ -817,7 +817,7 @@ class Parser {
 
 	Type parseType() {
 		auto ty = primaryType();
-		return type;
+		return ty;
 	}
 
 	Term parseVar(Type ty) {
