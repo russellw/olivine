@@ -198,7 +198,7 @@ inline Term globalRef(Type type, const Ref& ref) {
 }
 
 inline Term label(const Ref& ref) {
-	return Term(Label, ptrType(), ref);
+	return Term(Label, ptrTy(), ref);
 }
 
 inline Term not1(Term a) {

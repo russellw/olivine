@@ -151,7 +151,7 @@ Type doubleTy() {
 	return type;
 }
 
-Type ptrType() {
+Type ptrTy() {
 	static Type type(&ptrImpl);
 	return type;
 }

@@ -189,7 +189,7 @@ BOOST_AUTO_TEST_CASE(VectorTypeProperties) {
 
 BOOST_AUTO_TEST_CASE(StructTypeProperties) {
 	// Test structure with various field types
-	vector<Type> fields = {intTy(32), floatTy(), boolTy(), ptrType()};
+	vector<Type> fields = {intTy(32), floatTy(), boolTy(), ptrTy()};
 	Type struct_type = structType(fields);
 
 	// Check kind
@@ -202,7 +202,7 @@ BOOST_AUTO_TEST_CASE(StructTypeProperties) {
 	BOOST_CHECK(struct_type[0] == intTy(32));
 	BOOST_CHECK(struct_type[1] == floatTy());
 	BOOST_CHECK(struct_type[2] == boolTy());
-	BOOST_CHECK(struct_type[3] == ptrType());
+	BOOST_CHECK(struct_type[3] == ptrTy());
 
 	// Test empty struct
 	vector<Type> empty_fields;
@@ -239,7 +239,7 @@ BOOST_AUTO_TEST_CASE(FuncTypeProperties) {
 		intTy(32), // return type
 		floatTy(), // param 1
 		boolTy(),  // param 2
-		ptrType()  // param 3
+		ptrTy()	   // param 3
 	};
 	Type func_type = funcType(params);
 
@@ -255,7 +255,7 @@ BOOST_AUTO_TEST_CASE(FuncTypeProperties) {
 	// Check parameter types
 	BOOST_CHECK(func_type[1] == floatTy());
 	BOOST_CHECK(func_type[2] == boolTy());
-	BOOST_CHECK(func_type[3] == ptrType());
+	BOOST_CHECK(func_type[3] == ptrTy());
 
 	// Test function with no parameters (just return type)
 	vector<Type> void_return = {voidTy()};
@@ -302,14 +302,14 @@ BOOST_AUTO_TEST_CASE(ComplexTypeCompositions) {
 	BOOST_CHECK(complex_struct[1] == arr3_vec);
 
 	// Create a function type that uses this struct
-	vector<Type> func_params = {voidTy(), complex_struct, ptrType()};
+	vector<Type> func_params = {voidTy(), complex_struct, ptrTy()};
 	Type complex_func = funcType(func_params);
 
 	BOOST_CHECK_EQUAL(complex_func.kind(), FuncKind);
 	BOOST_CHECK_EQUAL(complex_func.size(), 3);
 	BOOST_CHECK(complex_func[0] == voidTy());
 	BOOST_CHECK(complex_func[1] == complex_struct);
-	BOOST_CHECK(complex_func[2] == ptrType());
+	BOOST_CHECK(complex_func[2] == ptrTy());
 }
 
 // Test construction and basic properties of constants
@@ -324,7 +324,7 @@ BOOST_AUTO_TEST_CASE(ConstantTerms) {
 	BOOST_CHECK_EQUAL(falseConst.intVal(), 0);
 
 	// Test null constant
-	BOOST_CHECK_EQUAL(nullConst.type(), ptrType());
+	BOOST_CHECK_EQUAL(nullConst.type(), ptrTy());
 	BOOST_CHECK_EQUAL(nullConst.tag(), Null);
 
 	// Test integer constant creation
@@ -436,7 +436,7 @@ BOOST_AUTO_TEST_CASE(BasicTypeOutput) {
 	BOOST_CHECK_EQUAL(typeToString(boolTy()), "i1");
 
 	// Test pointer
-	BOOST_CHECK_EQUAL(typeToString(ptrType()), "ptr");
+	BOOST_CHECK_EQUAL(typeToString(ptrTy()), "ptr");
 }
 
 BOOST_AUTO_TEST_CASE(IntegerTypeOutput) {
@@ -502,7 +502,7 @@ BOOST_AUTO_TEST_CASE(FuncTypeOutput) {
 	BOOST_CHECK_EQUAL(typeToString(funcType(params)), "void (i32, float)");
 
 	// Test function returning non-void
-	params[0] = ptrType();
+	params[0] = ptrTy();
 	BOOST_CHECK_EQUAL(typeToString(funcType(params)), "ptr (i32, float)");
 
 	// Test function with complex parameter types
@@ -514,7 +514,7 @@ BOOST_AUTO_TEST_CASE(ComplexTypeOutput) {
 	// Test combination of various type constructs
 	std::vector<Type> fields;
 	fields.push_back(arrayType(2, vecType(4, intTy(32))));
-	fields.push_back(ptrType());
+	fields.push_back(ptrTy());
 
 	std::vector<Type> funcParams;
 	funcParams.push_back(structType(fields)); // return type
@@ -1480,7 +1480,7 @@ BOOST_AUTO_TEST_CASE(StructTypeIterators) {
 
 // Test function type iteration
 BOOST_AUTO_TEST_CASE(FuncTypeIterators) {
-	std::vector<Type> params = {intTy(32), floatTy(), ptrType()};
+	std::vector<Type> params = {intTy(32), floatTy(), ptrTy()};
 	Type rty = voidTy();
 	std::vector<Type> funcTypes = params;
 	funcTypes.insert(funcTypes.begin(), rty);
@@ -1534,7 +1534,7 @@ BOOST_AUTO_TEST_CASE(IteratorInvalidation) {
 	auto it1 = structT1.begin();
 
 	// Create a new struct type
-	Type structT2 = structType({doubleTy(), ptrType()});
+	Type structT2 = structType({doubleTy(), ptrTy()});
 
 	// Original iterator should still be valid and point to the original type
 	BOOST_CHECK(*it1 == intTy(32));
@@ -1558,7 +1558,7 @@ BOOST_AUTO_TEST_CASE(EmptyTermTest) {
 // Test iteration over function parameters
 BOOST_AUTO_TEST_CASE(ParametersIterationTest) {
 	// Create parameters with different types
-	std::vector<Term> params = {var(intTy(32), "a"), var(doubleTy(), "b"), var(ptrType(), "c")};
+	std::vector<Term> params = {var(intTy(32), "a"), var(doubleTy(), "b"), var(ptrTy(), "c")};
 
 	Term paramTerm = tuple(params);
 
@@ -1571,7 +1571,7 @@ BOOST_AUTO_TEST_CASE(ParametersIterationTest) {
 	++it;
 	BOOST_CHECK_EQUAL((*it).type(), doubleTy());
 	++it;
-	BOOST_CHECK_EQUAL((*it).type(), ptrType());
+	BOOST_CHECK_EQUAL((*it).type(), ptrTy());
 	++it;
 	BOOST_CHECK(it == paramTerm.end());
 }

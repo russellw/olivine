@@ -81,7 +81,7 @@ Type intTy(size_t len);
 Type floatTy();
 Type doubleTy();
 
-Type ptrType();
+Type ptrTy();
 
 Type vecType(size_t len, Type element);
 Type arrayType(size_t len, Type element);

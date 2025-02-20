@@ -67,7 +67,7 @@ class Parser {
 			return falseConst;
 		}
 		if (token == "null") {
-			if (type != ptrType()) {
+			if (type != ptrTy()) {
 				throw error("type mismatch");
 			}
 			lex();
@@ -353,7 +353,7 @@ class Parser {
 			auto a = typeExpr();
 			expect(",");
 			expect("ptr");
-			auto p = expr(ptrType());
+			auto p = expr(ptrTy());
 			return Inst(Store, a, p);
 		}
 		if (token == "unreachable") {
@@ -855,7 +855,7 @@ class Parser {
 		}
 		if (token == "ptr") {
 			lex();
-			return ptrType();
+			return ptrTy();
 		}
 		if (token == "void") {
 			lex();
