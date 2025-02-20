@@ -253,3 +253,7 @@ Ref parseRef(string s) {
 	// Identifier or string
 	return Ref(unwrap(s));
 }
+
+string quote(const string& s) {
+	return '\'' + s + '\'';
+}

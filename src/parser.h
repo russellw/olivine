@@ -89,7 +89,7 @@ class Parser {
 			lex();
 			return a;
 		}
-		throw error('\'' + token + "': expected expression");
+		throw error(quote(token) + ": expected expression");
 	}
 
 	void fastMathFlags() {
@@ -313,7 +313,7 @@ class Parser {
 	Ref parseGlobalRef() {
 		// TODO: factor out quoting
 		if (token[0] != '@') {
-			throw error('\'' + token + "': expected global name");
+			throw error(quote(token) + ": expected global name");
 		}
 		return parseRef1();
 	}
@@ -369,7 +369,7 @@ class Parser {
 		}
 		// END
 
-		throw error('\'' + token + "': expected inst");
+		throw error(quote(token) + ": expected inst");
 	}
 
 	vector<Inst> parseInsts() {
@@ -537,7 +537,7 @@ class Parser {
 				return not1(cmp(FEq, b, a));
 			}
 			// END
-			throw error('\'' + token + "': expected condition");
+			throw error(quote(token) + ": expected condition");
 		}
 		if (token == "fdiv") {
 			lex();
@@ -666,7 +666,7 @@ class Parser {
 				return cmp(ULt, b, a);
 			}
 			// END
-			throw error('\'' + token + "': expected condition");
+			throw error(quote(token) + ": expected condition");
 		}
 		if (token == "load") {
 			lex();
@@ -785,7 +785,7 @@ class Parser {
 		}
 		// END
 
-		throw error('\'' + token + "': expected rval");
+		throw error(quote(token) + ": expected rval");
 	}
 
 	Ref parseRef1() {
@@ -868,6 +868,7 @@ class Parser {
 			return intType(len);
 		}
 		// END
+
 		throw error("expected type");
 	}
 

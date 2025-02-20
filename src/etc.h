@@ -147,3 +147,5 @@ template <typename T> vector<T> cons(const T& x, const vector<T>& xs) {
 	result.insert(result.end(), xs.begin(), xs.end());
 	return result;
 }
+
+string quote(const string& s);
