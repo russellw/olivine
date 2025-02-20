@@ -156,7 +156,7 @@ Type ptrTy() {
 	return type;
 }
 
-Type vecType(size_t len, Type element) {
+Type vecTy(size_t len, Type element) {
 	ASSERT(element != voidTy());
 	auto p = new TypeImpl(VecKind, len, element);
 	return Type(typeInterner.intern(p));

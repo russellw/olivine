@@ -83,7 +83,7 @@ Type doubleTy();
 
 Type ptrTy();
 
-Type vecType(size_t len, Type element);
+Type vecTy(size_t len, Type element);
 Type arrayType(size_t len, Type element);
 Type structType(const vector<Type>& fields);
 

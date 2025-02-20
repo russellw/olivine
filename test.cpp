@@ -167,8 +167,8 @@ BOOST_AUTO_TEST_CASE(ArrayTypeEquality) {
 
 BOOST_AUTO_TEST_CASE(VectorTypeProperties) {
 	Type int32 = intTy(32);
-	Type float_vec_4 = vecType(4, floatTy());
-	Type int_vec_8 = vecType(8, int32);
+	Type float_vec_4 = vecTy(4, floatTy());
+	Type int_vec_8 = vecTy(8, int32);
 
 	// Check kinds
 	BOOST_CHECK_EQUAL(float_vec_4.kind(), VecKind);
@@ -290,7 +290,7 @@ BOOST_AUTO_TEST_CASE(ComplexTypeCompositions) {
 	Type int32 = intTy(32);
 
 	// Create a struct containing an array of vectors
-	Type vec4_float = vecType(4, floatTy());
+	Type vec4_float = vecTy(4, floatTy());
 	Type arr3_vec = arrayType(3, vec4_float);
 	vector<Type> struct_fields = {int32, arr3_vec};
 	Type complex_struct = structType(struct_fields);
@@ -463,11 +463,11 @@ BOOST_AUTO_TEST_CASE(ArrayTypeOutput) {
 
 BOOST_AUTO_TEST_CASE(VectorTypeOutput) {
 	// Test vectors of basic types
-	BOOST_CHECK_EQUAL(typeToString(vecType(4, intTy(32))), "<4 x i32>");
-	BOOST_CHECK_EQUAL(typeToString(vecType(2, floatTy())), "<2 x float>");
+	BOOST_CHECK_EQUAL(typeToString(vecTy(4, intTy(32))), "<4 x i32>");
+	BOOST_CHECK_EQUAL(typeToString(vecTy(2, floatTy())), "<2 x float>");
 
 	// Test unusual vector sizes
-	BOOST_CHECK_EQUAL(typeToString(vecType(3, intTy(1))), "<3 x i1>");
+	BOOST_CHECK_EQUAL(typeToString(vecTy(3, intTy(1))), "<3 x i1>");
 }
 
 BOOST_AUTO_TEST_CASE(StructTypeOutput) {
@@ -513,7 +513,7 @@ BOOST_AUTO_TEST_CASE(FuncTypeOutput) {
 BOOST_AUTO_TEST_CASE(ComplexTypeOutput) {
 	// Test combination of various type constructs
 	std::vector<Type> fields;
-	fields.push_back(arrayType(2, vecType(4, intTy(32))));
+	fields.push_back(arrayType(2, vecTy(4, intTy(32))));
 	fields.push_back(ptrTy());
 
 	std::vector<Type> funcParams;
@@ -544,7 +544,7 @@ BOOST_AUTO_TEST_CASE(CompoundTypeMapping) {
 
 	// Create some compound types
 	Type arrayOfInt = arrayType(10, intTy(32));
-	Type vectorOfFloat = vecType(4, floatTy());
+	Type vectorOfFloat = vecTy(4, floatTy());
 
 	typeMap[arrayOfInt] = "array of int";
 	typeMap[vectorOfFloat] = "vector of float";
@@ -1438,7 +1438,7 @@ BOOST_AUTO_TEST_CASE(ScalarTypeIterators) {
 // Test vector type iteration
 BOOST_AUTO_TEST_CASE(VectorTypeIterators) {
 	Type elementType = intTy(32);
-	Type vecT = vecType(4, elementType);
+	Type vecT = vecTy(4, elementType);
 
 	BOOST_CHECK(vecT.begin() != vecT.end());
 	BOOST_CHECK(vecT.cbegin() != vecT.cend());

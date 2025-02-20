@@ -835,7 +835,7 @@ class Parser {
 			expect("x");
 			auto element = parseType();
 			expect(">");
-			return vecType(len, element);
+			return vecTy(len, element);
 		}
 		if (token == "[") {
 			lex();
