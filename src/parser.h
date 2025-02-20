@@ -100,7 +100,7 @@ class Parser {
 
 	void id() {
 		if (input[pos] == '"') {
-			quote();
+			lexQuote();
 			return;
 		}
 		if (!isIdPart(input[pos])) {
@@ -127,7 +127,7 @@ class Parser {
 				continue;
 			case '"':
 				token.clear();
-				quote();
+				lexQuote();
 				maybeColon();
 				return;
 			case '%':
@@ -143,7 +143,7 @@ class Parser {
 			case 'c':
 				if (input[pos + 1] == '"') {
 					token = input.substr(pos++, 1);
-					quote();
+					lexQuote();
 					return;
 				}
 				break;
@@ -158,6 +158,19 @@ class Parser {
 			return;
 		}
 		token = eof;
+	}
+
+	void lexQuote() {
+		ASSERT(input[pos] == '"');
+		for (auto i = pos + 1; i < input.size(); i++) {
+			if (input[i] == '"') {
+				i++;
+				token += input.substr(pos, i - pos);
+				pos = i;
+				return;
+			}
+		}
+		throw error("unclosed quote");
 	}
 
 	void maybeColon() {
@@ -856,19 +869,6 @@ class Parser {
 		}
 		// END
 		throw error("expected type");
-	}
-
-	void quote() {
-		ASSERT(input[pos] == '"');
-		for (auto i = pos + 1; i < input.size(); i++) {
-			if (input[i] == '"') {
-				i++;
-				token += input.substr(pos, i - pos);
-				pos = i;
-				return;
-			}
-		}
-		throw error("unclosed quote");
 	}
 
 	void setConsistent(string& var, const string& val, const char* name) {
