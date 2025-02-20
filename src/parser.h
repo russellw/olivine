@@ -597,6 +597,14 @@ class Parser {
 			// END
 			throw error('\'' + token + "': expected condition");
 		}
+		if (token == "load") {
+			lex();
+			auto type = parseType();
+			expect(",");
+			expect("ptr");
+			auto a = expr(type);
+			return Term(Load, type, a);
+		}
 		if (token == "lshr") {
 			lex();
 			if (token == "exact") {

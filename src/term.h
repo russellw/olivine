@@ -57,6 +57,13 @@ enum Tag {
 	Int,
 	LShr,
 	Label,
+
+	// Load takes a pointer operand
+	// and tries to load from it a value of the specified type
+	// with the usual caveats about bad pointers being undefined behavior
+	// Note that the corresponding Store is an instruction, not a term
+	Load,
+
 	Mul,
 
 	// Logical negation doesn't correspond to an LLVM instruction
