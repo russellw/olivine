@@ -311,7 +311,6 @@ class Parser {
 	}
 
 	Ref parseGlobalRef() {
-		// TODO: factor out quoting
 		if (token[0] != '@') {
 			throw error(quote(token) + ": expected global name");
 		}

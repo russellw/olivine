@@ -255,5 +255,8 @@ Ref parseRef(string s) {
 }
 
 string quote(const string& s) {
+	if (s == "\n") {
+		return "newline";
+	}
 	return '\'' + s + '\'';
 }
