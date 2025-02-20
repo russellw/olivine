@@ -1,4 +1,12 @@
 enum Opcode {
+	// Alloca has three operands
+	// First, the variable to which the result will be assigned
+	// Second, the type to be allocated
+	// Instruction operands are terms not types, so this is specified in the form of a zero value of the appropriate type
+	// Third, the number of elements
+	// This is usually the constant 1, but can be a variable
+	Alloca,
+
 	// The left-hand side of an assignment instruction must be a variable of compatible type
 	Assign,
 
@@ -73,6 +81,10 @@ public:
 };
 
 // SORT FUNCTIONS
+
+inline Inst alloca(Term lval, Type ty, Term n) {
+	return Inst(Alloca, lval, zeroVal(ty), n);
+}
 
 inline Inst assign(Term a, Term b) {
 	return Inst(Assign, a, b);

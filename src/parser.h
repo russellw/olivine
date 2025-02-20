@@ -362,8 +362,15 @@ class Parser {
 			auto lval = parseRef(token);
 			lex();
 			expect("=");
+			if (token == "alloca") {
+				lex();
+				auto ty = type();
+				expect(",");
+				auto n = typeExpr();
+				return alloca(var(ptrTy(), lval), ty, n);
+			}
 			auto rval = parseRVal();
-			return Inst(Assign, var(rval.ty(), lval), rval);
+			return assign(var(rval.ty(), lval), rval);
 		}
 		// END
 
