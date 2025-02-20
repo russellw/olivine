@@ -87,4 +87,4 @@ Type vecTy(size_t len, Type element);
 Type arrayTy(size_t len, Type element);
 Type structTy(const vector<Type>& fields);
 
-Type funcType(Type rty, const vector<Type>& params);
+Type funcTy(Type rty, const vector<Type>& params);

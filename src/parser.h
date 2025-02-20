@@ -257,7 +257,7 @@ class Parser {
 		auto ref = parseGlobalRef();
 		auto args = parseArgs();
 		auto params = map(args, [](Term a) { return a.type(); });
-		auto ftype = funcType(rty, params);
+		auto ftype = funcTy(rty, params);
 		auto f = globalRef(ftype, ref);
 		return call(rty, f, args);
 	}
