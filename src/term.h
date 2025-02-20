@@ -186,7 +186,7 @@ inline Term call(Type type, Term f, const vector<Term>& args) {
 }
 
 inline Term cmp(Tag tag, Term a, Term b) {
-	return Term(tag, boolType(), a, b);
+	return Term(tag, boolTy(), a, b);
 }
 
 inline Term floatConst(Type type, const string& val) {

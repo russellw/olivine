@@ -26,19 +26,19 @@ BOOST_AUTO_TEST_CASE(BasicTypeProperties) {
 	BOOST_CHECK_EQUAL(doubleType().kind(), DoubleKind);
 	BOOST_CHECK_EQUAL(doubleType().size(), 0);
 
-	BOOST_CHECK_EQUAL(boolType().kind(), IntKind);
-	BOOST_CHECK_EQUAL(boolType().size(), 0);
+	BOOST_CHECK_EQUAL(boolTy().kind(), IntKind);
+	BOOST_CHECK_EQUAL(boolTy().size(), 0);
 }
 
 BOOST_AUTO_TEST_CASE(TypeEquality) {
 	BOOST_CHECK(voidTy() == voidTy());
 	BOOST_CHECK(floatType() == floatType());
 	BOOST_CHECK(doubleType() == doubleType());
-	BOOST_CHECK(boolType() == boolType());
+	BOOST_CHECK(boolTy() == boolTy());
 
 	BOOST_CHECK(voidTy() != floatType());
 	BOOST_CHECK(floatType() != doubleType());
-	BOOST_CHECK(doubleType() != boolType());
+	BOOST_CHECK(doubleType() != boolTy());
 }
 
 BOOST_AUTO_TEST_CASE(IntegerTypeProperties) {
@@ -67,7 +67,7 @@ BOOST_AUTO_TEST_CASE(IntegerTypeProperties) {
 	BOOST_CHECK_EQUAL(int64.size(), 0);
 
 	// Check bool type bits
-	BOOST_CHECK_EQUAL(boolType().len(), 1);
+	BOOST_CHECK_EQUAL(boolTy().len(), 1);
 }
 
 BOOST_AUTO_TEST_CASE(IntegerTypeEquality) {
@@ -106,7 +106,7 @@ BOOST_AUTO_TEST_CASE(IntegerTypeEdgeCases) {
 	BOOST_CHECK_EQUAL(int128.len(), 128);
 
 	// Verify 1-bit integer is equivalent to bool type
-	BOOST_CHECK(int1 == boolType());
+	BOOST_CHECK(int1 == boolTy());
 
 	// Test equality with same unusual widths
 	Type int3_2 = intType(3);
@@ -120,7 +120,7 @@ BOOST_AUTO_TEST_CASE(ArrayTypeProperties) {
 	Type int32 = intType(32);
 	Type float_arr_10 = arrayType(10, floatType());
 	Type int_arr_5 = arrayType(5, int32);
-	Type bool_arr_2 = arrayType(2, boolType());
+	Type bool_arr_2 = arrayType(2, boolTy());
 
 	// Check kinds
 	BOOST_CHECK_EQUAL(float_arr_10.kind(), ArrayKind);
@@ -140,7 +140,7 @@ BOOST_AUTO_TEST_CASE(ArrayTypeProperties) {
 	// Check element types
 	BOOST_CHECK(float_arr_10[0] == floatType());
 	BOOST_CHECK(int_arr_5[0] == int32);
-	BOOST_CHECK(bool_arr_2[0] == boolType());
+	BOOST_CHECK(bool_arr_2[0] == boolTy());
 }
 
 BOOST_AUTO_TEST_CASE(ArrayTypeEquality) {
@@ -189,7 +189,7 @@ BOOST_AUTO_TEST_CASE(VectorTypeProperties) {
 
 BOOST_AUTO_TEST_CASE(StructTypeProperties) {
 	// Test structure with various field types
-	vector<Type> fields = {intType(32), floatType(), boolType(), ptrType()};
+	vector<Type> fields = {intType(32), floatType(), boolTy(), ptrType()};
 	Type struct_type = structType(fields);
 
 	// Check kind
@@ -201,7 +201,7 @@ BOOST_AUTO_TEST_CASE(StructTypeProperties) {
 	// Check field types
 	BOOST_CHECK(struct_type[0] == intType(32));
 	BOOST_CHECK(struct_type[1] == floatType());
-	BOOST_CHECK(struct_type[2] == boolType());
+	BOOST_CHECK(struct_type[2] == boolTy());
 	BOOST_CHECK(struct_type[3] == ptrType());
 
 	// Test empty struct
@@ -238,7 +238,7 @@ BOOST_AUTO_TEST_CASE(FuncTypeProperties) {
 	vector<Type> params = {
 		intType(32), // return type
 		floatType(), // param 1
-		boolType(),	 // param 2
+		boolTy(),	 // param 2
 		ptrType()	 // param 3
 	};
 	Type func_type = funcType(params);
@@ -254,7 +254,7 @@ BOOST_AUTO_TEST_CASE(FuncTypeProperties) {
 
 	// Check parameter types
 	BOOST_CHECK(func_type[1] == floatType());
-	BOOST_CHECK(func_type[2] == boolType());
+	BOOST_CHECK(func_type[2] == boolTy());
 	BOOST_CHECK(func_type[3] == ptrType());
 
 	// Test function with no parameters (just return type)
@@ -266,9 +266,9 @@ BOOST_AUTO_TEST_CASE(FuncTypeProperties) {
 }
 
 BOOST_AUTO_TEST_CASE(FuncTypeEquality) {
-	vector<Type> params1 = {intType(32), floatType(), boolType()};
-	vector<Type> params2 = {intType(32), floatType(), boolType()};
-	vector<Type> params3 = {intType(32), boolType(), floatType()};
+	vector<Type> params1 = {intType(32), floatType(), boolTy()};
+	vector<Type> params2 = {intType(32), floatType(), boolTy()};
+	vector<Type> params3 = {intType(32), boolTy(), floatType()};
 
 	Type func1 = funcType(params1);
 	Type func2 = funcType(params2);
@@ -281,7 +281,7 @@ BOOST_AUTO_TEST_CASE(FuncTypeEquality) {
 	BOOST_CHECK(func1 != func3);
 
 	// Test functions with different return types
-	vector<Type> params4 = {floatType(), floatType(), boolType()};
+	vector<Type> params4 = {floatType(), floatType(), boolTy()};
 	Type func4 = funcType(params4);
 	BOOST_CHECK(func1 != func4);
 }
@@ -315,11 +315,11 @@ BOOST_AUTO_TEST_CASE(ComplexTypeCompositions) {
 // Test construction and basic properties of constants
 BOOST_AUTO_TEST_CASE(ConstantTerms) {
 	// Test boolean constants
-	BOOST_CHECK_EQUAL(trueConst.type(), boolType());
+	BOOST_CHECK_EQUAL(trueConst.type(), boolTy());
 	BOOST_CHECK_EQUAL(trueConst.tag(), Int);
 	BOOST_CHECK_EQUAL(trueConst.intVal(), 1);
 
-	BOOST_CHECK_EQUAL(falseConst.type(), boolType());
+	BOOST_CHECK_EQUAL(falseConst.type(), boolTy());
 	BOOST_CHECK_EQUAL(falseConst.tag(), Int);
 	BOOST_CHECK_EQUAL(falseConst.intVal(), 0);
 
@@ -433,7 +433,7 @@ BOOST_AUTO_TEST_CASE(BasicTypeOutput) {
 	BOOST_CHECK_EQUAL(typeToString(doubleType()), "double");
 
 	// Test bool (1-bit integer)
-	BOOST_CHECK_EQUAL(typeToString(boolType()), "i1");
+	BOOST_CHECK_EQUAL(typeToString(boolTy()), "i1");
 
 	// Test pointer
 	BOOST_CHECK_EQUAL(typeToString(ptrType()), "ptr");
@@ -532,11 +532,11 @@ BOOST_AUTO_TEST_CASE(BasicTypeMapping) {
 	// Test primitive types
 	typeMap[voidTy()] = 1;
 	typeMap[intType(32)] = 2;
-	typeMap[boolType()] = 3;
+	typeMap[boolTy()] = 3;
 
 	BOOST_CHECK_EQUAL(typeMap[voidTy()], 1);
 	BOOST_CHECK_EQUAL(typeMap[intType(32)], 2);
-	BOOST_CHECK_EQUAL(typeMap[boolType()], 3);
+	BOOST_CHECK_EQUAL(typeMap[boolTy()], 3);
 }
 
 BOOST_AUTO_TEST_CASE(CompoundTypeMapping) {
@@ -582,11 +582,11 @@ BOOST_AUTO_TEST_CASE(FuncTypeMapping) {
 	std::unordered_map<Type, std::string> typeMap;
 
 	// Function type: int32 (float, bool)
-	std::vector<Type> params1 = {intType(32), floatType(), boolType()};
+	std::vector<Type> params1 = {intType(32), floatType(), boolTy()};
 	Type func1 = funcType(params1);
 
 	// Same function type
-	std::vector<Type> params2 = {intType(32), floatType(), boolType()};
+	std::vector<Type> params2 = {intType(32), floatType(), boolTy()};
 	Type func2 = funcType(params2);
 
 	typeMap[func1] = "int32 (float, bool)";

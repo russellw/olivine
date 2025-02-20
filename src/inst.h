@@ -83,7 +83,7 @@ inline Inst block(const Ref& ref) {
 }
 
 inline Inst br(Term cond, const Ref& ifTrue, const Ref& ifFalse) {
-	ASSERT(cond.type() == boolType());
+	ASSERT(cond.type() == boolTy());
 	return Inst(Br, cond, label(ifTrue), label(ifFalse));
 }
 

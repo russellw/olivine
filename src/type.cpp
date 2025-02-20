@@ -130,7 +130,7 @@ Type voidTy() {
 	return type;
 }
 
-Type boolType() {
+Type boolTy() {
 	static Type type(&boolImpl);
 	return type;
 }

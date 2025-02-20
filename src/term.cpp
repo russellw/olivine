@@ -24,8 +24,8 @@ struct TermImpl {
 	}
 };
 
-TermImpl trueImpl(Int, boolType(), cpp_int(1));
-TermImpl falseImpl(Int, boolType(), cpp_int(0));
+TermImpl trueImpl(Int, boolTy(), cpp_int(1));
+TermImpl falseImpl(Int, boolTy(), cpp_int(0));
 
 TermImpl nullImpl(Null, ptrType());
 

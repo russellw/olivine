@@ -60,7 +60,7 @@ class Parser {
 	Term expr(Type type) {
 		// SORT BLOCKS
 		if (token == "false") {
-			if (type != boolType()) {
+			if (type != boolTy()) {
 				throw error("type mismatch");
 			}
 			lex();
@@ -74,7 +74,7 @@ class Parser {
 			return nullConst;
 		}
 		if (token == "true") {
-			if (type != boolType()) {
+			if (type != boolTy()) {
 				throw error("type mismatch");
 			}
 			lex();

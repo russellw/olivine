@@ -59,7 +59,7 @@ ostream& operator<<(ostream& os, Term a) {
 		os << a.str();
 		return os;
 	case Int:
-		if (a.type() == boolType()) {
+		if (a.type() == boolTy()) {
 			os << (a.intVal() ? "true" : "false");
 			return os;
 		}
