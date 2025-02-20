@@ -46,10 +46,10 @@ using boost::multiprecision::cpp_int;
 // it is necessary to insert the occasional blank line to prevent inappropriate sorting
 #include "term.h"
 
-#include "instruction.h"
+#include "inst.h"
 
-#include "function.h"
-#include "globalvar.h"
+#include "func.h"
+#include "global.h"
 #include "module.h"
 
 // Logically the code for printing terms should perhaps be ordered later
