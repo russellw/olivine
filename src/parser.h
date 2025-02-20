@@ -335,10 +335,10 @@ class Parser {
 			}
 			auto cond = typeExpr();
 			expect(",");
-			auto ifTrue = label1();
+			auto yes = label1();
 			expect(",");
-			auto ifFalse = label1();
-			return br(cond, ifTrue, ifFalse);
+			auto no = label1();
+			return br(cond, yes, no);
 		}
 		if (token == "call") {
 			return Inst(Drop, parseCall());

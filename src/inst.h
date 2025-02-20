@@ -104,12 +104,12 @@ inline Inst block(const Ref& ref) {
 	return Inst(Block, label(ref));
 }
 
-inline Inst br(Term cond, Term ifTrue, Term ifFalse) {
-	return Inst(Br, cond, ifTrue, ifFalse);
+inline Inst br(Term cond, Term yes, Term no) {
+	return Inst(Br, cond, yes, no);
 }
 
-inline Inst br(Term cond, const Ref& ifTrue, const Ref& ifFalse) {
-	return br(cond, label(ifTrue), label(ifFalse));
+inline Inst br(Term cond, const Ref& yes, const Ref& no) {
+	return br(cond, label(yes), label(no));
 }
 
 inline Inst jmp(Term target) {
