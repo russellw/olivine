@@ -11,7 +11,7 @@ public:
 	}
 
 	Func(Type rty, const Ref& ref, const vector<Term>& params);
-	Func(Type rty, const Ref& ref, const vector<Term>& params, const vector<Inst>& insts);
+	Func(Type rty, const Ref& ref, const vector<Term>& params, const vector<Inst>& body);
 
 	Type rty() const;
 	Ref ref() const;

@@ -77,7 +77,7 @@ size_t Term::size() const {
 }
 
 Term Term::operator[](size_t i) const {
-	ASSERT(i < p->v.size());
+	ASSERT(i < size());
 	return p->v[i];
 }
 
