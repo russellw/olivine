@@ -1832,3 +1832,109 @@ BOOST_AUTO_TEST_CASE(LargeVectorTest) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+// Test suite for cons function
+BOOST_AUTO_TEST_SUITE(ConsTests)
+
+BOOST_AUTO_TEST_CASE(cons_empty_vector) {
+	vector<int> empty;
+	auto result = cons(1, empty);
+
+	BOOST_CHECK_EQUAL(result.size(), 1);
+	BOOST_CHECK_EQUAL(result[0], 1);
+}
+
+BOOST_AUTO_TEST_CASE(cons_nonempty_vector) {
+	vector<int> v{2, 3, 4};
+	auto result = cons(1, v);
+
+	BOOST_CHECK_EQUAL(result.size(), 4);
+	BOOST_CHECK_EQUAL(result[0], 1);
+	BOOST_CHECK_EQUAL(result[1], 2);
+	BOOST_CHECK_EQUAL(result[2], 3);
+	BOOST_CHECK_EQUAL(result[3], 4);
+}
+
+BOOST_AUTO_TEST_CASE(cons_preserves_original) {
+	vector<int> original{2, 3, 4};
+	vector<int> originalCopy = original;
+	auto result = cons(1, original);
+
+	BOOST_CHECK_EQUAL_COLLECTIONS(original.begin(), original.end(), originalCopy.begin(), originalCopy.end());
+}
+
+BOOST_AUTO_TEST_CASE(cons_with_string) {
+	vector<string> v{"world", "!"};
+	auto result = cons(string("hello"), v);
+
+	BOOST_CHECK_EQUAL(result.size(), 3);
+	BOOST_CHECK_EQUAL(result[0], "hello");
+	BOOST_CHECK_EQUAL(result[1], "world");
+	BOOST_CHECK_EQUAL(result[2], "!");
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+// Test suite for call function
+BOOST_AUTO_TEST_SUITE(CallTests)
+
+BOOST_AUTO_TEST_CASE(call_no_args) {
+	Type returnType = intType(32);
+	Term func = var(funcType(returnType, {}), Ref("main"));
+	vector<Term> emptyArgs;
+
+	Term result = call(returnType, func, emptyArgs);
+
+	BOOST_CHECK_EQUAL(result.tag(), Call);
+	BOOST_CHECK_EQUAL(result.type(), returnType);
+	BOOST_CHECK_EQUAL(result.size(), 1);
+	BOOST_CHECK_EQUAL(result[0], func);
+}
+
+BOOST_AUTO_TEST_CASE(call_with_args) {
+	Type returnType = intType(32);
+	Type paramType = intType(32);
+	vector<Type> paramTypes{paramType, paramType};
+
+	Term func = var(funcType(returnType, paramTypes), Ref("add"));
+	Term arg1 = intConst(paramType, cpp_int(1));
+	Term arg2 = intConst(paramType, cpp_int(2));
+	vector<Term> args{arg1, arg2};
+
+	Term result = call(returnType, func, args);
+
+	BOOST_CHECK_EQUAL(result.tag(), Call);
+	BOOST_CHECK_EQUAL(result.type(), returnType);
+	BOOST_CHECK_EQUAL(result.size(), 3);
+	BOOST_CHECK_EQUAL(result[0], func);
+	BOOST_CHECK_EQUAL(result[1], arg1);
+	BOOST_CHECK_EQUAL(result[2], arg2);
+}
+
+BOOST_AUTO_TEST_CASE(call_preserves_args) {
+	Type returnType = intType(32);
+	Type paramType = intType(32);
+	Term func = var(funcType(returnType, {paramType}), Ref("inc"));
+
+	vector<Term> originalArgs{intConst(paramType, cpp_int(42))};
+	vector<Term> argsCopy = originalArgs;
+
+	Term result = call(returnType, func, originalArgs);
+
+	BOOST_CHECK_EQUAL_COLLECTIONS(originalArgs.begin(), originalArgs.end(), argsCopy.begin(), argsCopy.end());
+}
+
+BOOST_AUTO_TEST_CASE(call_void_return) {
+	Type voidTy = voidType();
+	Term func = var(funcType(voidTy, {}), Ref("exit"));
+	vector<Term> emptyArgs;
+
+	Term result = call(voidTy, func, emptyArgs);
+
+	BOOST_CHECK_EQUAL(result.tag(), Call);
+	BOOST_CHECK_EQUAL(result.type(), voidTy);
+	BOOST_CHECK_EQUAL(result.size(), 1);
+	BOOST_CHECK_EQUAL(result[0], func);
+}
+
+BOOST_AUTO_TEST_SUITE_END()

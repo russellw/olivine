@@ -139,3 +139,11 @@ template <typename Iterator> size_t hashRange(Iterator first, Iterator last) {
 template <typename T> size_t hashVector(const vector<T>& v) {
 	return hashRange(v.begin(), v.end());
 }
+
+template <typename T> vector<T> cons(const T& x, const vector<T>& xs) {
+	vector<T> result;
+	result.reserve(1 + xs.size());
+	result.push_back(x);
+	result.insert(result.end(), xs.begin(), xs.end());
+	return result;
+}

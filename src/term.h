@@ -182,7 +182,7 @@ inline Term array(Type elementType, const vector<Term>& elements) {
 }
 
 inline Term call(Type type, Term f, const vector<Term>& args) {
-	// TODO: return Term(Call, type, {f}+args);
+	return Term(Call, type, cons(f, args));
 }
 
 inline Term cmp(Tag tag, Term a, Term b) {
