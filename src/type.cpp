@@ -71,7 +71,7 @@ public:
 	}
 };
 
-TypeInterner typeInterner;
+TypeInterner tyInterner;
 
 Type::Type(): p(&voidImpl) {
 }
@@ -138,7 +138,7 @@ Type boolTy() {
 Type intTy(size_t len) {
 	ASSERT(len);
 	auto p = new TypeImpl(IntKind, len);
-	return Type(typeInterner.intern(p));
+	return Type(tyInterner.intern(p));
 }
 
 Type floatTy() {
@@ -159,13 +159,13 @@ Type ptrTy() {
 Type vecTy(size_t len, Type element) {
 	ASSERT(element != voidTy());
 	auto p = new TypeImpl(VecKind, len, element);
-	return Type(typeInterner.intern(p));
+	return Type(tyInterner.intern(p));
 }
 
 Type arrayTy(size_t len, Type element) {
 	ASSERT(element != voidTy());
 	auto p = new TypeImpl(ArrayKind, len, element);
-	return Type(typeInterner.intern(p));
+	return Type(tyInterner.intern(p));
 }
 
 Type structTy(const vector<Type>& fields) {
@@ -173,7 +173,7 @@ Type structTy(const vector<Type>& fields) {
 		ASSERT(field != voidTy());
 	}
 	auto p = new TypeImpl(StructKind, fields);
-	return Type(typeInterner.intern(p));
+	return Type(tyInterner.intern(p));
 }
 
 Type funcTy(Type rty, const vector<Type>& params) {
@@ -184,5 +184,5 @@ Type funcTy(Type rty, const vector<Type>& params) {
 	v.push_back(rty);
 	v.insert(v.end(), params.begin(), params.end());
 	auto p = new TypeImpl(FuncKind, v);
-	return Type(typeInterner.intern(p));
+	return Type(tyInterner.intern(p));
 }
