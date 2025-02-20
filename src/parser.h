@@ -859,7 +859,7 @@ class Parser {
 		}
 		if (token == "void") {
 			lex();
-			return voidType();
+			return voidTy();
 		}
 		if (token[0] == 'i') {
 			auto len = stoull(token.substr(1));

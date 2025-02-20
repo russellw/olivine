@@ -125,7 +125,7 @@ bool Type::operator!=(Type b) const {
 	return !(*this == b);
 }
 
-Type voidType() {
+Type voidTy() {
 	static Type type(&voidImpl);
 	return type;
 }
@@ -157,20 +157,20 @@ Type ptrType() {
 }
 
 Type vecType(size_t len, Type element) {
-	ASSERT(element != voidType());
+	ASSERT(element != voidTy());
 	auto p = new TypeImpl(VecKind, len, element);
 	return Type(typeInterner.intern(p));
 }
 
 Type arrayType(size_t len, Type element) {
-	ASSERT(element != voidType());
+	ASSERT(element != voidTy());
 	auto p = new TypeImpl(ArrayKind, len, element);
 	return Type(typeInterner.intern(p));
 }
 
 Type structType(const vector<Type>& fields) {
 	for (auto field : fields) {
-		ASSERT(field != voidType());
+		ASSERT(field != voidTy());
 	}
 	auto p = new TypeImpl(StructKind, fields);
 	return Type(typeInterner.intern(p));
@@ -178,7 +178,7 @@ Type structType(const vector<Type>& fields) {
 
 Type funcType(Type rty, const vector<Type>& params) {
 	for (auto param : params) {
-		ASSERT(param != voidType());
+		ASSERT(param != voidTy());
 	}
 	vector<Type> v;
 	v.push_back(rty);

@@ -33,7 +33,7 @@ Term::Term(): p(&nullImpl) {
 }
 
 Term::Term(Tag tag) {
-	p = new TermImpl(tag, voidType());
+	p = new TermImpl(tag, voidTy());
 }
 
 Term::Term(Tag tag, Type type, const Ref& ref) {

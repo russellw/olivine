@@ -73,7 +73,7 @@ template <> struct hash<Type> {
 };
 } // namespace std
 
-Type voidType();
+Type voidTy();
 
 Type boolType();
 Type intType(size_t len);

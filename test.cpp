@@ -17,8 +17,8 @@ Type funcType(const vector<Type>& v) {
 }
 
 BOOST_AUTO_TEST_CASE(BasicTypeProperties) {
-	BOOST_CHECK_EQUAL(voidType().kind(), VoidKind);
-	BOOST_CHECK_EQUAL(voidType().size(), 0);
+	BOOST_CHECK_EQUAL(voidTy().kind(), VoidKind);
+	BOOST_CHECK_EQUAL(voidTy().size(), 0);
 
 	BOOST_CHECK_EQUAL(floatType().kind(), FloatKind);
 	BOOST_CHECK_EQUAL(floatType().size(), 0);
@@ -31,12 +31,12 @@ BOOST_AUTO_TEST_CASE(BasicTypeProperties) {
 }
 
 BOOST_AUTO_TEST_CASE(TypeEquality) {
-	BOOST_CHECK(voidType() == voidType());
+	BOOST_CHECK(voidTy() == voidTy());
 	BOOST_CHECK(floatType() == floatType());
 	BOOST_CHECK(doubleType() == doubleType());
 	BOOST_CHECK(boolType() == boolType());
 
-	BOOST_CHECK(voidType() != floatType());
+	BOOST_CHECK(voidTy() != floatType());
 	BOOST_CHECK(floatType() != doubleType());
 	BOOST_CHECK(doubleType() != boolType());
 }
@@ -87,7 +87,7 @@ BOOST_AUTO_TEST_CASE(IntegerTypeEquality) {
 	// Test inequality with other types
 	BOOST_CHECK(int32 != floatType());
 	BOOST_CHECK(int64 != doubleType());
-	BOOST_CHECK(int16 != voidType());
+	BOOST_CHECK(int16 != voidTy());
 }
 
 BOOST_AUTO_TEST_CASE(IntegerTypeEdgeCases) {
@@ -258,11 +258,11 @@ BOOST_AUTO_TEST_CASE(FuncTypeProperties) {
 	BOOST_CHECK(func_type[3] == ptrType());
 
 	// Test function with no parameters (just return type)
-	vector<Type> void_return = {voidType()};
+	vector<Type> void_return = {voidTy()};
 	Type void_func = funcType(void_return);
 	BOOST_CHECK_EQUAL(void_func.kind(), FuncKind);
 	BOOST_CHECK_EQUAL(void_func.size(), 1);
-	BOOST_CHECK(void_func[0] == voidType());
+	BOOST_CHECK(void_func[0] == voidTy());
 }
 
 BOOST_AUTO_TEST_CASE(FuncTypeEquality) {
@@ -302,12 +302,12 @@ BOOST_AUTO_TEST_CASE(ComplexTypeCompositions) {
 	BOOST_CHECK(complex_struct[1] == arr3_vec);
 
 	// Create a function type that uses this struct
-	vector<Type> func_params = {voidType(), complex_struct, ptrType()};
+	vector<Type> func_params = {voidTy(), complex_struct, ptrType()};
 	Type complex_func = funcType(func_params);
 
 	BOOST_CHECK_EQUAL(complex_func.kind(), FuncKind);
 	BOOST_CHECK_EQUAL(complex_func.size(), 3);
-	BOOST_CHECK(complex_func[0] == voidType());
+	BOOST_CHECK(complex_func[0] == voidTy());
 	BOOST_CHECK(complex_func[1] == complex_struct);
 	BOOST_CHECK(complex_func[2] == ptrType());
 }
@@ -426,7 +426,7 @@ std::string typeToString(Type type) {
 
 BOOST_AUTO_TEST_CASE(BasicTypeOutput) {
 	// Test void type
-	BOOST_CHECK_EQUAL(typeToString(voidType()), "void");
+	BOOST_CHECK_EQUAL(typeToString(voidTy()), "void");
 
 	// Test float and double
 	BOOST_CHECK_EQUAL(typeToString(floatType()), "float");
@@ -493,7 +493,7 @@ BOOST_AUTO_TEST_CASE(FuncTypeOutput) {
 	std::vector<Type> params;
 
 	// Test function with no parameters
-	params.push_back(voidType()); // return type
+	params.push_back(voidTy()); // return type
 	BOOST_CHECK_EQUAL(typeToString(funcType(params)), "void ()");
 
 	// Test function with basic parameters
@@ -530,11 +530,11 @@ BOOST_AUTO_TEST_CASE(BasicTypeMapping) {
 	std::unordered_map<Type, int> typeMap;
 
 	// Test primitive types
-	typeMap[voidType()] = 1;
+	typeMap[voidTy()] = 1;
 	typeMap[intType(32)] = 2;
 	typeMap[boolType()] = 3;
 
-	BOOST_CHECK_EQUAL(typeMap[voidType()], 1);
+	BOOST_CHECK_EQUAL(typeMap[voidTy()], 1);
 	BOOST_CHECK_EQUAL(typeMap[intType(32)], 2);
 	BOOST_CHECK_EQUAL(typeMap[boolType()], 3);
 }
@@ -1412,7 +1412,7 @@ BOOST_AUTO_TEST_SUITE(TypeIteratorTests)
 BOOST_AUTO_TEST_CASE(ScalarTypeIterators) {
 	// Test void type
 	{
-		Type t = voidType();
+		Type t = voidTy();
 		BOOST_CHECK(t.begin() == t.end());
 		BOOST_CHECK(t.cbegin() == t.cend());
 		BOOST_CHECK_EQUAL(std::distance(t.begin(), t.end()), 0);
@@ -1481,7 +1481,7 @@ BOOST_AUTO_TEST_CASE(StructTypeIterators) {
 // Test function type iteration
 BOOST_AUTO_TEST_CASE(FuncTypeIterators) {
 	std::vector<Type> params = {intType(32), floatType(), ptrType()};
-	Type rty = voidType();
+	Type rty = voidTy();
 	std::vector<Type> funcTypes = params;
 	funcTypes.insert(funcTypes.begin(), rty);
 	Type funcT = funcType(funcTypes);
@@ -1925,14 +1925,14 @@ BOOST_AUTO_TEST_CASE(call_preserves_args) {
 }
 
 BOOST_AUTO_TEST_CASE(call_void_return) {
-	Type voidTy = voidType();
-	Term func = var(funcType(voidTy, {}), Ref("exit"));
+	Type vTy = voidTy();
+	Term func = var(funcType(vTy, {}), Ref("exit"));
 	vector<Term> emptyArgs;
 
-	Term result = call(voidTy, func, emptyArgs);
+	Term result = call(vTy, func, emptyArgs);
 
 	BOOST_CHECK_EQUAL(result.tag(), Call);
-	BOOST_CHECK_EQUAL(result.type(), voidTy);
+	BOOST_CHECK_EQUAL(result.type(), vTy);
 	BOOST_CHECK_EQUAL(result.size(), 1);
 	BOOST_CHECK_EQUAL(result[0], func);
 }
