@@ -24,6 +24,10 @@ Inst::Inst(Opcode opcode, Term a, Term b, Term c) {
 	p = new InstImpl(opcode, {a, b, c});
 }
 
+Inst::Inst(Opcode opcode, const vector<Term>& v) {
+	p = new InstImpl(opcode, v);
+}
+
 Opcode Inst::opcode() const {
 	return p->opcode;
 }

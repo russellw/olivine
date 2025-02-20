@@ -111,6 +111,11 @@ class Parser {
 		}
 	}
 
+	Term label1() {
+		expect("label");
+		return label(parseRef1());
+	}
+
 	void lex() {
 		while (pos < input.size()) {
 			if (containsAt(input, pos, "...")) {
@@ -326,15 +331,13 @@ class Parser {
 			lex();
 			if (token == "label") {
 				lex();
-				return jmp(parseRef1());
+				return jmp(label1());
 			}
 			auto cond = typeExpr();
 			expect(",");
-			expect("label");
-			auto ifTrue = parseRef1();
+			auto ifTrue = label1();
 			expect(",");
-			expect("label");
-			auto ifFalse = parseRef1();
+			auto ifFalse = label1();
 			return br(cond, ifTrue, ifFalse);
 		}
 		if (token == "call") {
@@ -354,6 +357,14 @@ class Parser {
 			expect("ptr");
 			auto p = expr(ptrTy());
 			return Inst(Store, a, p);
+		}
+		if (token == "switch") {
+			lex();
+			vector<Term> v;
+			v.push_back(typeExpr());
+			expect(",");
+			v.push_back(label1());
+			return Inst(Switch, v);
 		}
 		if (token == "unreachable") {
 			return unreachable();

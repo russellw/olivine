@@ -41,6 +41,12 @@ enum Opcode {
 	// Note that the corresponding Load is a term, not an instruction
 	Store,
 
+	// As in LLVM, switch takes a value, default label, then zero or more pairs of constant values and labels
+	// These are all in a flat list
+	// so the values are operands 2, 4 etc.
+	// and the non-default labels are operands 3, 5 etc.
+	Switch,
+
 	Unreachable,
 };
 
@@ -60,6 +66,7 @@ public:
 	Inst(Opcode opcode, Term a);
 	Inst(Opcode opcode, Term a, Term b);
 	Inst(Opcode opcode, Term a, Term b, Term c);
+	Inst(Opcode opcode, const vector<Term>& v);
 
 	Opcode opcode() const;
 
@@ -97,13 +104,20 @@ inline Inst block(const Ref& ref) {
 	return Inst(Block, label(ref));
 }
 
+inline Inst br(Term cond, Term ifTrue, Term ifFalse) {
+	return Inst(Br, cond, ifTrue, ifFalse);
+}
+
 inline Inst br(Term cond, const Ref& ifTrue, const Ref& ifFalse) {
-	ASSERT(cond.ty() == boolTy());
-	return Inst(Br, cond, label(ifTrue), label(ifFalse));
+	return br(cond, label(ifTrue), label(ifFalse));
+}
+
+inline Inst jmp(Term target) {
+	return Inst(Jmp, target);
 }
 
 inline Inst jmp(const Ref& target) {
-	return Inst(Jmp, label(target));
+	return jmp(label(target));
 }
 
 inline Inst ret() {

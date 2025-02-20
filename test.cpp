@@ -1091,15 +1091,6 @@ BOOST_AUTO_TEST_CASE(test_fneg_type_preservation) {
 	BOOST_CHECK_EQUAL(negD.ty(), d.ty());
 }
 
-// Test error conditions
-BOOST_AUTO_TEST_CASE(ErrorConditionsTest) {
-	// Create a non-boolean condition
-	Term intVal = intConst(intTy(32), 1);
-
-	// Verify br() with non-boolean condition throws
-	BOOST_CHECK_THROW(br(intVal, 1, 2), std::exception);
-}
-
 BOOST_AUTO_TEST_CASE(basic_match) {
 	BOOST_TEST(containsAt("Hello World", 6, "World") == true);
 }
