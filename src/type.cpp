@@ -45,28 +45,28 @@ class TypeInterner {
 		}
 	};
 
-	unordered_set<TypeImpl*, TypeHash, TypeEqual> types;
+	unordered_set<TypeImpl*, TypeHash, TypeEqual> tys;
 
 public:
 	TypeInterner() {
 		// Insert the primitive types
-		types.insert(&voidImpl);
+		tys.insert(&voidImpl);
 
-		types.insert(&boolImpl);
+		tys.insert(&boolImpl);
 
-		types.insert(&floatImpl);
-		types.insert(&doubleImpl);
+		tys.insert(&floatImpl);
+		tys.insert(&doubleImpl);
 
-		types.insert(&ptrImpl);
+		tys.insert(&ptrImpl);
 	}
 
 	TypeImpl* intern(TypeImpl* type) {
-		auto it = types.find(type);
-		if (it != types.end()) {
+		auto it = tys.find(type);
+		if (it != tys.end()) {
 			delete type; // Delete the duplicate
 			return *it;
 		}
-		types.insert(type);
+		tys.insert(type);
 		return type;
 	}
 };
