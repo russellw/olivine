@@ -135,7 +135,7 @@ Type boolTy() {
 	return type;
 }
 
-Type intType(size_t len) {
+Type intTy(size_t len) {
 	ASSERT(len);
 	auto p = new TypeImpl(IntKind, len);
 	return Type(typeInterner.intern(p));

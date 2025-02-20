@@ -864,7 +864,7 @@ class Parser {
 		if (token[0] == 'i') {
 			auto len = stoull(token.substr(1));
 			lex();
-			return intType(len);
+			return intTy(len);
 		}
 		// END
 

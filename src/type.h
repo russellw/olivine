@@ -76,7 +76,7 @@ template <> struct hash<Type> {
 Type voidTy();
 
 Type boolTy();
-Type intType(size_t len);
+Type intTy(size_t len);
 
 Type floatTy();
 Type doubleTy();

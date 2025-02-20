@@ -43,10 +43,10 @@ BOOST_AUTO_TEST_CASE(TypeEquality) {
 
 BOOST_AUTO_TEST_CASE(IntegerTypeProperties) {
 	// Test common integer widths
-	Type int8 = intType(8);
-	Type int16 = intType(16);
-	Type int32 = intType(32);
-	Type int64 = intType(64);
+	Type int8 = intTy(8);
+	Type int16 = intTy(16);
+	Type int32 = intTy(32);
+	Type int64 = intTy(64);
 
 	// Check kind
 	BOOST_CHECK_EQUAL(int8.kind(), IntKind);
@@ -72,14 +72,14 @@ BOOST_AUTO_TEST_CASE(IntegerTypeProperties) {
 
 BOOST_AUTO_TEST_CASE(IntegerTypeEquality) {
 	// Test equality of same-width integers
-	Type int32_1 = intType(32);
-	Type int32_2 = intType(32);
+	Type int32_1 = intTy(32);
+	Type int32_2 = intTy(32);
 	BOOST_CHECK(int32_1 == int32_2);
 
 	// Test inequality of different-width integers
-	Type int16 = intType(16);
-	Type int32 = intType(32);
-	Type int64 = intType(64);
+	Type int16 = intTy(16);
+	Type int32 = intTy(32);
+	Type int64 = intTy(64);
 	BOOST_CHECK(int16 != int32);
 	BOOST_CHECK(int32 != int64);
 	BOOST_CHECK(int16 != int64);
@@ -92,9 +92,9 @@ BOOST_AUTO_TEST_CASE(IntegerTypeEquality) {
 
 BOOST_AUTO_TEST_CASE(IntegerTypeEdgeCases) {
 	// Test unusual bit widths
-	Type int1 = intType(1);
-	Type int3 = intType(3);
-	Type int128 = intType(128);
+	Type int1 = intTy(1);
+	Type int3 = intTy(3);
+	Type int128 = intTy(128);
 
 	// Check properties
 	BOOST_CHECK_EQUAL(int1.kind(), IntKind);
@@ -109,15 +109,15 @@ BOOST_AUTO_TEST_CASE(IntegerTypeEdgeCases) {
 	BOOST_CHECK(int1 == boolTy());
 
 	// Test equality with same unusual widths
-	Type int3_2 = intType(3);
-	Type int128_2 = intType(128);
+	Type int3_2 = intTy(3);
+	Type int128_2 = intTy(128);
 	BOOST_CHECK(int3 == int3_2);
 	BOOST_CHECK(int128 == int128_2);
 }
 
 BOOST_AUTO_TEST_CASE(ArrayTypeProperties) {
 	// Test array types with different element types and lengths
-	Type int32 = intType(32);
+	Type int32 = intTy(32);
 	Type float_arr_10 = arrayType(10, floatTy());
 	Type int_arr_5 = arrayType(5, int32);
 	Type bool_arr_2 = arrayType(2, boolTy());
@@ -144,7 +144,7 @@ BOOST_AUTO_TEST_CASE(ArrayTypeProperties) {
 }
 
 BOOST_AUTO_TEST_CASE(ArrayTypeEquality) {
-	Type int32 = intType(32);
+	Type int32 = intTy(32);
 
 	// Test equality of arrays with same element type and length
 	Type int_arr_5_1 = arrayType(5, int32);
@@ -166,7 +166,7 @@ BOOST_AUTO_TEST_CASE(ArrayTypeEquality) {
 }
 
 BOOST_AUTO_TEST_CASE(VectorTypeProperties) {
-	Type int32 = intType(32);
+	Type int32 = intTy(32);
 	Type float_vec_4 = vecType(4, floatTy());
 	Type int_vec_8 = vecType(8, int32);
 
@@ -189,7 +189,7 @@ BOOST_AUTO_TEST_CASE(VectorTypeProperties) {
 
 BOOST_AUTO_TEST_CASE(StructTypeProperties) {
 	// Test structure with various field types
-	vector<Type> fields = {intType(32), floatTy(), boolTy(), ptrType()};
+	vector<Type> fields = {intTy(32), floatTy(), boolTy(), ptrType()};
 	Type struct_type = structType(fields);
 
 	// Check kind
@@ -199,7 +199,7 @@ BOOST_AUTO_TEST_CASE(StructTypeProperties) {
 	BOOST_CHECK_EQUAL(struct_type.size(), 4);
 
 	// Check field types
-	BOOST_CHECK(struct_type[0] == intType(32));
+	BOOST_CHECK(struct_type[0] == intTy(32));
 	BOOST_CHECK(struct_type[1] == floatTy());
 	BOOST_CHECK(struct_type[2] == boolTy());
 	BOOST_CHECK(struct_type[3] == ptrType());
@@ -212,9 +212,9 @@ BOOST_AUTO_TEST_CASE(StructTypeProperties) {
 }
 
 BOOST_AUTO_TEST_CASE(StructTypeEquality) {
-	vector<Type> fields1 = {intType(32), floatTy()};
-	vector<Type> fields2 = {intType(32), floatTy()};
-	vector<Type> fields3 = {floatTy(), intType(32)};
+	vector<Type> fields1 = {intTy(32), floatTy()};
+	vector<Type> fields2 = {intTy(32), floatTy()};
+	vector<Type> fields3 = {floatTy(), intTy(32)};
 
 	Type struct1 = structType(fields1);
 	Type struct2 = structType(fields2);
@@ -236,10 +236,10 @@ BOOST_AUTO_TEST_CASE(StructTypeEquality) {
 BOOST_AUTO_TEST_CASE(FuncTypeProperties) {
 	// Test function type with various parameter types
 	vector<Type> params = {
-		intType(32), // return type
-		floatTy(),	 // param 1
-		boolTy(),	 // param 2
-		ptrType()	 // param 3
+		intTy(32), // return type
+		floatTy(), // param 1
+		boolTy(),  // param 2
+		ptrType()  // param 3
 	};
 	Type func_type = funcType(params);
 
@@ -250,7 +250,7 @@ BOOST_AUTO_TEST_CASE(FuncTypeProperties) {
 	BOOST_CHECK_EQUAL(func_type.size(), 4);
 
 	// Check return type (component 0)
-	BOOST_CHECK(func_type[0] == intType(32));
+	BOOST_CHECK(func_type[0] == intTy(32));
 
 	// Check parameter types
 	BOOST_CHECK(func_type[1] == floatTy());
@@ -266,9 +266,9 @@ BOOST_AUTO_TEST_CASE(FuncTypeProperties) {
 }
 
 BOOST_AUTO_TEST_CASE(FuncTypeEquality) {
-	vector<Type> params1 = {intType(32), floatTy(), boolTy()};
-	vector<Type> params2 = {intType(32), floatTy(), boolTy()};
-	vector<Type> params3 = {intType(32), boolTy(), floatTy()};
+	vector<Type> params1 = {intTy(32), floatTy(), boolTy()};
+	vector<Type> params2 = {intTy(32), floatTy(), boolTy()};
+	vector<Type> params3 = {intTy(32), boolTy(), floatTy()};
 
 	Type func1 = funcType(params1);
 	Type func2 = funcType(params2);
@@ -287,7 +287,7 @@ BOOST_AUTO_TEST_CASE(FuncTypeEquality) {
 }
 
 BOOST_AUTO_TEST_CASE(ComplexTypeCompositions) {
-	Type int32 = intType(32);
+	Type int32 = intTy(32);
 
 	// Create a struct containing an array of vectors
 	Type vec4_float = vecType(4, floatTy());
@@ -328,7 +328,7 @@ BOOST_AUTO_TEST_CASE(ConstantTerms) {
 	BOOST_CHECK_EQUAL(nullConst.tag(), Null);
 
 	// Test integer constant creation
-	Type int32Type = intType(32);
+	Type int32Type = intTy(32);
 	cpp_int val(42);
 	Term intTerm = intConst(int32Type, val);
 	BOOST_CHECK_EQUAL(intTerm.type(), int32Type);
@@ -344,7 +344,7 @@ BOOST_AUTO_TEST_CASE(ConstantTerms) {
 
 // Test variable creation and properties
 BOOST_AUTO_TEST_CASE(Variables) {
-	Type int64Type = intType(64);
+	Type int64Type = intTy(64);
 	Term var1 = var(int64Type, 1);
 	Term var2 = var(int64Type, 2);
 
@@ -361,7 +361,7 @@ Term compound(Tag tag, const vector<Term>& v) {
 
 // Test arithmetic operations
 BOOST_AUTO_TEST_CASE(ArithmeticOperations) {
-	Type int32Type = intType(32);
+	Type int32Type = intTy(32);
 	Term a = var(int32Type, 1);
 	Term b = var(int32Type, 2);
 
@@ -399,7 +399,7 @@ BOOST_AUTO_TEST_CASE(ArithmeticOperations) {
 
 // Test equality comparison
 BOOST_AUTO_TEST_CASE(TermEquality) {
-	Type int32Type = intType(32);
+	Type int32Type = intTy(32);
 	cpp_int val(42);
 
 	Term int1 = intConst(int32Type, val);
@@ -441,33 +441,33 @@ BOOST_AUTO_TEST_CASE(BasicTypeOutput) {
 
 BOOST_AUTO_TEST_CASE(IntegerTypeOutput) {
 	// Test common integer sizes
-	BOOST_CHECK_EQUAL(typeToString(intType(8)), "i8");
-	BOOST_CHECK_EQUAL(typeToString(intType(16)), "i16");
-	BOOST_CHECK_EQUAL(typeToString(intType(32)), "i32");
-	BOOST_CHECK_EQUAL(typeToString(intType(64)), "i64");
+	BOOST_CHECK_EQUAL(typeToString(intTy(8)), "i8");
+	BOOST_CHECK_EQUAL(typeToString(intTy(16)), "i16");
+	BOOST_CHECK_EQUAL(typeToString(intTy(32)), "i32");
+	BOOST_CHECK_EQUAL(typeToString(intTy(64)), "i64");
 
 	// Test unusual sizes
-	BOOST_CHECK_EQUAL(typeToString(intType(7)), "i7");
-	BOOST_CHECK_EQUAL(typeToString(intType(128)), "i128");
+	BOOST_CHECK_EQUAL(typeToString(intTy(7)), "i7");
+	BOOST_CHECK_EQUAL(typeToString(intTy(128)), "i128");
 }
 
 BOOST_AUTO_TEST_CASE(ArrayTypeOutput) {
 	// Test arrays of basic types
-	BOOST_CHECK_EQUAL(typeToString(arrayType(4, intType(32))), "[4 x i32]");
+	BOOST_CHECK_EQUAL(typeToString(arrayType(4, intTy(32))), "[4 x i32]");
 	BOOST_CHECK_EQUAL(typeToString(arrayType(2, floatTy())), "[2 x float]");
 
 	// Test nested arrays
-	Type nestedArray = arrayType(3, arrayType(2, intType(8)));
+	Type nestedArray = arrayType(3, arrayType(2, intTy(8)));
 	BOOST_CHECK_EQUAL(typeToString(nestedArray), "[3 x [2 x i8]]");
 }
 
 BOOST_AUTO_TEST_CASE(VectorTypeOutput) {
 	// Test vectors of basic types
-	BOOST_CHECK_EQUAL(typeToString(vecType(4, intType(32))), "<4 x i32>");
+	BOOST_CHECK_EQUAL(typeToString(vecType(4, intTy(32))), "<4 x i32>");
 	BOOST_CHECK_EQUAL(typeToString(vecType(2, floatTy())), "<2 x float>");
 
 	// Test unusual vector sizes
-	BOOST_CHECK_EQUAL(typeToString(vecType(3, intType(1))), "<3 x i1>");
+	BOOST_CHECK_EQUAL(typeToString(vecType(3, intTy(1))), "<3 x i1>");
 }
 
 BOOST_AUTO_TEST_CASE(StructTypeOutput) {
@@ -477,13 +477,13 @@ BOOST_AUTO_TEST_CASE(StructTypeOutput) {
 	BOOST_CHECK_EQUAL(typeToString(structType(fields)), "{}");
 
 	// Test simple struct
-	fields.push_back(intType(32));
+	fields.push_back(intTy(32));
 	fields.push_back(floatTy());
 	BOOST_CHECK_EQUAL(typeToString(structType(fields)), "{i32, float}");
 
 	// Test nested struct
 	std::vector<Type> innerFields;
-	innerFields.push_back(intType(8));
+	innerFields.push_back(intTy(8));
 	innerFields.push_back(doubleTy());
 	fields.push_back(structType(innerFields));
 	BOOST_CHECK_EQUAL(typeToString(structType(fields)), "{i32, float, {i8, double}}");
@@ -497,7 +497,7 @@ BOOST_AUTO_TEST_CASE(FuncTypeOutput) {
 	BOOST_CHECK_EQUAL(typeToString(funcType(params)), "void ()");
 
 	// Test function with basic parameters
-	params.push_back(intType(32));
+	params.push_back(intTy(32));
 	params.push_back(floatTy());
 	BOOST_CHECK_EQUAL(typeToString(funcType(params)), "void (i32, float)");
 
@@ -506,14 +506,14 @@ BOOST_AUTO_TEST_CASE(FuncTypeOutput) {
 	BOOST_CHECK_EQUAL(typeToString(funcType(params)), "ptr (i32, float)");
 
 	// Test function with complex parameter types
-	params.push_back(arrayType(4, intType(8)));
+	params.push_back(arrayType(4, intTy(8)));
 	BOOST_CHECK_EQUAL(typeToString(funcType(params)), "ptr (i32, float, [4 x i8])");
 }
 
 BOOST_AUTO_TEST_CASE(ComplexTypeOutput) {
 	// Test combination of various type constructs
 	std::vector<Type> fields;
-	fields.push_back(arrayType(2, vecType(4, intType(32))));
+	fields.push_back(arrayType(2, vecType(4, intTy(32))));
 	fields.push_back(ptrType());
 
 	std::vector<Type> funcParams;
@@ -531,11 +531,11 @@ BOOST_AUTO_TEST_CASE(BasicTypeMapping) {
 
 	// Test primitive types
 	typeMap[voidTy()] = 1;
-	typeMap[intType(32)] = 2;
+	typeMap[intTy(32)] = 2;
 	typeMap[boolTy()] = 3;
 
 	BOOST_CHECK_EQUAL(typeMap[voidTy()], 1);
-	BOOST_CHECK_EQUAL(typeMap[intType(32)], 2);
+	BOOST_CHECK_EQUAL(typeMap[intTy(32)], 2);
 	BOOST_CHECK_EQUAL(typeMap[boolTy()], 3);
 }
 
@@ -543,7 +543,7 @@ BOOST_AUTO_TEST_CASE(CompoundTypeMapping) {
 	std::unordered_map<Type, std::string> typeMap;
 
 	// Create some compound types
-	Type arrayOfInt = arrayType(10, intType(32));
+	Type arrayOfInt = arrayType(10, intTy(32));
 	Type vectorOfFloat = vecType(4, floatTy());
 
 	typeMap[arrayOfInt] = "array of int";
@@ -553,16 +553,16 @@ BOOST_AUTO_TEST_CASE(CompoundTypeMapping) {
 	BOOST_CHECK_EQUAL(typeMap[vectorOfFloat], "vector of float");
 
 	// Test that identical types map to the same value
-	Type sameArrayType = arrayType(10, intType(32));
+	Type sameArrayType = arrayType(10, intTy(32));
 	BOOST_CHECK_EQUAL(typeMap[sameArrayType], "array of int");
 }
 
 BOOST_AUTO_TEST_CASE(StructureTypeMapping) {
 	std::unordered_map<Type, int> typeMap;
 
-	std::vector<Type> fields1 = {intType(32), floatTy()};
-	std::vector<Type> fields2 = {intType(32), floatTy()}; // Same structure
-	std::vector<Type> fields3 = {floatTy(), intType(32)}; // Different order
+	std::vector<Type> fields1 = {intTy(32), floatTy()};
+	std::vector<Type> fields2 = {intTy(32), floatTy()}; // Same structure
+	std::vector<Type> fields3 = {floatTy(), intTy(32)}; // Different order
 
 	Type struct1 = structType(fields1);
 	Type struct2 = structType(fields2);
@@ -582,11 +582,11 @@ BOOST_AUTO_TEST_CASE(FuncTypeMapping) {
 	std::unordered_map<Type, std::string> typeMap;
 
 	// Function type: int32 (float, bool)
-	std::vector<Type> params1 = {intType(32), floatTy(), boolTy()};
+	std::vector<Type> params1 = {intTy(32), floatTy(), boolTy()};
 	Type func1 = funcType(params1);
 
 	// Same function type
-	std::vector<Type> params2 = {intType(32), floatTy(), boolTy()};
+	std::vector<Type> params2 = {intTy(32), floatTy(), boolTy()};
 	Type func2 = funcType(params2);
 
 	typeMap[func1] = "int32 (float, bool)";
@@ -598,7 +598,7 @@ BOOST_AUTO_TEST_CASE(FuncTypeMapping) {
 BOOST_AUTO_TEST_CASE(TypeMapOverwrite) {
 	std::unordered_map<Type, int> typeMap;
 
-	Type int32Type = intType(32);
+	Type int32Type = intTy(32);
 	typeMap[int32Type] = 1;
 	BOOST_CHECK_EQUAL(typeMap[int32Type], 1);
 
@@ -610,7 +610,7 @@ BOOST_AUTO_TEST_CASE(TypeMapOverwrite) {
 BOOST_AUTO_TEST_CASE(TypeMapErase) {
 	std::unordered_map<Type, int> typeMap;
 
-	Type int32Type = intType(32);
+	Type int32Type = intTy(32);
 	typeMap[int32Type] = 1;
 
 	// Test erase
@@ -636,9 +636,9 @@ BOOST_AUTO_TEST_CASE(IntegerTermMapping) {
 	std::unordered_map<Term, std::string> termMap;
 
 	// Create some integer constants
-	Term int32_5 = intConst(intType(32), 5);
-	Term int32_10 = intConst(intType(32), 10);
-	Term int64_5 = intConst(intType(64), 5); // Same value, different type
+	Term int32_5 = intConst(intTy(32), 5);
+	Term int32_10 = intConst(intTy(32), 10);
+	Term int64_5 = intConst(intTy(64), 5); // Same value, different type
 
 	termMap[int32_5] = "32-bit 5";
 	termMap[int32_10] = "32-bit 10";
@@ -669,8 +669,8 @@ BOOST_AUTO_TEST_CASE(VariableTermMapping) {
 	std::unordered_map<Term, std::string> termMap;
 
 	// Create some variables
-	Term var1 = var(intType(32), 1);
-	Term var2 = var(intType(32), 2);
+	Term var1 = var(intTy(32), 1);
+	Term var2 = var(intTy(32), 2);
 	Term var1_float = var(floatTy(), 1); // Same index, different type
 
 	termMap[var1] = "int var 1";
@@ -686,8 +686,8 @@ BOOST_AUTO_TEST_CASE(CompoundTermMapping) {
 	std::unordered_map<Term, std::string> termMap;
 
 	// Create some arithmetic terms
-	Term a = var(intType(32), 1);
-	Term b = var(intType(32), 2);
+	Term a = var(intTy(32), 1);
+	Term b = var(intTy(32), 2);
 
 	Term add = arithmetic(Add, a, b);
 	Term mul = arithmetic(Mul, a, b);
@@ -704,8 +704,8 @@ BOOST_AUTO_TEST_CASE(CompoundTermMapping) {
 BOOST_AUTO_TEST_CASE(ComparisonTermMapping) {
 	std::unordered_map<Term, std::string> termMap;
 
-	Term a = var(intType(32), 1);
-	Term b = var(intType(32), 2);
+	Term a = var(intTy(32), 1);
+	Term b = var(intTy(32), 2);
 
 	Term eq = cmp(Eq, a, b);
 	Term lt = cmp(SLt, a, b);
@@ -722,7 +722,7 @@ BOOST_AUTO_TEST_CASE(ComparisonTermMapping) {
 BOOST_AUTO_TEST_CASE(TermMapOperations) {
 	std::unordered_map<Term, int> termMap;
 
-	Term var1 = var(intType(32), 1);
+	Term var1 = var(intTy(32), 1);
 
 	// Test insert and lookup
 	termMap[var1] = 1;
@@ -750,7 +750,7 @@ unordered_map<Term, Term> makeEnv(const vector<pair<Term, Term>>& bindings) {
 BOOST_AUTO_TEST_CASE(constants_and_variables) {
 	// Constants should remain unchanged
 	Term nullTerm = nullConst;
-	Term intTerm = intConst(intType(32), 42);
+	Term intTerm = intConst(intTy(32), 42);
 	Term floatTerm = floatConst(floatTy(), "3.14");
 
 	unordered_map<Term, Term> emptyEnv;
@@ -759,8 +759,8 @@ BOOST_AUTO_TEST_CASE(constants_and_variables) {
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, floatTerm), floatTerm);
 
 	// Variables should be looked up in environment
-	Term var1 = var(intType(32), 1);
-	Term val1 = intConst(intType(32), 123);
+	Term var1 = var(intTy(32), 1);
+	Term val1 = intConst(intTy(32), 123);
 	auto env = makeEnv({{var1, val1}});
 
 	BOOST_CHECK_EQUAL(simplify(env, var1), val1);
@@ -769,7 +769,7 @@ BOOST_AUTO_TEST_CASE(constants_and_variables) {
 
 BOOST_AUTO_TEST_CASE(basic_arithmetic) {
 	unordered_map<Term, Term> emptyEnv;
-	Type i32 = intType(32);
+	Type i32 = intTy(32);
 
 	// Addition
 	Term a = intConst(i32, 5);
@@ -806,7 +806,7 @@ BOOST_AUTO_TEST_CASE(basic_arithmetic) {
 
 BOOST_AUTO_TEST_CASE(division_and_remainder) {
 	unordered_map<Term, Term> emptyEnv;
-	Type i32 = intType(32);
+	Type i32 = intTy(32);
 
 	Term a = intConst(i32, 15);
 	Term b = intConst(i32, 4);
@@ -831,7 +831,7 @@ BOOST_AUTO_TEST_CASE(division_and_remainder) {
 
 BOOST_AUTO_TEST_CASE(bitwise_operations) {
 	unordered_map<Term, Term> emptyEnv;
-	Type i32 = intType(32);
+	Type i32 = intTy(32);
 
 	Term a = intConst(i32, 0b1100);
 	Term b = intConst(i32, 0b1010);
@@ -864,7 +864,7 @@ BOOST_AUTO_TEST_CASE(bitwise_operations) {
 
 BOOST_AUTO_TEST_CASE(shift_operations) {
 	unordered_map<Term, Term> emptyEnv;
-	Type i32 = intType(32);
+	Type i32 = intTy(32);
 
 	Term a = intConst(i32, 0b1100);
 	Term shift2 = intConst(i32, 2);
@@ -892,7 +892,7 @@ BOOST_AUTO_TEST_CASE(shift_operations) {
 
 BOOST_AUTO_TEST_CASE(comparison_operations) {
 	unordered_map<Term, Term> emptyEnv;
-	Type i32 = intType(32);
+	Type i32 = intTy(32);
 
 	Term a = intConst(i32, 5);
 	Term b = intConst(i32, 3);
@@ -933,7 +933,7 @@ BOOST_AUTO_TEST_CASE(floating_point_operations) {
 
 BOOST_AUTO_TEST_CASE(complex_expressions) {
 	unordered_map<Term, Term> emptyEnv;
-	Type i32 = intType(32);
+	Type i32 = intTy(32);
 
 	// Test nested expressions: (5 + 3) * (10 - 4)
 	Term a = intConst(i32, 5);
@@ -951,7 +951,7 @@ BOOST_AUTO_TEST_CASE(complex_expressions) {
 // New test case specifically for same-component simplifications
 BOOST_AUTO_TEST_CASE(same_component_simplifications) {
 	unordered_map<Term, Term> emptyEnv;
-	Type i32 = intType(32);
+	Type i32 = intTy(32);
 
 	// Create some variables
 	Term x = var(i32, 1);
@@ -1094,7 +1094,7 @@ BOOST_AUTO_TEST_CASE(test_fneg_type_preservation) {
 // Test error conditions
 BOOST_AUTO_TEST_CASE(ErrorConditionsTest) {
 	// Create a non-boolean condition
-	Term intVal = intConst(intType(32), 1);
+	Term intVal = intConst(intTy(32), 1);
 
 	// Verify br() with non-boolean condition throws
 	BOOST_CHECK_THROW(br(intVal, 1, 2), std::exception);
@@ -1420,7 +1420,7 @@ BOOST_AUTO_TEST_CASE(ScalarTypeIterators) {
 
 	// Test integer type
 	{
-		Type t = intType(32);
+		Type t = intTy(32);
 		BOOST_CHECK(t.begin() == t.end());
 		BOOST_CHECK(t.cbegin() == t.cend());
 		BOOST_CHECK_EQUAL(std::distance(t.begin(), t.end()), 0);
@@ -1437,7 +1437,7 @@ BOOST_AUTO_TEST_CASE(ScalarTypeIterators) {
 
 // Test vector type iteration
 BOOST_AUTO_TEST_CASE(VectorTypeIterators) {
-	Type elementType = intType(32);
+	Type elementType = intTy(32);
 	Type vecT = vecType(4, elementType);
 
 	BOOST_CHECK(vecT.begin() != vecT.end());
@@ -1463,7 +1463,7 @@ BOOST_AUTO_TEST_CASE(ArrayTypeIterators) {
 
 // Test struct type iteration
 BOOST_AUTO_TEST_CASE(StructTypeIterators) {
-	std::vector<Type> fields = {intType(32), floatTy(), doubleTy()};
+	std::vector<Type> fields = {intTy(32), floatTy(), doubleTy()};
 	Type structT = structType(fields);
 
 	BOOST_CHECK(structT.begin() != structT.end());
@@ -1480,7 +1480,7 @@ BOOST_AUTO_TEST_CASE(StructTypeIterators) {
 
 // Test function type iteration
 BOOST_AUTO_TEST_CASE(FuncTypeIterators) {
-	std::vector<Type> params = {intType(32), floatTy(), ptrType()};
+	std::vector<Type> params = {intTy(32), floatTy(), ptrType()};
 	Type rty = voidTy();
 	std::vector<Type> funcTypes = params;
 	funcTypes.insert(funcTypes.begin(), rty);
@@ -1503,7 +1503,7 @@ BOOST_AUTO_TEST_CASE(FuncTypeIterators) {
 
 // Test iterator comparison and assignment
 BOOST_AUTO_TEST_CASE(IteratorOperations) {
-	Type structT = structType({intType(32), floatTy()});
+	Type structT = structType({intTy(32), floatTy()});
 
 	// Test iterator assignment and comparison
 	auto it1 = structT.begin();
@@ -1530,14 +1530,14 @@ BOOST_AUTO_TEST_CASE(IteratorOperations) {
 
 // Test iterator invalidation
 BOOST_AUTO_TEST_CASE(IteratorInvalidation) {
-	Type structT1 = structType({intType(32), floatTy()});
+	Type structT1 = structType({intTy(32), floatTy()});
 	auto it1 = structT1.begin();
 
 	// Create a new struct type
 	Type structT2 = structType({doubleTy(), ptrType()});
 
 	// Original iterator should still be valid and point to the original type
-	BOOST_CHECK(*it1 == intType(32));
+	BOOST_CHECK(*it1 == intTy(32));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
@@ -1558,7 +1558,7 @@ BOOST_AUTO_TEST_CASE(EmptyTermTest) {
 // Test iteration over function parameters
 BOOST_AUTO_TEST_CASE(ParametersIterationTest) {
 	// Create parameters with different types
-	std::vector<Term> params = {var(intType(32), "a"), var(doubleTy(), "b"), var(ptrType(), "c")};
+	std::vector<Term> params = {var(intTy(32), "a"), var(doubleTy(), "b"), var(ptrType(), "c")};
 
 	Term paramTerm = tuple(params);
 
@@ -1567,7 +1567,7 @@ BOOST_AUTO_TEST_CASE(ParametersIterationTest) {
 
 	// Test forward iteration
 	auto it = paramTerm.begin();
-	BOOST_CHECK_EQUAL((*it).type(), intType(32));
+	BOOST_CHECK_EQUAL((*it).type(), intTy(32));
 	++it;
 	BOOST_CHECK_EQUAL((*it).type(), doubleTy());
 	++it;
@@ -1578,8 +1578,8 @@ BOOST_AUTO_TEST_CASE(ParametersIterationTest) {
 
 // Test iteration over arithmetic expressions
 BOOST_AUTO_TEST_CASE(ArithmeticExpressionIterationTest) {
-	Term a = var(intType(32), "a");
-	Term b = var(intType(32), "b");
+	Term a = var(intTy(32), "a");
+	Term b = var(intTy(32), "b");
 	Term addExpr = arithmetic(Add, a, b);
 
 	// Check size
@@ -1596,8 +1596,8 @@ BOOST_AUTO_TEST_CASE(ArithmeticExpressionIterationTest) {
 
 // Test comparison operations
 BOOST_AUTO_TEST_CASE(IteratorComparisonTest) {
-	Term a = var(intType(32), "a");
-	Term b = var(intType(32), "b");
+	Term a = var(intTy(32), "a");
+	Term b = var(intTy(32), "b");
 	Term expr = arithmetic(Add, a, b);
 
 	auto it1 = expr.begin();
@@ -1619,7 +1619,7 @@ BOOST_AUTO_TEST_CASE(IteratorComparisonTest) {
 
 // Test iterator invalidation
 BOOST_AUTO_TEST_CASE(IteratorInvalidationTest) {
-	std::vector<Term> params = {var(intType(32), "a"), var(intType(32), "b")};
+	std::vector<Term> params = {var(intTy(32), "a"), var(intTy(32), "b")};
 
 	Term paramTerm = tuple(params);
 	auto it = paramTerm.begin();
@@ -1879,7 +1879,7 @@ BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE(CallTests)
 
 BOOST_AUTO_TEST_CASE(call_no_args) {
-	Type returnType = intType(32);
+	Type returnType = intTy(32);
 	Term func = var(funcType(returnType, {}), Ref("main"));
 	vector<Term> emptyArgs;
 
@@ -1892,8 +1892,8 @@ BOOST_AUTO_TEST_CASE(call_no_args) {
 }
 
 BOOST_AUTO_TEST_CASE(call_with_args) {
-	Type returnType = intType(32);
-	Type paramType = intType(32);
+	Type returnType = intTy(32);
+	Type paramType = intTy(32);
 	vector<Type> paramTypes{paramType, paramType};
 
 	Term func = var(funcType(returnType, paramTypes), Ref("add"));
@@ -1912,8 +1912,8 @@ BOOST_AUTO_TEST_CASE(call_with_args) {
 }
 
 BOOST_AUTO_TEST_CASE(call_preserves_args) {
-	Type returnType = intType(32);
-	Type paramType = intType(32);
+	Type returnType = intTy(32);
+	Type paramType = intTy(32);
 	Term func = var(funcType(returnType, {paramType}), Ref("inc"));
 
 	vector<Term> originalArgs{intConst(paramType, cpp_int(42))};
