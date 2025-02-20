@@ -28,8 +28,4 @@ public:
 
 	const_iterator cbegin() const;
 	const_iterator cend() const;
-
-	// Comparison by value
-	bool operator==(Func b) const;
-	bool operator!=(Func b) const;
 };

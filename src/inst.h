@@ -77,7 +77,10 @@ public:
 
 	// Comparison by value
 	bool operator==(Inst b) const;
-	bool operator!=(Inst b) const;
+
+	bool operator!=(Inst b) const{
+		return !(*this == b);
+	}
 };
 
 // SORT FUNCTIONS
