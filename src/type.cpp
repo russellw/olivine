@@ -60,13 +60,13 @@ public:
 		tys.insert(&ptrImpl);
 	}
 
-	TypeImpl* intern(TypeImpl* type) {
-		auto it = tys.find(type);
+	TypeImpl* intern(TypeImpl* ty) {
+		auto it = tys.find(ty);
 		if (it != tys.end()) {
-			delete type; // Delete the duplicate
+			delete ty; // Delete the duplicate
 			return *it;
 		}
-		tys.insert(type);
+		tys.insert(ty);
 		return type;
 	}
 };
@@ -126,12 +126,12 @@ bool Type::operator!=(Type b) const {
 }
 
 Type voidTy() {
-	static Type type(&voidImpl);
+	static Type ty(&voidImpl);
 	return type;
 }
 
 Type boolTy() {
-	static Type type(&boolImpl);
+	static Type ty(&boolImpl);
 	return type;
 }
 
@@ -142,17 +142,17 @@ Type intTy(size_t len) {
 }
 
 Type floatTy() {
-	static Type type(&floatImpl);
+	static Type ty(&floatImpl);
 	return type;
 }
 
 Type doubleTy() {
-	static Type type(&doubleImpl);
+	static Type ty(&doubleImpl);
 	return type;
 }
 
 Type ptrTy() {
-	static Type type(&ptrImpl);
+	static Type ty(&ptrImpl);
 	return type;
 }
 

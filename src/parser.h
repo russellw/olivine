@@ -57,35 +57,35 @@ class Parser {
 		throw error("expected '" + s + '\'');
 	}
 
-	Term expr(Type type) {
+	Term expr(Type ty) {
 		// SORT BLOCKS
 		if (token == "false") {
-			if (type != boolTy()) {
+			if (ty != boolTy()) {
 				throw error("type mismatch");
 			}
 			lex();
 			return falseConst;
 		}
 		if (token == "null") {
-			if (type != ptrTy()) {
+			if (ty != ptrTy()) {
 				throw error("type mismatch");
 			}
 			lex();
 			return nullConst;
 		}
 		if (token == "true") {
-			if (type != boolTy()) {
+			if (ty != boolTy()) {
 				throw error("type mismatch");
 			}
 			lex();
 			return trueConst;
 		}
 		if (token[0] == '%') {
-			return parseVar(type);
+			return parseVar(ty);
 		}
 		// END
 		if (isDigit(token[0])) {
-			auto a = intConst(type, cpp_int(token));
+			auto a = intConst(ty, cpp_int(token));
 			lex();
 			return a;
 		}
@@ -233,9 +233,9 @@ class Parser {
 	}
 
 	Term parseArg() {
-		auto type = parseType();
+		auto ty = parseType();
 		argAttrs();
-		return expr(type);
+		return expr(ty);
 	}
 
 	vector<Term> parseArgs() {
@@ -256,7 +256,7 @@ class Parser {
 		auto rty = parseType();
 		auto ref = parseGlobalRef();
 		auto args = parseArgs();
-		auto params = map(args, [](Term a) { return a.type(); });
+		auto params = map(args, [](Term a) { return a.ty(); });
 		auto fty = funcTy(rty, params);
 		auto f = globalRef(fty, ref);
 		return call(rty, f, args);
@@ -282,7 +282,7 @@ class Parser {
 
 		// Parameters
 		auto params = parseParams();
-		auto paramTypes = map(params, [](Term a) { return a.type(); });
+		auto paramTypes = map(params, [](Term a) { return a.ty(); });
 
 		// Only declare
 		if (!define) {
@@ -364,7 +364,7 @@ class Parser {
 			lex();
 			expect("=");
 			auto rval = parseRVal();
-			return Inst(Assign, var(rval.type(), lval), rval);
+			return Inst(Assign, var(rval.ty(), lval), rval);
 		}
 		// END
 
@@ -392,9 +392,9 @@ class Parser {
 	}
 
 	Term parseParam() {
-		auto type = parseType();
+		auto ty = parseType();
 		paramAttrs();
-		return parseVar(type);
+		return parseVar(ty);
 	}
 
 	vector<Term> parseParams() {
@@ -414,30 +414,30 @@ class Parser {
 		if (token == "add") {
 			lex();
 			noWrap();
-			auto type = parseType();
-			auto a = expr(type);
+			auto ty = parseType();
+			auto a = expr(ty);
 			expect(",");
-			auto b = expr(type);
-			return Term(Add, type, a, b);
+			auto b = expr(ty);
+			return Term(Add, ty, a, b);
 		}
 		if (token == "and") {
 			lex();
-			auto type = parseType();
-			auto a = expr(type);
+			auto ty = parseType();
+			auto a = expr(ty);
 			expect(",");
-			auto b = expr(type);
-			return Term(And, type, a, b);
+			auto b = expr(ty);
+			return Term(And, ty, a, b);
 		}
 		if (token == "ashr") {
 			lex();
 			if (token == "exact") {
 				lex();
 			}
-			auto type = parseType();
-			auto a = expr(type);
+			auto ty = parseType();
+			auto a = expr(ty);
 			expect(",");
-			auto b = expr(type);
-			return Term(AShr, type, a, b);
+			auto b = expr(ty);
+			return Term(AShr, ty, a, b);
 		}
 		if (token == "call") {
 			return parseCall();
@@ -445,11 +445,11 @@ class Parser {
 		if (token == "fadd") {
 			lex();
 			fastMathFlags();
-			auto type = parseType();
-			auto a = expr(type);
+			auto ty = parseType();
+			auto a = expr(ty);
 			expect(",");
-			auto b = expr(type);
-			return Term(FAdd, type, a, b);
+			auto b = expr(ty);
+			return Term(FAdd, ty, a, b);
 		}
 		if (token == "fcmp") {
 			lex();
@@ -457,82 +457,82 @@ class Parser {
 			// SORT BLOCKS
 			if (token == "oeq") {
 				lex();
-				auto type = parseType();
-				auto a = expr(type);
+				auto ty = parseType();
+				auto a = expr(ty);
 				expect(",");
-				auto b = expr(type);
+				auto b = expr(ty);
 				return cmp(FEq, a, b);
 			}
 			if (token == "ole") {
 				lex();
-				auto type = parseType();
-				auto a = expr(type);
+				auto ty = parseType();
+				auto a = expr(ty);
 				expect(",");
-				auto b = expr(type);
+				auto b = expr(ty);
 				return cmp(FLe, a, b);
 			}
 			if (token == "olt") {
 				lex();
-				auto type = parseType();
-				auto a = expr(type);
+				auto ty = parseType();
+				auto a = expr(ty);
 				expect(",");
-				auto b = expr(type);
+				auto b = expr(ty);
 				return cmp(FLt, a, b);
 			}
 			if (token == "oge") {
 				lex();
-				auto type = parseType();
-				auto a = expr(type);
+				auto ty = parseType();
+				auto a = expr(ty);
 				expect(",");
-				auto b = expr(type);
+				auto b = expr(ty);
 				return cmp(FLe, b, a);
 			}
 			if (token == "ogt") {
 				lex();
-				auto type = parseType();
-				auto a = expr(type);
+				auto ty = parseType();
+				auto a = expr(ty);
 				expect(",");
-				auto b = expr(type);
+				auto b = expr(ty);
 				return cmp(FLt, b, a);
 			}
 			if (token == "uge") {
 				lex();
-				auto type = parseType();
-				auto a = expr(type);
+				auto ty = parseType();
+				auto a = expr(ty);
 				expect(",");
-				auto b = expr(type);
+				auto b = expr(ty);
 				return not1(cmp(FLt, a, b));
 			}
 			if (token == "ugt") {
 				lex();
-				auto type = parseType();
-				auto a = expr(type);
+				auto ty = parseType();
+				auto a = expr(ty);
 				expect(",");
-				auto b = expr(type);
+				auto b = expr(ty);
 				return not1(cmp(FLe, a, b));
 			}
 			if (token == "ule") {
 				lex();
-				auto type = parseType();
-				auto a = expr(type);
+				auto ty = parseType();
+				auto a = expr(ty);
 				expect(",");
-				auto b = expr(type);
+				auto b = expr(ty);
 				return not1(cmp(FLt, b, a));
 			}
 			if (token == "ult") {
 				lex();
-				auto type = parseType();
-				auto a = expr(type);
+				auto ty = parseType();
+				auto a = expr(ty);
 				expect(",");
-				auto b = expr(type);
+				auto b = expr(ty);
 				return not1(cmp(FLe, b, a));
 			}
 			if (token == "une") {
 				lex();
-				auto type = parseType();
-				auto a = expr(type);
+				auto ty = parseType();
+				auto a = expr(ty);
 				expect(",");
-				auto b = expr(type);
+				auto b = expr(ty);
 				return not1(cmp(FEq, b, a));
 			}
 			// END
@@ -541,127 +541,127 @@ class Parser {
 		if (token == "fdiv") {
 			lex();
 			fastMathFlags();
-			auto type = parseType();
-			auto a = expr(type);
+			auto ty = parseType();
+			auto a = expr(ty);
 			expect(",");
-			auto b = expr(type);
-			return Term(FDiv, type, a, b);
+			auto b = expr(ty);
+			return Term(FDiv, ty, a, b);
 		}
 		if (token == "fmul") {
 			lex();
 			fastMathFlags();
-			auto type = parseType();
-			auto a = expr(type);
+			auto ty = parseType();
+			auto a = expr(ty);
 			expect(",");
-			auto b = expr(type);
-			return Term(FMul, type, a, b);
+			auto b = expr(ty);
+			return Term(FMul, ty, a, b);
 		}
 		if (token == "fneg") {
 			lex();
 			fastMathFlags();
-			auto type = parseType();
-			auto a = expr(type);
-			return Term(FNeg, type, a);
+			auto ty = parseType();
+			auto a = expr(ty);
+			return Term(FNeg, ty, a);
 		}
 		if (token == "frem") {
 			lex();
 			fastMathFlags();
-			auto type = parseType();
-			auto a = expr(type);
+			auto ty = parseType();
+			auto a = expr(ty);
 			expect(",");
-			auto b = expr(type);
-			return Term(FRem, type, a, b);
+			auto b = expr(ty);
+			return Term(FRem, ty, a, b);
 		}
 		if (token == "fsub") {
 			lex();
 			fastMathFlags();
-			auto type = parseType();
-			auto a = expr(type);
+			auto ty = parseType();
+			auto a = expr(ty);
 			expect(",");
-			auto b = expr(type);
-			return Term(FSub, type, a, b);
+			auto b = expr(ty);
+			return Term(FSub, ty, a, b);
 		}
 		if (token == "icmp") {
 			lex();
 			// SORT BLOCKS
 			if (token == "eq") {
 				lex();
-				auto type = parseType();
-				auto a = expr(type);
+				auto ty = parseType();
+				auto a = expr(ty);
 				expect(",");
-				auto b = expr(type);
+				auto b = expr(ty);
 				return cmp(Eq, a, b);
 			}
 			if (token == "ne") {
 				lex();
-				auto type = parseType();
-				auto a = expr(type);
+				auto ty = parseType();
+				auto a = expr(ty);
 				expect(",");
-				auto b = expr(type);
+				auto b = expr(ty);
 				return not1(cmp(Eq, b, a));
 			}
 			if (token == "sle") {
 				lex();
-				auto type = parseType();
-				auto a = expr(type);
+				auto ty = parseType();
+				auto a = expr(ty);
 				expect(",");
-				auto b = expr(type);
+				auto b = expr(ty);
 				return cmp(SLe, a, b);
 			}
 			if (token == "slt") {
 				lex();
-				auto type = parseType();
-				auto a = expr(type);
+				auto ty = parseType();
+				auto a = expr(ty);
 				expect(",");
-				auto b = expr(type);
+				auto b = expr(ty);
 				return cmp(SLt, a, b);
 			}
 			if (token == "sge") {
 				lex();
-				auto type = parseType();
-				auto a = expr(type);
+				auto ty = parseType();
+				auto a = expr(ty);
 				expect(",");
-				auto b = expr(type);
+				auto b = expr(ty);
 				return cmp(SLe, b, a);
 			}
 			if (token == "sgt") {
 				lex();
-				auto type = parseType();
-				auto a = expr(type);
+				auto ty = parseType();
+				auto a = expr(ty);
 				expect(",");
-				auto b = expr(type);
+				auto b = expr(ty);
 				return cmp(SLt, b, a);
 			}
 			if (token == "ule") {
 				lex();
-				auto type = parseType();
-				auto a = expr(type);
+				auto ty = parseType();
+				auto a = expr(ty);
 				expect(",");
-				auto b = expr(type);
+				auto b = expr(ty);
 				return cmp(ULe, a, b);
 			}
 			if (token == "ult") {
 				lex();
-				auto type = parseType();
-				auto a = expr(type);
+				auto ty = parseType();
+				auto a = expr(ty);
 				expect(",");
-				auto b = expr(type);
+				auto b = expr(ty);
 				return cmp(ULt, a, b);
 			}
 			if (token == "uge") {
 				lex();
-				auto type = parseType();
-				auto a = expr(type);
+				auto ty = parseType();
+				auto a = expr(ty);
 				expect(",");
-				auto b = expr(type);
+				auto b = expr(ty);
 				return cmp(ULe, b, a);
 			}
 			if (token == "ugt") {
 				lex();
-				auto type = parseType();
-				auto a = expr(type);
+				auto ty = parseType();
+				auto a = expr(ty);
 				expect(",");
-				auto b = expr(type);
+				auto b = expr(ty);
 				return cmp(ULt, b, a);
 			}
 			// END
@@ -669,118 +669,118 @@ class Parser {
 		}
 		if (token == "load") {
 			lex();
-			auto type = parseType();
+			auto ty = parseType();
 			expect(",");
 			expect("ptr");
-			auto a = expr(type);
-			return Term(Load, type, a);
+			auto a = expr(ty);
+			return Term(Load, ty, a);
 		}
 		if (token == "lshr") {
 			lex();
 			if (token == "exact") {
 				lex();
 			}
-			auto type = parseType();
-			auto a = expr(type);
+			auto ty = parseType();
+			auto a = expr(ty);
 			expect(",");
-			auto b = expr(type);
-			return Term(LShr, type, a, b);
+			auto b = expr(ty);
+			return Term(LShr, ty, a, b);
 		}
 		if (token == "mul") {
 			lex();
 			noWrap();
-			auto type = parseType();
-			auto a = expr(type);
+			auto ty = parseType();
+			auto a = expr(ty);
 			expect(",");
-			auto b = expr(type);
-			return Term(Mul, type, a, b);
+			auto b = expr(ty);
+			return Term(Mul, ty, a, b);
 		}
 		if (token == "or") {
 			lex();
-			auto type = parseType();
-			auto a = expr(type);
+			auto ty = parseType();
+			auto a = expr(ty);
 			expect(",");
-			auto b = expr(type);
-			return Term(Or, type, a, b);
+			auto b = expr(ty);
+			return Term(Or, ty, a, b);
 		}
 		if (token == "sdiv") {
 			lex();
 			if (token == "exact") {
 				lex();
 			}
-			auto type = parseType();
-			auto a = expr(type);
+			auto ty = parseType();
+			auto a = expr(ty);
 			expect(",");
-			auto b = expr(type);
-			return Term(SDiv, type, a, b);
+			auto b = expr(ty);
+			return Term(SDiv, ty, a, b);
 		}
 		if (token == "sext" || token == "fptosi" || token == "sitofp") {
 			lex();
 			auto a = typeExpr();
 			expect("to");
-			auto type = parseType();
-			return Term(SCast, type, a);
+			auto ty = parseType();
+			return Term(SCast, ty, a);
 		}
 		if (token == "shl") {
 			lex();
 			noWrap();
-			auto type = parseType();
-			auto a = expr(type);
+			auto ty = parseType();
+			auto a = expr(ty);
 			expect(",");
-			auto b = expr(type);
-			return Term(Shl, type, a, b);
+			auto b = expr(ty);
+			return Term(Shl, ty, a, b);
 		}
 		if (token == "srem") {
 			lex();
-			auto type = parseType();
-			auto a = expr(type);
+			auto ty = parseType();
+			auto a = expr(ty);
 			expect(",");
-			auto b = expr(type);
-			return Term(SRem, type, a, b);
+			auto b = expr(ty);
+			return Term(SRem, ty, a, b);
 		}
 		if (token == "sub") {
 			lex();
 			noWrap();
-			auto type = parseType();
-			auto a = expr(type);
+			auto ty = parseType();
+			auto a = expr(ty);
 			expect(",");
-			auto b = expr(type);
-			return Term(Sub, type, a, b);
+			auto b = expr(ty);
+			return Term(Sub, ty, a, b);
 		}
 		if (token == "trunc" || token == "zext" || token == "fptrunc" || token == "fpext" || token == "fptoui" ||
 			token == "uitofp" || token == "ptrtoint" || token == "inttoptr" || token == "bitcast") {
 			lex();
 			auto a = typeExpr();
 			expect("to");
-			auto type = parseType();
-			return Term(Cast, type, a);
+			auto ty = parseType();
+			return Term(Cast, ty, a);
 		}
 		if (token == "udiv") {
 			lex();
 			if (token == "exact") {
 				lex();
 			}
-			auto type = parseType();
-			auto a = expr(type);
+			auto ty = parseType();
+			auto a = expr(ty);
 			expect(",");
-			auto b = expr(type);
-			return Term(UDiv, type, a, b);
+			auto b = expr(ty);
+			return Term(UDiv, ty, a, b);
 		}
 		if (token == "urem") {
 			lex();
-			auto type = parseType();
-			auto a = expr(type);
+			auto ty = parseType();
+			auto a = expr(ty);
 			expect(",");
-			auto b = expr(type);
-			return Term(URem, type, a, b);
+			auto b = expr(ty);
+			return Term(URem, ty, a, b);
 		}
 		if (token == "xor") {
 			lex();
-			auto type = parseType();
-			auto a = expr(type);
+			auto ty = parseType();
+			auto a = expr(ty);
 			expect(",");
-			auto b = expr(type);
-			return Term(Xor, type, a, b);
+			auto b = expr(ty);
+			return Term(Xor, ty, a, b);
 		}
 		// END
 
@@ -816,15 +816,15 @@ class Parser {
 	}
 
 	Type parseType() {
-		auto type = primaryType();
+		auto ty = primaryType();
 		return type;
 	}
 
-	Term parseVar(Type type) {
+	Term parseVar(Type ty) {
 		if (token[0] != '%') {
 			throw error("expected variable name");
 		}
-		return var(type, parseRef1());
+		return var(ty, parseRef1());
 	}
 
 	Type primaryType() {

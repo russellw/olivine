@@ -1,13 +1,13 @@
 #include "all.h"
 
 struct GlobalImpl {
-	const Type type;
+	const Type ty;
 	const Ref ref;
 
-	GlobalImpl(Type type, const Ref& ref): type(type), ref(ref) {
+	GlobalImpl(Type ty, const Ref& ref): ty(ty), ref(ref) {
 	}
 };
 
-Global::Global(Type type, const Ref& ref) {
-	p = new GlobalImpl(type, ref);
+Global::Global(Type ty, const Ref& ref) {
+	p = new GlobalImpl(ty, ref);
 }

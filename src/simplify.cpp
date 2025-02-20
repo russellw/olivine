@@ -28,7 +28,7 @@ Term simplify(const unordered_map<Term, Term>& env, Term a) {
 	if (a.size() == 2 && simplified[0].tag() == Int && simplified[1].tag() == Int) {
 		cpp_int v0 = simplified[0].intVal();
 		cpp_int v1 = simplified[1].intVal();
-		Type ty = simplified[0].type();
+		Type ty = simplified[0].ty();
 
 		switch (a.tag()) {
 		case AShr:
@@ -119,7 +119,7 @@ Term simplify(const unordered_map<Term, Term>& env, Term a) {
 		}
 		// x - x = 0
 		if (simplified[0] == simplified[1]) {
-			return intConst(simplified[0].type(), 0);
+			return intConst(simplified[0].ty(), 0);
 		}
 		break;
 	}
@@ -127,7 +127,7 @@ Term simplify(const unordered_map<Term, Term>& env, Term a) {
 		// x * 0 = 0
 		if ((simplified[0].tag() == Int && simplified[0].intVal() == 0) ||
 			(simplified[1].tag() == Int && simplified[1].intVal() == 0)) {
-			return intConst(simplified[0].type(), 0);
+			return intConst(simplified[0].ty(), 0);
 		}
 		// x * 1 = x
 		if (simplified[1].tag() == Int && simplified[1].intVal() == 1) {
@@ -142,11 +142,11 @@ Term simplify(const unordered_map<Term, Term>& env, Term a) {
 	case And: {
 		// x & 0 = 0
 		if (simplified[1].tag() == Int && simplified[1].intVal() == 0) {
-			return intConst(simplified[0].type(), 0);
+			return intConst(simplified[0].ty(), 0);
 		}
 		// 0 & x = 0
 		if (simplified[0].tag() == Int && simplified[0].intVal() == 0) {
-			return intConst(simplified[1].type(), 0);
+			return intConst(simplified[1].ty(), 0);
 		}
 		// x & x = x
 		if (simplified[0] == simplified[1]) {
@@ -180,7 +180,7 @@ Term simplify(const unordered_map<Term, Term>& env, Term a) {
 		}
 		// x ^ x = 0
 		if (simplified[0] == simplified[1]) {
-			return intConst(simplified[0].type(), 0);
+			return intConst(simplified[0].ty(), 0);
 		}
 		break;
 	}
@@ -197,5 +197,5 @@ Term simplify(const unordered_map<Term, Term>& env, Term a) {
 	}
 
 	// If no simplification was possible, return a new term with simplified components
-	return Term(a.tag(), a.type(), simplified);
+	return Term(a.tag(), a.ty(), simplified);
 }

@@ -118,16 +118,16 @@ public:
 
 	// Atom constructors
 	explicit Term(Tag tag);
-	Term(Tag tag, Type type, const Ref& ref);
+	Term(Tag tag, Type ty, const Ref& ref);
 
 	// Compound constructors
-	Term(Tag tag, Type type, Term a);
-	Term(Tag tag, Type type, Term a, Term b);
-	Term(Tag tag, Type type, const vector<Term>& v);
+	Term(Tag tag, Type ty, Term a);
+	Term(Tag tag, Type ty, Term a, Term b);
+	Term(Tag tag, Type ty, const vector<Term>& v);
 
 	// Every term has a tag and type
 	Tag tag() const;
-	Type type() const;
+	Type ty() const;
 
 	// Atom data
 	Ref ref() const;
@@ -157,7 +157,7 @@ template <> struct hash<Term> {
 	size_t operator()(const Term& a) const {
 		size_t h = 0;
 		hash_combine(h, hash<Tag>()(a.tag()));
-		hash_combine(h, hash<Type>()(a.type()));
+		hash_combine(h, hash<Type>()(a.ty()));
 		hash_combine(h, hash<Ref>()(a.ref()));
 		hash_combine(h, hash<cpp_int>()(a.intVal()));
 		hash_combine(h, hashRange(a.begin(), a.end()));
@@ -173,7 +173,7 @@ extern Term falseConst;
 extern Term nullConst;
 
 // Integer constants are arbitrary precision
-Term intConst(Type type, const cpp_int& val);
+Term intConst(Type ty, const cpp_int& val);
 
 // SORT FUNCTIONS
 
@@ -181,20 +181,20 @@ inline Term array(Type elementType, const vector<Term>& elements) {
 	return Term(Array, arrayTy(elements.size(), elementType), elements);
 }
 
-inline Term call(Type type, Term f, const vector<Term>& args) {
-	return Term(Call, type, cons(f, args));
+inline Term call(Type ty, Term f, const vector<Term>& args) {
+	return Term(Call, ty, cons(f, args));
 }
 
 inline Term cmp(Tag tag, Term a, Term b) {
 	return Term(tag, boolTy(), a, b);
 }
 
-inline Term floatConst(Type type, const string& val) {
-	return Term(Float, type, Ref(val));
+inline Term floatConst(Type ty, const string& val) {
+	return Term(Float, ty, Ref(val));
 }
 
-inline Term globalRef(Type type, const Ref& ref) {
-	return Term(GlobalRef, type, ref);
+inline Term globalRef(Type ty, const Ref& ref) {
+	return Term(GlobalRef, ty, ref);
 }
 
 inline Term label(const Ref& ref) {
@@ -202,14 +202,14 @@ inline Term label(const Ref& ref) {
 }
 
 inline Term not1(Term a) {
-	return Term(Not, a.type(), a);
+	return Term(Not, a.ty(), a);
 }
 
 inline Term tuple(const vector<Term>& elements) {
-	auto tys = map(elements, [](Term a) { return a.type(); });
+	auto tys = map(elements, [](Term a) { return a.ty(); });
 	return Term(Tuple, structTy(tys), elements);
 }
 
-inline Term var(Type type, const Ref& ref) {
-	return Term(Var, type, ref);
+inline Term var(Type ty, const Ref& ref) {
+	return Term(Var, ty, ref);
 }

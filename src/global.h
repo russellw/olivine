@@ -10,9 +10,9 @@ public:
 	explicit Global(GlobalImpl* p): p(p) {
 	}
 
-	Global(Type type, const Ref& ref);
+	Global(Type ty, const Ref& ref);
 
-	Type type() const;
+	Type ty() const;
 	Ref ref() const;
 
 	// Comparison by value

@@ -5,10 +5,10 @@ ostream& operator<<(ostream& os, const Ref& ref) {
 	return os;
 }
 
-ostream& operator<<(ostream& os, Type type) {
-	switch (type.kind()) {
+ostream& operator<<(ostream& os, Type ty) {
+	switch (ty.kind()) {
 	case ArrayKind:
-		os << '[' << type.len() << " x " << type[0] << ']';
+		os << '[' << ty.len() << " x " << ty[0] << ']';
 		break;
 	case DoubleKind:
 		os << "double";
@@ -17,33 +17,33 @@ ostream& operator<<(ostream& os, Type type) {
 		os << "float";
 		break;
 	case FuncKind:
-		os << type[0] << " (";
-		for (size_t i = 1; i < type.size(); i++) {
+		os << ty[0] << " (";
+		for (size_t i = 1; i < ty.size(); i++) {
 			if (i > 1) {
 				os << ", ";
 			}
-			os << type[i];
+			os << ty[i];
 		}
 		os << ')';
 		break;
 	case IntKind:
-		os << 'i' << type.len();
+		os << 'i' << ty.len();
 		break;
 	case PtrKind:
 		os << "ptr";
 		break;
 	case StructKind:
 		os << '{';
-		for (size_t i = 0; i < type.size(); i++) {
+		for (size_t i = 0; i < ty.size(); i++) {
 			if (i) {
 				os << ", ";
 			}
-			os << type[i];
+			os << ty[i];
 		}
 		os << '}';
 		break;
 	case VecKind:
-		os << '<' << type.len() << " x " << type[0] << '>';
+		os << '<' << ty.len() << " x " << ty[0] << '>';
 		break;
 	case VoidKind:
 		os << "void";
@@ -59,7 +59,7 @@ ostream& operator<<(ostream& os, Term a) {
 		os << a.str();
 		return os;
 	case Int:
-		if (a.type() == boolTy()) {
+		if (a.ty() == boolTy()) {
 			os << (a.intVal() ? "true" : "false");
 			return os;
 		}
@@ -164,7 +164,7 @@ ostream& operator<<(ostream& os, Term a) {
 
 	// Print the type of the expression
 	if (!isComparison) {
-		os << a.type();
+		os << a.ty();
 	}
 
 	// Print all operands
@@ -175,7 +175,7 @@ ostream& operator<<(ostream& os, Term a) {
 
 		// For nested expressions, we need to print both type and value
 		if (isComparison && i == 0) {
-			os << a[i].type() << " ";
+			os << a[i].ty() << " ";
 		}
 
 		os << a[i];

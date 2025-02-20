@@ -2,7 +2,7 @@
 
 struct TermImpl {
 	const Tag tag;
-	const Type type;
+	const Type ty;
 
 	// Atom
 	const Ref ref;
@@ -11,16 +11,16 @@ struct TermImpl {
 	// Compound
 	const vector<Term> v;
 
-	TermImpl(Tag tag, Type type): tag(tag), type(type) {
+	TermImpl(Tag tag, Type ty): tag(tag), ty(ty) {
 	}
 
-	TermImpl(Tag tag, Type type, const Ref& ref): tag(tag), type(type), ref(ref) {
+	TermImpl(Tag tag, Type ty, const Ref& ref): tag(tag), ty(ty), ref(ref) {
 	}
 
-	TermImpl(Tag tag, Type type, const cpp_int& intVal): tag(tag), type(type), intVal(intVal) {
+	TermImpl(Tag tag, Type ty, const cpp_int& intVal): tag(tag), ty(ty), intVal(intVal) {
 	}
 
-	TermImpl(Tag tag, Type type, const vector<Term>& v): tag(tag), type(type), v(v) {
+	TermImpl(Tag tag, Type ty, const vector<Term>& v): tag(tag), ty(ty), v(v) {
 	}
 };
 
@@ -36,28 +36,28 @@ Term::Term(Tag tag) {
 	p = new TermImpl(tag, voidTy());
 }
 
-Term::Term(Tag tag, Type type, const Ref& ref) {
-	p = new TermImpl(tag, type, ref);
+Term::Term(Tag tag, Type ty, const Ref& ref) {
+	p = new TermImpl(tag, ty, ref);
 }
 
-Term::Term(Tag tag, Type type, Term a) {
-	p = new TermImpl(tag, type, {a});
+Term::Term(Tag tag, Type ty, Term a) {
+	p = new TermImpl(tag, ty, {a});
 }
 
-Term::Term(Tag tag, Type type, Term a, Term b) {
-	p = new TermImpl(tag, type, {a, b});
+Term::Term(Tag tag, Type ty, Term a, Term b) {
+	p = new TermImpl(tag, ty, {a, b});
 }
 
-Term ::Term(Tag tag, Type type, const vector<Term>& v) {
-	p = new TermImpl(tag, type, v);
+Term ::Term(Tag tag, Type ty, const vector<Term>& v) {
+	p = new TermImpl(tag, ty, v);
 }
 
 Tag Term::tag() const {
 	return p->tag;
 }
 
-Type Term::type() const {
-	return p->type;
+Type Term::ty() const {
+	return p->ty;
 }
 
 Ref Term::ref() const {
@@ -103,7 +103,7 @@ bool Term::operator==(Term b0) const {
 	if (a->tag != b->tag) {
 		return false;
 	}
-	if (a->type != b->type) {
+	if (a->ty != b->ty) {
 		return false;
 	}
 	if (a->ref != b->ref) {
@@ -124,8 +124,8 @@ Term falseConst(&falseImpl);
 
 Term nullConst(&nullImpl);
 
-Term intConst(Type type, const cpp_int& val) {
-	ASSERT(type.kind() == IntKind);
-	auto p = new TermImpl(Int, type, val);
+Term intConst(Type ty, const cpp_int& val) {
+	ASSERT(ty.kind() == IntKind);
+	auto p = new TermImpl(Int, ty, val);
 	return Term(p);
 }
