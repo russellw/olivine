@@ -10,10 +10,10 @@ public:
 	explicit Func(FuncImpl* p): p(p) {
 	}
 
-	Func(Type returnType, const Ref& ref, const vector<Term>& params);
-	Func(Type returnType, const Ref& ref, const vector<Term>& params, const vector<Inst>& insts);
+	Func(Type retType, const Ref& ref, const vector<Term>& params);
+	Func(Type retType, const Ref& ref, const vector<Term>& params, const vector<Inst>& insts);
 
-	Type returnType() const;
+	Type retType() const;
 	Ref ref() const;
 	vector<Term> params() const;
 

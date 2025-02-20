@@ -1481,9 +1481,9 @@ BOOST_AUTO_TEST_CASE(StructTypeIterators) {
 // Test function type iteration
 BOOST_AUTO_TEST_CASE(FuncTypeIterators) {
 	std::vector<Type> params = {intType(32), floatType(), ptrType()};
-	Type returnType = voidType();
+	Type retType = voidType();
 	std::vector<Type> funcTypes = params;
-	funcTypes.insert(funcTypes.begin(), returnType);
+	funcTypes.insert(funcTypes.begin(), retType);
 	Type funcT = funcType(funcTypes);
 
 	BOOST_CHECK(funcT.begin() != funcT.end());
@@ -1491,7 +1491,7 @@ BOOST_AUTO_TEST_CASE(FuncTypeIterators) {
 	BOOST_CHECK_EQUAL(std::distance(funcT.begin(), funcT.end()), params.size() + 1);
 
 	// Check return type
-	BOOST_CHECK(*funcT.begin() == returnType);
+	BOOST_CHECK(*funcT.begin() == retType);
 
 	// Check parameter types
 	auto it = std::next(funcT.begin());

@@ -223,7 +223,7 @@ class Parser {
 		dsoPreemptable();
 
 		// Return type
-		auto returnType = parseType();
+		auto retType = parseType();
 
 		// Name
 		if (token[0] != '@') {
@@ -237,7 +237,7 @@ class Parser {
 
 		// Only declare
 		if (!define) {
-			return Func(returnType, ref, params);
+			return Func(retType, ref, params);
 		}
 
 		// Trailing tokens
@@ -258,7 +258,7 @@ class Parser {
 		// Closing brace
 		expect("}");
 
-		return Func(returnType, ref, params, insts);
+		return Func(retType, ref, params, insts);
 	}
 
 	Inst parseInst() {

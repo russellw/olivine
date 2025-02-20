@@ -176,12 +176,12 @@ Type structType(const vector<Type>& fields) {
 	return Type(typeInterner.intern(p));
 }
 
-Type funcType(Type returnType, const vector<Type>& params) {
+Type funcType(Type retType, const vector<Type>& params) {
 	for (auto param : params) {
 		ASSERT(param != voidType());
 	}
 	vector<Type> v;
-	v.push_back(returnType);
+	v.push_back(retType);
 	v.insert(v.end(), params.begin(), params.end());
 	auto p = new TypeImpl(FuncKind, v);
 	return Type(typeInterner.intern(p));
