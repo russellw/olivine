@@ -190,7 +190,7 @@ BOOST_AUTO_TEST_CASE(VectorTypeProperties) {
 BOOST_AUTO_TEST_CASE(StructTypeProperties) {
 	// Test structure with various field types
 	vector<Type> fields = {intTy(32), floatTy(), boolTy(), ptrTy()};
-	Type struct_type = structType(fields);
+	Type struct_type = structTy(fields);
 
 	// Check kind
 	BOOST_CHECK_EQUAL(struct_type.kind(), StructKind);
@@ -206,7 +206,7 @@ BOOST_AUTO_TEST_CASE(StructTypeProperties) {
 
 	// Test empty struct
 	vector<Type> empty_fields;
-	Type empty_struct = structType(empty_fields);
+	Type empty_struct = structTy(empty_fields);
 	BOOST_CHECK_EQUAL(empty_struct.kind(), StructKind);
 	BOOST_CHECK_EQUAL(empty_struct.size(), 0);
 }
@@ -216,9 +216,9 @@ BOOST_AUTO_TEST_CASE(StructTypeEquality) {
 	vector<Type> fields2 = {intTy(32), floatTy()};
 	vector<Type> fields3 = {floatTy(), intTy(32)};
 
-	Type struct1 = structType(fields1);
-	Type struct2 = structType(fields2);
-	Type struct3 = structType(fields3);
+	Type struct1 = structTy(fields1);
+	Type struct2 = structTy(fields2);
+	Type struct3 = structTy(fields3);
 
 	// Test equality of identical structs
 	BOOST_CHECK(struct1 == struct2);
@@ -228,8 +228,8 @@ BOOST_AUTO_TEST_CASE(StructTypeEquality) {
 
 	// Test nested structs
 	vector<Type> nested_fields = {struct1, floatTy()};
-	Type nested_struct1 = structType(nested_fields);
-	Type nested_struct2 = structType(nested_fields);
+	Type nested_struct1 = structTy(nested_fields);
+	Type nested_struct2 = structTy(nested_fields);
 	BOOST_CHECK(nested_struct1 == nested_struct2);
 }
 
@@ -293,7 +293,7 @@ BOOST_AUTO_TEST_CASE(ComplexTypeCompositions) {
 	Type vec4_float = vecTy(4, floatTy());
 	Type arr3_vec = arrayTy(3, vec4_float);
 	vector<Type> struct_fields = {int32, arr3_vec};
-	Type complex_struct = structType(struct_fields);
+	Type complex_struct = structTy(struct_fields);
 
 	// Check the structure
 	BOOST_CHECK_EQUAL(complex_struct.kind(), StructKind);
@@ -474,19 +474,19 @@ BOOST_AUTO_TEST_CASE(StructTypeOutput) {
 	std::vector<Type> fields;
 
 	// Test empty struct
-	BOOST_CHECK_EQUAL(typeToString(structType(fields)), "{}");
+	BOOST_CHECK_EQUAL(typeToString(structTy(fields)), "{}");
 
 	// Test simple struct
 	fields.push_back(intTy(32));
 	fields.push_back(floatTy());
-	BOOST_CHECK_EQUAL(typeToString(structType(fields)), "{i32, float}");
+	BOOST_CHECK_EQUAL(typeToString(structTy(fields)), "{i32, float}");
 
 	// Test nested struct
 	std::vector<Type> innerFields;
 	innerFields.push_back(intTy(8));
 	innerFields.push_back(doubleTy());
-	fields.push_back(structType(innerFields));
-	BOOST_CHECK_EQUAL(typeToString(structType(fields)), "{i32, float, {i8, double}}");
+	fields.push_back(structTy(innerFields));
+	BOOST_CHECK_EQUAL(typeToString(structTy(fields)), "{i32, float, {i8, double}}");
 }
 
 BOOST_AUTO_TEST_CASE(FuncTypeOutput) {
@@ -517,7 +517,7 @@ BOOST_AUTO_TEST_CASE(ComplexTypeOutput) {
 	fields.push_back(ptrTy());
 
 	std::vector<Type> funcParams;
-	funcParams.push_back(structType(fields)); // return type
+	funcParams.push_back(structTy(fields)); // return type
 	funcParams.push_back(doubleTy());
 	funcParams.push_back(arrayTy(3, floatTy()));
 
@@ -564,9 +564,9 @@ BOOST_AUTO_TEST_CASE(StructureTypeMapping) {
 	std::vector<Type> fields2 = {intTy(32), floatTy()}; // Same structure
 	std::vector<Type> fields3 = {floatTy(), intTy(32)}; // Different order
 
-	Type struct1 = structType(fields1);
-	Type struct2 = structType(fields2);
-	Type struct3 = structType(fields3);
+	Type struct1 = structTy(fields1);
+	Type struct2 = structTy(fields2);
+	Type struct3 = structTy(fields3);
 
 	typeMap[struct1] = 1;
 
@@ -1464,7 +1464,7 @@ BOOST_AUTO_TEST_CASE(ArrayTypeIterators) {
 // Test struct type iteration
 BOOST_AUTO_TEST_CASE(StructTypeIterators) {
 	std::vector<Type> fields = {intTy(32), floatTy(), doubleTy()};
-	Type structT = structType(fields);
+	Type structT = structTy(fields);
 
 	BOOST_CHECK(structT.begin() != structT.end());
 	BOOST_CHECK(structT.cbegin() != structT.cend());
@@ -1503,7 +1503,7 @@ BOOST_AUTO_TEST_CASE(FuncTypeIterators) {
 
 // Test iterator comparison and assignment
 BOOST_AUTO_TEST_CASE(IteratorOperations) {
-	Type structT = structType({intTy(32), floatTy()});
+	Type structT = structTy({intTy(32), floatTy()});
 
 	// Test iterator assignment and comparison
 	auto it1 = structT.begin();
@@ -1530,11 +1530,11 @@ BOOST_AUTO_TEST_CASE(IteratorOperations) {
 
 // Test iterator invalidation
 BOOST_AUTO_TEST_CASE(IteratorInvalidation) {
-	Type structT1 = structType({intTy(32), floatTy()});
+	Type structT1 = structTy({intTy(32), floatTy()});
 	auto it1 = structT1.begin();
 
 	// Create a new struct type
-	Type structT2 = structType({doubleTy(), ptrTy()});
+	Type structT2 = structTy({doubleTy(), ptrTy()});
 
 	// Original iterator should still be valid and point to the original type
 	BOOST_CHECK(*it1 == intTy(32));

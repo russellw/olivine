@@ -168,7 +168,7 @@ Type arrayTy(size_t len, Type element) {
 	return Type(typeInterner.intern(p));
 }
 
-Type structType(const vector<Type>& fields) {
+Type structTy(const vector<Type>& fields) {
 	for (auto field : fields) {
 		ASSERT(field != voidTy());
 	}

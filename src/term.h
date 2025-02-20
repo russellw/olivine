@@ -207,7 +207,7 @@ inline Term not1(Term a) {
 
 inline Term tuple(const vector<Term>& elements) {
 	auto types = map(elements, [](Term a) { return a.type(); });
-	return Term(Tuple, structType(types), elements);
+	return Term(Tuple, structTy(types), elements);
 }
 
 inline Term var(Type type, const Ref& ref) {
