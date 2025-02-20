@@ -1,25 +1,25 @@
 #include "all.h"
 
-struct InstructionImpl {
+struct InstImpl {
 	const Opcode opcode;
 	const vector<Term> operands;
 
-	InstructionImpl(Opcode opcode, const vector<Term>& operands): opcode(opcode), operands(operands) {
+	InstImpl(Opcode opcode, const vector<Term>& operands): opcode(opcode), operands(operands) {
 	}
 };
 
-Instruction::Instruction(Opcode opcode) {
-	p = new InstructionImpl(opcode, {});
+Inst::Inst(Opcode opcode) {
+	p = new InstImpl(opcode, {});
 }
 
-Instruction::Instruction(Opcode opcode, Term a) {
-	p = new InstructionImpl(opcode, {a});
+Inst::Inst(Opcode opcode, Term a) {
+	p = new InstImpl(opcode, {a});
 }
 
-Instruction::Instruction(Opcode opcode, Term a, Term b) {
-	p = new InstructionImpl(opcode, {a, b});
+Inst::Inst(Opcode opcode, Term a, Term b) {
+	p = new InstImpl(opcode, {a, b});
 }
 
-Instruction::Instruction(Opcode opcode, Term a, Term b, Term c) {
-	p = new InstructionImpl(opcode, {a, b, c});
+Inst::Inst(Opcode opcode, Term a, Term b, Term c) {
+	p = new InstImpl(opcode, {a, b, c});
 }

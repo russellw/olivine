@@ -253,7 +253,7 @@ class Parser {
 		newline();
 
 		// Instructions
-		auto instructions = parseInstructions();
+		auto instructions = parseInsts();
 
 		// Closing brace
 		expect("}");
@@ -261,7 +261,7 @@ class Parser {
 		return Func(returnType, ref, params, instructions);
 	}
 
-	Instruction parseInstruction() {
+	Inst parseInst() {
 		if (token.back() == ':') {
 			return block(parseRef(token.substr(0, token.size() - 1)));
 		}
@@ -295,7 +295,7 @@ class Parser {
 			expect(",");
 			expect("ptr");
 			auto p = expr(ptrType());
-			return Instruction(Store, a, p);
+			return Inst(Store, a, p);
 		}
 		if (token == "unreachable") {
 			return unreachable();
@@ -305,18 +305,18 @@ class Parser {
 			lex();
 			expect("=");
 			auto rval = parseRVal();
-			return Instruction(Assign, var(rval.type(), lval), rval);
+			return Inst(Assign, var(rval.type(), lval), rval);
 		}
 		// END
 
 		throw error('\'' + token + "': expected instruction");
 	}
 
-	vector<Instruction> parseInstructions() {
-		vector<Instruction> instructions;
+	vector<Inst> parseInsts() {
+		vector<Inst> instructions;
 		while (token != "}") {
 			if (token != "\n") {
-				instructions.push_back(parseInstruction());
+				instructions.push_back(parseInst());
 			}
 			nextLine();
 		}

@@ -32,22 +32,22 @@ enum Opcode {
 	Unreachable,
 };
 
-struct InstructionImpl;
+struct InstImpl;
 
-class Instruction {
-	InstructionImpl* p;
+class Inst {
+	InstImpl* p;
 
 public:
-	Instruction();
+	Inst();
 
 	// For internal use
-	explicit Instruction(InstructionImpl* p): p(p) {
+	explicit Inst(InstImpl* p): p(p) {
 	}
 
-	explicit Instruction(Opcode opcode);
-	Instruction(Opcode opcode, Term a);
-	Instruction(Opcode opcode, Term a, Term b);
-	Instruction(Opcode opcode, Term a, Term b, Term c);
+	explicit Inst(Opcode opcode);
+	Inst(Opcode opcode, Term a);
+	Inst(Opcode opcode, Term a, Term b);
+	Inst(Opcode opcode, Term a, Term b, Term c);
 
 	Opcode opcode() const;
 
@@ -64,37 +64,37 @@ public:
 	const_iterator cend() const;
 
 	// Comparison by value
-	bool operator==(Instruction b) const;
-	bool operator!=(Instruction b) const;
+	bool operator==(Inst b) const;
+	bool operator!=(Inst b) const;
 };
 
 // SORT FUNCTIONS
 
-inline Instruction assign(Term a, Term b) {
-	return Instruction(Assign, a, b);
+inline Inst assign(Term a, Term b) {
+	return Inst(Assign, a, b);
 }
 
-inline Instruction block(const Ref& ref) {
-	return Instruction(Block, label(ref));
+inline Inst block(const Ref& ref) {
+	return Inst(Block, label(ref));
 }
 
-inline Instruction br(Term cond, const Ref& ifTrue, const Ref& ifFalse) {
+inline Inst br(Term cond, const Ref& ifTrue, const Ref& ifFalse) {
 	ASSERT(cond.type() == boolType());
-	return Instruction(Br, cond, label(ifTrue), label(ifFalse));
+	return Inst(Br, cond, label(ifTrue), label(ifFalse));
 }
 
-inline Instruction jmp(const Ref& target) {
-	return Instruction(Jmp, label(target));
+inline Inst jmp(const Ref& target) {
+	return Inst(Jmp, label(target));
 }
 
-inline Instruction ret() {
-	return Instruction(RetVoid);
+inline Inst ret() {
+	return Inst(RetVoid);
 }
 
-inline Instruction ret(Term a) {
-	return Instruction(Ret, a);
+inline Inst ret(Term a) {
+	return Inst(Ret, a);
 }
 
-inline Instruction unreachable() {
-	return Instruction(Unreachable);
+inline Inst unreachable() {
+	return Inst(Unreachable);
 }

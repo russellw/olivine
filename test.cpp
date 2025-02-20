@@ -1650,7 +1650,7 @@ Term createMockVar(const string& name) {
 
 BOOST_AUTO_TEST_SUITE(ParserTestSuite)
 
-BOOST_AUTO_TEST_CASE(ParseAddInstruction) {
+BOOST_AUTO_TEST_CASE(ParseAddInst) {
 	// Test error cases
 	{
 		Target target;

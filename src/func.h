@@ -11,17 +11,17 @@ public:
 	}
 
 	Func(Type returnType, const Ref& ref, const vector<Term>& params);
-	Func(Type returnType, const Ref& ref, const vector<Term>& params, const vector<Instruction>& instructions);
+	Func(Type returnType, const Ref& ref, const vector<Term>& params, const vector<Inst>& instructions);
 
 	Type returnType() const;
 	Ref ref() const;
 	vector<Term> params() const;
 
 	size_t size() const;
-	Instruction operator[](size_t i) const;
+	Inst operator[](size_t i) const;
 
 	// Iterators
-	using const_iterator = vector<Instruction>::const_iterator;
+	using const_iterator = vector<Inst>::const_iterator;
 
 	const_iterator begin() const;
 	const_iterator end() const;
