@@ -289,6 +289,14 @@ class Parser {
 			}
 			return ret(typeExpr());
 		}
+		if (token == "store") {
+			lex();
+			auto a = typeExpr();
+			expect(",");
+			expect("ptr");
+			auto p = expr(ptrType());
+			return Instruction(Store, a, p);
+		}
 		if (token == "unreachable") {
 			return unreachable();
 		}

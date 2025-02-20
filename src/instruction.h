@@ -22,6 +22,13 @@ enum Opcode {
 	// A `ret void` instruction has no operands
 	RetVoid,
 
+	// Store takes two operands
+	// the value (with corresponding type) to be stored
+	// and the pointer
+	// with the usual caveats about bad pointers being undefined behavior
+	// Note that the corresponding Load is a term, not an instruction
+	Store,
+
 	Unreachable,
 };
 
