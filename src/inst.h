@@ -26,6 +26,7 @@ enum Opcode {
 	// A Jmp instruction (unconditional branch) has one Label operand
 	Jmp,
 
+	// Phi is not used internally, but needs to be representable during parsing and conversion of LLVM code
 	// The first operand of phi is the variable to which the result will be assigned
 	// then one or more pairs of constant values and labels
 	// These are all in a flat list
