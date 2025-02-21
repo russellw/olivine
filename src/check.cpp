@@ -244,3 +244,107 @@ void check(Term a) {
 		throw runtime_error("Unknown term tag");
 	}
 }
+
+// Forward declaration
+bool isIntegral(Type t);
+
+void checkRecursive(Term a) {
+	// First check the term itself
+	check(a);
+
+	// Special cases for terms that might have nested structure in non-operand fields
+	switch (a.tag()) {
+	case Float:
+	case GlobalRef:
+	case Int:
+	case Label:
+	case Null:
+	case Var:
+		// These are leaf nodes with no nested terms to check
+		return;
+
+	case Array:
+		// For arrays, we need to check that all elements have the same type
+		// This is in addition to checking each element recursively
+		if (a.size() > 0) {
+			Type elementType = a[0].ty();
+			for (const auto& element : a) {
+				if (element.ty() != elementType) {
+					throw runtime_error("Array elements must all have the same type");
+				}
+				checkRecursive(element);
+			}
+		}
+		return;
+
+	case Tuple:
+		// For tuples, ensure the structure matches the type
+		if (a.ty().kind() != StructKind) {
+			throw runtime_error("Tuple must have struct type");
+		}
+		if (a.size() != a.ty().size()) {
+			throw runtime_error("Tuple size must match type");
+		}
+		for (size_t i = 0; i < a.size(); ++i) {
+			if (a[i].ty() != a.ty()[i]) {
+				throw runtime_error("Tuple element type mismatch");
+			}
+			checkRecursive(a[i]);
+		}
+		return;
+
+	case Call:
+		// For function calls, validate the function and all arguments
+		if (a.size() < 1) {
+			throw runtime_error("Call must have at least function argument");
+		}
+		if (a[0].ty().kind() != FuncKind) {
+			throw runtime_error("First operand of call must be a function");
+		}
+
+		// Check return type
+		if (a.ty() != a[0].ty()[0]) {
+			throw runtime_error("Call return type must match function type");
+		}
+
+		// Check argument types and recursively validate each argument
+		if (a.size() - 1 != a[0].ty().size() - 1) {
+			throw runtime_error("Call argument count mismatch");
+		}
+		for (size_t i = 0; i < a.size(); ++i) {
+			if (i > 0 && a[i].ty() != a[0].ty()[i]) {
+				throw runtime_error("Call argument type mismatch");
+			}
+			checkRecursive(a[i]);
+		}
+		return;
+
+	case ElementPtr:
+	case FieldPtr:
+		// These operations require additional validation beyond their operands
+		if (a.size() != 3) {
+			throw runtime_error("ElementPtr/FieldPtr must have exactly 3 operands");
+		}
+		if (a[1].ty().kind() != PtrKind) {
+			throw runtime_error("Second operand of ElementPtr/FieldPtr must be a pointer");
+		}
+		if (!isIntegral(a[2].ty())) {
+			throw runtime_error("Third operand of ElementPtr/FieldPtr must be an integer");
+		}
+		if (a.ty().kind() != PtrKind) {
+			throw runtime_error("ElementPtr/FieldPtr must return a pointer");
+		}
+		// Fall through to check operands recursively
+
+	default:
+		// For all other terms, recursively check their operands
+		for (const auto& operand : a) {
+			checkRecursive(operand);
+		}
+	}
+}
+
+// Helper function to check if a type is integral
+bool isIntegral(Type t) {
+	return t.kind() == IntKind;
+}

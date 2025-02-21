@@ -3,3 +3,6 @@
 // and throw an exception if not
 // This function is not recursive; it only checks the top level of a compound type
 void check(Term a);
+
+// Recursive checker function that validates a term and all its nested subterms
+void checkRecursive(Term a);
