@@ -52,9 +52,9 @@ void check(Term a) {
 	} break;
 
 	case SDiv:
-	case SRem: {
+	case SRem:
 	case UDiv:
-	case URem:
+	case URem: {
 		checkOperandCount(a, 2);
 		checkTypesMatch(a[0], a[1]);
 		if (!isIntegral(a.ty()) || a.ty() != a[0].ty()) {
@@ -65,8 +65,8 @@ void check(Term a) {
 	case FAdd:
 	case FDiv:
 	case FMul:
-	case FRem: {
-	case FSub:
+	case FRem:
+	case FSub: {
 		checkOperandCount(a, 2);
 		checkTypesMatch(a[0], a[1]);
 		auto k = a.ty().kind();
@@ -103,10 +103,10 @@ void check(Term a) {
 		}
 	} break;
 
-	case SLe: {
+	case SLe:
 	case SLt:
 	case ULe:
-	case ULt:
+	case ULt: {
 		checkOperandCount(a, 2);
 		checkTypesMatch(a[0], a[1]);
 		if (!isIntegral(a[0].ty())) {
@@ -117,8 +117,8 @@ void check(Term a) {
 		}
 	} break;
 
-	case FLe: {
-	case FLt:
+	case FLe:
+	case FLt: {
 		checkOperandCount(a, 2);
 		checkTypesMatch(a[0], a[1]);
 		auto k = a[0].ty().kind();
