@@ -154,7 +154,13 @@ class Parser {
 		// Body
 		expect("{");
 		newline();
-		auto body = insts();
+		vector<Inst> body;
+		while (token != "}") {
+			if (token != "\n") {
+				body.push_back(inst1());
+			}
+			nextLine();
+		}
 		expect("}");
 
 		return Func(rty, ref, params, body);
@@ -261,17 +267,6 @@ class Parser {
 		// END
 
 		throw error(quote(token) + ": expected inst");
-	}
-
-	vector<Inst> insts() {
-		vector<Inst> insts;
-		while (token != "}") {
-			if (token != "\n") {
-				insts.push_back(inst1());
-			}
-			nextLine();
-		}
-		return insts;
 	}
 
 	size_t int1() {
