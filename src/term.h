@@ -23,6 +23,16 @@ enum Tag {
 	// Specifically signed conversions use SCast
 	Cast,
 
+	// Take a pointer to an array, and an integer index number, and return a pointer to that element
+	// This is part of the functionality of LLVM getelementptr
+	// It does not load anything from memory, just adds an offset to a pointer
+	// The return type of the entire term is of course pointer
+	// The first operand specifies the element type
+	// Operands are terms not types, so this is specified in the form of a zero value of the appropriate type
+	// The second operand is a pointer value
+	// The third operand is an integer
+	ElementPtr,
+
 	// Equality applies to integers and compound types
 	// but not to floating-point numbers, which have a separate equality operation
 	// Term(Eq, boolType(), a, b)
