@@ -497,6 +497,12 @@ class Parser {
 		throw error("expected type");
 	}
 
+	Term ptrExpr() {
+		// TODO
+		expect("ptr");
+		return expr(ptrTy());
+	}
+
 	Ref ref1() {
 		auto r = parseRef(token);
 		lex();
@@ -672,6 +678,21 @@ class Parser {
 			expect(",");
 			auto b = expr(ty);
 			return Term(FSub, ty, a, b);
+		}
+		if (token == "getelementptr") {
+			lex();
+			if (token == "inbounds") {
+				lex();
+			}
+			auto ty = type();
+			expect(",");
+			auto p = ptrExpr();
+			expect(",");
+			vector<Term> idxs;
+			do {
+				idxs.push_back(typeExpr());
+			} while (maybeComma());
+			return getElementPtr(ty, p, idxs);
 		}
 		if (token == "icmp") {
 			lex();
