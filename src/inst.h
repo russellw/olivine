@@ -26,6 +26,13 @@ enum Opcode {
 	// A Jmp instruction (unconditional branch) has one Label operand
 	Jmp,
 
+	// The first operand of phi is the variable to which the result will be assigned
+	// then one or more pairs of constant values and labels
+	// These are all in a flat list
+	// so the values are operands 1, 3 etc.
+	// and the labels are operands 2, 4 etc.
+	Phi,
+
 	// A return instruction has a single operand
 	// of any type other than void
 	// that must match the type of the host function

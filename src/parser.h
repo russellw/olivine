@@ -254,6 +254,27 @@ class Parser {
 			auto lval = parseRef(token);
 			lex();
 			expect("=");
+			// SORT BLOCKS
+			if (token == "phi") {
+				lex();
+				fastMathFlags();
+				vector<Term> v;
+
+				// lval
+				auto ty = type();
+				v.push_back(var(ty, lval));
+
+				// Values
+				do {
+					expect("[");
+					v.push_back(expr(ty));
+					expect(",");
+					v.push_back(label1());
+					expect("]");
+				} while (maybeComma());
+
+				return Inst(Phi, v);
+			}
 			if (token == "alloca") {
 				lex();
 				auto ty = type();
@@ -261,6 +282,7 @@ class Parser {
 				auto n = typeExpr();
 				return alloca(var(ptrTy(), lval), ty, n);
 			}
+			// END
 			auto rval = rval1();
 			return assign(var(rval.ty(), lval), rval);
 		}
