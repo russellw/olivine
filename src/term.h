@@ -49,6 +49,16 @@ enum Tag {
 	FRem,
 	FSub,
 
+	// Take a pointer to a struct, and a constant integer field number, and return a pointer to that field
+	// This is part of the functionality of LLVM getelementptr
+	// It does not load anything from memory, just adds a small constant offset to a pointer
+	// The return type of the entire term is of course pointer
+	// The first operand specifies the struct type
+	// Operands are terms not types, so this is specified in the form of a zero value of the appropriate type
+	// The second operand is a pointer value
+	// The third operand is an integer constant
+	FieldPtr,
+
 	// Representing floating-point numbers is complicated
 	// For now, they are stored in their original string format
 	Float,
