@@ -550,7 +550,6 @@ class Parser {
 		if (token == "fcmp") {
 			lex();
 			fastMathFlags();
-			// SORT BLOCKS
 			if (token == "oeq") {
 				lex();
 				auto ty = type();
@@ -558,30 +557,6 @@ class Parser {
 				expect(",");
 				auto b = expr(ty);
 				return cmp(FEq, a, b);
-			}
-			if (token == "ole") {
-				lex();
-				auto ty = type();
-				auto a = expr(ty);
-				expect(",");
-				auto b = expr(ty);
-				return cmp(FLe, a, b);
-			}
-			if (token == "olt") {
-				lex();
-				auto ty = type();
-				auto a = expr(ty);
-				expect(",");
-				auto b = expr(ty);
-				return cmp(FLt, a, b);
-			}
-			if (token == "oge") {
-				lex();
-				auto ty = type();
-				auto a = expr(ty);
-				expect(",");
-				auto b = expr(ty);
-				return cmp(FLe, b, a);
 			}
 			if (token == "ogt") {
 				lex();
@@ -591,13 +566,29 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(FLt, b, a);
 			}
-			if (token == "uge") {
+			if (token == "oge") {
 				lex();
 				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
 				auto b = expr(ty);
-				return not1(cmp(FLt, a, b));
+				return cmp(FLe, b, a);
+			}
+			if (token == "olt") {
+				lex();
+				auto ty = type();
+				auto a = expr(ty);
+				expect(",");
+				auto b = expr(ty);
+				return cmp(FLt, a, b);
+			}
+			if (token == "ole") {
+				lex();
+				auto ty = type();
+				auto a = expr(ty);
+				expect(",");
+				auto b = expr(ty);
+				return cmp(FLe, a, b);
 			}
 			if (token == "ugt") {
 				lex();
@@ -607,13 +598,13 @@ class Parser {
 				auto b = expr(ty);
 				return not1(cmp(FLe, a, b));
 			}
-			if (token == "ule") {
+			if (token == "uge") {
 				lex();
 				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
 				auto b = expr(ty);
-				return not1(cmp(FLt, b, a));
+				return not1(cmp(FLt, a, b));
 			}
 			if (token == "ult") {
 				lex();
@@ -623,6 +614,14 @@ class Parser {
 				auto b = expr(ty);
 				return not1(cmp(FLe, b, a));
 			}
+			if (token == "ule") {
+				lex();
+				auto ty = type();
+				auto a = expr(ty);
+				expect(",");
+				auto b = expr(ty);
+				return not1(cmp(FLt, b, a));
+			}
 			if (token == "une") {
 				lex();
 				auto ty = type();
@@ -631,7 +630,6 @@ class Parser {
 				auto b = expr(ty);
 				return not1(cmp(FEq, b, a));
 			}
-			// END
 			throw error(quote(token) + ": expected condition");
 		}
 		if (token == "fdiv") {
