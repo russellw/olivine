@@ -16,10 +16,28 @@ class Parser {
 
 	// SORT FUNCTIONS
 
+	Term arg1() {
+		auto ty = type();
+		argAttrs();
+		return expr(ty);
+	}
+
 	void argAttrs() {
 		if (token == "noundef") {
 			lex();
 		}
+	}
+
+	vector<Term> args1() {
+		expect("(");
+		vector<Term> v;
+		if (token != ")") {
+			do {
+				v.push_back(arg1());
+			} while (maybeComma());
+		}
+		expect(")");
+		return v;
 	}
 
 	bool dsoPreemptable() {
@@ -81,7 +99,7 @@ class Parser {
 			return trueConst;
 		}
 		if (token[0] == '%') {
-			return parseVar(ty);
+			return var1(ty);
 		}
 		// END
 		if (isDigit(token[0])) {
@@ -98,6 +116,61 @@ class Parser {
 		}
 	}
 
+	Func func1() {
+		if (!(token == "declare" || token == "define")) {
+			throw error("expected 'declare' or 'define'");
+		}
+		auto define = token == "define";
+		lex();
+
+		dsoPreemptable();
+
+		// Return type
+		auto rty = type();
+
+		// Name
+		if (token[0] != '@') {
+			throw error("expected global name");
+		}
+		auto ref = ref1();
+
+		// Parameters
+		auto params = params1();
+		auto paramTypes = map(params, [](Term a) { return a.ty(); });
+
+		// Only declare
+		if (!define) {
+			return Func(rty, ref, params);
+		}
+
+		// Trailing tokens
+		while (token != "{") {
+			if (token == "\n" || token == eof) {
+				throw error("expected '{'");
+			}
+			lex();
+		}
+
+		// Opening brace
+		expect("{");
+		newline();
+
+		// Instructions
+		auto body = insts();
+
+		// Closing brace
+		expect("}");
+
+		return Func(rty, ref, params, body);
+	}
+
+	Ref globalRef1() {
+		if (token[0] != '@') {
+			throw error(quote(token) + ": expected global name");
+		}
+		return ref1();
+	}
+
 	void id() {
 		if (input[pos] == '"') {
 			lexQuote();
@@ -111,9 +184,96 @@ class Parser {
 		}
 	}
 
+	Inst inst1() {
+		if (token.back() == ':') {
+			return block(parseRef(token.substr(0, token.size() - 1)));
+		}
+
+		// SORT BLOCKS
+		if (token == "br") {
+			lex();
+			if (token == "label") {
+				lex();
+				return jmp(label1());
+			}
+			auto cond = typeExpr();
+			expect(",");
+			auto yes = label1();
+			expect(",");
+			auto no = label1();
+			return br(cond, yes, no);
+		}
+		if (token == "call") {
+			return Inst(Drop, parseCall());
+		}
+		if (token == "ret") {
+			lex();
+			if (token == "void") {
+				return ret();
+			}
+			return ret(typeExpr());
+		}
+		if (token == "store") {
+			lex();
+			auto a = typeExpr();
+			expect(",");
+			expect("ptr");
+			auto p = expr(ptrTy());
+			return Inst(Store, a, p);
+		}
+		if (token == "switch") {
+			lex();
+			vector<Term> v;
+			v.push_back(typeExpr());
+			expect(",");
+			v.push_back(label1());
+			return Inst(Switch, v);
+		}
+		if (token == "unreachable") {
+			return unreachable();
+		}
+		if (token[0] == '%') {
+			auto lval = parseRef(token);
+			lex();
+			expect("=");
+			if (token == "alloca") {
+				lex();
+				auto ty = type();
+				expect(",");
+				auto n = typeExpr();
+				return alloca(var(ptrTy(), lval), ty, n);
+			}
+			auto rval = rval1();
+			return assign(var(rval.ty(), lval), rval);
+		}
+		// END
+
+		throw error(quote(token) + ": expected inst");
+	}
+
+	vector<Inst> insts() {
+		vector<Inst> insts;
+		while (token != "}") {
+			if (token != "\n") {
+				insts.push_back(inst1());
+			}
+			nextLine();
+		}
+		return insts;
+	}
+
+	size_t int1() {
+		if (!all_of(token.begin(), token.end(), isDigit)) {
+			throw error("expected integer");
+		}
+		auto n = stoull(token);
+		lex();
+		return n;
+	}
+
 	Term label1() {
 		expect("label");
-		return label(parseRef1());
+		return label(ref1());
 	}
 
 	void lex() {
@@ -220,213 +380,103 @@ class Parser {
 		}
 	}
 
+	Term param1() {
+		auto ty = type();
+		paramAttrs();
+		return var1(ty);
+	}
+
 	void paramAttrs() {
 		while (isLower(token[0])) {
 			lex();
 		}
 	}
 
-	void parse() {
-		if (token == "target") {
-			parseTarget();
-			return;
-		}
-		if (token == "declare" || token == "define") {
-			module->funcs.push_back(parseFunc());
-			return;
-		}
-	}
-
-	Term parseArg() {
-		auto ty = type();
-		argAttrs();
-		return expr(ty);
-	}
-
-	vector<Term> parseArgs() {
+	vector<Term> params1() {
 		expect("(");
 		vector<Term> v;
 		if (token != ")") {
 			do {
-				v.push_back(parseArg());
+				v.push_back(param1());
 			} while (maybeComma());
 		}
 		expect(")");
 		return v;
 	}
 
+	void parse() {
+		if (token == "target") {
+			target1();
+			return;
+		}
+		if (token == "declare" || token == "define") {
+			module->funcs.push_back(func1());
+			return;
+		}
+	}
+
 	Term parseCall() {
 		expect("call");
 		auto rty = type();
-		auto ref = parseGlobalRef();
-		auto args = parseArgs();
+		auto ref = globalRef1();
+		auto args = args1();
 		auto params = map(args, [](Term a) { return a.ty(); });
 		auto fty = funcTy(rty, params);
 		auto f = globalRef(fty, ref);
 		return call(rty, f, args);
 	}
 
-	Func parseFunc() {
-		if (!(token == "declare" || token == "define")) {
-			throw error("expected 'declare' or 'define'");
-		}
-		auto define = token == "define";
-		lex();
-
-		dsoPreemptable();
-
-		// Return type
-		auto rty = type();
-
-		// Name
-		if (token[0] != '@') {
-			throw error("expected global name");
-		}
-		auto ref = parseRef1();
-
-		// Parameters
-		auto params = parseParams();
-		auto paramTypes = map(params, [](Term a) { return a.ty(); });
-
-		// Only declare
-		if (!define) {
-			return Func(rty, ref, params);
-		}
-
-		// Trailing tokens
-		while (token != "{") {
-			if (token == "\n" || token == eof) {
-				throw error("expected '{'");
-			}
-			lex();
-		}
-
-		// Opening brace
-		expect("{");
-		newline();
-
-		// Instructions
-		auto insts = parseInsts();
-
-		// Closing brace
-		expect("}");
-
-		return Func(rty, ref, params, insts);
-	}
-
-	Ref parseGlobalRef() {
-		if (token[0] != '@') {
-			throw error(quote(token) + ": expected global name");
-		}
-		return parseRef1();
-	}
-
-	Inst parseInst() {
-		if (token.back() == ':') {
-			return block(parseRef(token.substr(0, token.size() - 1)));
-		}
-
+	Type primaryType() {
 		// SORT BLOCKS
-		if (token == "br") {
+		if (token == "<") {
 			lex();
-			if (token == "label") {
-				lex();
-				return jmp(label1());
-			}
-			auto cond = typeExpr();
-			expect(",");
-			auto yes = label1();
-			expect(",");
-			auto no = label1();
-			return br(cond, yes, no);
+			auto len = int1();
+			expect("x");
+			auto element = type();
+			expect(">");
+			return vecTy(len, element);
 		}
-		if (token == "call") {
-			return Inst(Drop, parseCall());
-		}
-		if (token == "ret") {
+		if (token == "[") {
 			lex();
-			if (token == "void") {
-				return ret();
-			}
-			return ret(typeExpr());
+			auto len = int1();
+			expect("x");
+			auto element = type();
+			expect("]");
+			return arrayTy(len, element);
 		}
-		if (token == "store") {
+		if (token == "double") {
 			lex();
-			auto a = typeExpr();
-			expect(",");
-			expect("ptr");
-			auto p = expr(ptrTy());
-			return Inst(Store, a, p);
+			return doubleTy();
 		}
-		if (token == "switch") {
+		if (token == "float") {
 			lex();
-			vector<Term> v;
-			v.push_back(typeExpr());
-			expect(",");
-			v.push_back(label1());
-			return Inst(Switch, v);
+			return floatTy();
 		}
-		if (token == "unreachable") {
-			return unreachable();
-		}
-		if (token[0] == '%') {
-			auto lval = parseRef(token);
+		if (token == "ptr") {
 			lex();
-			expect("=");
-			if (token == "alloca") {
-				lex();
-				auto ty = type();
-				expect(",");
-				auto n = typeExpr();
-				return alloca(var(ptrTy(), lval), ty, n);
-			}
-			auto rval = parseRVal();
-			return assign(var(rval.ty(), lval), rval);
+			return ptrTy();
+		}
+		if (token == "void") {
+			lex();
+			return voidTy();
+		}
+		if (token[0] == 'i') {
+			auto len = stoull(token.substr(1));
+			lex();
+			return intTy(len);
 		}
 		// END
 
-		throw error(quote(token) + ": expected inst");
+		throw error("expected type");
 	}
 
-	vector<Inst> parseInsts() {
-		vector<Inst> insts;
-		while (token != "}") {
-			if (token != "\n") {
-				insts.push_back(parseInst());
-			}
-			nextLine();
-		}
-		return insts;
-	}
-
-	int parseInt() {
-		if (!all_of(token.begin(), token.end(), isDigit)) {
-			throw error("expected integer");
-		}
-		auto n = stoull(token);
+	Ref ref1() {
+		auto r = parseRef(token);
 		lex();
-		return n;
+		return r;
 	}
 
-	Term parseParam() {
-		auto ty = type();
-		paramAttrs();
-		return parseVar(ty);
-	}
-
-	vector<Term> parseParams() {
-		expect("(");
-		vector<Term> v;
-		if (token != ")") {
-			do {
-				v.push_back(parseParam());
-			} while (maybeComma());
-		}
-		expect(")");
-		return v;
-	}
-
-	Term parseRVal() {
+	Term rval1() {
 		// SORT BLOCKS
 		if (token == "add") {
 			lex();
@@ -804,13 +854,15 @@ class Parser {
 		throw error(quote(token) + ": expected rval");
 	}
 
-	Ref parseRef1() {
-		auto r = parseRef(token);
-		lex();
-		return r;
+	void setConsistent(string& var, const string& val, const char* name) {
+		ASSERT(val.size());
+		if (var.size() && var != val) {
+			throw error(string("inconsistent ") + name);
+		}
+		var = val;
 	}
 
-	void parseTarget() {
+	void target1() {
 		expect("target");
 		if (token == "datalayout") {
 			lex();
@@ -832,65 +884,6 @@ class Parser {
 		}
 	}
 
-	Term parseVar(Type ty) {
-		if (token[0] != '%') {
-			throw error("expected variable name");
-		}
-		return var(ty, parseRef1());
-	}
-
-	Type primaryType() {
-		// SORT BLOCKS
-		if (token == "<") {
-			lex();
-			auto len = parseInt();
-			expect("x");
-			auto element = type();
-			expect(">");
-			return vecTy(len, element);
-		}
-		if (token == "[") {
-			lex();
-			auto len = parseInt();
-			expect("x");
-			auto element = type();
-			expect("]");
-			return arrayTy(len, element);
-		}
-		if (token == "double") {
-			lex();
-			return doubleTy();
-		}
-		if (token == "float") {
-			lex();
-			return floatTy();
-		}
-		if (token == "ptr") {
-			lex();
-			return ptrTy();
-		}
-		if (token == "void") {
-			lex();
-			return voidTy();
-		}
-		if (token[0] == 'i') {
-			auto len = stoull(token.substr(1));
-			lex();
-			return intTy(len);
-		}
-		// END
-
-		throw error("expected type");
-	}
-
-	void setConsistent(string& var, const string& val, const char* name) {
-		ASSERT(val.size());
-		if (var.size() && var != val) {
-			throw error(string("inconsistent ") + name);
-		}
-		var = val;
-	}
-
 	Type type() {
 		auto ty = primaryType();
 		return ty;
@@ -898,6 +891,13 @@ class Parser {
 
 	Term typeExpr() {
 		return expr(type());
+	}
+
+	Term var1(Type ty) {
+		if (token[0] != '%') {
+			throw error("expected variable name");
+		}
+		return var(ty, ref1());
 	}
 
 public:
