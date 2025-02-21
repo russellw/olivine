@@ -191,7 +191,6 @@ Term zeroVal(Type ty) {
 }
 
 Term getElementPtr(Type ty, Term p, const vector<Term>& idxs) {
-	ty = arrayTy(0, ty);
 	for (auto idx : idxs) {
 		switch (ty.kind()) {
 		case ArrayKind:

@@ -152,8 +152,8 @@ ostream& operator<<(ostream& os, Term a) {
 		opName = "xor";
 		break;
 	default:
-		// This should never happen due to the earlier switch
-		return os;
+		opName = "?";
+		break;
 	}
 
 	os << opName << " (";

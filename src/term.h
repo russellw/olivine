@@ -207,8 +207,6 @@ Term zeroVal(Type ty);
 // LLVM getelementptr takes an array of indexes in one instruction
 // Olivine ElementPtr and FieldPtr each take one index, using nested or chained terms for the same overall effect
 // This function translates the former to the latter, returning a nested expression equivalent to the input GEP index array
-// In addition, LLVM getelementptr assumes an implicit 'array of' around the outermost given type
-// This function copies the GEP semantics by wrapping the given type in an array type before further processing
 Term getElementPtr(Type ty, Term p, const vector<Term>& idxs);
 
 // SORT FUNCTIONS
