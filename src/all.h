@@ -52,6 +52,8 @@ using boost::multiprecision::cpp_int;
 #include "global.h"
 #include "module.h"
 
+#include "check.h"
+
 // Logically the code for printing terms should perhaps be ordered later
 // but it is useful to place it before the parser so it can be used for debug output
 #include "printer.h"
