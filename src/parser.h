@@ -219,8 +219,7 @@ class Parser {
 			lex();
 			auto a = typeExpr();
 			expect(",");
-			expect("ptr");
-			auto p = expr(ptrTy());
+			auto p = ptrExpr();
 			return Inst(Store, a, p);
 		}
 		if (token == "switch") {
@@ -498,7 +497,6 @@ class Parser {
 	}
 
 	Term ptrExpr() {
-		// TODO
 		expect("ptr");
 		return expr(ptrTy());
 	}
@@ -782,8 +780,7 @@ class Parser {
 			lex();
 			auto ty = type();
 			expect(",");
-			expect("ptr");
-			auto a = expr(ty);
+			auto a = ptrExpr();
 			return Term(Load, ty, a);
 		}
 		if (token == "lshr") {
