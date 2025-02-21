@@ -151,14 +151,10 @@ class Parser {
 			lex();
 		}
 
-		// Opening brace
+		// Body
 		expect("{");
 		newline();
-
-		// Instructions
 		auto body = insts();
-
-		// Closing brace
 		expect("}");
 
 		return Func(rty, ref, params, body);
@@ -224,9 +220,25 @@ class Parser {
 		if (token == "switch") {
 			lex();
 			vector<Term> v;
+
+			// Value
 			v.push_back(typeExpr());
 			expect(",");
+
+			// Default
 			v.push_back(label1());
+
+			// Cases
+			expect("[");
+			newline();
+			while (token != "]") {
+				v.push_back(typeExpr());
+				expect(",");
+				v.push_back(label1());
+				newline();
+			}
+			expect("]");
+
 			return Inst(Switch, v);
 		}
 		if (token == "unreachable") {
