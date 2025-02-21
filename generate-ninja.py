@@ -13,7 +13,7 @@ def generate_ninja_build():
         
         # Define compiler and flags
         f.write('cxx = cl\n')
-        f.write('cxxflags = /std:c++17 /nologo /c /EHsc /Isrc /I\\boost /W2 /WX\n')
+        f.write('cxxflags = /std:c++17 /nologo /c /EHsc /Isrc /I\\boost /W3 /WX\n')
         f.write('\n')
         
         # Define the rule for C++ compilation
