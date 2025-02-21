@@ -677,7 +677,6 @@ class Parser {
 		}
 		if (token == "icmp") {
 			lex();
-			// SORT BLOCKS
 			if (token == "eq") {
 				lex();
 				auto ty = type();
@@ -694,53 +693,13 @@ class Parser {
 				auto b = expr(ty);
 				return not1(cmp(Eq, b, a));
 			}
-			if (token == "sle") {
+			if (token == "ugt") {
 				lex();
 				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
 				auto b = expr(ty);
-				return cmp(SLe, a, b);
-			}
-			if (token == "slt") {
-				lex();
-				auto ty = type();
-				auto a = expr(ty);
-				expect(",");
-				auto b = expr(ty);
-				return cmp(SLt, a, b);
-			}
-			if (token == "sge") {
-				lex();
-				auto ty = type();
-				auto a = expr(ty);
-				expect(",");
-				auto b = expr(ty);
-				return cmp(SLe, b, a);
-			}
-			if (token == "sgt") {
-				lex();
-				auto ty = type();
-				auto a = expr(ty);
-				expect(",");
-				auto b = expr(ty);
-				return cmp(SLt, b, a);
-			}
-			if (token == "ule") {
-				lex();
-				auto ty = type();
-				auto a = expr(ty);
-				expect(",");
-				auto b = expr(ty);
-				return cmp(ULe, a, b);
-			}
-			if (token == "ult") {
-				lex();
-				auto ty = type();
-				auto a = expr(ty);
-				expect(",");
-				auto b = expr(ty);
-				return cmp(ULt, a, b);
+				return cmp(ULt, b, a);
 			}
 			if (token == "uge") {
 				lex();
@@ -750,15 +709,54 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(ULe, b, a);
 			}
-			if (token == "ugt") {
+			if (token == "ult") {
 				lex();
 				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
 				auto b = expr(ty);
-				return cmp(ULt, b, a);
+				return cmp(ULt, a, b);
 			}
-			// END
+			if (token == "ule") {
+				lex();
+				auto ty = type();
+				auto a = expr(ty);
+				expect(",");
+				auto b = expr(ty);
+				return cmp(ULe, a, b);
+			}
+			if (token == "sgt") {
+				lex();
+				auto ty = type();
+				auto a = expr(ty);
+				expect(",");
+				auto b = expr(ty);
+				return cmp(SLt, b, a);
+			}
+			if (token == "sge") {
+				lex();
+				auto ty = type();
+				auto a = expr(ty);
+				expect(",");
+				auto b = expr(ty);
+				return cmp(SLe, b, a);
+			}
+			if (token == "slt") {
+				lex();
+				auto ty = type();
+				auto a = expr(ty);
+				expect(",");
+				auto b = expr(ty);
+				return cmp(SLt, a, b);
+			}
+			if (token == "sle") {
+				lex();
+				auto ty = type();
+				auto a = expr(ty);
+				expect(",");
+				auto b = expr(ty);
+				return cmp(SLe, a, b);
+			}
 			throw error(quote(token) + ": expected condition");
 		}
 		if (token == "load") {
