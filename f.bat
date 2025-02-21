@@ -1,3 +1,4 @@
+norm-case-braces -w *.cpp src/*.h src/*.cpp||exit /b
 clang-format -i --style=file *.cpp src/*.h src/*.cpp||exit /b
 sort-enums -w *.cpp src/*.h src/*.cpp||exit /b
 sort-blocks -w *.cpp src/*.h src/*.cpp||exit /b
