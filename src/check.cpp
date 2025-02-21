@@ -350,165 +350,194 @@ bool isIntegral(Type t) {
 }
 
 void check(Inst inst) {
-    // First validate all operands recursively
-    for (const Term& term : inst) {
-        checkRecursive(term);
-    }
+	// First validate all operands recursively
+	for (const Term& term : inst) {
+		checkRecursive(term);
+	}
 
-    // Now check opcode-specific requirements
-    switch (inst.opcode()) {
-        case Alloca: {
-            if (inst.size() != 3) 
-                throw runtime_error("Alloca must have exactly 3 operands");
-            
-            // First operand must be a variable
-            if (inst[0].tag() != Var)
-                throw runtime_error("First operand of Alloca must be a variable");
-                
-            // Second operand must be a zero value of the type to allocate
-            Term typeSpec = inst[1];
-            if (typeSpec != zeroVal(typeSpec.ty()))
-                throw runtime_error("Second operand of Alloca must be a zero value");
-                
-            // Third operand must be an integer for number of elements
-            if (inst[2].ty().kind() != IntKind)
-                throw runtime_error("Third operand of Alloca must be an integer");
-                
-            // Result variable must be a pointer type
-            if (inst[0].ty().kind() != PtrKind)
-                throw runtime_error("Result of Alloca must be a pointer type");
-            break;
-        }
-        
-        case Assign: {
-            if (inst.size() != 2)
-                throw runtime_error("Assign must have exactly 2 operands");
-                
-            // Left hand side must be a variable
-            if (inst[0].tag() != Var)
-                throw runtime_error("Left hand side of assignment must be a variable");
-                
-            // Types must match
-            if (inst[0].ty() != inst[1].ty())
-                throw runtime_error("Assignment operands must have matching types");
-            break;
-        }
-        
-        case Block: {
-            if (inst.size() != 1)
-                throw runtime_error("Block must have exactly 1 operand");
-                
-            // Operand must be a label
-            if (inst[0].tag() != Label)
-                throw runtime_error("Block operand must be a label");
-            break;
-        }
-        
-        case Br: {
-            if (inst.size() != 3)
-                throw runtime_error("Br must have exactly 3 operands");
-                
-            // Condition must be boolean
-            if (inst[0].ty() != boolTy())
-                throw runtime_error("Branch condition must be boolean");
-                
-            // True and false targets must be labels
-            if (inst[1].tag() != Label || inst[2].tag() != Label)
-                throw runtime_error("Branch targets must be labels");
-            break;
-        }
-        
-        case Drop: {
-            if (inst.size() != 1)
-                throw runtime_error("Drop must have exactly 1 operand");
-            break;
-        }
-        
-        case Jmp: {
-            if (inst.size() != 1)
-                throw runtime_error("Jmp must have exactly 1 operand");
-                
-            // Target must be a label
-            if (inst[0].tag() != Label)
-                throw runtime_error("Jump target must be a label");
-            break;
-        }
-        
-        case Phi: {
-            if (inst.size() < 3 || (inst.size() - 1) % 2 != 0)
-                throw runtime_error("Phi must have 1 + 2n operands where n >= 1");
-                
-            // First operand must be a variable
-            if (inst[0].tag() != Var)
-                throw runtime_error("First operand of Phi must be a variable");
-                
-            // Check pairs of value and label
-            Type resultType = inst[0].ty();
-            for (size_t i = 1; i < inst.size(); i += 2) {
-                // Value must match result type
-                if (inst[i].ty() != resultType)
-                    throw runtime_error("Phi incoming value types must match result type");
-                    
-                // Even-numbered operands must be labels
-                if (inst[i + 1].tag() != Label)
-                    throw runtime_error("Phi label operands must be labels");
-            }
-            break;
-        }
-        
-        case Ret: {
-            if (inst.size() != 1)
-                throw runtime_error("Ret must have exactly 1 operand");
-            break;
-        }
-        
-        case RetVoid: {
-            if (inst.size() != 0)
-                throw runtime_error("RetVoid must have no operands");
-            break;
-        }
-        
-        case Store: {
-            if (inst.size() != 2)
-                throw runtime_error("Store must have exactly 2 operands");
-                
-            // Second operand must be a pointer
-            if (inst[1].ty().kind() != PtrKind)
-                throw runtime_error("Store target must be a pointer");
-            break;
-        }
-        
-        case Switch: {
-            if (inst.size() < 2 || (inst.size() - 2) % 2 != 0)
-                throw runtime_error("Switch must have 2 + 2n operands where n >= 0");
-                
-            // First operand is the value to switch on
-            Type switchType = inst[0].ty();
-            
-            // Second operand must be the default label
-            if (inst[1].tag() != Label)
-                throw runtime_error("Switch default target must be a label");
-                
-            // Check pairs of case value and label
-            for (size_t i = 2; i < inst.size(); i += 2) {
-                // Case value must match switch type
-                if (inst[i].ty() != switchType)
-                    throw runtime_error("Switch case value types must match switch type");
-                    
-                // Case labels must be labels
-                if (inst[i + 1].tag() != Label)
-                    throw runtime_error("Switch case targets must be labels");
-            }
-            break;
-        }
-        
-        case Unreachable: {
-            if (inst.size() != 0)
-                throw runtime_error("Unreachable must have no operands");
-            break;
-        }
-        
-        default:
-            throw runtime_error("Unknown instruction opcode");
-    }
+	// Now check opcode-specific requirements
+	switch (inst.opcode()) {
+	case Alloca: {
+		if (inst.size() != 3) {
+			throw runtime_error("Alloca must have exactly 3 operands");
+		}
+
+		// First operand must be a variable
+		if (inst[0].tag() != Var) {
+			throw runtime_error("First operand of Alloca must be a variable");
+		}
+
+		// Second operand must be a zero value of the type to allocate
+		Term typeSpec = inst[1];
+		if (typeSpec != zeroVal(typeSpec.ty())) {
+			throw runtime_error("Second operand of Alloca must be a zero value");
+		}
+
+		// Third operand must be an integer for number of elements
+		if (inst[2].ty().kind() != IntKind) {
+			throw runtime_error("Third operand of Alloca must be an integer");
+		}
+
+		// Result variable must be a pointer type
+		if (inst[0].ty().kind() != PtrKind) {
+			throw runtime_error("Result of Alloca must be a pointer type");
+		}
+		break;
+	}
+
+	case Assign: {
+		if (inst.size() != 2) {
+			throw runtime_error("Assign must have exactly 2 operands");
+		}
+
+		// Left hand side must be a variable
+		if (inst[0].tag() != Var) {
+			throw runtime_error("Left hand side of assignment must be a variable");
+		}
+
+		// Types must match
+		if (inst[0].ty() != inst[1].ty()) {
+			throw runtime_error("Assignment operands must have matching types");
+		}
+		break;
+	}
+
+	case Block: {
+		if (inst.size() != 1) {
+			throw runtime_error("Block must have exactly 1 operand");
+		}
+
+		// Operand must be a label
+		if (inst[0].tag() != Label) {
+			throw runtime_error("Block operand must be a label");
+		}
+		break;
+	}
+
+	case Br: {
+		if (inst.size() != 3) {
+			throw runtime_error("Br must have exactly 3 operands");
+		}
+
+		// Condition must be boolean
+		if (inst[0].ty() != boolTy()) {
+			throw runtime_error("Branch condition must be boolean");
+		}
+
+		// True and false targets must be labels
+		if (inst[1].tag() != Label || inst[2].tag() != Label) {
+			throw runtime_error("Branch targets must be labels");
+		}
+		break;
+	}
+
+	case Drop: {
+		if (inst.size() != 1) {
+			throw runtime_error("Drop must have exactly 1 operand");
+		}
+		break;
+	}
+
+	case Jmp: {
+		if (inst.size() != 1) {
+			throw runtime_error("Jmp must have exactly 1 operand");
+		}
+
+		// Target must be a label
+		if (inst[0].tag() != Label) {
+			throw runtime_error("Jump target must be a label");
+		}
+		break;
+	}
+
+	case Phi: {
+		if (inst.size() < 3 || (inst.size() - 1) % 2 != 0) {
+			throw runtime_error("Phi must have 1 + 2n operands where n >= 1");
+		}
+
+		// First operand must be a variable
+		if (inst[0].tag() != Var) {
+			throw runtime_error("First operand of Phi must be a variable");
+		}
+
+		// Check pairs of value and label
+		Type resultType = inst[0].ty();
+		for (size_t i = 1; i < inst.size(); i += 2) {
+			// Value must match result type
+			if (inst[i].ty() != resultType) {
+				throw runtime_error("Phi incoming value types must match result type");
+			}
+
+			// Even-numbered operands must be labels
+			if (inst[i + 1].tag() != Label) {
+				throw runtime_error("Phi label operands must be labels");
+			}
+		}
+		break;
+	}
+
+	case Ret: {
+		if (inst.size() != 1) {
+			throw runtime_error("Ret must have exactly 1 operand");
+		}
+		break;
+	}
+
+	case RetVoid: {
+		if (inst.size() != 0) {
+			throw runtime_error("RetVoid must have no operands");
+		}
+		break;
+	}
+
+	case Store: {
+		if (inst.size() != 2) {
+			throw runtime_error("Store must have exactly 2 operands");
+		}
+
+		// Second operand must be a pointer
+		if (inst[1].ty().kind() != PtrKind) {
+			throw runtime_error("Store target must be a pointer");
+		}
+		break;
+	}
+
+	case Switch: {
+		if (inst.size() < 2 || (inst.size() - 2) % 2 != 0) {
+			throw runtime_error("Switch must have 2 + 2n operands where n >= 0");
+		}
+
+		// First operand is the value to switch on
+		Type switchType = inst[0].ty();
+
+		// Second operand must be the default label
+		if (inst[1].tag() != Label) {
+			throw runtime_error("Switch default target must be a label");
+		}
+
+		// Check pairs of case value and label
+		for (size_t i = 2; i < inst.size(); i += 2) {
+			// Case value must match switch type
+			if (inst[i].ty() != switchType) {
+				throw runtime_error("Switch case value types must match switch type");
+			}
+
+			// Case labels must be labels
+			if (inst[i + 1].tag() != Label) {
+				throw runtime_error("Switch case targets must be labels");
+			}
+		}
+		break;
+	}
+
+	case Unreachable: {
+		if (inst.size() != 0) {
+			throw runtime_error("Unreachable must have no operands");
+		}
+		break;
+	}
+
+	default:
+		throw runtime_error("Unknown instruction opcode");
+	}
 }

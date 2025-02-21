@@ -197,7 +197,7 @@ Term getElementPtr(Type ty, Term p, const vector<Term>& idxs) {
 			ty = ty[0];
 			p = elementPtr(ty, p, idx);
 			break;
-		case StructKind:{
+		case StructKind: {
 			auto i = idx.intVal().convert_to<size_t>();
 			p = fieldPtr(ty, p, i);
 			ty = ty[i];
