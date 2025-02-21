@@ -197,12 +197,12 @@ Term getElementPtr(Type ty, Term p, const vector<Term>& idxs) {
 			ty = ty[0];
 			p = elementPtr(ty, p, idx);
 			break;
-		case StructKind:
-			size_t i;
-			i = idx.intVal().convert_to<size_t>();
+		case StructKind:{
+			auto i = idx.intVal().convert_to<size_t>();
 			p = fieldPtr(ty, p, i);
 			ty = ty[i];
 			break;
+		}
 		default:
 			throw runtime_error("expected compound type");
 		}
