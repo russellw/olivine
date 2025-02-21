@@ -48,6 +48,10 @@ Term::Term(Tag tag, Type ty, Term a, Term b) {
 	p = new TermImpl(tag, ty, {a, b});
 }
 
+Term::Term(Tag tag, Type ty, Term a, Term b, Term c) {
+	p = new TermImpl(tag, ty, {a, b, c});
+}
+
 Term ::Term(Tag tag, Type ty, const vector<Term>& v) {
 	p = new TermImpl(tag, ty, v);
 }
@@ -184,4 +188,25 @@ Term zeroVal(Type ty) {
 	default:
 		throw std::runtime_error("Unknown type kind in zeroVal");
 	}
+}
+
+Term getElementPtr(Type ty, Term p, const vector<Term>& idxs) {
+	ty = arrayTy(0, ty);
+	for (auto idx : idxs) {
+		switch (ty.kind()) {
+		case ArrayKind:
+			ty = ty[0];
+			p = elementPtr(ty, p, idx);
+			break;
+		case StructKind:
+			size_t i;
+			i = idx.intVal().convert_to<size_t>();
+			p = fieldPtr(ty, p, i);
+			ty = ty[i];
+			break;
+		default:
+			throw runtime_error("expected compound type");
+		}
+	}
+	return p;
 }

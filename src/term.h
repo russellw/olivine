@@ -143,6 +143,7 @@ public:
 	// Compound constructors
 	Term(Tag tag, Type ty, Term a);
 	Term(Tag tag, Type ty, Term a, Term b);
+	Term(Tag tag, Type ty, Term a, Term b, Term c);
 	Term(Tag tag, Type ty, const vector<Term>& v);
 
 	// Every term has a tag and type
@@ -203,6 +204,13 @@ Term intConst(Type ty, const cpp_int& val);
 // Doesn't accept function types, of course
 Term zeroVal(Type ty);
 
+// LLVM getelementptr takes an array of indexes in one instruction
+// Olivine ElementPtr and FieldPtr each take one index, using nested or chained terms for the same overall effect
+// This function translates the former to the latter, returning a nested expression equivalent to the input GEP index array
+// In addition, LLVM getelementptr assumes an implicit 'array of' around the outermost given type
+// This function copies the GEP semantics by wrapping the given type in an array type before further processing
+Term getElementPtr(Type ty, Term p, const vector<Term>& idxs);
+
 // SORT FUNCTIONS
 
 inline Term array(Type elementType, const vector<Term>& elements) {
@@ -215,6 +223,14 @@ inline Term call(Type ty, Term f, const vector<Term>& args) {
 
 inline Term cmp(Tag tag, Term a, Term b) {
 	return Term(tag, boolTy(), a, b);
+}
+
+inline Term elementPtr(Type ty, Term p, Term i) {
+	return Term(ElementPtr, ptrTy(), zeroVal(ty), p, i);
+}
+
+inline Term fieldPtr(Type ty, Term p, size_t i) {
+	return Term(FieldPtr, ptrTy(), zeroVal(ty), p, intConst(intTy(64), i));
 }
 
 inline Term floatConst(Type ty, const string& val) {
