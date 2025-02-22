@@ -449,6 +449,7 @@ class Parser {
 	}
 
 	void paramAttrs() {
+		// https://llvm.org/docs/LangRef.html#paramattrs
 		while (isLower(token[0])) {
 			lex();
 		}
