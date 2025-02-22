@@ -35,3 +35,4 @@
 *.pdb
 build.ninja
 .ninja_log
+*.ll
