@@ -19,3 +19,7 @@ ostream& operator<<(ostream& os, Term a);
 
 // Output an instruction in LLVM format
 ostream& operator<<(ostream& os, Inst inst);
+
+// Output a function in LLVM format
+// with `declare` or `define` depending on whether the function has a body
+ostream& operator<<(ostream& os, Func);

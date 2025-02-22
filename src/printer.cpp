@@ -296,3 +296,47 @@ ostream& operator<<(ostream& os, Inst inst) {
 	}
 	return os;
 }
+
+ostream& operator<<(ostream& os, Func f) {
+	// Output declare/define based on whether function has a body
+	if (f.size() == 0) {
+		os << "declare ";
+	} else {
+		os << "define ";
+	}
+
+	// Output return type
+	os << f.rty() << ' ';
+
+	// Output function name/reference
+	os << '@' << f.ref();
+
+	// Output parameter list
+	os << '(';
+	auto params = f.params();
+	for (size_t i = 0; i < params.size(); ++i) {
+		if (i > 0) {
+			os << ", ";
+		}
+		os << params[i].ty();
+		os << ' ' << params[i];
+	}
+	os << ')';
+
+	// If this is just a declaration, end here
+	if (f.size() == 0) {
+		return os;
+	}
+
+	// Output function body
+	os << " {\n";
+
+	// Output each instruction in the function body
+	for (const auto& inst : f) {
+		os << "  " << inst << '\n';
+	}
+
+	os << '}';
+
+	return os;
+}
