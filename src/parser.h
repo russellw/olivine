@@ -41,6 +41,13 @@ class Parser {
 	}
 
 	Func declare() {
+		/*
+			declare [linkage] [visibility] [DLLStorageClass]
+			[cconv] [ret attrs]
+			<ResultType> @<FunctionName> ([argument list])
+			[(unnamed_addr|local_unnamed_addr)] [align N] [gc]
+			[prefix Constant] [prologue Constant]
+		*/
 		expect("declare");
 		dsoPreemptable();
 
@@ -58,6 +65,15 @@ class Parser {
 	}
 
 	Func define() {
+		/*
+			define [linkage] [PreemptionSpecifier] [visibility] [DLLStorageClass]
+			[cconv] [ret attrs]
+			<ResultType> @<FunctionName> ([argument list])
+			[(unnamed_addr|local_unnamed_addr)] [AddrSpace] [fn Attrs]
+			[section "name"] [partition "name"] [comdat [($name)]] [align N]
+			[gc] [prefix Constant] [prologue Constant] [personality Constant]
+			(!name !N)* { ... }
+		*/
 		expect("define");
 		dsoPreemptable();
 
@@ -426,6 +442,7 @@ class Parser {
 	}
 
 	Term param1() {
+		// <type> [parameter Attrs] [name]
 		auto ty = type();
 		paramAttrs();
 		return var1(ty);
