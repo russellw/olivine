@@ -164,27 +164,12 @@ ostream& operator<<(ostream& os, Term a) {
 
 	os << opName << " (";
 
-	// For comparison operations, operands must have the same type
-	// but the result is always i1 (bool)
-	bool isComparison = (a.tag() >= Eq && a.tag() <= SLe);
-
-	// Print the type of the expression
-	if (!isComparison) {
-		os << a.ty();
-	}
-
 	// Print all operands
 	for (size_t i = 0; i < a.size(); ++i) {
-		if (i || !isComparison) {
+		if (i) {
 			os << ", ";
 		}
-
-		// For nested expressions, we need to print both type and value
-		if (isComparison && i == 0) {
-			os << a[i].ty() << " ";
-		}
-
-		os << a[i];
+		os << a[i].ty() << " " << a[i];
 	}
 
 	os << ")";
