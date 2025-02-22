@@ -1,30 +1,38 @@
 #include "all.h"
 
 int main(int argc, char** argv) {
-	vector<string> files;
-	for (int i = 1; i < argc; i++) {
-		auto s = argv[i];
-		if (*s == '-') {
-			while (*s == '-') {
-				s++;
+	try {
+		vector<string> files;
+		for (int i = 1; i < argc; i++) {
+			auto s = argv[i];
+			if (*s == '-') {
+				while (*s == '-') {
+					s++;
+				}
+				switch (*s) {
+				case 'V':
+				case 'v':
+					cout << "Olivine 0\n";
+					return 0;
+				case 'h':
+					return 0;
+				}
+				cerr << argv[i] << ": unknown option\n";
+				return 1;
 			}
-			switch (*s) {
-			case 'V':
-			case 'v':
-				cout << "Olivine 0\n";
-				return 0;
-			case 'h':
-				return 0;
-			}
-			cerr << argv[i] << ": unknown option\n";
-			return 1;
+			files.push_back(s);
 		}
-		files.push_back(s);
+		Target target;
+		for (auto file : files) {
+			auto text = readFile(file);
+			Parser parser(file, text, target);
+		}
+		return 0;
+	} catch (const std::exception& e) {
+		cerr << e.what() << '\n';
+		return 1;
+	} catch (...) {
+		cerr << "Unknown exception\n";
+		return 1;
 	}
-	Target target;
-	for (auto file : files) {
-		auto text = readFile(file);
-		Parser parser(file, text, target);
-	}
-	return 0;
 }
