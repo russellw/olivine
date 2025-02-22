@@ -230,7 +230,6 @@ class Parser {
 		if (token == "br") {
 			lex();
 			if (token == "label") {
-				lex();
 				return jmp(label1());
 			}
 			auto cond = typeExpr();
