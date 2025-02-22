@@ -3787,7 +3787,7 @@ BOOST_AUTO_TEST_CASE(EmptyFunctionDefinition) {
 	vector<Term> params;
 	vector<Inst> body;
 	auto f = Func(voidTy(), Ref("empty_def"), params, body);
-	BOOST_CHECK_EQUAL(toString(f), "define void @empty_def() {\n}");
+	BOOST_CHECK_EQUAL(toString(f), "declare void @empty_def()");
 }
 
 BOOST_AUTO_TEST_CASE(SimpleFunctionDefinition) {
