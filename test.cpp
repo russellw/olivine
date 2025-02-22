@@ -3136,7 +3136,7 @@ define void @test() {
 }
 )");
 
-	auto& inst = module->defines[0][0]; // First instruction
+	auto inst = module->defines[0][0]; // First instruction
 	BOOST_CHECK_EQUAL(inst.opcode(), Alloca);
 	auto arrayType = inst[1].ty();
 	BOOST_CHECK_EQUAL(arrayType.kind(), ArrayKind);
@@ -3154,7 +3154,7 @@ define void @test() {
 }
 )");
 
-	auto& inst = module->defines[0][0];
+	auto inst = module->defines[0][0];
 	BOOST_CHECK_EQUAL(inst.opcode(), Alloca);
 	auto vecType = inst[1].ty();
 	BOOST_CHECK_EQUAL(vecType.kind(), VecKind);
