@@ -136,6 +136,10 @@ inline Inst ret(Term a) {
 	return Inst(Ret, a);
 }
 
+inline Inst store(Term a, Term p) {
+	return Inst(Store, a, p);
+}
+
 inline Inst unreachable() {
 	return Inst(Unreachable);
 }

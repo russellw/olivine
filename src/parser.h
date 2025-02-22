@@ -254,7 +254,7 @@ class Parser {
 			auto a = typeExpr();
 			expect(",");
 			auto p = ptrExpr();
-			return Inst(Store, a, p);
+			return store(a, p);
 		}
 		if (tok == "switch") {
 			lex();
