@@ -40,6 +40,60 @@ class Parser {
 		return v;
 	}
 
+	Func declare() {
+		expect("declare");
+		dsoPreemptable();
+
+		// Return type
+		auto rty = type();
+
+		// Name
+		auto ref = globalRef1();
+
+		// Parameters
+		auto params = params1();
+		auto paramTypes = map(params, [](Term a) { return a.ty(); });
+
+		return Func(rty, ref, params);
+	}
+
+	Func define() {
+		expect("define");
+		dsoPreemptable();
+
+		// Return type
+		auto rty = type();
+
+		// Name
+		auto ref = globalRef1();
+
+		// Parameters
+		auto params = params1();
+		auto paramTypes = map(params, [](Term a) { return a.ty(); });
+
+		// Trailing tokens
+		while (token != "{") {
+			if (token == "\n" || token == eof) {
+				throw error("expected '{'");
+			}
+			lex();
+		}
+
+		// Body
+		expect("{");
+		newline();
+		vector<Inst> body;
+		while (token != "}") {
+			if (token != "\n") {
+				body.push_back(inst1());
+			}
+			nextLine();
+		}
+		expect("}");
+
+		return Func(rty, ref, params, body);
+	}
+
 	bool dsoPreemptable() {
 		if (token == "dso_local") {
 			lex();
@@ -129,56 +183,6 @@ class Parser {
 		while (token == "fast" || token == "nnan" || token == "ninf" || token == "nsz") {
 			lex();
 		}
-	}
-
-	Func func1() {
-		if (!(token == "declare" || token == "define")) {
-			throw error("expected 'declare' or 'define'");
-		}
-		auto define = token == "define";
-		lex();
-
-		dsoPreemptable();
-
-		// Return type
-		auto rty = type();
-
-		// Name
-		if (token[0] != '@') {
-			throw error("expected global name");
-		}
-		auto ref = ref1();
-
-		// Parameters
-		auto params = params1();
-		auto paramTypes = map(params, [](Term a) { return a.ty(); });
-
-		// Only declare
-		if (!define) {
-			return Func(rty, ref, params);
-		}
-
-		// Trailing tokens
-		while (token != "{") {
-			if (token == "\n" || token == eof) {
-				throw error("expected '{'");
-			}
-			lex();
-		}
-
-		// Body
-		expect("{");
-		newline();
-		vector<Inst> body;
-		while (token != "}") {
-			if (token != "\n") {
-				body.push_back(inst1());
-			}
-			nextLine();
-		}
-		expect("}");
-
-		return Func(rty, ref, params, body);
 	}
 
 	Ref globalRef1() {
@@ -450,8 +454,12 @@ class Parser {
 			target1();
 			return;
 		}
-		if (token == "declare" || token == "define") {
-			module->funcs.push_back(func1());
+		if (token == "declare") {
+			module->funcs.push_back(declare());
+			return;
+		}
+		if (token == "define") {
+			module->funcs.push_back(define());
 			return;
 		}
 	}
