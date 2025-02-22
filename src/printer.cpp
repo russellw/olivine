@@ -6,9 +6,10 @@ ostream& operator<<(ostream& os, const Ref& ref) {
 }
 
 ostream& operator<<(ostream& os, Type ty) {
-#pragma warning(push)
-#pragma warning(default : 4061) // enumerator in switch not explicitly handled
-#pragma warning(default : 4062) // enumerator in switch not handled
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic warning "-Wswitch"
+#endif
 	switch (ty.kind()) {
 	case ArrayKind:
 		os << '[' << ty.len() << " x " << ty[0] << ']';
@@ -53,7 +54,9 @@ ostream& operator<<(ostream& os, Type ty) {
 		break;
 	}
 	return os;
-#pragma warning(pop)
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 }
 
 ostream& operator<<(ostream& os, Term a) {
