@@ -275,3 +275,52 @@ string readFile(const string& filename) {
 
 	return content;
 }
+
+string wrap(const string& s) {
+	// Empty string needs quotes
+	if (s.empty()) {
+		return "\"\"";
+	}
+
+	// Check if the string can be used as an unquoted identifier
+	bool needsQuotes = false;
+
+	// First character has stricter rules - must be a letter, _, or .
+	if (!isAlpha(s[0]) && s[0] != '_' && s[0] != '.') {
+		needsQuotes = true;
+	} else {
+		// Check remaining characters
+		for (size_t i = 1; i < s.size(); i++) {
+			if (!isIdPart(s[i])) {
+				needsQuotes = true;
+				break;
+			}
+		}
+	}
+
+	// If it's a valid unquoted identifier, return as is
+	if (!needsQuotes) {
+		return s;
+	}
+
+	// Need to wrap in quotes and escape special characters
+	string result = "\"";
+	for (char c : s) {
+		if (c == '\"' || c == '\\') {
+			// Escape quotes and backslashes
+			result += '\\';
+			result += c;
+		} else if (c < 32 || c > 126) {
+			// Non-printable characters get hex escape
+			result += '\\';
+			char hex[3];
+			snprintf(hex, sizeof(hex), "%02x", (unsigned char)c);
+			result += hex;
+		} else {
+			// Normal characters added as-is
+			result += c;
+		}
+	}
+	result += '\"';
+	return result;
+}

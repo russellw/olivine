@@ -150,3 +150,10 @@ template <typename T> vector<T> cons(const T& x, const vector<T>& xs) {
 
 string quote(const string& s);
 string readFile(const string& filename);
+
+// Opposite of unwrap
+// Given a string that is a name
+// check whether it is valid as an unquoted LLVM identifier
+// If so, return it unchanged
+// Otherwise, wrap it in quotes, and escape some characters as necessary
+string wrap(const string& s);
