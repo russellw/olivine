@@ -3677,7 +3677,7 @@ BOOST_AUTO_TEST_CASE(BlockInstruction) {
 
 BOOST_AUTO_TEST_CASE(BranchInstructions) {
 	// Test conditional branch
-	Term cond = var(boolTy(), Ref("%cond"));
+	Term cond = var(boolTy(), Ref("cond"));
 	Inst brInst = br(cond, Ref("true_bb"), Ref("false_bb"));
 	BOOST_CHECK_EQUAL(instToString(brInst), "br i1 %cond, label %true_bb, label %false_bb");
 
@@ -3689,11 +3689,11 @@ BOOST_AUTO_TEST_CASE(BranchInstructions) {
 BOOST_AUTO_TEST_CASE(PhiInstruction) {
 	// Test phi with two incoming values
 	vector<Term> phiOps;
-	phiOps.push_back(var(intTy(32), Ref("%result"))); // Result variable
-	phiOps.push_back(intConst(intTy(32), 1));		  // First value
-	phiOps.push_back(label(Ref("bb1")));			  // First label
-	phiOps.push_back(intConst(intTy(32), 2));		  // Second value
-	phiOps.push_back(label(Ref("bb2")));			  // Second label
+	phiOps.push_back(var(intTy(32), Ref("result"))); // Result variable
+	phiOps.push_back(intConst(intTy(32), 1));		 // First value
+	phiOps.push_back(label(Ref("bb1")));			 // First label
+	phiOps.push_back(intConst(intTy(32), 2));		 // Second value
+	phiOps.push_back(label(Ref("bb2")));			 // Second label
 
 	Inst phiInst(Phi, phiOps);
 	BOOST_CHECK_EQUAL(instToString(phiInst), "%result = phi i32 [ 1, %bb1 ], [ 2, %bb2 ]");
@@ -3717,7 +3717,7 @@ BOOST_AUTO_TEST_CASE(StoreInstruction) {
 
 BOOST_AUTO_TEST_CASE(SwitchInstruction) {
 	// Test switch with multiple cases
-	Term switchVal = var(intTy(32), Ref("%val"));
+	Term switchVal = var(intTy(32), Ref("val"));
 	Term defaultLabel = label(Ref("default"));
 	Term case1Val = intConst(intTy(32), 1);
 	Term case1Label = label(Ref("case1"));

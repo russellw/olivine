@@ -76,11 +76,12 @@ ostream& operator<<(ostream& os, Term a) {
 		}
 		os << a.intVal();
 		return os;
-	case Null:
-		os << "null";
-		return os;
+	case Label:
 	case Var:
 		os << '%' << a.ref();
+		return os;
+	case Null:
+		os << "null";
 		return os;
 	}
 
