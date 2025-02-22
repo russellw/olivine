@@ -314,7 +314,7 @@ string wrap(const string& s) {
 			result += hex;
 		} else if (c == '\\') {
 			// Single backslashes remain as backslashes
-			result += '\\';
+			result += "\\\\";
 		} else {
 			// Normal characters added as-is
 			result += c;
