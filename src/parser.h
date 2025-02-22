@@ -7,7 +7,7 @@ class Parser {
 	const string& file;
 	string text;
 	size_t pos = 0;
-	string token;
+	string tok;
 	Target& target;
 
 	// End of file is indicated by a token that cannot correspond to any actual token
@@ -23,7 +23,7 @@ class Parser {
 	}
 
 	void argAttrs() {
-		if (token == "noundef") {
+		if (tok == "noundef") {
 			lex();
 		}
 	}
@@ -31,7 +31,7 @@ class Parser {
 	vector<Term> args1() {
 		expect("(");
 		vector<Term> v;
-		if (token != ")") {
+		if (tok != ")") {
 			do {
 				v.push_back(arg1());
 			} while (maybeComma());
@@ -88,8 +88,8 @@ class Parser {
 		auto paramTypes = map(params, [](Term a) { return a.ty(); });
 
 		// Trailing tokens
-		while (token != "{") {
-			if (token == "\n" || token == eof) {
+		while (tok != "{") {
+			if (tok == "\n" || tok == eof) {
 				throw error("expected '{'");
 			}
 			lex();
@@ -99,8 +99,8 @@ class Parser {
 		expect("{");
 		newline();
 		vector<Inst> body;
-		while (token != "}") {
-			if (token != "\n") {
+		while (tok != "}") {
+			if (tok != "\n") {
 				body.push_back(inst1());
 			}
 			nextLine();
@@ -111,11 +111,11 @@ class Parser {
 	}
 
 	bool dsoPreemptable() {
-		if (token == "dso_local") {
+		if (tok == "dso_local") {
 			lex();
 			return false;
 		}
-		if (token == "dso_preemptable") {
+		if (tok == "dso_preemptable") {
 			lex();
 			return true;
 		}
@@ -138,72 +138,72 @@ class Parser {
 	}
 
 	void expect(const string& s) {
-		if (token == s) {
+		if (tok == s) {
 			lex();
 			return;
 		}
-		throw error(quote(token) + ": expected " + quote(s));
+		throw error(quote(tok) + ": expected " + quote(s));
 	}
 
 	Term expr(Type ty) {
 		// SORT BLOCKS
-		if (token == "false") {
+		if (tok == "false") {
 			if (ty != boolTy()) {
 				throw error("type mismatch");
 			}
 			lex();
 			return falseConst;
 		}
-		if (token == "null") {
+		if (tok == "null") {
 			if (ty != ptrTy()) {
 				throw error("type mismatch");
 			}
 			lex();
 			return nullConst;
 		}
-		if (token == "true") {
+		if (tok == "true") {
 			if (ty != boolTy()) {
 				throw error("type mismatch");
 			}
 			lex();
 			return trueConst;
 		}
-		if (token == "zeroinitializer") {
+		if (tok == "zeroinitializer") {
 			lex();
 			return zeroVal(ty);
 		}
 		// END
-		switch (token[0]) {
+		switch (tok[0]) {
 		case '%':
 			return var1(ty);
 		case '@':
 			return globalRef(ty, globalRef1());
 		}
-		if (isDigit(token[0])) {
+		if (isDigit(tok[0])) {
 			if (isInt(ty)) {
-				auto a = intConst(ty, cpp_int(token));
+				auto a = intConst(ty, cpp_int(tok));
 				lex();
 				return a;
 			}
 			if (isFloat(ty)) {
-				auto a = floatConst(ty, token);
+				auto a = floatConst(ty, tok);
 				lex();
 				return a;
 			}
-			throw error(quote(token) + ": unexpected number");
+			throw error(quote(tok) + ": unexpected number");
 		}
-		throw error(quote(token) + ": expected expression");
+		throw error(quote(tok) + ": expected expression");
 	}
 
 	void fastMathFlags() {
-		while (token == "fast" || token == "nnan" || token == "ninf" || token == "nsz") {
+		while (tok == "fast" || tok == "nnan" || tok == "ninf" || tok == "nsz") {
 			lex();
 		}
 	}
 
 	Ref globalRef1() {
-		if (token[0] != '@') {
-			throw error(quote(token) + ": expected global name");
+		if (tok[0] != '@') {
+			throw error(quote(tok) + ": expected global name");
 		}
 		return ref1();
 	}
@@ -217,19 +217,19 @@ class Parser {
 			throw error("expected identifier");
 		}
 		while (isIdPart(text[pos])) {
-			token += text[pos++];
+			tok += text[pos++];
 		}
 	}
 
 	Inst inst1() {
-		if (token.back() == ':') {
-			return block(parseRef(token.substr(0, token.size() - 1)));
+		if (tok.back() == ':') {
+			return block(parseRef(tok.substr(0, tok.size() - 1)));
 		}
 
 		// SORT BLOCKS
-		if (token == "br") {
+		if (tok == "br") {
 			lex();
-			if (token == "label") {
+			if (tok == "label") {
 				return jmp(label1());
 			}
 			auto cond = typeExpr();
@@ -239,24 +239,24 @@ class Parser {
 			auto no = label1();
 			return br(cond, yes, no);
 		}
-		if (token == "call") {
+		if (tok == "call") {
 			return Inst(Drop, parseCall());
 		}
-		if (token == "ret") {
+		if (tok == "ret") {
 			lex();
-			if (token == "void") {
+			if (tok == "void") {
 				return ret();
 			}
 			return ret(typeExpr());
 		}
-		if (token == "store") {
+		if (tok == "store") {
 			lex();
 			auto a = typeExpr();
 			expect(",");
 			auto p = ptrExpr();
 			return Inst(Store, a, p);
 		}
-		if (token == "switch") {
+		if (tok == "switch") {
 			lex();
 			vector<Term> v;
 
@@ -270,7 +270,7 @@ class Parser {
 			// Cases
 			expect("[");
 			newline();
-			while (token != "]") {
+			while (tok != "]") {
 				v.push_back(typeExpr());
 				expect(",");
 				v.push_back(label1());
@@ -280,21 +280,21 @@ class Parser {
 
 			return Inst(Switch, v);
 		}
-		if (token == "unreachable") {
+		if (tok == "unreachable") {
 			return unreachable();
 		}
-		if (token[0] == '%') {
-			auto lval = parseRef(token);
+		if (tok[0] == '%') {
+			auto lval = parseRef(tok);
 			lex();
 			expect("=");
-			if (token == "alloca") {
+			if (tok == "alloca") {
 				lex();
 				auto ty = type();
 				expect(",");
 				auto n = typeExpr();
 				return alloca(var(ptrTy(), lval), ty, n);
 			}
-			if (token == "phi") {
+			if (tok == "phi") {
 				lex();
 				fastMathFlags();
 				vector<Term> v;
@@ -319,14 +319,14 @@ class Parser {
 		}
 		// END
 
-		throw error(quote(token) + ": expected inst");
+		throw error(quote(tok) + ": expected inst");
 	}
 
 	size_t int1() {
-		if (!all_of(token.begin(), token.end(), isDigit)) {
+		if (!all_of(tok.begin(), tok.end(), isDigit)) {
 			throw error("expected integer");
 		}
-		auto n = stoull(token);
+		auto n = stoull(tok);
 		lex();
 		return n;
 	}
@@ -339,7 +339,7 @@ class Parser {
 	void lex() {
 		while (pos < text.size()) {
 			if (containsAt(text, pos, "...")) {
-				token = text.substr(pos, 3);
+				tok = text.substr(pos, 3);
 				pos += 3;
 				return;
 			}
@@ -351,13 +351,13 @@ class Parser {
 				pos++;
 				continue;
 			case '"':
-				token.clear();
+				tok.clear();
 				lexQuote();
 				maybeColon();
 				return;
 			case '%':
 			case '@':
-				token = text.substr(pos++, 1);
+				tok = text.substr(pos++, 1);
 				id();
 				return;
 			case ';':
@@ -367,22 +367,22 @@ class Parser {
 				continue;
 			case 'c':
 				if (text[pos + 1] == '"') {
-					token = text.substr(pos++, 1);
+					tok = text.substr(pos++, 1);
 					lexQuote();
 					return;
 				}
 				break;
 			}
 			if (isIdPart(text[pos])) {
-				token.clear();
+				tok.clear();
 				id();
 				maybeColon();
 				return;
 			}
-			token = text.substr(pos++, 1);
+			tok = text.substr(pos++, 1);
 			return;
 		}
-		token = eof;
+		tok = eof;
 	}
 
 	void lexQuote() {
@@ -390,7 +390,7 @@ class Parser {
 		for (auto i = pos + 1; i < text.size(); i++) {
 			if (text[i] == '"') {
 				i++;
-				token += text.substr(pos, i - pos);
+				tok += text.substr(pos, i - pos);
 				pos = i;
 				return;
 			}
@@ -400,12 +400,12 @@ class Parser {
 
 	void maybeColon() {
 		if (text[pos] == ':') {
-			token += text[pos++];
+			tok += text[pos++];
 		}
 	}
 
 	bool maybeComma() {
-		if (token == ",") {
+		if (tok == ",") {
 			lex();
 			return true;
 		}
@@ -413,7 +413,7 @@ class Parser {
 	}
 
 	void newline() {
-		if (token == "\n") {
+		if (tok == "\n") {
 			lex();
 			return;
 		}
@@ -421,8 +421,8 @@ class Parser {
 	}
 
 	void nextLine() {
-		while (token != "\n") {
-			if (token == eof) {
+		while (tok != "\n") {
+			if (tok == eof) {
 				stackTrace();
 				throw error("unexpected end of file");
 			}
@@ -432,10 +432,10 @@ class Parser {
 	}
 
 	void noWrap() {
-		if (token == "nuw") {
+		if (tok == "nuw") {
 			lex();
 		}
-		if (token == "nsw") {
+		if (tok == "nsw") {
 			lex();
 		}
 	}
@@ -444,7 +444,7 @@ class Parser {
 		// <type> [parameter Attrs] [name]
 		auto ty = type();
 		paramAttrs();
-		if (token[0] == '%') {
+		if (tok[0] == '%') {
 			return var1(ty);
 		}
 		return zeroVal(ty);
@@ -452,7 +452,7 @@ class Parser {
 
 	void paramAttrs() {
 		// https://llvm.org/docs/LangRef.html#paramattrs
-		while (isLower(token[0])) {
+		while (isLower(tok[0])) {
 			lex();
 		}
 	}
@@ -460,7 +460,7 @@ class Parser {
 	vector<Term> params1() {
 		expect("(");
 		vector<Term> v;
-		if (token != ")") {
+		if (tok != ")") {
 			do {
 				v.push_back(param1());
 			} while (maybeComma());
@@ -470,15 +470,15 @@ class Parser {
 	}
 
 	void parse() {
-		if (token == "target") {
+		if (tok == "target") {
 			target1();
 			return;
 		}
-		if (token == "declare") {
+		if (tok == "declare") {
 			module->declares.push_back(declare());
 			return;
 		}
-		if (token == "define") {
+		if (tok == "define") {
 			module->defines.push_back(define());
 			return;
 		}
@@ -497,7 +497,7 @@ class Parser {
 
 	Type primaryType() {
 		// SORT BLOCKS
-		if (token == "<") {
+		if (tok == "<") {
 			lex();
 			auto len = int1();
 			expect("x");
@@ -505,7 +505,7 @@ class Parser {
 			expect(">");
 			return vecTy(len, element);
 		}
-		if (token == "[") {
+		if (tok == "[") {
 			lex();
 			auto len = int1();
 			expect("x");
@@ -513,24 +513,24 @@ class Parser {
 			expect("]");
 			return arrayTy(len, element);
 		}
-		if (token == "double") {
+		if (tok == "double") {
 			lex();
 			return doubleTy();
 		}
-		if (token == "float") {
+		if (tok == "float") {
 			lex();
 			return floatTy();
 		}
-		if (token == "ptr") {
+		if (tok == "ptr") {
 			lex();
 			return ptrTy();
 		}
-		if (token == "void") {
+		if (tok == "void") {
 			lex();
 			return voidTy();
 		}
-		if (token[0] == 'i') {
-			auto len = stoull(token.substr(1));
+		if (tok[0] == 'i') {
+			auto len = stoull(tok.substr(1));
 			lex();
 			return intTy(len);
 		}
@@ -545,14 +545,14 @@ class Parser {
 	}
 
 	Ref ref1() {
-		auto r = parseRef(token);
+		auto r = parseRef(tok);
 		lex();
 		return r;
 	}
 
 	Term rval1() {
 		// SORT BLOCKS
-		if (token == "add") {
+		if (tok == "add") {
 			lex();
 			noWrap();
 			auto ty = type();
@@ -561,7 +561,7 @@ class Parser {
 			auto b = expr(ty);
 			return Term(Add, ty, a, b);
 		}
-		if (token == "and") {
+		if (tok == "and") {
 			lex();
 			auto ty = type();
 			auto a = expr(ty);
@@ -569,9 +569,9 @@ class Parser {
 			auto b = expr(ty);
 			return Term(And, ty, a, b);
 		}
-		if (token == "ashr") {
+		if (tok == "ashr") {
 			lex();
-			if (token == "exact") {
+			if (tok == "exact") {
 				lex();
 			}
 			auto ty = type();
@@ -580,10 +580,10 @@ class Parser {
 			auto b = expr(ty);
 			return Term(AShr, ty, a, b);
 		}
-		if (token == "call") {
+		if (tok == "call") {
 			return parseCall();
 		}
-		if (token == "fadd") {
+		if (tok == "fadd") {
 			lex();
 			fastMathFlags();
 			auto ty = type();
@@ -592,10 +592,10 @@ class Parser {
 			auto b = expr(ty);
 			return Term(FAdd, ty, a, b);
 		}
-		if (token == "fcmp") {
+		if (tok == "fcmp") {
 			lex();
 			fastMathFlags();
-			if (token == "oeq") {
+			if (tok == "oeq") {
 				lex();
 				auto ty = type();
 				auto a = expr(ty);
@@ -603,7 +603,7 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(FEq, a, b);
 			}
-			if (token == "ogt") {
+			if (tok == "ogt") {
 				lex();
 				auto ty = type();
 				auto a = expr(ty);
@@ -611,7 +611,7 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(FLt, b, a);
 			}
-			if (token == "oge") {
+			if (tok == "oge") {
 				lex();
 				auto ty = type();
 				auto a = expr(ty);
@@ -619,7 +619,7 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(FLe, b, a);
 			}
-			if (token == "olt") {
+			if (tok == "olt") {
 				lex();
 				auto ty = type();
 				auto a = expr(ty);
@@ -627,7 +627,7 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(FLt, a, b);
 			}
-			if (token == "ole") {
+			if (tok == "ole") {
 				lex();
 				auto ty = type();
 				auto a = expr(ty);
@@ -635,7 +635,7 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(FLe, a, b);
 			}
-			if (token == "ugt") {
+			if (tok == "ugt") {
 				lex();
 				auto ty = type();
 				auto a = expr(ty);
@@ -643,7 +643,7 @@ class Parser {
 				auto b = expr(ty);
 				return not1(cmp(FLe, a, b));
 			}
-			if (token == "uge") {
+			if (tok == "uge") {
 				lex();
 				auto ty = type();
 				auto a = expr(ty);
@@ -651,7 +651,7 @@ class Parser {
 				auto b = expr(ty);
 				return not1(cmp(FLt, a, b));
 			}
-			if (token == "ult") {
+			if (tok == "ult") {
 				lex();
 				auto ty = type();
 				auto a = expr(ty);
@@ -659,7 +659,7 @@ class Parser {
 				auto b = expr(ty);
 				return not1(cmp(FLe, b, a));
 			}
-			if (token == "ule") {
+			if (tok == "ule") {
 				lex();
 				auto ty = type();
 				auto a = expr(ty);
@@ -667,7 +667,7 @@ class Parser {
 				auto b = expr(ty);
 				return not1(cmp(FLt, b, a));
 			}
-			if (token == "une") {
+			if (tok == "une") {
 				lex();
 				auto ty = type();
 				auto a = expr(ty);
@@ -675,9 +675,9 @@ class Parser {
 				auto b = expr(ty);
 				return not1(cmp(FEq, b, a));
 			}
-			throw error(quote(token) + ": expected condition");
+			throw error(quote(tok) + ": expected condition");
 		}
-		if (token == "fdiv") {
+		if (tok == "fdiv") {
 			lex();
 			fastMathFlags();
 			auto ty = type();
@@ -686,7 +686,7 @@ class Parser {
 			auto b = expr(ty);
 			return Term(FDiv, ty, a, b);
 		}
-		if (token == "fmul") {
+		if (tok == "fmul") {
 			lex();
 			fastMathFlags();
 			auto ty = type();
@@ -695,14 +695,14 @@ class Parser {
 			auto b = expr(ty);
 			return Term(FMul, ty, a, b);
 		}
-		if (token == "fneg") {
+		if (tok == "fneg") {
 			lex();
 			fastMathFlags();
 			auto ty = type();
 			auto a = expr(ty);
 			return Term(FNeg, ty, a);
 		}
-		if (token == "frem") {
+		if (tok == "frem") {
 			lex();
 			fastMathFlags();
 			auto ty = type();
@@ -711,7 +711,7 @@ class Parser {
 			auto b = expr(ty);
 			return Term(FRem, ty, a, b);
 		}
-		if (token == "fsub") {
+		if (tok == "fsub") {
 			lex();
 			fastMathFlags();
 			auto ty = type();
@@ -720,9 +720,9 @@ class Parser {
 			auto b = expr(ty);
 			return Term(FSub, ty, a, b);
 		}
-		if (token == "getelementptr") {
+		if (tok == "getelementptr") {
 			lex();
-			if (token == "inbounds") {
+			if (tok == "inbounds") {
 				lex();
 			}
 			auto ty = type();
@@ -735,9 +735,9 @@ class Parser {
 			} while (maybeComma());
 			return getElementPtr(ty, p, idxs);
 		}
-		if (token == "icmp") {
+		if (tok == "icmp") {
 			lex();
-			if (token == "eq") {
+			if (tok == "eq") {
 				lex();
 				auto ty = type();
 				auto a = expr(ty);
@@ -745,7 +745,7 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(Eq, a, b);
 			}
-			if (token == "ne") {
+			if (tok == "ne") {
 				lex();
 				auto ty = type();
 				auto a = expr(ty);
@@ -753,7 +753,7 @@ class Parser {
 				auto b = expr(ty);
 				return not1(cmp(Eq, b, a));
 			}
-			if (token == "ugt") {
+			if (tok == "ugt") {
 				lex();
 				auto ty = type();
 				auto a = expr(ty);
@@ -761,7 +761,7 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(ULt, b, a);
 			}
-			if (token == "uge") {
+			if (tok == "uge") {
 				lex();
 				auto ty = type();
 				auto a = expr(ty);
@@ -769,7 +769,7 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(ULe, b, a);
 			}
-			if (token == "ult") {
+			if (tok == "ult") {
 				lex();
 				auto ty = type();
 				auto a = expr(ty);
@@ -777,7 +777,7 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(ULt, a, b);
 			}
-			if (token == "ule") {
+			if (tok == "ule") {
 				lex();
 				auto ty = type();
 				auto a = expr(ty);
@@ -785,7 +785,7 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(ULe, a, b);
 			}
-			if (token == "sgt") {
+			if (tok == "sgt") {
 				lex();
 				auto ty = type();
 				auto a = expr(ty);
@@ -793,7 +793,7 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(SLt, b, a);
 			}
-			if (token == "sge") {
+			if (tok == "sge") {
 				lex();
 				auto ty = type();
 				auto a = expr(ty);
@@ -801,7 +801,7 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(SLe, b, a);
 			}
-			if (token == "slt") {
+			if (tok == "slt") {
 				lex();
 				auto ty = type();
 				auto a = expr(ty);
@@ -809,7 +809,7 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(SLt, a, b);
 			}
-			if (token == "sle") {
+			if (tok == "sle") {
 				lex();
 				auto ty = type();
 				auto a = expr(ty);
@@ -817,18 +817,18 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(SLe, a, b);
 			}
-			throw error(quote(token) + ": expected condition");
+			throw error(quote(tok) + ": expected condition");
 		}
-		if (token == "load") {
+		if (tok == "load") {
 			lex();
 			auto ty = type();
 			expect(",");
 			auto a = ptrExpr();
 			return Term(Load, ty, a);
 		}
-		if (token == "lshr") {
+		if (tok == "lshr") {
 			lex();
-			if (token == "exact") {
+			if (tok == "exact") {
 				lex();
 			}
 			auto ty = type();
@@ -837,7 +837,7 @@ class Parser {
 			auto b = expr(ty);
 			return Term(LShr, ty, a, b);
 		}
-		if (token == "mul") {
+		if (tok == "mul") {
 			lex();
 			noWrap();
 			auto ty = type();
@@ -846,7 +846,7 @@ class Parser {
 			auto b = expr(ty);
 			return Term(Mul, ty, a, b);
 		}
-		if (token == "or") {
+		if (tok == "or") {
 			lex();
 			auto ty = type();
 			auto a = expr(ty);
@@ -854,9 +854,9 @@ class Parser {
 			auto b = expr(ty);
 			return Term(Or, ty, a, b);
 		}
-		if (token == "sdiv") {
+		if (tok == "sdiv") {
 			lex();
-			if (token == "exact") {
+			if (tok == "exact") {
 				lex();
 			}
 			auto ty = type();
@@ -865,14 +865,14 @@ class Parser {
 			auto b = expr(ty);
 			return Term(SDiv, ty, a, b);
 		}
-		if (token == "sext" || token == "fptosi" || token == "sitofp") {
+		if (tok == "sext" || tok == "fptosi" || tok == "sitofp") {
 			lex();
 			auto a = typeExpr();
 			expect("to");
 			auto ty = type();
 			return Term(SCast, ty, a);
 		}
-		if (token == "shl") {
+		if (tok == "shl") {
 			lex();
 			noWrap();
 			auto ty = type();
@@ -881,7 +881,7 @@ class Parser {
 			auto b = expr(ty);
 			return Term(Shl, ty, a, b);
 		}
-		if (token == "srem") {
+		if (tok == "srem") {
 			lex();
 			auto ty = type();
 			auto a = expr(ty);
@@ -889,7 +889,7 @@ class Parser {
 			auto b = expr(ty);
 			return Term(SRem, ty, a, b);
 		}
-		if (token == "sub") {
+		if (tok == "sub") {
 			lex();
 			noWrap();
 			auto ty = type();
@@ -898,17 +898,17 @@ class Parser {
 			auto b = expr(ty);
 			return Term(Sub, ty, a, b);
 		}
-		if (token == "trunc" || token == "zext" || token == "fptrunc" || token == "fpext" || token == "fptoui" ||
-			token == "uitofp" || token == "ptrtoint" || token == "inttoptr" || token == "bitcast") {
+		if (tok == "trunc" || tok == "zext" || tok == "fptrunc" || tok == "fpext" || tok == "fptoui" || tok == "uitofp" ||
+			tok == "ptrtoint" || tok == "inttoptr" || tok == "bitcast") {
 			lex();
 			auto a = typeExpr();
 			expect("to");
 			auto ty = type();
 			return Term(Cast, ty, a);
 		}
-		if (token == "udiv") {
+		if (tok == "udiv") {
 			lex();
-			if (token == "exact") {
+			if (tok == "exact") {
 				lex();
 			}
 			auto ty = type();
@@ -917,7 +917,7 @@ class Parser {
 			auto b = expr(ty);
 			return Term(UDiv, ty, a, b);
 		}
-		if (token == "urem") {
+		if (tok == "urem") {
 			lex();
 			auto ty = type();
 			auto a = expr(ty);
@@ -925,7 +925,7 @@ class Parser {
 			auto b = expr(ty);
 			return Term(URem, ty, a, b);
 		}
-		if (token == "xor") {
+		if (tok == "xor") {
 			lex();
 			auto ty = type();
 			auto a = expr(ty);
@@ -935,7 +935,7 @@ class Parser {
 		}
 		// END
 
-		throw error(quote(token) + ": expected rval");
+		throw error(quote(tok) + ": expected rval");
 	}
 
 	void setConsistent(string& var, const string& val, const char* name) {
@@ -948,22 +948,22 @@ class Parser {
 
 	void target1() {
 		expect("target");
-		if (token == "datalayout") {
+		if (tok == "datalayout") {
 			lex();
 			expect("=");
-			if (token[0] != '"') {
+			if (tok[0] != '"') {
 				throw error("expected string");
 			}
-			setConsistent(target.datalayout, unwrap(token), "datalayout");
+			setConsistent(target.datalayout, unwrap(tok), "datalayout");
 			return;
 		}
-		if (token == "triple") {
+		if (tok == "triple") {
 			lex();
 			expect("=");
-			if (token[0] != '"') {
+			if (tok[0] != '"') {
 				throw error("expected string");
 			}
-			setConsistent(target.triple, unwrap(token), "triple");
+			setConsistent(target.triple, unwrap(tok), "triple");
 			return;
 		}
 	}
@@ -978,7 +978,7 @@ class Parser {
 	}
 
 	Term var1(Type ty) {
-		if (token[0] != '%') {
+		if (tok[0] != '%') {
 			throw error("expected variable name");
 		}
 		return var(ty, ref1());
@@ -992,7 +992,7 @@ public:
 			this->text += '\n';
 		}
 		lex();
-		while (token != eof) {
+		while (tok != eof) {
 			parse();
 			nextLine();
 		}
