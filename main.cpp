@@ -4,7 +4,7 @@
 #include <windows.h>
 
 LONG WINAPI unhandledExceptionFilter(EXCEPTION_POINTERS* exInfo) {
-	std::cerr << "Unhandled exception: " << std::hex << exInfo->ExceptionRecord->ExceptionCode << '\n';
+	cerr << "Unhandled exception: " << std::hex << exInfo->ExceptionRecord->ExceptionCode << '\n';
 	return EXCEPTION_EXECUTE_HANDLER;
 }
 #endif
