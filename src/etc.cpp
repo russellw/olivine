@@ -303,19 +303,18 @@ string wrap(const string& s) {
 		return s;
 	}
 
-	// Need to wrap in quotes and escape special characters
+	// Need to wrap in quotes and handle special characters
 	string result = "\"";
 	for (char c : s) {
-		if (c == '\"' || c == '\\') {
-			// Escape quotes and backslashes
-			result += '\\';
-			result += c;
-		} else if (c < 32 || c > 126) {
-			// Non-printable characters get hex escape
-			result += '\\';
+		if (c == '\"' || c < 32 || c > 126) {
+			// Quotes and non-printable characters get hex escape
 			char hex[3];
 			snprintf(hex, sizeof(hex), "%02x", (unsigned char)c);
+			result += '\\';
 			result += hex;
+		} else if (c == '\\') {
+			// Single backslashes remain as backslashes
+			result += '\\';
 		} else {
 			// Normal characters added as-is
 			result += c;
