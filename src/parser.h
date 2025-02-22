@@ -5,7 +5,7 @@ struct Target {
 
 class Parser {
 	const string& file;
-	string input;
+	string text;
 	size_t pos = 0;
 	string token;
 	Target& target;
@@ -61,7 +61,7 @@ class Parser {
 	// and returns an exception with a composite error message suitable for printing
 	runtime_error error(const string& msg) const {
 		// Build error message with format "file:line: error message"
-		string errorMsg = file + ":" + to_string(currentLine(input, pos)) + ": " + msg;
+		string errorMsg = file + ":" + to_string(currentLine(text, pos)) + ": " + msg;
 
 		// Return exception with the formatted message
 		return runtime_error(errorMsg);
@@ -189,15 +189,15 @@ class Parser {
 	}
 
 	void id() {
-		if (input[pos] == '"') {
+		if (text[pos] == '"') {
 			lexQuote();
 			return;
 		}
-		if (!isIdPart(input[pos])) {
+		if (!isIdPart(text[pos])) {
 			throw error("expected identifier");
 		}
-		while (isIdPart(input[pos])) {
-			token += input[pos++];
+		while (isIdPart(text[pos])) {
+			token += text[pos++];
 		}
 	}
 
@@ -318,13 +318,13 @@ class Parser {
 	}
 
 	void lex() {
-		while (pos < input.size()) {
-			if (containsAt(input, pos, "...")) {
-				token = input.substr(pos, 3);
+		while (pos < text.size()) {
+			if (containsAt(text, pos, "...")) {
+				token = text.substr(pos, 3);
 				pos += 3;
 				return;
 			}
-			switch (input[pos]) {
+			switch (text[pos]) {
 			case ' ':
 			case '\f':
 			case '\r':
@@ -338,40 +338,40 @@ class Parser {
 				return;
 			case '%':
 			case '@':
-				token = input.substr(pos++, 1);
+				token = text.substr(pos++, 1);
 				id();
 				return;
 			case ';':
-				while (input[pos] != '\n') {
+				while (text[pos] != '\n') {
 					pos++;
 				}
 				continue;
 			case 'c':
-				if (input[pos + 1] == '"') {
-					token = input.substr(pos++, 1);
+				if (text[pos + 1] == '"') {
+					token = text.substr(pos++, 1);
 					lexQuote();
 					return;
 				}
 				break;
 			}
-			if (isIdPart(input[pos])) {
+			if (isIdPart(text[pos])) {
 				token.clear();
 				id();
 				maybeColon();
 				return;
 			}
-			token = input.substr(pos++, 1);
+			token = text.substr(pos++, 1);
 			return;
 		}
 		token = eof;
 	}
 
 	void lexQuote() {
-		ASSERT(input[pos] == '"');
-		for (auto i = pos + 1; i < input.size(); i++) {
-			if (input[i] == '"') {
+		ASSERT(text[pos] == '"');
+		for (auto i = pos + 1; i < text.size(); i++) {
+			if (text[i] == '"') {
 				i++;
-				token += input.substr(pos, i - pos);
+				token += text.substr(pos, i - pos);
 				pos = i;
 				return;
 			}
@@ -380,8 +380,8 @@ class Parser {
 	}
 
 	void maybeColon() {
-		if (input[pos] == ':') {
-			token += input[pos++];
+		if (text[pos] == ':') {
+			token += text[pos++];
 		}
 	}
 
@@ -959,9 +959,9 @@ class Parser {
 public:
 	Module* module = new Module;
 
-	Parser(const string& file, const string& input, Target& target): file(file), input(input), target(target) {
-		if (!endsWith(input, '\n')) {
-			this->input += '\n';
+	Parser(const string& file, const string& text, Target& target): file(file), text(text), target(target) {
+		if (!endsWith(text, '\n')) {
+			this->text += '\n';
 		}
 		lex();
 		while (token != eof) {
