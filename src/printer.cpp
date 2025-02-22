@@ -246,9 +246,9 @@ ostream& operator<<(ostream& os, Inst inst) {
 		break;
 	}
 	case Store: {
-		// Format: store type value, type* pointer
+		// Format: store type value, ptr pointer
 		ASSERT(inst.size() == 2);
-		os << "store " << inst[0].ty() << " " << inst[0] << ", " << inst[1].ty() << "* " << inst[1];
+		os << "store " << inst[0].ty() << " " << inst[0] << ", " << inst[1].ty() << " " << inst[1];
 		break;
 	}
 	case Switch: {
