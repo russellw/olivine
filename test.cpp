@@ -2098,10 +2098,10 @@ BOOST_AUTO_TEST_CASE(test_parse_alloca_instruction) {
 
 	// Retrieve the parsed module
 	Module* mod = parser.module;
-	BOOST_REQUIRE_EQUAL(mod->funcs.size(), 1);
+	BOOST_REQUIRE_EQUAL(mod->defines.size(), 1);
 
 	// Get the function @test and check its instruction count
-	const Func& func = mod->funcs[0];
+	const Func& func = mod->defines[0];
 	BOOST_REQUIRE_EQUAL(func.size(), 1);
 
 	// Get the parsed instruction, which should be the alloca instruction.
@@ -3083,7 +3083,7 @@ define void @test() {
 }
 )");
 
-	BOOST_CHECK_EQUAL(module->funcs[0].rty().kind(), VoidKind);
+	BOOST_CHECK_EQUAL(module->defines[0].rty().kind(), VoidKind);
 }
 
 // Test integer types with different bit widths
@@ -3094,7 +3094,7 @@ define i32 @test(i1 %cond, i64 %val) {
 }
 )");
 
-	auto& func = module->funcs[0];
+	auto& func = module->defines[0];
 	BOOST_CHECK_EQUAL(func.rty().kind(), IntKind);
 	BOOST_CHECK_EQUAL(func.rty().len(), 32);
 	BOOST_CHECK_EQUAL(func.params()[0].ty().len(), 1);
@@ -3109,7 +3109,7 @@ define double @test(float %x) {
 }
 )");
 
-	auto& func = module->funcs[0];
+	auto& func = module->defines[0];
 	BOOST_CHECK_EQUAL(func.rty().kind(), DoubleKind);
 	BOOST_CHECK_EQUAL(func.params()[0].ty().kind(), FloatKind);
 }
@@ -3123,7 +3123,7 @@ define ptr @allocate() {
 }
 )");
 
-	auto& func = module->funcs[0];
+	auto& func = module->defines[0];
 	BOOST_CHECK_EQUAL(func.rty().kind(), PtrKind);
 }
 
@@ -3136,7 +3136,7 @@ define void @test() {
 }
 )");
 
-	auto& inst = module->funcs[0][0]; // First instruction
+	auto& inst = module->defines[0][0]; // First instruction
 	BOOST_CHECK_EQUAL(inst.opcode(), Alloca);
 	auto arrayType = inst[1].ty();
 	BOOST_CHECK_EQUAL(arrayType.kind(), ArrayKind);
@@ -3154,7 +3154,7 @@ define void @test() {
 }
 )");
 
-	auto& inst = module->funcs[0][0];
+	auto& inst = module->defines[0][0];
 	BOOST_CHECK_EQUAL(inst.opcode(), Alloca);
 	auto vecType = inst[1].ty();
 	BOOST_CHECK_EQUAL(vecType.kind(), VecKind);
@@ -3175,7 +3175,7 @@ entry:
 }
 )");
 
-	auto& func = module->funcs[0];
+	auto& func = module->defines[0];
 	BOOST_CHECK_EQUAL(func[1][1].tag(), Add);
 	BOOST_CHECK_EQUAL(func[2][1].tag(), Sub);
 	BOOST_CHECK_EQUAL(func[3][1].tag(), Mul);
@@ -3195,7 +3195,7 @@ entry:
 }
 )");
 
-	auto& func = module->funcs[0];
+	auto& func = module->defines[0];
 	BOOST_CHECK_EQUAL(func[1][1].tag(), Eq);
 	BOOST_CHECK_EQUAL(func[2][1].tag(), SLt);
 	// Note: sgt is internally represented as SLt with swapped operands
@@ -3217,7 +3217,7 @@ merge:
 }
 )");
 
-	auto& func = module->funcs[0];
+	auto& func = module->defines[0];
 	BOOST_CHECK_EQUAL(func[0].opcode(), Block);
 	BOOST_CHECK_EQUAL(func[1].opcode(), Br);
 	BOOST_CHECK_EQUAL(func[2].opcode(), Block);
@@ -3236,7 +3236,7 @@ entry:
 }
 )");
 
-	auto& func = module->funcs[0];
+	auto& func = module->defines[0];
 	BOOST_CHECK_EQUAL(func[1].opcode(), Alloca);
 	BOOST_CHECK_EQUAL(func[2].opcode(), Store);
 	BOOST_CHECK_EQUAL(func[3][1].tag(), Load);
@@ -3252,9 +3252,10 @@ define i32 @test(i32 %x) {
 }
 )");
 
-	BOOST_CHECK_EQUAL(module->funcs.size(), 2);
-	BOOST_CHECK_EQUAL(module->funcs[0].size(), 0); // Declaration has no body
-	BOOST_CHECK_EQUAL(module->funcs[1].size(), 3); // Definition has body
+	BOOST_CHECK_EQUAL(module->declares.size(), 1);
+	BOOST_CHECK_EQUAL(module->defines.size(), 1);
+	BOOST_CHECK_EQUAL(module->declares[0].size(), 0); // Declaration has no body
+	BOOST_CHECK_EQUAL(module->defines[0].size(), 3);  // Definition has body
 }
 
 // Test error handling

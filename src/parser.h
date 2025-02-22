@@ -455,11 +455,11 @@ class Parser {
 			return;
 		}
 		if (token == "declare") {
-			module->funcs.push_back(declare());
+			module->declares.push_back(declare());
 			return;
 		}
 		if (token == "define") {
-			module->funcs.push_back(define());
+			module->defines.push_back(define());
 			return;
 		}
 	}
