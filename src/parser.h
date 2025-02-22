@@ -72,7 +72,7 @@ class Parser {
 			lex();
 			return;
 		}
-		throw error("expected '" + s + '\'');
+		throw error(quote(token) + ": expected " + quote(s));
 	}
 
 	Term expr(Type ty) {
