@@ -3845,7 +3845,7 @@ BOOST_AUTO_TEST_CASE(QuotedFunctionName) {
 BOOST_AUTO_TEST_CASE(EscapedFunctionName) {
 	// Test function with a name that needs escaping
 	auto f = Func(voidTy(), Ref("name\\with\"quotes"), vector<Term>{});
-	BOOST_CHECK_EQUAL(toString(f), "declare void @\"name\\5Cwith\\22quotes\"()");
+	BOOST_CHECK_EQUAL(toString(f), "declare void @\"name\\\\with\\22quotes\"()");
 }
 
 BOOST_AUTO_TEST_SUITE_END()
