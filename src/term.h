@@ -120,6 +120,10 @@ enum Tag {
 	// All occurrences of a given variable in a given function must have the same type
 	Var,
 
+	// This is a vector in the LLVM/SIMD sense
+	// not to be confused with std::vector
+	Vec,
+
 	Xor,
 };
 
@@ -254,4 +258,8 @@ inline Term tuple(const vector<Term>& elements) {
 
 inline Term var(Type ty, const Ref& ref) {
 	return Term(Var, ty, ref);
+}
+
+inline Term vec(Type elementType, const vector<Term>& elements) {
+	return Term(Vec, vecTy(elements.size(), elementType), elements);
 }

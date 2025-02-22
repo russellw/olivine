@@ -169,7 +169,7 @@ Term zeroVal(Type ty) {
 		for (size_t i = 0; i < ty.len(); i++) {
 			elements.push_back(zeroVal(elemType));
 		}
-		return array(elemType, elements);
+		return vec(elemType, elements);
 	}
 
 	case StructKind: {
