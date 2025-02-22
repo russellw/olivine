@@ -3657,7 +3657,7 @@ BOOST_AUTO_TEST_CASE(AllocaInstruction) {
 	Term size = intConst(intTy(32), 1);
 	Inst allocaInst = alloca(var1, type.ty(), size);
 
-	BOOST_CHECK_EQUAL(instToString(allocaInst), "%ptr = alloca i32, i32 1");
+	BOOST_CHECK_EQUAL(instToString(allocaInst), "%ptr = alloca i32");
 }
 
 BOOST_AUTO_TEST_CASE(AssignInstruction) {

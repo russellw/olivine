@@ -221,7 +221,12 @@ ostream& operator<<(ostream& os, Inst inst) {
 	case Alloca: {
 		// Format: %var = alloca type, i32 count
 		ASSERT(inst.size() == 3);
-		os << inst[0] << " = alloca " << inst[1].ty() << ", i32 " << inst[2];
+		os << inst[0] << " = alloca " << inst[1].ty();
+		auto n = inst[2];
+		if (n.tag() == Int && n.intVal() == 1) {
+			break;
+		}
+		os << ", " << n.ty() << ' ' << n;
 		break;
 	}
 	case Assign: {
@@ -333,7 +338,10 @@ ostream& operator<<(ostream& os, Func f) {
 
 	// Output each instruction in the function body
 	for (const auto& inst : f) {
-		os << "  " << inst << '\n';
+		if (inst.opcode() != Block) {
+			os << "  ";
+		}
+		os << inst << '\n';
 	}
 
 	os << '}';
