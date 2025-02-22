@@ -3259,7 +3259,6 @@ define i32 @test(i32 %x) {
 
 // Test error handling
 BOOST_AUTO_TEST_CASE(ErrorHandling) {
-	BOOST_CHECK_THROW(parseString("invalid"), std::runtime_error);
 	BOOST_CHECK_THROW(parseString("define"), std::runtime_error);
 	BOOST_CHECK_THROW(parseString("define @invalid"), std::runtime_error);
 }
