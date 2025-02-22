@@ -3167,6 +3167,7 @@ define void @test() {
 BOOST_AUTO_TEST_CASE(ArithmeticExpressions) {
 	auto module = parseString(R"(
 define i32 @test(i32 %a, i32 %b) {
+entry:
     %sum = add i32 %a, %b
     %diff = sub i32 %sum, %a
     %prod = mul i32 %diff, %b
@@ -3186,6 +3187,7 @@ define i32 @test(i32 %a, i32 %b) {
 BOOST_AUTO_TEST_CASE(ComparisonExpressions) {
 	auto module = parseString(R"(
 define i1 @test(i32 %a, i32 %b) {
+entry:
     %eq = icmp eq i32 %a, %b
     %lt = icmp slt i32 %a, %b
     %gt = icmp sgt i32 %a, %b
@@ -3227,6 +3229,7 @@ merge:
 BOOST_AUTO_TEST_CASE(MemoryOperations) {
 	auto module = parseString(R"(
 define i32 @test() {
+entry:
     %ptr = alloca i32, i32 1
     store i32 42, ptr %ptr
     %val = load i32, ptr %ptr
