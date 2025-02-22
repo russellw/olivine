@@ -89,6 +89,9 @@ ostream& operator<<(ostream& os, Term a) {
 	case Float:
 		os << a.str();
 		return os;
+	case GlobalRef:
+		os << '@' << a.ref();
+		return os;
 	case Int:
 		if (a.ty() == boolTy()) {
 			os << (a.intVal() ? "true" : "false");
