@@ -159,8 +159,7 @@ ostream& operator<<(ostream& os, Term a) {
 		opName = "xor";
 		break;
 	default:
-		opName = "?";
-		break;
+		throw runtime_error("unknown tag");
 	}
 
 	os << opName << " (";
