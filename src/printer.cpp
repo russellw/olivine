@@ -234,9 +234,12 @@ ostream& operator<<(ostream& os, Inst inst) {
 	case Phi: {
 		// Format: %var = phi type [ val1, %label1 ], [ val2, %label2 ], ...
 		ASSERT(inst.size() >= 3 && (inst.size() % 2) == 1);
-		os << inst[0] << " = phi " << inst[1].ty();
+		os << inst[0] << " = phi " << inst[1].ty() << ' ';
 		for (size_t i = 1; i < inst.size(); i += 2) {
-			os << " [ " << inst[i] << ", " << inst[i + 1] << " ]";
+			if (i > 1) {
+				os << ", ";
+			}
+			os << "[ " << inst[i] << ", " << inst[i + 1] << " ]";
 		}
 		break;
 	}
