@@ -2,6 +2,7 @@
 
 // C++ standard library
 #include <algorithm>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <sstream>

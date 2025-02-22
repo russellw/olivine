@@ -89,14 +89,14 @@ Type structTy(const vector<Type>& fields);
 
 Type funcTy(Type rty, const vector<Type>& params);
 
-inline bool isInt(Type ty){
-	return  ty.kind()==IntKind;
+inline bool isInt(Type ty) {
+	return ty.kind() == IntKind;
 }
 
-inline bool isFloat(Type ty){
-	switch(ty.kind()){
-		case FloatKind:
-		case DoubleKind:
+inline bool isFloat(Type ty) {
+	switch (ty.kind()) {
+	case DoubleKind:
+	case FloatKind:
 		return true;
 	}
 	return false;

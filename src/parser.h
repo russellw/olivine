@@ -77,10 +77,6 @@ class Parser {
 
 	Term expr(Type ty) {
 		// SORT BLOCKS
-		if (token == "zeroinitializer") {
-			lex();
-			return zeroVal(ty);
-		}
 		if (token == "false") {
 			if (ty != boolTy()) {
 				throw error("type mismatch");
@@ -102,25 +98,29 @@ class Parser {
 			lex();
 			return trueConst;
 		}
+		if (token == "zeroinitializer") {
+			lex();
+			return zeroVal(ty);
+		}
 		// END
-		switch(token[0]){
-			case'%':
+		switch (token[0]) {
+		case '%':
 			return var1(ty);
-			case'@':
+		case '@':
 			return globalRef(ty, globalRef1());
 		}
 		if (isDigit(token[0])) {
-			if(isInt(ty)){
-			auto a = intConst(ty, cpp_int(token));
-			lex();
-			return a;
+			if (isInt(ty)) {
+				auto a = intConst(ty, cpp_int(token));
+				lex();
+				return a;
 			}
-			if(isFloat(ty)){
-			auto a = floatConst(ty, token);
-			lex();
-			return a;
+			if (isFloat(ty)) {
+				auto a = floatConst(ty, token);
+				lex();
+				return a;
 			}
-		throw error(quote(token) + ": unexpected number");
+			throw error(quote(token) + ": unexpected number");
 		}
 		throw error(quote(token) + ": expected expression");
 	}

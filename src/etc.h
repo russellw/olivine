@@ -149,3 +149,4 @@ template <typename T> vector<T> cons(const T& x, const vector<T>& xs) {
 }
 
 string quote(const string& s);
+string readFile(const string& filename);

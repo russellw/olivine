@@ -1,7 +1,7 @@
 #include "all.h"
 
 int main(int argc, char** argv) {
-	vector<char*> files;
+	vector<string> files;
 	for (int i = 1; i < argc; i++) {
 		auto s = argv[i];
 		if (*s == '-') {
@@ -20,6 +20,11 @@ int main(int argc, char** argv) {
 			return 1;
 		}
 		files.push_back(s);
+	}
+	Target target;
+	for (auto file : files) {
+		auto text = readFile(file);
+		Parser parser(file, text, target);
 	}
 	return 0;
 }

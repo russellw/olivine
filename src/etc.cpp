@@ -72,14 +72,14 @@ void stackTrace(std::ostream& out) {
 
 	out << "Stack trace:" << std::endl;
 	for (int i = 1; i < frames; i++) { // Skip the first frame (stackTrace function)
-		std::string symbol(symbols[i]);
+		string symbol(symbols[i]);
 
 		// Parse the symbol string
 		size_t nameStart = symbol.find('(');
 		size_t nameEnd = symbol.find('+', nameStart);
 
-		if (nameStart != std::string::npos && nameEnd != std::string::npos) {
-			std::string mangledName = symbol.substr(nameStart + 1, nameEnd - nameStart - 1);
+		if (nameStart != string::npos && nameEnd != string::npos) {
+			string mangledName = symbol.substr(nameStart + 1, nameEnd - nameStart - 1);
 
 			int status;
 			std::unique_ptr<char, void (*)(void*)> demangledName(
@@ -259,4 +259,19 @@ string quote(const string& s) {
 		return "newline";
 	}
 	return '\'' + s + '\'';
+}
+
+string readFile(const string& filename) {
+	std::ifstream file(filename, std::ios::binary | std::ios::ate);
+	if (!file) {
+		return "";
+	}
+
+	std::streamsize size = file.tellg();
+	file.seekg(0, std::ios::beg);
+
+	string content(size, '\0');
+	file.read(&content[0], size);
+
+	return content;
 }
