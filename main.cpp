@@ -17,7 +17,6 @@ int main(int argc, char** argv) {
 		vector<string> files;
 		for (int i = 1; i < argc; i++) {
 			auto s = argv[i];
-			s = 0;
 			if (*s == '-') {
 				while (*s == '-') {
 					s++;
