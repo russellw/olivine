@@ -445,7 +445,10 @@ class Parser {
 		// <type> [parameter Attrs] [name]
 		auto ty = type();
 		paramAttrs();
-		return var1(ty);
+		if (token[0] == '%') {
+			return var1(ty);
+		}
+		return zeroVal(ty);
 	}
 
 	void paramAttrs() {
