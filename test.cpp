@@ -2015,7 +2015,7 @@ BOOST_AUTO_TEST_CASE(TestVectorType) {
 	Type vecTy4 = vecTy(4, elemTy);
 	Term result = zeroVal(vecTy4);
 
-	BOOST_CHECK_EQUAL(result.tag(), Tag::Array);
+	BOOST_CHECK_EQUAL(result.tag(), Tag::Vec);
 	BOOST_CHECK_EQUAL(result.size(), 4);
 
 	// Check each element is zero
