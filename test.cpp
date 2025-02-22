@@ -3812,7 +3812,7 @@ BOOST_AUTO_TEST_CASE(ComplexFunctionDefinition) {
 	vector<Inst> body = {block(Ref("entry")),
 						 alloca(var(ptrTy(), Ref(1)), intTy(32), intConst(intTy(32), 1)),
 						 store(params[0], var(ptrTy(), Ref(1))),
-						 br(cmp(ULt, params[0], intConst(intTy(32), 10)), Ref("then"), Ref("else")),
+						 br(trueConst, Ref("then"), Ref("else")),
 
 						 block(Ref("then")),
 						 ret(intConst(intTy(32), 1)),
@@ -3826,7 +3826,7 @@ BOOST_AUTO_TEST_CASE(ComplexFunctionDefinition) {
 					  "entry:\n"
 					  "  %1 = alloca i32\n"
 					  "  store i32 %0, ptr %1\n"
-					  "  br i1 %0 ult 10, label %then, label %else\n"
+					  "  br i1 true, label %then, label %else\n"
 					  "then:\n"
 					  "  ret i32 1\n"
 					  "else:\n"
