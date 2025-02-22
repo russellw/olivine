@@ -16,3 +16,6 @@ ostream& operator<<(ostream& os, Type ty);
 // Note that when printing instructions, this function can only be used for atomic terms
 // as instructions have a different format for operator with operands
 ostream& operator<<(ostream& os, Term a);
+
+// Output an instruction in LLVM format
+ostream& operator<<(ostream& os, Inst inst);
