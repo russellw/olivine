@@ -66,6 +66,26 @@ ostream& operator<<(ostream& os, Type ty) {
 ostream& operator<<(ostream& os, Term a) {
 	// Handle special cases first
 	switch (a.tag()) {
+	case Call: {
+		// Format: call returnType (functionType function)(args...)
+		// Example: call i32 (i32, i32)* @sum(i32 %x, i32 %y)
+		os << "call " << a.ty() << " ";
+
+		// Print the function operand (first operand)
+		Term func = a[0];
+		os << func;
+
+		// Print remaining operands (arguments) in parentheses
+		os << "(";
+		for (size_t i = 1; i < a.size(); ++i) {
+			if (i > 1) {
+				os << ", ";
+			}
+			os << a[i].ty() << " " << a[i];
+		}
+		os << ")";
+		return os;
+	}
 	case Float:
 		os << a.str();
 		return os;

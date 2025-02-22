@@ -3735,7 +3735,7 @@ BOOST_AUTO_TEST_CASE(SwitchInstruction) {
 
 BOOST_AUTO_TEST_CASE(DropInstruction) {
 	// Test drop instruction
-	Term callExpr = call(voidTy(), var(funcTy(voidTy(), {}), Ref("@func")), {});
+	Term callExpr = call(voidTy(), var(funcTy(voidTy(), {}), Ref("func")), {});
 	Inst dropInst(Drop, {callExpr});
 
 	BOOST_CHECK_EQUAL(instToString(dropInst), "call void @func()");
