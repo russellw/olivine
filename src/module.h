@@ -1,5 +1,5 @@
 struct Module {
 	vector<Global> globals;
-	vector<Func> decls;
-	vector<Func> defs;
+	vector<Fn> decls;
+	vector<Fn> defs;
 };

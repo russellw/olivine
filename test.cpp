@@ -2098,7 +2098,7 @@ BOOST_AUTO_TEST_CASE(test_parse_alloca_instruction) {
 	BOOST_REQUIRE_EQUAL(mod->defs.size(), 1);
 
 	// Get the function @test and check its instruction count
-	const Func& func = mod->defs[0];
+	const Fn& func = mod->defs[0];
 	BOOST_REQUIRE_EQUAL(func.size(), 1);
 
 	// Get the parsed instruction, which should be the alloca instruction.
@@ -3752,7 +3752,7 @@ BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE(FuncOperatorTests)
 
 // Helper function to get string output of a Func
-string toString(const Func& f) {
+string toString(const Fn& f) {
 	ostringstream oss;
 	oss << f;
 	return oss.str();
@@ -3760,21 +3760,21 @@ string toString(const Func& f) {
 
 BOOST_AUTO_TEST_CASE(EmptyFunctionDeclaration) {
 	// Test a simple void function declaration with no parameters
-	auto f = Func(voidTy(), Ref("empty"), vector<Term>{});
+	auto f = Fn(voidTy(), Ref("empty"), vector<Term>{});
 	BOOST_CHECK_EQUAL(toString(f), "declare void @empty()");
 }
 
 BOOST_AUTO_TEST_CASE(SimpleIntFunctionDeclaration) {
 	// Test an int32 function declaration with one parameter
 	vector<Term> params = {var(intTy(32), Ref(0))};
-	auto f = Func(intTy(32), Ref("simple"), params);
+	auto f = Fn(intTy(32), Ref("simple"), params);
 	BOOST_CHECK_EQUAL(toString(f), "declare i32 @simple(i32 %0)");
 }
 
 BOOST_AUTO_TEST_CASE(MultiParamFunctionDeclaration) {
 	// Test function with multiple parameters of different types
 	vector<Term> params = {var(intTy(32), Ref(0)), var(ptrTy(), Ref(1)), var(doubleTy(), Ref(2))};
-	auto f = Func(intTy(64), Ref("multi"), params);
+	auto f = Fn(intTy(64), Ref("multi"), params);
 	BOOST_CHECK_EQUAL(toString(f), "declare i64 @multi(i32 %0, ptr %1, double %2)");
 }
 
@@ -3782,7 +3782,7 @@ BOOST_AUTO_TEST_CASE(EmptyFunctionDefinition) {
 	// Test a function definition with no parameters and empty body
 	vector<Term> params;
 	vector<Inst> body;
-	auto f = Func(voidTy(), Ref("empty_def"), params, body);
+	auto f = Fn(voidTy(), Ref("empty_def"), params, body);
 	BOOST_CHECK_EQUAL(toString(f), "declare void @empty_def()");
 }
 
@@ -3791,7 +3791,7 @@ BOOST_AUTO_TEST_CASE(SimpleFunctionDefinition) {
 	vector<Term> params = {var(intTy(32), Ref(0))};
 	vector<Inst> body = {alloca(var(ptrTy(), Ref(1)), intTy(32), intConst(intTy(32), 1)), store(params[0], var(ptrTy(), Ref(1))),
 						 ret()};
-	auto f = Func(voidTy(), Ref("simple_def"), params, body);
+	auto f = Fn(voidTy(), Ref("simple_def"), params, body);
 
 	string expected = "define void @simple_def(i32 %0) {\n"
 					  "  %1 = alloca i32\n"
@@ -3816,7 +3816,7 @@ BOOST_AUTO_TEST_CASE(ComplexFunctionDefinition) {
 						 block(Ref("else")),
 						 ret(intConst(intTy(32), 0))};
 
-	auto f = Func(intTy(32), Ref("complex_def"), params, body);
+	auto f = Fn(intTy(32), Ref("complex_def"), params, body);
 
 	string expected = "define i32 @complex_def(i32 %0) {\n"
 					  "entry:\n"
@@ -3834,13 +3834,13 @@ BOOST_AUTO_TEST_CASE(ComplexFunctionDefinition) {
 
 BOOST_AUTO_TEST_CASE(QuotedFunctionName) {
 	// Test function with a name that needs quoting
-	auto f = Func(voidTy(), Ref("1invalid"), vector<Term>{});
+	auto f = Fn(voidTy(), Ref("1invalid"), vector<Term>{});
 	BOOST_CHECK_EQUAL(toString(f), "declare void @\"1invalid\"()");
 }
 
 BOOST_AUTO_TEST_CASE(EscapedFunctionName) {
 	// Test function with a name that needs escaping
-	auto f = Func(voidTy(), Ref("name\\with\"quotes"), vector<Term>{});
+	auto f = Fn(voidTy(), Ref("name\\with\"quotes"), vector<Term>{});
 	BOOST_CHECK_EQUAL(toString(f), "declare void @\"name\\\\with\\22quotes\"()");
 }
 
@@ -3992,7 +3992,7 @@ BOOST_AUTO_TEST_CASE(ValidSimpleFunction) {
 		ret(params[0]) // Just return the parameter
 	};
 
-	Func f(intTy(32), Ref("simple"), params, body);
+	Fn f(intTy(32), Ref("simple"), params, body);
 
 	// Should not throw
 	BOOST_CHECK_NO_THROW(check(f));
@@ -4002,7 +4002,7 @@ BOOST_AUTO_TEST_CASE(ValidVoidFunction) {
 	vector<Term> params = {};
 	vector<Inst> body = {block(Ref("entry")), ret()};
 
-	Func f(voidTy(), Ref("void_func"), params, body);
+	Fn f(voidTy(), Ref("void_func"), params, body);
 
 	BOOST_CHECK_NO_THROW(check(f));
 }
@@ -4013,7 +4013,7 @@ BOOST_AUTO_TEST_CASE(ValidFunctionWithBranching) {
 						 block(Ref("then")),  ret(intConst(intTy(32), 1)),
 						 block(Ref("else")),  ret(intConst(intTy(32), 0))};
 
-	Func f(intTy(32), Ref("branching"), params, body);
+	Fn f(intTy(32), Ref("branching"), params, body);
 
 	BOOST_CHECK_NO_THROW(check(f));
 }
@@ -4022,7 +4022,7 @@ BOOST_AUTO_TEST_CASE(ValidFunctionWithAlloca) {
 	vector<Term> params = {};
 	vector<Inst> body = {block(Ref("entry")), alloca(createPtrVar("ptr"), intTy(32), intConst(intTy(32), 1)), ret()};
 
-	Func f(voidTy(), Ref("alloca_func"), params, body);
+	Fn f(voidTy(), Ref("alloca_func"), params, body);
 
 	BOOST_CHECK_NO_THROW(check(f));
 }
@@ -4033,7 +4033,7 @@ BOOST_AUTO_TEST_CASE(InvalidReturnType) {
 		block(Ref("entry")), ret(intConst(intTy(32), 0)) // Returning int from void function
 	};
 
-	Func f(voidTy(), Ref("invalid_ret"), params, body);
+	Fn f(voidTy(), Ref("invalid_ret"), params, body);
 
 	BOOST_CHECK_THROW(check(f), runtime_error);
 }
@@ -4044,7 +4044,7 @@ BOOST_AUTO_TEST_CASE(InvalidBranchCondition) {
 						 block(Ref("then")),  ret(intConst(intTy(32), 1)),
 						 block(Ref("else")),  ret(intConst(intTy(32), 0))};
 
-	Func f(intTy(32), Ref("invalid_branch"), params, body);
+	Fn f(intTy(32), Ref("invalid_branch"), params, body);
 
 	BOOST_CHECK_THROW(check(f), runtime_error);
 }
@@ -4056,7 +4056,7 @@ BOOST_AUTO_TEST_CASE(UndefinedLabel) {
 		jmp(Ref("nonexistent")) // Jump to undefined label
 	};
 
-	Func f(voidTy(), Ref("undefined_label"), params, body);
+	Fn f(voidTy(), Ref("undefined_label"), params, body);
 
 	BOOST_CHECK_THROW(check(f), runtime_error);
 }
@@ -4068,7 +4068,7 @@ BOOST_AUTO_TEST_CASE(InvalidPhiInstruction) {
 						 Inst(Phi, {result, intConst(intTy(32), 1), label(Ref("l1")), intConst(intTy(32), 2), label(Ref("l2"))}),
 						 ret(result)};
 
-	Func f(intTy(32), Ref("phi_func"), params, body);
+	Fn f(intTy(32), Ref("phi_func"), params, body);
 
 	BOOST_CHECK_THROW(check(f), runtime_error);
 }
@@ -4079,7 +4079,7 @@ BOOST_AUTO_TEST_CASE(InconsistentVariableTypes) {
 						 // Try to assign 64-bit integer to 32-bit variable
 						 assign(params[0], intConst(intTy(64), 42)), ret(params[0])};
 
-	Func f(intTy(32), Ref("inconsistent_types"), params, body);
+	Fn f(intTy(32), Ref("inconsistent_types"), params, body);
 
 	BOOST_CHECK_THROW(check(f), runtime_error);
 }
@@ -4088,7 +4088,7 @@ BOOST_AUTO_TEST_CASE(ValidStore) {
 	vector<Term> params = {createPtrVar("ptr"), createIntVar("val")};
 	vector<Inst> body = {block(Ref("entry")), store(params[1], params[0]), ret()};
 
-	Func f(voidTy(), Ref("valid_store"), params, body);
+	Fn f(voidTy(), Ref("valid_store"), params, body);
 
 	BOOST_CHECK_NO_THROW(check(f));
 }
@@ -4098,7 +4098,7 @@ BOOST_AUTO_TEST_CASE(InvalidStore) {
 	vector<Inst> body = {block(Ref("entry")), store(params[1], params[0]), // First param should be a pointer
 						 ret()};
 
-	Func f(voidTy(), Ref("invalid_store"), params, body);
+	Fn f(voidTy(), Ref("invalid_store"), params, body);
 
 	BOOST_CHECK_THROW(check(f), runtime_error);
 }
@@ -4123,7 +4123,7 @@ BOOST_AUTO_TEST_CASE(ValidComplexFunction) {
 						 block(Ref("exit")),
 						 ret(result)};
 
-	Func f(intTy(32), Ref("complex"), params, body);
+	Fn f(intTy(32), Ref("complex"), params, body);
 
 	BOOST_CHECK_NO_THROW(check(f));
 }
@@ -4132,7 +4132,7 @@ BOOST_AUTO_TEST_CASE(EmptyFunction) {
 	vector<Term> params = {};
 	vector<Inst> body = {}; // Empty body
 
-	Func f(voidTy(), Ref("empty"), params, body);
+	Fn f(voidTy(), Ref("empty"), params, body);
 
 	// Empty function should be invalid
 	BOOST_CHECK_THROW(check(f), runtime_error);
@@ -4145,7 +4145,7 @@ BOOST_AUTO_TEST_CASE(MissingReturn) {
 		// Missing return instruction
 	};
 
-	Func f(intTy(32), Ref("no_return"), params, body);
+	Fn f(intTy(32), Ref("no_return"), params, body);
 
 	BOOST_CHECK_THROW(check(f), runtime_error);
 }
@@ -4153,13 +4153,13 @@ BOOST_AUTO_TEST_CASE(MissingReturn) {
 BOOST_AUTO_TEST_SUITE(PhiEliminationTests)
 
 // Helper function to create a simple function with phi nodes
-Func createTestFunction(Type returnType, const vector<Term>& params, const vector<Inst>& body) {
-	return Func(returnType, Ref("test_func"), params, body);
+Fn createTestFunction(Type returnType, const vector<Term>& params, const vector<Inst>& body) {
+	return Fn(returnType, Ref("test_func"), params, body);
 }
 
 BOOST_AUTO_TEST_CASE(EmptyFunction) {
-	Func empty;
-	Func transformed = eliminatePhiNodes(empty);
+	Fn empty;
+	Fn transformed = eliminatePhiNodes(empty);
 	BOOST_CHECK(transformed.empty());
 }
 
@@ -4169,8 +4169,8 @@ BOOST_AUTO_TEST_CASE(FunctionWithoutPhi) {
 	vector<Term> params = {var(i32, Ref("param"))};
 	vector<Inst> body = {block(Ref("entry")), ret(var(i32, Ref("param")))};
 
-	Func func = createTestFunction(i32, params, body);
-	Func transformed = eliminatePhiNodes(func);
+	Fn func = createTestFunction(i32, params, body);
+	Fn transformed = eliminatePhiNodes(func);
 
 	BOOST_CHECK_EQUAL(transformed.size(), func.size());
 	for (size_t i = 0; i < func.size(); i++) {
@@ -4204,8 +4204,8 @@ BOOST_AUTO_TEST_CASE(SimplePhiNode) {
 						 block(Ref("merge")), Inst(Phi, {resultVar, xVar, label(Ref("then")), yVar, label(Ref("else"))}),
 						 ret(resultVar)};
 
-	Func func = createTestFunction(i32, params, body);
-	Func transformed = eliminatePhiNodes(func);
+	Fn func = createTestFunction(i32, params, body);
+	Fn transformed = eliminatePhiNodes(func);
 
 	// Verify phi node was eliminated
 	bool foundPhi = false;
@@ -4260,8 +4260,8 @@ BOOST_AUTO_TEST_CASE(MultiplePhiNodes) {
 						 Inst(Phi, {resultB, x2, label(Ref("then")), y2, label(Ref("else"))}),
 						 ret(Term(Add, i32, resultA, resultB))};
 
-	Func func = createTestFunction(i32, params, body);
-	Func transformed = eliminatePhiNodes(func);
+	Fn func = createTestFunction(i32, params, body);
+	Fn transformed = eliminatePhiNodes(func);
 
 	// Verify all phi nodes were eliminated
 	bool foundPhi = false;
@@ -4312,8 +4312,8 @@ BOOST_AUTO_TEST_CASE(NestedBranches) {
 									intConst(i32, 3), label(Ref("else1"))}),
 						 ret(resultVar)};
 
-	Func func = createTestFunction(i32, params, body);
-	Func transformed = eliminatePhiNodes(func);
+	Fn func = createTestFunction(i32, params, body);
+	Fn transformed = eliminatePhiNodes(func);
 
 	// Verify phi nodes were eliminated
 	bool foundPhi = false;
@@ -4347,8 +4347,8 @@ BOOST_AUTO_TEST_CASE(SelfLoop) {
 						 block(Ref("exit")),
 						 ret(i)};
 
-	Func func = createTestFunction(i32, params, body);
-	Func transformed = eliminatePhiNodes(func);
+	Fn func = createTestFunction(i32, params, body);
+	Fn transformed = eliminatePhiNodes(func);
 
 	// Verify phi nodes were eliminated
 	bool foundPhi = false;
@@ -4364,7 +4364,7 @@ BOOST_AUTO_TEST_CASE(SelfLoop) {
 BOOST_AUTO_TEST_SUITE_END()
 
 // Helper: Create a function that includes a phi node.
-Func createFunctionWithPhi() {
+Fn createFunctionWithPhi() {
 	// Create a function with one parameter (of type int32)
 	vector<Term> params;
 	params.push_back(var(intTy(32), "p"));
@@ -4396,12 +4396,12 @@ Func createFunctionWithPhi() {
 	body.push_back(block("L2"));
 	body.push_back(ret(intConst(intTy(32), 20)));
 
-	return Func(intTy(32), "testPhi", params, body);
+	return Fn(intTy(32), "testPhi", params, body);
 }
 
 BOOST_AUTO_TEST_CASE(test_eliminatePhiNodes_removes_phi) {
 	// Build a function that contains a phi node.
-	Func f = createFunctionWithPhi();
+	Fn f = createFunctionWithPhi();
 
 	// Verify that the original function indeed contains a phi instruction.
 	bool containsPhi = false;
@@ -4414,7 +4414,7 @@ BOOST_AUTO_TEST_CASE(test_eliminatePhiNodes_removes_phi) {
 	BOOST_CHECK_MESSAGE(containsPhi, "Original function should contain at least one phi node");
 
 	// Run the phi elimination pass.
-	Func fNoPhi = eliminatePhiNodes(f);
+	Fn fNoPhi = eliminatePhiNodes(f);
 
 	// Check that the resulting function has no phi nodes.
 	for (const auto& inst : fNoPhi) {
@@ -4431,10 +4431,10 @@ BOOST_AUTO_TEST_CASE(test_eliminatePhiNodes_no_change_without_phi) {
 	body.push_back(block("entry"));
 	body.push_back(ret(intConst(intTy(32), 42))); // Simply return a constant.
 
-	Func f = Func(intTy(32), "noPhi", params, body);
+	Fn f = Fn(intTy(32), "noPhi", params, body);
 
 	// Run the phi elimination pass.
-	Func fNoPhi = eliminatePhiNodes(f);
+	Fn fNoPhi = eliminatePhiNodes(f);
 
 	// Ensure no phi instructions appear in the output.
 	for (const auto& inst : fNoPhi) {
@@ -4475,10 +4475,10 @@ BOOST_AUTO_TEST_CASE(test_convert_to_ssa) {
 	body.push_back(ret(x));
 
 	// Create the function 'foo'
-	Func foo = Func(int32, Ref("foo"), params, body);
+	Fn foo = Fn(int32, Ref("foo"), params, body);
 
 	// Convert the function to SSA form (lowering mutable variables into allocas).
-	Func ssa = convertToSSA(foo);
+	Fn ssa = convertToSSA(foo);
 
 	// Now verify the following expected properties:
 	// - There is an alloca for each parameter (x and y) inserted at the beginning.

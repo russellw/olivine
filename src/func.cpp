@@ -11,51 +11,51 @@ struct FuncImpl {
 	}
 };
 
-Func::Func() {
+Fn::Fn() {
 	p = new FuncImpl(voidTy(), 0, {}, {});
 }
 
-Func::Func(Type rty, const Ref& ref, const vector<Term>& params) {
+Fn::Fn(Type rty, const Ref& ref, const vector<Term>& params) {
 	p = new FuncImpl(rty, ref, params, {});
 }
 
-Func::Func(Type rty, const Ref& ref, const vector<Term>& params, const vector<Inst>& body) {
+Fn::Fn(Type rty, const Ref& ref, const vector<Term>& params, const vector<Inst>& body) {
 	p = new FuncImpl(rty, ref, params, body);
 }
 
-Type Func::rty() const {
+Type Fn::rty() const {
 	return p->rty;
 }
 
-Ref Func::ref() const {
+Ref Fn::ref() const {
 	return p->ref;
 }
 
-vector<Term> Func::params() const {
+vector<Term> Fn::params() const {
 	return p->params;
 }
 
-size_t Func::size() const {
+size_t Fn::size() const {
 	return p->body.size();
 }
 
-Inst Func::operator[](size_t i) const {
+Inst Fn::operator[](size_t i) const {
 	ASSERT(i < size());
 	return p->body[i];
 }
 
-Func::const_iterator Func::begin() const {
+Fn::const_iterator Fn::begin() const {
 	return p->body.begin();
 }
 
-Func::const_iterator Func::end() const {
+Fn::const_iterator Fn::end() const {
 	return p->body.end();
 }
 
-Func::const_iterator Func::cbegin() const {
+Fn::const_iterator Fn::cbegin() const {
 	return p->body.cbegin();
 }
 
-Func::const_iterator Func::cend() const {
+Fn::const_iterator Fn::cend() const {
 	return p->body.cend();
 }

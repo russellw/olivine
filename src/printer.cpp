@@ -302,7 +302,7 @@ ostream& operator<<(ostream& os, Inst inst) {
 	return os;
 }
 
-ostream& operator<<(ostream& os, Func f) {
+ostream& operator<<(ostream& os, Fn f) {
 	// Output declare/define based on whether function has a body
 	if (f.size() == 0) {
 		os << "declare ";

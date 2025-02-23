@@ -22,7 +22,7 @@ ostream& operator<<(ostream&, Inst);
 
 // Output a function in LLVM format
 // with `declare` or `define` depending on whether the function has a body
-ostream& operator<<(ostream&, Func);
+ostream& operator<<(ostream&, Fn);
 
 // Output a module in LLVM format
 // starting with target platform information from context, if present

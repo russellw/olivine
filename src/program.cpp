@@ -2,13 +2,13 @@
 
 struct ProgramImpl {
 	const vector<Global> globals;
-	const vector<Func> defs;
+	const vector<Fn> defs;
 
-	ProgramImpl(const vector<Global>& globals, const vector<Func>& defs): globals(globals), defs(defs) {
+	ProgramImpl(const vector<Global>& globals, const vector<Fn>& defs): globals(globals), defs(defs) {
 	}
 };
 
-Program::Program(const vector<Global>& globals, const vector<Func>& defs) {
+Program::Program(const vector<Global>& globals, const vector<Fn>& defs) {
 	p = new ProgramImpl(globals, defs);
 }
 
@@ -20,7 +20,7 @@ size_t Program::size() const {
 	return p->defs.size();
 }
 
-Func Program::operator[](size_t i) const {
+Fn Program::operator[](size_t i) const {
 	ASSERT(i < size());
 	return p->defs[i];
 }

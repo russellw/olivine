@@ -34,7 +34,7 @@ class Parser {
 		return v;
 	}
 
-	Func declare() {
+	Fn declare() {
 		/*
 			declare [linkage] [visibility] [DLLStorageClass]
 			[cconv] [ret attrs]
@@ -55,10 +55,10 @@ class Parser {
 		auto params = params1();
 		auto paramTypes = map(params, [](Term a) { return a.ty(); });
 
-		return Func(rty, ref, params);
+		return Fn(rty, ref, params);
 	}
 
-	Func define() {
+	Fn define() {
 		/*
 			define [linkage] [PreemptionSpecifier] [visibility] [DLLStorageClass]
 			[cconv] [ret attrs]
@@ -101,7 +101,7 @@ class Parser {
 		}
 		expect("}");
 
-		return Func(rty, ref, params, body);
+		return Fn(rty, ref, params, body);
 	}
 
 	bool dsoPreemptable() {

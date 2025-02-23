@@ -10,7 +10,7 @@ public:
 	explicit Program(ProgramImpl* p): p(p) {
 	}
 
-	Program(const vector<Global>& globals, const vector<Func>& defs);
+	Program(const vector<Global>& globals, const vector<Fn>& defs);
 
 	vector<Global> globals() const;
 
@@ -20,10 +20,10 @@ public:
 		return !size();
 	}
 
-	Func operator[](size_t i) const;
+	Fn operator[](size_t i) const;
 
 	// Iterators
-	using const_iterator = vector<Func>::const_iterator;
+	using const_iterator = vector<Fn>::const_iterator;
 
 	const_iterator begin() const;
 	const_iterator end() const;

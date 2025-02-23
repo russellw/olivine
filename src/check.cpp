@@ -542,7 +542,7 @@ void check(Inst inst) {
 	}
 }
 
-void check(Func f) {
+void check(Fn f) {
 	// Check that function has at least one instruction
 	ASSERT(f.size() > 0 && "Function body cannot be empty");
 

@@ -1,6 +1,6 @@
 #include "all.h"
 
-Func eliminatePhiNodes(const Func& func) {
+Fn eliminatePhiNodes(const Fn& func) {
 	if (func.empty()) {
 		return func;
 	}
@@ -99,7 +99,7 @@ Func eliminatePhiNodes(const Func& func) {
 		i++;
 	}
 
-	return Func(func.rty(), func.ref(), func.params(), result);
+	return Fn(func.rty(), func.ref(), func.params(), result);
 }
 
 // Helper: create a load term from a pointer.
@@ -110,7 +110,7 @@ inline Term loadFromAlloca(const Term& ptr, Type ty) {
 }
 
 // convertToSSA turns mutable variables into allocas.
-Func convertToSSA(const Func& f) {
+Fn convertToSSA(const Fn& f) {
 	vector<Inst> newBody;
 	// Map from variable identifier (Ref) to the pointer (Term) returned by its alloca.
 	unordered_map<Ref, Term> varAlloca;
@@ -178,5 +178,5 @@ Func convertToSSA(const Func& f) {
 	}
 
 	// --- Step 3. Return a new function with the same signature and new body.
-	return Func(f.rty(), f.ref(), f.params(), newBody);
+	return Fn(f.rty(), f.ref(), f.params(), newBody);
 }

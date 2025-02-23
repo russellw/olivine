@@ -16,4 +16,4 @@ void check(Inst);
 // Olivine does not use phi internally
 // and this is meant to be used after converting freshly parsed modules to internal form
 // so also checks for the absence of phi
-void check(Func);
+void check(Fn);
