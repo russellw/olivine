@@ -543,159 +543,170 @@ void check(Inst inst) {
 }
 
 void check(Func f) {
-    // Check that function return type matches return instructions
-    Type returnType = f.rty();
-    
-    // Check that all parameters have valid types
-    for (const Term& param : f.params()) {
-        // Parameter must be a variable
-        ASSERT(param.tag() == Var);
-        // Check parameter term itself is valid
-        checkRecursive(param);
-    }
-    
-    // Track defined labels to ensure all jump targets are valid
-    unordered_set<Ref> definedLabels;
-    
-    // Track if we've seen any Phi instructions
-    bool foundPhi = false;
-    
-    // Track variables to ensure they are used with consistent types
-    unordered_map<Ref, Type> varTypes;
-    
-    // Initialize varTypes with function parameters
-    for (const Term& param : f.params()) {
-        varTypes[param.ref()] = param.ty();
-    }
-    
-    // Track the current basic block for validation
-    bool inBlock = false;
-    
-    // Check each instruction
-    for (const Inst& inst : f) {
-        // Check all operands recursively
-        for (const Term& term : inst) {
-            checkRecursive(term);
-        }
-        
-        switch (inst.opcode()) {
-            case Block: {
-                // Block must have exactly one operand which is a label
-                ASSERT(inst.size() == 1);
-                ASSERT(inst[0].tag() == Label);
-                
-                // Add label to defined set
-                definedLabels.insert(inst[0].ref());
-                
-                inBlock = true;
-                break;
-            }
-            
-            case Phi: {
-                // Phi instructions are not allowed in internal representation
-                foundPhi = true;
-                break;
-            }
-            
-            case Assign: {
-                // Must have exactly two operands
-                ASSERT(inst.size() == 2);
-                
-                // First operand must be a variable
-                ASSERT(inst[0].tag() == Var);
-                
-                // Check type compatibility
-                Type lhsType = inst[0].ty();
-                Type rhsType = inst[1].ty();
-                ASSERT(lhsType == rhsType);
-                
-                // Track variable type
-                varTypes[inst[0].ref()] = lhsType;
-                break;
-            }
-            
-            case Ret: {
-                // Must have exactly one operand matching function return type
-                ASSERT(inst.size() == 1);
-                ASSERT(inst[0].ty() == returnType);
-                break;
-            }
-            
-            case RetVoid: {
-                // Must have no operands and void return type
-                ASSERT(inst.size() == 0);
-                ASSERT(returnType.kind() == VoidKind);
-                break;
-            }
-            
-            case Br: {
-                // Must have exactly three operands
-                ASSERT(inst.size() == 3);
-                
-                // First operand must be boolean
-                ASSERT(inst[0].ty() == boolTy());
-                
-                // Second and third operands must be labels
-                ASSERT(inst[1].tag() == Label);
-                ASSERT(inst[2].tag() == Label);
-                break;
-            }
-            
-            case Jmp: {
-                // Must have exactly one operand which is a label
-                ASSERT(inst.size() == 1);
-                ASSERT(inst[0].tag() == Label);
-                break;
-            }
-            
-            case Store: {
-                // Must have exactly two operands
-                ASSERT(inst.size() == 2);
-                
-                // Second operand must be a pointer
-                ASSERT(inst[1].ty().kind() == PtrKind);
-                break;
-            }
-            
-            case Alloca: {
-                // Must have three operands
-                ASSERT(inst.size() == 3);
-                
-                // First operand must be variable
-                ASSERT(inst[0].tag() == Var);
-                
-                // Third operand must be integer type
-                ASSERT(isInt(inst[2].ty()));
-                break;
-            }
-            
-            default:
-                // For other instructions, rely on the instruction-level check
-                check(inst);
-                break;
-        }
-        
-        // Check variable type consistency
-        for (const Term& term : inst) {
-            if (term.tag() == Var) {
-                auto it = varTypes.find(term.ref());
-                if (it != varTypes.end()) {
-                    ASSERT(term.ty() == it->second);
-                }
-            }
-        }
-    }
-    
-    // Check that we found no Phi instructions
-    ASSERT(!foundPhi);
-    
-    // Check that all jump targets refer to defined labels
-    for (const Inst& inst : f) {
-        if (inst.opcode() == Br) {
-            ASSERT(definedLabels.count(inst[1].ref()));
-            ASSERT(definedLabels.count(inst[2].ref()));
-        } else if (inst.opcode() == Jmp) {
-            ASSERT(definedLabels.count(inst[0].ref()));
-        }
-    }
+	// Check that function has at least one instruction
+	ASSERT(f.size() > 0 && "Function body cannot be empty");
+
+	// Check that function return type matches return instructions
+	Type returnType = f.rty();
+
+	// Check that all parameters have valid types
+	for (const Term& param : f.params()) {
+		// Parameter must be a variable
+		ASSERT(param.tag() == Var);
+		// Check parameter term itself is valid
+		checkRecursive(param);
+	}
+
+	// Track defined labels to ensure all jump targets are valid
+	unordered_set<Ref> definedLabels;
+
+	// Track if we've seen any Phi instructions
+	bool foundPhi = false;
+
+	// Track variables to ensure they are used with consistent types
+	unordered_map<Ref, Type> varTypes;
+
+	// Initialize varTypes with function parameters
+	for (const Term& param : f.params()) {
+		varTypes[param.ref()] = param.ty();
+	}
+
+	// Track the current basic block for validation
+	bool inBlock = false;
+
+	// Check each instruction
+	for (const Inst& inst : f) {
+		// Check all operands recursively
+		for (const Term& term : inst) {
+			checkRecursive(term);
+		}
+
+		switch (inst.opcode()) {
+		case Block: {
+			// Block must have exactly one operand which is a label
+			ASSERT(inst.size() == 1);
+			ASSERT(inst[0].tag() == Label);
+
+			// Add label to defined set
+			definedLabels.insert(inst[0].ref());
+
+			inBlock = true;
+			break;
+		}
+
+		case Phi: {
+			// Phi instructions are not allowed in internal representation
+			foundPhi = true;
+			break;
+		}
+
+		case Assign: {
+			// Must have exactly two operands
+			ASSERT(inst.size() == 2);
+
+			// First operand must be a variable
+			ASSERT(inst[0].tag() == Var);
+
+			// Check type compatibility
+			Type lhsType = inst[0].ty();
+			Type rhsType = inst[1].ty();
+			ASSERT(lhsType == rhsType);
+
+			// Track variable type
+			varTypes[inst[0].ref()] = lhsType;
+			break;
+		}
+
+		case Ret: {
+			// Must have exactly one operand matching function return type
+			ASSERT(inst.size() == 1);
+			ASSERT(inst[0].ty() == returnType);
+			break;
+		}
+
+		case RetVoid: {
+			// Must have no operands and void return type
+			ASSERT(inst.size() == 0);
+			ASSERT(returnType.kind() == VoidKind);
+			break;
+		}
+
+		case Br: {
+			// Must have exactly three operands
+			ASSERT(inst.size() == 3);
+
+			// First operand must be boolean
+			ASSERT(inst[0].ty() == boolTy());
+
+			// Second and third operands must be labels
+			ASSERT(inst[1].tag() == Label);
+			ASSERT(inst[2].tag() == Label);
+			break;
+		}
+
+		case Jmp: {
+			// Must have exactly one operand which is a label
+			ASSERT(inst.size() == 1);
+			ASSERT(inst[0].tag() == Label);
+			break;
+		}
+
+		case Store: {
+			// Must have exactly two operands
+			ASSERT(inst.size() == 2);
+
+			// Second operand must be a pointer
+			ASSERT(inst[1].ty().kind() == PtrKind);
+			break;
+		}
+
+		case Alloca: {
+			// Must have three operands
+			ASSERT(inst.size() == 3);
+
+			// First operand must be variable
+			ASSERT(inst[0].tag() == Var);
+
+			// Third operand must be integer type
+			ASSERT(isInt(inst[2].ty()));
+			break;
+		}
+
+		default:
+			// For other instructions, rely on the instruction-level check
+			check(inst);
+			break;
+		}
+
+		// Check variable type consistency
+		for (const Term& term : inst) {
+			if (term.tag() == Var) {
+				auto it = varTypes.find(term.ref());
+				if (it != varTypes.end()) {
+					ASSERT(term.ty() == it->second);
+				}
+			}
+		}
+	}
+
+	// Check that we found no Phi instructions
+	ASSERT(!foundPhi);
+
+	// Check that last instruction is a return or unreachable
+	bool hasTerminator = false;
+	if (!f.empty()) {
+		Inst lastInst = f[f.size() - 1];
+		hasTerminator = (lastInst.opcode() == Ret || lastInst.opcode() == RetVoid || lastInst.opcode() == Unreachable);
+	}
+	ASSERT(hasTerminator && "Function must end with return or unreachable");
+
+	// Check that all jump targets refer to defined labels
+	for (const Inst& inst : f) {
+		if (inst.opcode() == Br) {
+			ASSERT(definedLabels.count(inst[1].ref()));
+			ASSERT(definedLabels.count(inst[2].ref()));
+		} else if (inst.opcode() == Jmp) {
+			ASSERT(definedLabels.count(inst[0].ref()));
+		}
+	}
 }

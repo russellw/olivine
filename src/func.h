@@ -18,6 +18,11 @@ public:
 	vector<Term> params() const;
 
 	size_t size() const;
+
+	bool empty() const {
+		return !size();
+	}
+
 	Inst operator[](size_t i) const;
 
 	// Iterators
