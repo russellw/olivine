@@ -65,11 +65,11 @@ BOOST_AUTO_TEST_CASE(SimplePhiNode) {
     };
     
     Func func = createTestFunction(i32, params, body);
-    Func result = eliminatePhiNodes(func);
+    Func transformed = eliminatePhiNodes(func);
     
     // Verify phi node was eliminated
     bool foundPhi = false;
-    for (const Inst& inst : transformed) {
+    for (const auto& inst : transformed) {
         if (inst.opcode() == Phi) {
             foundPhi = true;
             break;
@@ -124,11 +124,11 @@ BOOST_AUTO_TEST_CASE(MultiplePhiNodes) {
     };
     
     Func func = createTestFunction(i32, params, body);
-    Func result = eliminatePhiNodes(func);
+    Func transformed = eliminatePhiNodes(func);
     
     // Verify all phi nodes were eliminated
     bool foundPhi = false;
-    for (const Inst& inst : result) {
+    for (const auto& inst : transformed) {
         if (inst.opcode() == Phi) {
             foundPhi = true;
             break;
@@ -138,9 +138,9 @@ BOOST_AUTO_TEST_CASE(MultiplePhiNodes) {
     
     // Verify both assignments were added for each branch
     int assignmentCount = 0;
-    for (size_t i = 0; i < result.size() - 1; i++) {
-        if (result[i].opcode() == Assign && 
-            (result[i+1].opcode() == Jmp || result[i+1].opcode() == Br)) {
+    for (size_t i = 0; i < transformed.size() - 1; i++) {
+        if (transformed[i].opcode() == Assign && 
+            (transformed[i+1].opcode() == Jmp || transformed[i+1].opcode() == Br)) {
             assignmentCount++;
         }
     }
@@ -185,7 +185,7 @@ BOOST_AUTO_TEST_CASE(NestedBranches) {
     
     // Verify phi nodes were eliminated
     bool foundPhi = false;
-    for (const Inst& inst : result) {
+    for (const auto& inst : transformed) {
         if (inst.opcode() == Phi) {
             foundPhi = true;
             break;
@@ -224,7 +224,7 @@ BOOST_AUTO_TEST_CASE(SelfLoop) {
     
     // Verify phi nodes were eliminated
     bool foundPhi = false;
-    for (const Inst& inst : transformed) {
+    for (const auto& inst : transformed) {
         if (inst.opcode() == Phi) {
             foundPhi = true;
             break;
