@@ -11,6 +11,10 @@ struct FuncImpl {
 	}
 };
 
+Func::Func() {
+	p = new FuncImpl(voidTy(), 0, {}, {});
+}
+
 Func::Func(Type rty, const Ref& ref, const vector<Term>& params) {
 	p = new FuncImpl(rty, ref, params, {});
 }
