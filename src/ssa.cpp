@@ -102,83 +102,81 @@ Func eliminatePhiNodes(const Func& func) {
 	return Func(func.rty(), func.ref(), func.params(), result);
 }
 
-string refToString(const Ref& ref) {
-    if (std::holds_alternative<string>(ref)) {
-        return std::get<string>(ref);
-    } else {
-        return std::to_string(std::get<size_t>(ref));
-    }
+// Helper: create a load term from a pointer.
+// (Assumes that Load takes a pointer operand and returns a value of type “ty”.)
+inline Term loadFromAlloca(const Term& ptr, Type ty) {
+	// Construct a load term. Here we use the Load tag and assume the first operand is the pointer.
+	return Term(Load, ty, ptr);
 }
 
-Func convertToAllocas(const Func& func) {
-    // First pass: identify all mutable variables
-    unordered_set<Ref> mutatedVars;
-    for (const Inst& inst : func) {
-        if (inst.opcode() == Assign && inst[0].tag() == Var) {
-            mutatedVars.insert(inst[0].ref());
-        }
-    }
+// convertToSSA turns mutable variables into allocas.
+Func convertToSSA(const Func& f) {
+	vector<Inst> newBody;
+	// Map from variable identifier (Ref) to the pointer (Term) returned by its alloca.
+	unordered_map<Ref, Term> varAlloca;
 
-    // Start building new function body
-    vector<Inst> newBody;
+	// --- Step 1. Insert allocas for all function parameters.
+	// We assume parameters are declared as Var terms.
+	for (Term param : f.params()) {
+		Ref name = param.ref();
+		Type ty = param.ty();
+		// Create a pointer term to hold the allocated memory.
+		Term ptr = var(ptrTy(), name);
+		// Create an alloca instruction.
+		// Note: we use intConst(intTy(64), 1) to represent the number of elements.
+		newBody.push_back(alloca(ptr, ty, intConst(intTy(64), 1)));
+		// Save the mapping.
+		varAlloca[name] = ptr;
+	}
 
-    // Create allocas upfront for all mutable variables
-    for (const Ref& varRef : mutatedVars) {
-        // Find first use to get type
-        Type varType;
-        for (const Inst& inst : func) {
-            for (const Term& term : inst) {
-                if (term.tag() == Var && term.ref() == varRef) {
-                    varType = term.ty();
-                    goto found_type;
-                }
-            }
-        }
-        found_type:
+	// --- Step 2. Process each instruction in the original function body.
+	// For each instruction, we walk its operands: if an operand is a variable that was lowered,
+	// we replace it by a load from its alloca.
+	for (size_t i = 0; i < f.size(); ++i) {
+		Inst inst = f[i];
+		// Special handling for assignments:
+		// We assume that an assign instruction has two operands:
+		//   operand 0: the variable being written (a Var term)
+		//   operand 1: the value to be stored.
+		if (inst.opcode() == Assign) {
+			Term lhs = inst[0];
+			Term rhs = inst[1];
+			// If lhs is a variable, ensure we have allocated storage for it.
+			if (lhs.tag() == Var) {
+				Ref name = lhs.ref();
+				// If we haven’t seen this variable before, insert an alloca at the beginning.
+				if (varAlloca.find(name) == varAlloca.end()) {
+					Term ptr = var(ptrTy(), name);
+					// Prepend the alloca instruction.
+					newBody.insert(newBody.begin(), alloca(ptr, lhs.ty(), intConst(intTy(64), 1)));
+					varAlloca[name] = ptr;
+				}
+				// Replace the assignment with a store into the allocated memory.
+				newBody.push_back(store(rhs, varAlloca[name]));
+			} else {
+				// If not a Var, just copy the instruction.
+				newBody.push_back(inst);
+			}
+		} else {
+			// For all other instructions, rebuild the operands,
+			// replacing any variable use (i.e. a Var whose ref is in varAlloca)
+			// with a load from the corresponding alloca.
+			vector<Term> newOps;
+			for (size_t j = 0; j < inst.size(); ++j) {
+				Term opnd = inst[j];
+				if (opnd.tag() == Var && varAlloca.find(opnd.ref()) != varAlloca.end()) {
+					// Replace with a load.
+					newOps.push_back(loadFromAlloca(varAlloca[opnd.ref()], opnd.ty()));
+				} else {
+					newOps.push_back(opnd);
+				}
+			}
+			// Rebuild the instruction with the new operands.
+			// (Assumes Inst has a constructor that takes an Opcode and a vector of operands.)
+			newBody.push_back(Inst(inst.opcode(), newOps));
+		}
+	}
 
-        // Create alloca for this variable
-        Term ptr = var(ptrTy(), Ref(refToString(varRef) + ".ptr"));
-        newBody.push_back(alloca(ptr, varType, intConst(intTy(64), 1)));
-    }
-
-    // Transform the function body
-    for (const Inst& inst : func) {
-        if (inst.opcode() == Assign && inst[0].tag() == Var) {
-            // Convert assignment to store
-            Ref varRef = inst[0].ref();
-            if (mutatedVars.find(varRef) != mutatedVars.end()) {
-                Term ptr = var(ptrTy(), Ref(refToString(varRef) + ".ptr"));
-                newBody.push_back(store(inst[1], ptr));
-            } else {
-                // Non-mutable assignment, keep as is
-                newBody.push_back(inst);
-            }
-        } else {
-            // For all other instructions, replace variable uses with loads
-            vector<Term> newOperands;
-            bool needsReplacement = false;
-
-            for (const Term& term : inst) {
-                if (term.tag() == Var && mutatedVars.find(term.ref()) != mutatedVars.end()) {
-                    // Load from the alloca
-                    Term ptr = var(ptrTy(), Ref(refToString(term.ref()) + ".ptr"));
-                    Term loadResult = var(term.ty(), Ref(refToString(term.ref()) + ".load"));
-                    newBody.push_back(Inst(static_cast<Opcode>(Load), {loadResult, ptr}));
-                    newOperands.push_back(loadResult);
-                    needsReplacement = true;
-                } else {
-                    newOperands.push_back(term);
-                }
-            }
-
-            // Add the transformed instruction
-            if (needsReplacement && !newOperands.empty()) {
-                newBody.push_back(Inst(inst.opcode(), newOperands));
-            } else {
-                newBody.push_back(inst);
-            }
-        }
-    }
-
-    return Func(func.rty(), func.ref(), func.params(), newBody);
+	// --- Step 3. Return a new function with the same signature and new body.
+	return Func(f.rty(), f.ref(), f.params(), newBody);
 }

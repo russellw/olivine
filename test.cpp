@@ -4449,4 +4449,88 @@ BOOST_AUTO_TEST_CASE(test_eliminatePhiNodes_no_change_without_phi) {
 	// check that the overall structure (number of instructions) remains the same.
 	BOOST_CHECK_EQUAL(fNoPhi.size(), f.size());
 }
+
+BOOST_AUTO_TEST_CASE(test_convert_to_ssa) {
+	// Create a simple function:
+	//   int foo(int x, int y) {
+	//       x = add(x, y);
+	//       return x;
+	//   }
+	//
+	// In our IR, function parameters are represented as Var terms.
+	Type int32 = intTy(32);
+	Ref x_ref("x");
+	Ref y_ref("y");
+
+	// Parameters (as Var terms).
+	Term x = var(int32, x_ref);
+	Term y = var(int32, y_ref);
+	vector<Term> params = {x, y};
+
+	// Build the function body:
+	// 1. Assignment: x = add(x, y)
+	// 2. Return: ret(x)
+	vector<Inst> body;
+	// Create an add term: add(x, y)
+	Term addExpr = Term(Add, int32, x, y);
+	// The assign instruction writes to x.
+	body.push_back(assign(x, addExpr));
+	// Return x.
+	body.push_back(ret(x));
+
+	// Create the function 'foo'
+	Func foo = Func(int32, Ref("foo"), params, body);
+
+	// Convert the function to SSA form (lowering mutable variables into allocas).
+	Func ssa = convertToSSA(foo);
+
+	// Now verify the following expected properties:
+	// - There is an alloca for each parameter (x and y) inserted at the beginning.
+	// - The assign to x has been converted into a store (storing the new value into x’s alloca).
+	// - The return instruction uses a load from x’s alloca instead of x directly.
+	bool foundAllocaX = false;
+	bool foundAllocaY = false;
+	bool foundStoreForX = false;
+	bool retUsesLoadForX = false;
+
+	for (size_t i = 0; i < ssa.size(); ++i) {
+		Inst inst = ssa[i];
+		switch (inst.opcode()) {
+		case Alloca: {
+			// The first operand of an alloca is the pointer variable.
+			Term ptr = inst[0];
+			if (ptr.ref() == x_ref) {
+				foundAllocaX = true;
+			}
+			if (ptr.ref() == y_ref) {
+				foundAllocaY = true;
+			}
+			break;
+		}
+		case Store: {
+			// In our convention, a store's second operand is the pointer.
+			Term ptr = inst[1];
+			if (ptr.ref() == x_ref) {
+				foundStoreForX = true;
+			}
+			break;
+		}
+		case Ret: {
+			// For a return, the operand should now be a load (if it was a variable usage).
+			Term retOp = inst[0];
+			if (retOp.tag() == Load) {
+				retUsesLoadForX = true;
+			}
+			break;
+		}
+		default:
+			break;
+		}
+	}
+
+	BOOST_CHECK(foundAllocaX);
+	BOOST_CHECK(foundAllocaY);
+	BOOST_CHECK(foundStoreForX);
+	BOOST_CHECK(retUsesLoadForX);
+}
 #include "test.h"

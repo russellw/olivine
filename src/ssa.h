@@ -2,4 +2,4 @@
 Func eliminatePhiNodes(const Func& func);
 
 // Convert back to SSA form in preparation for LLVM output
-Func convertToAllocas(const Func& func);
+Func convertToSSA(const Func& f);
