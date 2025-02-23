@@ -345,18 +345,3 @@ cpp_int truncate_to_bits(const cpp_int& value, std::size_t bits) {
 	// Apply the mask to get only the desired bits
 	return value & mask;
 }
-
-cpp_int fixed_width_add(const cpp_int& a, const cpp_int& b, std::size_t bits) {
-	if (bits <= 0) {
-		throw std::invalid_argument("Number of bits must be positive");
-	}
-
-	// Perform addition and truncate result
-	cpp_int sum = a + b;
-
-	// Create a mask with the desired number of 1s
-	cpp_int mask = (cpp_int(1) << bits) - 1;
-
-	// Apply the mask to get only the desired bits
-	return sum & mask;
-}
