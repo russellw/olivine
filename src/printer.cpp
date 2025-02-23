@@ -348,3 +348,30 @@ ostream& operator<<(ostream& os, Func f) {
 
 	return os;
 }
+
+ostream& operator<<(ostream& out, Module* module) {
+	// Print target platform info
+	if (context::datalayout.size()) {
+		out << "target datalayout = \"" << context::datalayout << "\"\n";
+	}
+	if (context::triple.size()) {
+		out << "target triple = \"" << context::triple << "\"\n\n";
+	}
+
+	// Print global variables
+	for (const auto& global : module->globals) {
+		out << "global " << global.ty() << " " << global.ref() << "\n";
+	}
+
+	// Print function declarations
+	for (const auto& decl : module->decls) {
+		out << decl << "\n";
+	}
+
+	// Print function definitions
+	for (const auto& def : module->defs) {
+		out << def << "\n";
+	}
+
+	return out;
+}

@@ -17,5 +17,8 @@ public:
 
 	// Comparison by value
 	bool operator==(Global b) const;
-	bool operator!=(Global b) const;
+
+	bool operator!=(Global b) const {
+		return !(*this == b);
+	}
 };
