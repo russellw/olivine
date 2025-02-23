@@ -71,7 +71,7 @@ def generate_ninja_build():
         test_obj = 'obj\\test.obj'
         f.write(f'\nbuild {test_obj}: cxx test.cpp')
         if header_files:
-            f.write(' |')
+            f.write(' | test.h')
             for header in header_files:
                 f.write(f' {header}')
         f.write('\n')
