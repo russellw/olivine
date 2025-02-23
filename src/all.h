@@ -57,6 +57,7 @@ using boost::multiprecision::cpp_int;
 #include "module.h"
 
 #include "context.h"
+#include "program.h"
 
 // Algorithms
 #include "check.h"
