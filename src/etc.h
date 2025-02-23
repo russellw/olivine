@@ -157,3 +157,24 @@ string readFile(const string& filename);
 // If so, return it unchanged
 // Otherwise, wrap it in quotes, and escape some characters as necessary
 string wrap(const string& s);
+
+/**
+ * Truncates a cpp_int to the specified number of bits
+ *
+ * @param value The cpp_int value to truncate
+ * @param bits Number of bits to keep (must be > 0)
+ * @return A new cpp_int containing only the specified number of least significant bits
+ * @throws std::invalid_argument if bits <= 0
+ */
+cpp_int truncate_to_bits(const cpp_int& value, std::size_t bits);
+
+/**
+ * Performs addition of two numbers and truncates the result to the specified number of bits
+ * 
+ * @param a First operand
+ * @param b Second operand
+ * @param bits Number of bits for the result (must be > 0)
+ * @return Result of (a + b) truncated to the specified number of bits
+ * @throws std::invalid_argument if bits <= 0
+ */
+cpp_int fixed_width_add(const cpp_int& a, const cpp_int& b, std::size_t bits) ;
