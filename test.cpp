@@ -3248,10 +3248,10 @@ define i32 @test(i32 %x) {
 }
 )");
 
-	BOOST_CHECK_EQUAL(module->declares.size(), 1);
+	BOOST_CHECK_EQUAL(module->decls.size(), 1);
 	BOOST_CHECK_EQUAL(module->defines.size(), 1);
-	BOOST_CHECK_EQUAL(module->declares[0].size(), 0); // Declaration has no body
-	BOOST_CHECK_EQUAL(module->defines[0].size(), 2);  // Definition has body
+	BOOST_CHECK_EQUAL(module->decls[0].size(), 0);	 // Declaration has no body
+	BOOST_CHECK_EQUAL(module->defines[0].size(), 2); // Definition has body
 }
 
 // Test error handling

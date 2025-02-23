@@ -469,7 +469,7 @@ class Parser {
 			return;
 		}
 		if (tok == "declare") {
-			module->declares.push_back(declare());
+			module->decls.push_back(declare());
 			return;
 		}
 		if (tok == "define") {

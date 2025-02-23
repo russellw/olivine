@@ -4,5 +4,5 @@ namespace context {
 extern string datalayout;
 extern string triple;
 
-extern vector<Func> declares;
+extern vector<Func> decls;
 } // namespace context
