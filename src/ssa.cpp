@@ -102,88 +102,83 @@ Func eliminatePhiNodes(const Func& func) {
 	return Func(func.rty(), func.ref(), func.params(), result);
 }
 
-// Helper to get string representation of a Ref
 string refToString(const Ref& ref) {
-	if (std::holds_alternative<string>(ref)) {
-		return std::get<string>(ref);
-	} else {
-		return std::to_string(std::get<size_t>(ref));
-	}
+    if (std::holds_alternative<string>(ref)) {
+        return std::get<string>(ref);
+    } else {
+        return std::to_string(std::get<size_t>(ref));
+    }
 }
 
 Func convertToAllocas(const Func& func) {
-	// First pass: identify all mutable variables
-	unordered_set<Ref> mutatedVars;
-	for (const Inst& inst : func) {
-		if (inst.opcode() == Assign && inst[0].tag() == Var) {
-			mutatedVars.insert(inst[0].ref());
-		}
-	}
+    // First pass: identify all mutable variables
+    unordered_set<Ref> mutatedVars;
+    for (const Inst& inst : func) {
+        if (inst.opcode() == Assign && inst[0].tag() == Var) {
+            mutatedVars.insert(inst[0].ref());
+        }
+    }
 
-	// Start building new function body
-	vector<Inst> newBody;
+    // Start building new function body
+    vector<Inst> newBody;
 
-	// Create allocas upfront for all mutable variables
-	for (const Ref& varRef : mutatedVars) {
-		// Find first use to get type
-		Type varType;
-		for (const Inst& inst : func) {
-			for (const Term& term : inst) {
-				if (term.tag() == Var && term.ref() == varRef) {
-					varType = term.ty();
-					goto found_type;
-				}
-			}
-		}
-	found_type:
+    // Create allocas upfront for all mutable variables
+    for (const Ref& varRef : mutatedVars) {
+        // Find first use to get type
+        Type varType;
+        for (const Inst& inst : func) {
+            for (const Term& term : inst) {
+                if (term.tag() == Var && term.ref() == varRef) {
+                    varType = term.ty();
+                    goto found_type;
+                }
+            }
+        }
+        found_type:
 
-		// Create alloca for this variable
-		Term ptr = var(ptrTy(), Ref(refToString(varRef) + ".ptr"));
-		newBody.push_back(alloca(ptr, varType, intConst(intTy(64), 1)));
-	}
+        // Create alloca for this variable
+        Term ptr = var(ptrTy(), Ref(refToString(varRef) + ".ptr"));
+        newBody.push_back(alloca(ptr, varType, intConst(intTy(64), 1)));
+    }
 
-	// Transform the function body
-	for (const Inst& inst : func) {
-		if (inst.opcode() == Assign && inst[0].tag() == Var) {
-			// Convert assignment to store
-			Ref varRef = inst[0].ref();
-			if (mutatedVars.find(varRef) != mutatedVars.end()) {
-				Term ptr = var(ptrTy(), Ref(refToString(varRef) + ".ptr"));
-				newBody.push_back(store(inst[1], ptr));
-			} else {
-				// Non-mutable assignment, keep as is
-				newBody.push_back(inst);
-			}
-		} else {
-			// For all other instructions, replace variable uses with loads
-			vector<Term> newOperands;
-			bool needsReplacement = false;
+    // Transform the function body
+    for (const Inst& inst : func) {
+        if (inst.opcode() == Assign && inst[0].tag() == Var) {
+            // Convert assignment to store
+            Ref varRef = inst[0].ref();
+            if (mutatedVars.find(varRef) != mutatedVars.end()) {
+                Term ptr = var(ptrTy(), Ref(refToString(varRef) + ".ptr"));
+                newBody.push_back(store(inst[1], ptr));
+            } else {
+                // Non-mutable assignment, keep as is
+                newBody.push_back(inst);
+            }
+        } else {
+            // For all other instructions, replace variable uses with loads
+            vector<Term> newOperands;
+            bool needsReplacement = false;
 
-			for (const Term& term : inst) {
-				if (term.tag() == Var && mutatedVars.find(term.ref()) != mutatedVars.end()) {
-					// Load from the alloca
-					Term ptr = var(ptrTy(), Ref(refToString(term.ref()) + ".ptr"));
-					Term loadDest = var(term.ty(), Ref(refToString(term.ref()) + ".load"));
+            for (const Term& term : inst) {
+                if (term.tag() == Var && mutatedVars.find(term.ref()) != mutatedVars.end()) {
+                    // Load from the alloca
+                    Term ptr = var(ptrTy(), Ref(refToString(term.ref()) + ".ptr"));
+                    Term loadResult = var(term.ty(), Ref(refToString(term.ref()) + ".load"));
+                    newBody.push_back(Inst(static_cast<Opcode>(Load), {loadResult, ptr}));
+                    newOperands.push_back(loadResult);
+                    needsReplacement = true;
+                } else {
+                    newOperands.push_back(term);
+                }
+            }
 
-					// Create load instruction with proper Opcode
-					vector<Term> loadOperands = {loadDest, ptr};
-					newBody.push_back(Inst(static_cast<Opcode>(Load), loadOperands));
+            // Add the transformed instruction
+            if (needsReplacement && !newOperands.empty()) {
+                newBody.push_back(Inst(inst.opcode(), newOperands));
+            } else {
+                newBody.push_back(inst);
+            }
+        }
+    }
 
-					newOperands.push_back(loadDest);
-					needsReplacement = true;
-				} else {
-					newOperands.push_back(term);
-				}
-			}
-
-			// Add the transformed instruction
-			if (needsReplacement) {
-				newBody.push_back(Inst(inst.opcode(), newOperands));
-			} else {
-				newBody.push_back(inst);
-			}
-		}
-	}
-
-	return Func(func.rty(), func.ref(), func.params(), newBody);
+    return Func(func.rty(), func.ref(), func.params(), newBody);
 }
