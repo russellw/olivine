@@ -4,10 +4,10 @@
 // A string that begins with a digit, or is otherwise not a valid identifier, is wrapped in quotes
 // and special characters are escaped as a pair of hex digits
 // with the single exception of `\` which is converted to `\\`
-ostream& operator<<(ostream& os, const Ref&);
+ostream& operator<<(ostream&, const Ref&);
 
 // Output a type in LLVM format
-ostream& operator<<(ostream& os, Type);
+ostream& operator<<(ostream&, Type);
 
 // Output a term in LLVM format
 // Compound terms are printed in constant expression format
@@ -15,11 +15,15 @@ ostream& operator<<(ostream& os, Type);
 // but extending it to other operators is still useful for debugging
 // Note that when printing instructions, this function can only be used for atomic terms
 // as instructions have a different format for operator with operands
-ostream& operator<<(ostream& os, Term);
+ostream& operator<<(ostream&, Term);
 
 // Output an instruction in LLVM format
-ostream& operator<<(ostream& os, Inst);
+ostream& operator<<(ostream&, Inst);
 
 // Output a function in LLVM format
 // with `declare` or `define` depending on whether the function has a body
-ostream& operator<<(ostream& os, Func);
+ostream& operator<<(ostream&, Func);
+
+// Output a module in LLVM format
+// starting with target platform information from context, if present
+ostream& operator<<(ostream&, Module*);
