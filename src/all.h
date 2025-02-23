@@ -59,6 +59,7 @@ using boost::multiprecision::cpp_int;
 // Algorithms
 #include "check.h"
 #include "simplify.h"
+#include "ssa.h"
 
 // Logically the code for printing terms should perhaps be ordered later
 // but it is useful to place it before the parser so it can be used for debug output
