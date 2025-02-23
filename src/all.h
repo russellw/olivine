@@ -41,6 +41,8 @@ using boost::multiprecision::cpp_int;
 
 // Project header files
 #include "etc.h"
+
+// Data structures
 #include "type.h"
 
 // clang-format sorts includes
@@ -54,11 +56,12 @@ using boost::multiprecision::cpp_int;
 #include "global.h"
 #include "module.h"
 
+// Algorithms
 #include "check.h"
+#include "simplify.h"
 
 // Logically the code for printing terms should perhaps be ordered later
 // but it is useful to place it before the parser so it can be used for debug output
 #include "printer.h"
 
 #include "parser.h"
-#include "simplify.h"
