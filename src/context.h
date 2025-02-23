@@ -3,4 +3,6 @@
 namespace context {
 extern string datalayout;
 extern string triple;
+
+extern vector<Func> declares;
 } // namespace context
