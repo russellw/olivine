@@ -3,6 +3,11 @@
 #define BOOST_TEST_MODULE Unit_Test
 #include <boost/test/included/unit_test.hpp>
 
+void clearContext() {
+	context::datalayout.clear();
+	context::triple.clear();
+}
+
 Term arithmetic(Tag tag, Term a) {
 	return Term(tag, a.ty(), a);
 }
@@ -1281,17 +1286,17 @@ class ParserFixture {
 protected:
 	void parseFiles(const std::string& content1, const std::string& content2 = "") {
 		if (!content1.empty()) {
-			Parser("test1.ll", content1, target);
+			Parser("test1.ll", content1);
 		}
 		if (!content2.empty()) {
-			Parser("test2.ll", content2, target);
+			Parser("test2.ll", content2);
 		}
 	}
 
 	void expectError(const std::string& content1, const std::string& content2, const std::string& expectedError) {
 		try {
-			Parser("test1.ll", content1, target);
-			Parser("test2.ll", content2, target);
+			Parser("test1.ll", content1);
+			Parser("test2.ll", content2);
 			BOOST_FAIL("Expected error was not thrown");
 		} catch (const std::runtime_error& e) {
 			BOOST_CHECK_EQUAL(std::string(e.what()), expectedError);
@@ -1300,7 +1305,7 @@ protected:
 
 	void expectError(const std::string& content, const std::string& expectedError) {
 		try {
-			Parser("test.ll", content, target);
+			Parser("test.ll", content);
 			BOOST_FAIL("Expected error was not thrown");
 		} catch (const std::runtime_error&) {
 		}
@@ -1382,6 +1387,7 @@ BOOST_AUTO_TEST_SUITE(ParserTests)
 
 // Test parsing target triple and datalayout
 BOOST_AUTO_TEST_CASE(TargetInfo) {
+	clearContext();
 	Parser parser("test.ll", "target datalayout = \"e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128\"\n"
 							 "target triple = \"x86_64-unknown-linux-gnu\"\n");
 
@@ -1645,7 +1651,7 @@ define i32 @test() {
     ret i32 %1
 }
 )";
-		BOOST_CHECK_THROW(Parser("test.ll", badInput, target), runtime_error);
+		BOOST_CHECK_THROW(Parser("test.ll", badInput), runtime_error);
 
 		// Missing operand
 		const string missingOperand = R"(
@@ -1654,7 +1660,7 @@ define i32 @test() {
     ret i32 %1
 }
 )";
-		BOOST_CHECK_THROW(Parser("test.ll", missingOperand, target), runtime_error);
+		BOOST_CHECK_THROW(Parser("test.ll", missingOperand), runtime_error);
 
 		// Missing type
 		const string missingType = R"(
@@ -1663,7 +1669,7 @@ define i32 @test() {
     ret i32 %1
 }
 )";
-		BOOST_CHECK_THROW(Parser("test.ll", missingType, target), runtime_error);
+		BOOST_CHECK_THROW(Parser("test.ll", missingType), runtime_error);
 	}
 }
 
