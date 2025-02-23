@@ -1,14 +1,8 @@
-struct Target {
-	string datalayout;
-	string triple;
-};
-
 class Parser {
 	const string& file;
 	string text;
 	size_t pos = 0;
 	string tok;
-	Target& target;
 
 	// End of file is indicated by a token that cannot correspond to any actual token
 	// but is still nonempty, so parsing code can safely check the first character of current token
@@ -987,7 +981,7 @@ class Parser {
 public:
 	Module* module = new Module;
 
-	Parser(const string& file, const string& text, Target& target): file(file), text(text), target(target) {
+	Parser(const string& file, const string& text): file(file), text(text) {
 		if (!endsWith(text, '\n')) {
 			this->text += '\n';
 		}

@@ -1279,8 +1279,6 @@ BOOST_AUTO_TEST_CASE(WhitespaceHandling) {
 // Test fixture for Parser tests
 class ParserFixture {
 protected:
-	Target target;
-
 	void parseFiles(const std::string& content1, const std::string& content2 = "") {
 		if (!content1.empty()) {
 			Parser("test1.ll", content1, target);
@@ -1384,11 +1382,8 @@ BOOST_AUTO_TEST_SUITE(ParserTests)
 
 // Test parsing target triple and datalayout
 BOOST_AUTO_TEST_CASE(TargetInfo) {
-	Target target;
-	Parser parser("test.ll",
-				  "target datalayout = \"e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128\"\n"
-				  "target triple = \"x86_64-unknown-linux-gnu\"\n",
-				  target);
+	Parser parser("test.ll", "target datalayout = \"e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128\"\n"
+							 "target triple = \"x86_64-unknown-linux-gnu\"\n");
 
 	BOOST_CHECK_EQUAL(target.datalayout, "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128");
 	BOOST_CHECK_EQUAL(target.triple, "x86_64-unknown-linux-gnu");
@@ -1643,7 +1638,6 @@ BOOST_AUTO_TEST_SUITE(ParserTestSuite)
 BOOST_AUTO_TEST_CASE(ParseAddInst) {
 	// Test error cases
 	{
-		Target target;
 		// Mismatched types
 		const string badInput = R"(
 define i32 @test() {
@@ -2090,11 +2084,8 @@ BOOST_AUTO_TEST_CASE(test_parse_alloca_instruction) {
 						"%1 = alloca i32, i64 1\n"
 						"}\n";
 
-	// A target to record datalayout/triple info (if any)
-	Target target;
-
 	// Construct the parser with the input
-	Parser parser("test.ll", input, target);
+	Parser parser("test.ll", input);
 
 	// Retrieve the parsed module
 	Module* mod = parser.module;
@@ -3069,8 +3060,7 @@ BOOST_AUTO_TEST_SUITE_END()
 
 // Helper function to parse LLVM IR string
 std::unique_ptr<Module> parseString(const std::string& input) {
-	Target target;
-	return std::unique_ptr<Module>(Parser("test.ll", input, target).module);
+	return std::unique_ptr<Module>(Parser("test.ll", input).module);
 }
 
 BOOST_AUTO_TEST_SUITE(ParserTests)

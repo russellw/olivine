@@ -34,10 +34,9 @@ int main(int argc, char** argv) {
 			}
 			files.push_back(s);
 		}
-		Target target;
 		for (auto file : files) {
 			auto text = readFile(file);
-			Parser parser(file, text, target);
+			Parser parser(file, text);
 		}
 		return 0;
 	} catch (const std::exception& e) {
