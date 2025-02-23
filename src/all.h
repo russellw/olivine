@@ -52,7 +52,7 @@ using boost::multiprecision::cpp_int;
 
 #include "inst.h"
 
-#include "func.h"
+#include "fn.h"
 #include "global.h"
 #include "module.h"
 
