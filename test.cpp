@@ -1312,28 +1312,28 @@ BOOST_FIXTURE_TEST_SUITE(ParserTests, ParserFixture)
 BOOST_AUTO_TEST_CASE(ParseTargetTriple) {
 	const std::string input = "target triple = \"x86_64-pc-linux-gnu\"\n";
 	this->parseFiles(input);
-	BOOST_CHECK_EQUAL(this->target.triple, "x86_64-pc-linux-gnu");
+	BOOST_CHECK_EQUAL(context::triple, "x86_64-pc-linux-gnu");
 }
 
 BOOST_AUTO_TEST_CASE(ParseTargetDatalayout) {
 	const std::string input = "target datalayout = \"e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128\"\n";
 	this->parseFiles(input);
-	BOOST_CHECK_EQUAL(this->target.datalayout, "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128");
+	BOOST_CHECK_EQUAL(context::datalayout, "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128");
 }
 
 BOOST_AUTO_TEST_CASE(ParseBothTargets) {
 	const std::string input = "target triple = \"x86_64-pc-linux-gnu\"\n"
 							  "target datalayout = \"e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128\"\n";
 	this->parseFiles(input);
-	BOOST_CHECK_EQUAL(this->target.triple, "x86_64-pc-linux-gnu");
-	BOOST_CHECK_EQUAL(this->target.datalayout, "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128");
+	BOOST_CHECK_EQUAL(context::triple, "x86_64-pc-linux-gnu");
+	BOOST_CHECK_EQUAL(context::datalayout, "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128");
 }
 
 BOOST_AUTO_TEST_CASE(ConsistentTargetsAcrossFiles) {
 	const std::string input1 = "target triple = \"x86_64-pc-linux-gnu\"\n";
 	const std::string input2 = "target triple = \"x86_64-pc-linux-gnu\"\n";
 	this->parseFiles(input1, input2);
-	BOOST_CHECK_EQUAL(this->target.triple, "x86_64-pc-linux-gnu");
+	BOOST_CHECK_EQUAL(context::triple, "x86_64-pc-linux-gnu");
 }
 
 BOOST_AUTO_TEST_CASE(InconsistentTriple) {
@@ -1367,13 +1367,13 @@ BOOST_AUTO_TEST_CASE(IgnoreComments) {
 	const std::string input = "; This is a comment\n"
 							  "target triple = \"x86_64-pc-linux-gnu\" ; Another comment\n";
 	this->parseFiles(input);
-	BOOST_CHECK_EQUAL(this->target.triple, "x86_64-pc-linux-gnu");
+	BOOST_CHECK_EQUAL(context::triple, "x86_64-pc-linux-gnu");
 }
 
 BOOST_AUTO_TEST_CASE(IgnoreWhitespace) {
 	const std::string input = "   \t  target    triple    =    \"x86_64-pc-linux-gnu\"   \n";
 	this->parseFiles(input);
-	BOOST_CHECK_EQUAL(this->target.triple, "x86_64-pc-linux-gnu");
+	BOOST_CHECK_EQUAL(context::triple, "x86_64-pc-linux-gnu");
 }
 
 BOOST_AUTO_TEST_SUITE_END()
@@ -1385,8 +1385,8 @@ BOOST_AUTO_TEST_CASE(TargetInfo) {
 	Parser parser("test.ll", "target datalayout = \"e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128\"\n"
 							 "target triple = \"x86_64-unknown-linux-gnu\"\n");
 
-	BOOST_CHECK_EQUAL(target.datalayout, "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128");
-	BOOST_CHECK_EQUAL(target.triple, "x86_64-unknown-linux-gnu");
+	BOOST_CHECK_EQUAL(context::datalayout, "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128");
+	BOOST_CHECK_EQUAL(context::triple, "x86_64-unknown-linux-gnu");
 }
 
 BOOST_AUTO_TEST_SUITE_END()
