@@ -169,12 +169,13 @@ string wrap(const string& s);
 cpp_int truncate_to_bits(const cpp_int& value, std::size_t bits);
 
 /**
- * Performs addition of two numbers and truncates the result to the specified number of bits
- * 
- * @param a First operand
- * @param b Second operand
- * @param bits Number of bits for the result (must be > 0)
+ * Performs fixed-width addition of two numbers for LLVM arithmetic evaluation.
+ * Assumes inputs are already properly truncated to the specified width.
+ *
+ * @param a First operand (must be within specified bit width)
+ * @param b Second operand (must be within specified bit width)
+ * @param bits Number of bits for the operation (must be > 0)
  * @return Result of (a + b) truncated to the specified number of bits
  * @throws std::invalid_argument if bits <= 0
  */
-cpp_int fixed_width_add(const cpp_int& a, const cpp_int& b, std::size_t bits) ;
+cpp_int fixed_width_add(const cpp_int& a, const cpp_int& b, std::size_t bits);
