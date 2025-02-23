@@ -948,7 +948,7 @@ class Parser {
 			if (tok[0] != '"') {
 				throw error("expected string");
 			}
-			setConsistent(target.datalayout, unwrap(tok), "datalayout");
+			setConsistent(context::datalayout, unwrap(tok), "datalayout");
 			return;
 		}
 		if (tok == "triple") {
@@ -957,7 +957,7 @@ class Parser {
 			if (tok[0] != '"') {
 				throw error("expected string");
 			}
-			setConsistent(target.triple, unwrap(tok), "triple");
+			setConsistent(context::triple, unwrap(tok), "triple");
 			return;
 		}
 	}
