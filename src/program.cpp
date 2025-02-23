@@ -2,14 +2,14 @@
 
 struct ProgramImpl {
 	const vector<Global> globals;
-	const vector<Func> defines;
+	const vector<Func> defs;
 
-	ProgramImpl(const vector<Global>& globals, const vector<Func>& defines): globals(globals), defines(defines) {
+	ProgramImpl(const vector<Global>& globals, const vector<Func>& defs): globals(globals), defs(defs) {
 	}
 };
 
-Program::Program(const vector<Global>& globals, const vector<Func>& defines) {
-	p = new ProgramImpl(globals, defines);
+Program::Program(const vector<Global>& globals, const vector<Func>& defs) {
+	p = new ProgramImpl(globals, defs);
 }
 
 vector<Global> Program::globals() const {
@@ -17,26 +17,26 @@ vector<Global> Program::globals() const {
 }
 
 size_t Program::size() const {
-	return p->defines.size();
+	return p->defs.size();
 }
 
 Func Program::operator[](size_t i) const {
 	ASSERT(i < size());
-	return p->defines[i];
+	return p->defs[i];
 }
 
 Program::const_iterator Program::begin() const {
-	return p->defines.begin();
+	return p->defs.begin();
 }
 
 Program::const_iterator Program::end() const {
-	return p->defines.end();
+	return p->defs.end();
 }
 
 Program::const_iterator Program::cbegin() const {
-	return p->defines.cbegin();
+	return p->defs.cbegin();
 }
 
 Program::const_iterator Program::cend() const {
-	return p->defines.cend();
+	return p->defs.cend();
 }

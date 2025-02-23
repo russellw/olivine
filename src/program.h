@@ -10,7 +10,7 @@ public:
 	explicit Program(ProgramImpl* p): p(p) {
 	}
 
-	Program(const vector<Global>& globals, const vector<Func>& defines);
+	Program(const vector<Global>& globals, const vector<Func>& defs);
 
 	vector<Global> globals() const;
 

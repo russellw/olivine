@@ -473,7 +473,7 @@ class Parser {
 			return;
 		}
 		if (tok == "define") {
-			module->defines.push_back(define());
+			module->defs.push_back(define());
 			return;
 		}
 	}
