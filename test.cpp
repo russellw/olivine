@@ -4153,3 +4153,5 @@ BOOST_AUTO_TEST_CASE(MissingReturn) {
 
 	BOOST_CHECK_THROW(check(f), runtime_error);
 }
+
+#include "test.h"
