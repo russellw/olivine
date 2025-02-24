@@ -1,5 +1,0 @@
-Most of the source files are in src/*.cpp with corresponding header files src/*.h
-
-The source files in src/*.cpp do not define main(). This is defined for the optimizer program in main.cpp and for unit tests in test.cpp
-
-For now, while the project is small, simplicity and ease of maintenance are more important than compile speed. Thus, every source file includes every header file.
