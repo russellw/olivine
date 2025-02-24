@@ -33,7 +33,7 @@ test_files = glob.glob("unit-tests/*.cpp")  # Get all test files
 # Create object file targets for each source file
 obj_files = []
 for src in src_files:
-    obj = os.path.basename(src).replace(".cpp", ".obj")
+    obj = os.path.basename(src).replace(".cpp", ".o")
     obj_path = f"obj\\{obj}"
     obj_files.append(obj_path)
     # Each source file implicitly depends on headers through includes
@@ -46,7 +46,7 @@ for src in src_files:
     f.write("\n")
 
 # Add main.cpp compilation
-main_obj = "obj\\main.obj"
+main_obj = "obj\\main.o"
 f.write(f"build {main_obj}: cxx main.cpp")
 if header_files:
     f.write(" |")
@@ -66,10 +66,10 @@ f.write("\ndefault olivine.exe\n\n")
 # Create object file targets for each test file
 test_obj_files = []
 for test in test_files:
-    test_obj = os.path.basename(test).replace(".cpp", ".obj")
+    test_obj = os.path.basename(test).replace(".cpp", ".o")
     test_obj_path = f"obj\\{test_obj}"
     test_obj_files.append(test_obj_path)
-    
+
     # Each test file compilation
     f.write(f"build {test_obj_path}: cxx {test}")
     if header_files:
