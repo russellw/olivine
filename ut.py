@@ -55,7 +55,7 @@ def find_test_suites(content):
 
 def create_test_file(suite_name, suite_content, includes, output_dir):
     """Create a new test file for a suite."""
-    filename = f"{suite_name.lower()}_test.cpp"
+    filename = f"{suite_name.lower()}-tests.cpp"
     path = os.path.join(output_dir, filename)
     
     with open(path, 'w', encoding='utf-8') as f:
