@@ -69,7 +69,7 @@ def generate_ninja_build():
         f.write("\ndefault olivine.exe\n")
 
         # Add test executable build
-        test_obj = "obj\\test.obj"
+        test_obj = "obj\\unit-tests.obj"
         f.write(f"\nbuild {test_obj}: cxx unit-tests.cpp")
         if header_files:
             f.write(" | unit-tests.h")
