@@ -4,6 +4,7 @@ import os
 
 # Create obj directory if it doesn't exist
 os.makedirs("obj", exist_ok=True)
+os.makedirs("obj/unit-tests", exist_ok=True)  # Add directory for test object files
 
 # Write the ninja build file
 f = open("build.ninja", "w")
@@ -28,6 +29,7 @@ f.write("\n")
 # Get all source files
 src_files = glob.glob("src/*.cpp")
 header_files = glob.glob("src/*.h")
+test_files = glob.glob("unit-tests/*.cpp")  # Get all test files
 
 # Create object file targets for each source file
 obj_files = []
@@ -35,13 +37,11 @@ for src in src_files:
     obj = os.path.basename(src).replace(".cpp", ".obj")
     obj_path = f"obj\\{obj}"
     obj_files.append(obj_path)
-
     # Each source file implicitly depends on headers through includes
-    # We don't list headers on command line as source files
     f.write(f"build {obj_path}: cxx {src}")
     # Add headers as order-only dependencies
     if header_files:
-        f.write(" |")  # Single pipe for all order-only dependencies
+        f.write(" |")
         for header in header_files:
             f.write(f" {header}")
     f.write("\n")
@@ -62,18 +62,27 @@ for obj in obj_files:
 f.write(f" {main_obj}\n")
 
 # Add a default target
-f.write("\ndefault olivine.exe\n")
+f.write("\ndefault olivine.exe\n\n")
 
-# Add test executable build
-test_obj = "obj\\unit-tests.obj"
-f.write(f"\nbuild {test_obj}: cxx unit-tests.cpp")
-if header_files:
-    f.write(" | unit-tests.h")
-    for header in header_files:
-        f.write(f" {header}")
-f.write("\n")
+# Create object file targets for each test file
+test_obj_files = []
+for test in test_files:
+    test_obj = os.path.basename(test).replace(".cpp", ".obj")
+    test_obj_path = f"obj\\unit-tests\\{test_obj}"
+    test_obj_files.append(test_obj_path)
+    
+    # Each test file compilation
+    f.write(f"build {test_obj_path}: cxx {test}")
+    if header_files:
+        f.write(" |")
+        for header in header_files:
+            f.write(f" {header}")
+    f.write("\n")
 
+# Create the test executable target
 f.write("\nbuild test.exe: link")
-for obj in obj_files:
+for obj in obj_files:  # Include all main source objects
     f.write(f" {obj}")
-f.write(f" {test_obj}\n")
+for test_obj in test_obj_files:  # Include all test objects
+    f.write(f" {test_obj}")
+f.write("\n")
