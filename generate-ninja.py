@@ -2,7 +2,6 @@
 import glob
 import os
 
-
 # Create obj directory if it doesn't exist
 os.makedirs("obj", exist_ok=True)
 
