@@ -9,19 +9,19 @@ os.makedirs("obj", exist_ok=True)
 f = open("build.ninja", "w")
 
 # Define compiler and flags
-f.write("cxx = cl\n")
-f.write("cxxflags = /std:c++17 /nologo /c /EHsc /Isrc /I\\boost /W3 /WX\n")
+f.write("cxx = clang++\n")
+f.write("cxxflags = -std=c++17 -c -Isrc -I\\boost -Werror -Wno-switch\n")
 f.write("\n")
 
 # Define the rule for C++ compilation
 f.write("rule cxx\n")
-f.write("  command = $cxx $cxxflags /Foobj\\ $in\n")
+f.write("  command = $cxx $cxxflags $in -o $out\n")
 f.write("  description = CXX $out\n")
 f.write("\n")
 
 # Define the rule for linking
 f.write("rule link\n")
-f.write("  command = $cxx $in /Fe$out\n")
+f.write("  command = $cxx $in -o $out\n")
 f.write("  description = LINK $out\n")
 f.write("\n")
 
@@ -69,7 +69,7 @@ for test in test_files:
     test_obj = os.path.basename(test).replace(".cpp", ".obj")
     test_obj_path = f"obj\\{test_obj}"
     test_obj_files.append(test_obj_path)
-
+    
     # Each test file compilation
     f.write(f"build {test_obj_path}: cxx {test}")
     if header_files:

@@ -63,7 +63,7 @@ inline bool isAlnum(int c) {
 }
 
 inline bool isXDigit(int c) {
-	return isDigit(c) || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F';
+	return isDigit(c) || ('a' <= c && c <= 'f') || ('A' <= c && c <= 'F');
 }
 
 // Is the input character a valid part of an LLVM identifier?
