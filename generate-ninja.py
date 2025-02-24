@@ -70,7 +70,7 @@ for test in test_files:
     test_obj = os.path.basename(test).replace(".cpp", ".obj")
     test_obj_path = f"obj\\unit-tests\\{test_obj}"
     test_obj_files.append(test_obj_path)
-    
+
     # Each test file compilation
     f.write(f"build {test_obj_path}: cxx {test}")
     if header_files:
