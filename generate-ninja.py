@@ -4,7 +4,6 @@ import os
 
 # Create obj directory if it doesn't exist
 os.makedirs("obj", exist_ok=True)
-os.makedirs("obj/unit-tests", exist_ok=True)  # Add directory for test object files
 
 # Write the ninja build file
 f = open("build.ninja", "w")
@@ -68,7 +67,7 @@ f.write("\ndefault olivine.exe\n\n")
 test_obj_files = []
 for test in test_files:
     test_obj = os.path.basename(test).replace(".cpp", ".obj")
-    test_obj_path = f"obj\\unit-tests\\{test_obj}"
+    test_obj_path = f"obj\\{test_obj}"
     test_obj_files.append(test_obj_path)
 
     # Each test file compilation
