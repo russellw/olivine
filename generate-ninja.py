@@ -70,9 +70,9 @@ def generate_ninja_build():
 
         # Add test executable build
         test_obj = "obj\\test.obj"
-        f.write(f"\nbuild {test_obj}: cxx test.cpp")
+        f.write(f"\nbuild {test_obj}: cxx unit-tests.cpp")
         if header_files:
-            f.write(" | test.h")
+            f.write(" | unit-tests.h")
             for header in header_files:
                 f.write(f" {header}")
         f.write("\n")
