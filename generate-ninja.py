@@ -8,9 +8,6 @@ os.makedirs("obj", exist_ok=True)
 # Write the ninja build file
 f = open("build.ninja", "w")
 
-# Write build file header and global variables
-f.write("# Generated ninja build file for olivine project\n\n")
-
 # Define compiler and flags
 f.write("cxx = cl\n")
 f.write("cxxflags = /std:c++17 /nologo /c /EHsc /Isrc /I\\boost /W3 /WX\n")
