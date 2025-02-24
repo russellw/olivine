@@ -1,19 +1,7 @@
+#include "all.h"
 #define BOOST_TEST_MODULE ProgramTests
 #include <boost/test/unit_test.hpp>
 #include <vector>
-
-// Mock minimal implementations for testing
-class Global {
-public:
-    Global() {}
-    Global(Type ty, const Ref& ref) {}
-};
-
-class Fn {
-public:
-    Fn() {}
-    Fn(Type rty, const Ref& ref, const vector<Term>& params) {}
-};
 
 BOOST_AUTO_TEST_SUITE(ProgramTests)
 
