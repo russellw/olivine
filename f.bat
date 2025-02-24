@@ -1,11 +1,15 @@
+@echo off
+
 black .||exit /b
 isort .||exit /b
 
-clang-format -i --style=file *.cpp src/*.h src/*.cpp||exit /b
-sort-enums -w *.cpp src/*.h src/*.cpp||exit /b
-sort-blocks -w *.cpp src/*.h src/*.cpp||exit /b
-sort-fns-cpp -w *.cpp src/*.h src/*.cpp||exit /b
-do-all-recur . sort-cases -w||exit /b
-do-all-recur . sort-case-blocks -w||exit /b
+for /r %%f in (*.cpp *.h *.c) do (
+    clang-format -i --style=file "%%f"||exit /b
+	sort-enums -w "%%f"||exit /b
+	sort-blocks -w "%%f"||exit /b
+	sort-fns-cpp -w "%%f"||exit /b
+	sort-cases -w "%%f"||exit /b
+	sort-case-blocks -w "%%f"||exit /b
+)
 
 git diff
