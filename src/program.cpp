@@ -8,6 +8,10 @@ struct ProgramImpl {
 	}
 };
 
+Program::Program() {
+	p = new ProgramImpl({}, {});
+}
+
 Program::Program(const vector<Global>& globals, const vector<Fn>& defs) {
 	p = new ProgramImpl(globals, defs);
 }

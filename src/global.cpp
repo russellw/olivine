@@ -8,6 +8,10 @@ struct GlobalImpl {
 	}
 };
 
+Global::Global() {
+	p = new GlobalImpl(voidTy(), 0);
+}
+
 Global::Global(Type ty, const Ref& ref) {
 	p = new GlobalImpl(ty, ref);
 }
