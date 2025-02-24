@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-import os
 import glob
+import os
 
 
 def generate_ninja_build():
