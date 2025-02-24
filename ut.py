@@ -55,10 +55,10 @@ def find_test_suites(content):
 
 def create_test_file(suite_name, suite_content, includes, output_dir):
     """Create a new test file for a suite."""
-    filename = f"{suite_name.lower()}-tests.cpp"
+    filename = f"{suite_name.lower()}_test.cpp"
     path = os.path.join(output_dir, filename)
     
-    with open(path, 'w') as f:
+    with open(path, 'w', encoding='utf-8') as f:
         # Write includes
         for include in includes:
             f.write(f"{include}\n")
@@ -87,8 +87,8 @@ def main():
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    # Read input file
-    with open(args.input_file, 'r') as f:
+    # Read input file with UTF-8 encoding
+    with open(args.input_file, 'r', encoding='utf-8') as f:
         content = f.read()
     
     # Extract includes
