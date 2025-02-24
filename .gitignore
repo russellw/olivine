@@ -37,4 +37,3 @@ build.ninja
 .ninja_log
 *.ll
 __pycache__/
-ut/
