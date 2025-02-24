@@ -4529,4 +4529,4 @@ BOOST_AUTO_TEST_CASE(test_convert_to_ssa) {
 	BOOST_CHECK(foundStoreForX);
 	BOOST_CHECK(retUsesLoadForX);
 }
-#include "test.h"
+#include "unit-tests.h"
