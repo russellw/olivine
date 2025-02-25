@@ -1,6 +1,6 @@
 // Helper function to parse LLVM IR string
 #include "all.h"
-#include <boost/test/included/unit_test.hpp>
+#include <boost/test/unit_test.hpp>
 std::unique_ptr<Module> parseString(const std::string& input) {
 	return std::unique_ptr<Module>(Parser("test.ll", input).module);
 }

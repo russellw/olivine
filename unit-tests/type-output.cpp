@@ -1,6 +1,6 @@
 // Helper function to convert Type to string
 #include "all.h"
-#include <boost/test/included/unit_test.hpp>
+#include <boost/test/unit_test.hpp>
 std::string typeToString(Type ty) {
 	std::ostringstream oss;
 	oss << ty;

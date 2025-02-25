@@ -1,7 +1,5 @@
 #include "all.h"
-
-#define BOOST_TEST_MODULE Unit_Test
-#include <boost/test/included/unit_test.hpp>
+#include <boost/test/unit_test.hpp>
 
 BOOST_AUTO_TEST_CASE(BasicTypeProperties) {
 	BOOST_CHECK_EQUAL(voidTy().kind(), VoidKind);

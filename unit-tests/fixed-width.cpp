@@ -1,5 +1,5 @@
 #include "all.h"
-#include <boost/test/included/unit_test.hpp>
+#include <boost/test/unit_test.hpp>
 namespace fw = fixed_width_ops;
 
 BOOST_AUTO_TEST_SUITE(FixedWidthOpsTests)

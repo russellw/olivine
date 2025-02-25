@@ -1,7 +1,7 @@
 
 // Helper functions to create test values
 #include "all.h"
-#include <boost/test/included/unit_test.hpp>
+#include <boost/test/unit_test.hpp>
 Term makeIntVar(const string& name, size_t bits = 32) {
 	return var(intTy(bits), Ref(name));
 }

@@ -1,5 +1,5 @@
 #include "all.h"
-#include <boost/test/included/unit_test.hpp>
+#include <boost/test/unit_test.hpp>
 
 BOOST_AUTO_TEST_SUITE(FieldPtrTests)
 
