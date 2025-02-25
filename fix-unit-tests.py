@@ -212,7 +212,8 @@ def process_directory(directory):
     skip_count = 0
 
     for path in Path(directory).rglob("*.cpp"):
-        # You may want to add additional checks here to confirm it's a unit test file
+        if str(path) == r"unit-tests\main.cpp":
+            continue
         if fix_unit_test_file(path):
             success_count += 1
         else:
