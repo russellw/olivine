@@ -6,7 +6,7 @@ BOOST_AUTO_TEST_SUITE(CallTests)
 
 BOOST_AUTO_TEST_CASE(call_no_args) {
 	Type returnType = intTy(32);
-	Term func = var(funcTy(returnType, {}), Ref("main"));
+	Term func = var(fnTy(returnType, {}), Ref("main"));
 	vector<Term> emptyArgs;
 
 	Term result = call(returnType, func, emptyArgs);
@@ -22,7 +22,7 @@ BOOST_AUTO_TEST_CASE(call_with_args) {
 	Type paramType = intTy(32);
 	vector<Type> paramTypes{paramType, paramType};
 
-	Term func = var(funcTy(returnType, paramTypes), Ref("add"));
+	Term func = var(fnTy(returnType, paramTypes), Ref("add"));
 	Term arg1 = intConst(paramType, cpp_int(1));
 	Term arg2 = intConst(paramType, cpp_int(2));
 	vector<Term> args{arg1, arg2};
@@ -40,7 +40,7 @@ BOOST_AUTO_TEST_CASE(call_with_args) {
 BOOST_AUTO_TEST_CASE(call_preserves_args) {
 	Type returnType = intTy(32);
 	Type paramType = intTy(32);
-	Term func = var(funcTy(returnType, {paramType}), Ref("inc"));
+	Term func = var(fnTy(returnType, {paramType}), Ref("inc"));
 
 	vector<Term> originalArgs{intConst(paramType, cpp_int(42))};
 	vector<Term> argsCopy = originalArgs;
@@ -52,7 +52,7 @@ BOOST_AUTO_TEST_CASE(call_preserves_args) {
 
 BOOST_AUTO_TEST_CASE(call_void_return) {
 	Type vTy = voidTy();
-	Term func = var(funcTy(vTy, {}), Ref("exit"));
+	Term func = var(fnTy(vTy, {}), Ref("exit"));
 	vector<Term> emptyArgs;
 
 	Term result = call(vTy, func, emptyArgs);

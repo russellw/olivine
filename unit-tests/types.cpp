@@ -3,9 +3,9 @@
 #define BOOST_TEST_MODULE Unit_Test
 #include <boost/test/included/unit_test.hpp>
 
-Type funcTy(const vector<Type>& v) {
+Type fnTy(const vector<Type>& v) {
 	ASSERT(v.size());
-	return funcTy(v[0], tail(v));
+	return fnTy(v[0], tail(v));
 }
 
 BOOST_AUTO_TEST_CASE(BasicTypeProperties) {
@@ -233,7 +233,7 @@ BOOST_AUTO_TEST_CASE(FuncTypeProperties) {
 		boolTy(),  // param 2
 		ptrTy()	   // param 3
 	};
-	Type func_type = funcTy(params);
+	Type func_type = fnTy(params);
 
 	// Check kind
 	BOOST_CHECK_EQUAL(func_type.kind(), FuncKind);
@@ -251,7 +251,7 @@ BOOST_AUTO_TEST_CASE(FuncTypeProperties) {
 
 	// Test function with no parameters (just return type)
 	vector<Type> void_return = {voidTy()};
-	Type void_func = funcTy(void_return);
+	Type void_func = fnTy(void_return);
 	BOOST_CHECK_EQUAL(void_func.kind(), FuncKind);
 	BOOST_CHECK_EQUAL(void_func.size(), 1);
 	BOOST_CHECK(void_func[0] == voidTy());
@@ -262,9 +262,9 @@ BOOST_AUTO_TEST_CASE(FuncTypeEquality) {
 	vector<Type> params2 = {intTy(32), floatTy(), boolTy()};
 	vector<Type> params3 = {intTy(32), boolTy(), floatTy()};
 
-	Type func1 = funcTy(params1);
-	Type func2 = funcTy(params2);
-	Type func3 = funcTy(params3);
+	Type func1 = fnTy(params1);
+	Type func2 = fnTy(params2);
+	Type func3 = fnTy(params3);
 
 	// Test equality of identical function types
 	BOOST_CHECK(func1 == func2);
@@ -274,7 +274,7 @@ BOOST_AUTO_TEST_CASE(FuncTypeEquality) {
 
 	// Test functions with different return types
 	vector<Type> params4 = {floatTy(), floatTy(), boolTy()};
-	Type func4 = funcTy(params4);
+	Type func4 = fnTy(params4);
 	BOOST_CHECK(func1 != func4);
 }
 
@@ -295,7 +295,7 @@ BOOST_AUTO_TEST_CASE(ComplexTypeCompositions) {
 
 	// Create a function type that uses this struct
 	vector<Type> func_params = {voidTy(), complex_struct, ptrTy()};
-	Type complex_func = funcTy(func_params);
+	Type complex_func = fnTy(func_params);
 
 	BOOST_CHECK_EQUAL(complex_func.kind(), FuncKind);
 	BOOST_CHECK_EQUAL(complex_func.size(), 3);

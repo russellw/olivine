@@ -94,14 +94,14 @@ BOOST_AUTO_TEST_CASE(NestedTupleInvalid) {
 BOOST_AUTO_TEST_CASE(NestedFunctionCallValid) {
 	// Create a function call where one argument is the result of another function call
 	vector<Type> innerParamTypes = {intTy(32), intTy(32)};
-	Type innerFuncType = funcTy(intTy(32), innerParamTypes);
+	Type innerFuncType = fnTy(intTy(32), innerParamTypes);
 	Term innerFunc = Term(GlobalRef, innerFuncType, Ref("inner_func"));
 
 	vector<Term> innerArgs = {innerFunc, makeIntTerm(32, 1), makeIntTerm(32, 2)};
 	auto innerCall = Term(Call, intTy(32), innerArgs);
 
 	vector<Type> outerParamTypes = {intTy(32)};
-	Type outerFuncType = funcTy(intTy(64), outerParamTypes);
+	Type outerFuncType = fnTy(intTy(64), outerParamTypes);
 	Term outerFunc = Term(GlobalRef, outerFuncType, Ref("outer_func"));
 
 	vector<Term> outerArgs = {outerFunc, innerCall};
@@ -113,14 +113,14 @@ BOOST_AUTO_TEST_CASE(NestedFunctionCallValid) {
 BOOST_AUTO_TEST_CASE(NestedFunctionCallInvalid) {
 	// Create nested function calls with type mismatch
 	vector<Type> innerParamTypes = {intTy(32), intTy(32)};
-	Type innerFuncType = funcTy(intTy(64), innerParamTypes); // Returns int64
+	Type innerFuncType = fnTy(intTy(64), innerParamTypes); // Returns int64
 	Term innerFunc = Term(GlobalRef, innerFuncType, Ref("inner_func"));
 
 	vector<Term> innerArgs = {innerFunc, makeIntTerm(32, 1), makeIntTerm(32, 2)};
 	auto innerCall = Term(Call, intTy(64), innerArgs);
 
 	vector<Type> outerParamTypes = {intTy(32)}; // Expects int32
-	Type outerFuncType = funcTy(intTy(64), outerParamTypes);
+	Type outerFuncType = fnTy(intTy(64), outerParamTypes);
 	Term outerFunc = Term(GlobalRef, outerFuncType, Ref("outer_func"));
 
 	vector<Term> outerArgs = {outerFunc, innerCall}; // Type mismatch
@@ -148,8 +148,8 @@ BOOST_AUTO_TEST_CASE(ComplexNestedExpressionValid) {
 
 	// Create function call
 	vector<Type> paramTypes = {intTy(32), intTy(32)};
-	Type funcType = funcTy(intTy(32), paramTypes);
-	Term func = Term(GlobalRef, funcType, Ref("func"));
+	Type fnType = fnTy(intTy(32), paramTypes);
+	Term func = Term(GlobalRef, fnType, Ref("func"));
 	Term x = Term(Var, intTy(32), Ref("x"));
 	Term y = Term(Var, intTy(32), Ref("y"));
 	vector<Term> args = {func, x, y};

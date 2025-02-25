@@ -145,9 +145,9 @@ BOOST_AUTO_TEST_CASE(TestNestedTypes) {
 BOOST_AUTO_TEST_CASE(TestFunctionType) {
 	Type returnTy = voidTy();
 	vector<Type> paramTys = {intTy(32)};
-	Type funcTy1 = funcTy(returnTy, paramTys);
+	Type fnTy1 = fnTy(returnTy, paramTys);
 
-	BOOST_CHECK_THROW(zeroVal(funcTy1), std::runtime_error);
+	BOOST_CHECK_THROW(zeroVal(fnTy1), std::runtime_error);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

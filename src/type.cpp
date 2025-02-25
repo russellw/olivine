@@ -176,7 +176,7 @@ Type structTy(const vector<Type>& fields) {
 	return Type(tyInterner.intern(p));
 }
 
-Type funcTy(Type rty, const vector<Type>& params) {
+Type fnTy(Type rty, const vector<Type>& params) {
 	for (auto param : params) {
 		ASSERT(param != voidTy());
 	}

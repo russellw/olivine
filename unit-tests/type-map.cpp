@@ -58,11 +58,11 @@ BOOST_AUTO_TEST_CASE(FuncTypeMapping) {
 
 	// Function type: int32 (float, bool)
 	std::vector<Type> params1 = {intTy(32), floatTy(), boolTy()};
-	Type func1 = funcTy(params1);
+	Type func1 = fnTy(params1);
 
 	// Same function type
 	std::vector<Type> params2 = {intTy(32), floatTy(), boolTy()};
-	Type func2 = funcTy(params2);
+	Type func2 = fnTy(params2);
 
 	typeMap[func1] = "int32 (float, bool)";
 

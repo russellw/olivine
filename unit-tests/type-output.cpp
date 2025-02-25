@@ -77,20 +77,20 @@ BOOST_AUTO_TEST_CASE(FuncTypeOutput) {
 
 	// Test function with no parameters
 	params.push_back(voidTy()); // return type
-	BOOST_CHECK_EQUAL(typeToString(funcTy(params)), "void ()");
+	BOOST_CHECK_EQUAL(typeToString(fnTy(params)), "void ()");
 
 	// Test function with basic parameters
 	params.push_back(intTy(32));
 	params.push_back(floatTy());
-	BOOST_CHECK_EQUAL(typeToString(funcTy(params)), "void (i32, float)");
+	BOOST_CHECK_EQUAL(typeToString(fnTy(params)), "void (i32, float)");
 
 	// Test function returning non-void
 	params[0] = ptrTy();
-	BOOST_CHECK_EQUAL(typeToString(funcTy(params)), "ptr (i32, float)");
+	BOOST_CHECK_EQUAL(typeToString(fnTy(params)), "ptr (i32, float)");
 
 	// Test function with complex parameter types
 	params.push_back(arrayTy(4, intTy(8)));
-	BOOST_CHECK_EQUAL(typeToString(funcTy(params)), "ptr (i32, float, [4 x i8])");
+	BOOST_CHECK_EQUAL(typeToString(fnTy(params)), "ptr (i32, float, [4 x i8])");
 }
 
 BOOST_AUTO_TEST_CASE(ComplexTypeOutput) {
@@ -104,7 +104,7 @@ BOOST_AUTO_TEST_CASE(ComplexTypeOutput) {
 	funcParams.push_back(doubleTy());
 	funcParams.push_back(arrayTy(3, floatTy()));
 
-	Type complexType = funcTy(funcParams);
+	Type complexType = fnTy(funcParams);
 
 	BOOST_CHECK_EQUAL(typeToString(complexType), "{[2 x <4 x i32>], ptr} (double, [3 x float])");
 }

@@ -137,10 +137,10 @@ BOOST_AUTO_TEST_CASE(TupleTypeMismatch) {
 BOOST_AUTO_TEST_CASE(FunctionCallValid) {
 	// Create a function type: int32(float, double)
 	vector<Type> paramTypes = {floatTy(), doubleTy()};
-	Type funcType = funcTy(intTy(32), paramTypes);
+	Type fnType = fnTy(intTy(32), paramTypes);
 
 	// Create function reference and arguments
-	Term func = Term(GlobalRef, funcType, Ref("test_func"));
+	Term func = Term(GlobalRef, fnType, Ref("test_func"));
 	Term arg1 = makeFloatTerm("1.0");
 	Term arg2 = makeDoubleTerm("2.0");
 
@@ -150,9 +150,9 @@ BOOST_AUTO_TEST_CASE(FunctionCallValid) {
 
 BOOST_AUTO_TEST_CASE(FunctionCallWrongArgCount) {
 	vector<Type> paramTypes = {floatTy(), doubleTy()};
-	Type funcType = funcTy(intTy(32), paramTypes);
+	Type fnType = fnTy(intTy(32), paramTypes);
 
-	Term func = Term(GlobalRef, funcType, Ref("test_func"));
+	Term func = Term(GlobalRef, fnType, Ref("test_func"));
 	Term arg1 = makeFloatTerm("1.0");
 
 	vector<Term> args = {func, arg1}; // Missing one argument

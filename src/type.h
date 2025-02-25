@@ -88,7 +88,7 @@ Type arrayTy(size_t len, Type element);
 Type structTy(const vector<Type>& fields);
 
 // TODO:rename
-Type funcTy(Type rty, const vector<Type>& params);
+Type fnTy(Type rty, const vector<Type>& params);
 
 inline bool isInt(Type ty) {
 	return ty.kind() == IntKind;

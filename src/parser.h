@@ -484,7 +484,7 @@ class Parser {
 		auto ref = globalRef1();
 		auto args = args1();
 		auto params = map(args, [](Term a) { return a.ty(); });
-		auto fty = funcTy(rty, params);
+		auto fty = fnTy(rty, params);
 		auto f = globalRef(fty, ref);
 		return call(rty, f, args);
 	}

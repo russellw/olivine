@@ -77,9 +77,9 @@ BOOST_AUTO_TEST_CASE(StructTypeIterators) {
 BOOST_AUTO_TEST_CASE(FuncTypeIterators) {
 	std::vector<Type> params = {intTy(32), floatTy(), ptrTy()};
 	Type rty = voidTy();
-	std::vector<Type> funcTys = params;
-	funcTys.insert(funcTys.begin(), rty);
-	Type funcT = funcTy(funcTys);
+	std::vector<Type> fnTys = params;
+	fnTys.insert(fnTys.begin(), rty);
+	Type funcT = fnTy(fnTys);
 
 	BOOST_CHECK(funcT.begin() != funcT.end());
 	BOOST_CHECK(funcT.cbegin() != funcT.cend());
