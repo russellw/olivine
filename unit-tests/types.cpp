@@ -3,11 +3,6 @@
 #define BOOST_TEST_MODULE Unit_Test
 #include <boost/test/included/unit_test.hpp>
 
-Type fnTy(const vector<Type>& v) {
-	ASSERT(v.size());
-	return fnTy(v[0], tail(v));
-}
-
 BOOST_AUTO_TEST_CASE(BasicTypeProperties) {
 	BOOST_CHECK_EQUAL(voidTy().kind(), VoidKind);
 	BOOST_CHECK_EQUAL(voidTy().size(), 0);

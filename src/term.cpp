@@ -56,6 +56,19 @@ Term ::Term(Tag tag, Type ty, const vector<Term>& v) {
 	p = new TermImpl(tag, ty, v);
 }
 
+Term::Term(Tag tag, Term a) {
+	p = new TermImpl(tag, a.ty(), {a});
+}
+
+Term::Term(Tag tag, Term a, Term b) {
+	p = new TermImpl(tag, a.ty(), {a, b});
+}
+
+Term ::Term(Tag tag, const vector<Term>& v) {
+	ASSERT(v.size());
+	p = new TermImpl(tag, v[0].ty(), v);
+}
+
 Tag Term::tag() const {
 	return p->tag;
 }
