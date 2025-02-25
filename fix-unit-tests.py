@@ -113,7 +113,8 @@ def fix_unit_test_file(file_path):
     
     if modified:
         try:
-            with open(file_path, 'w', encoding='utf-8') as f:
+            # Write with UNIX line endings (LF) even on Windows
+            with open(file_path, 'w', encoding='utf-8', newline='\n') as f:
                 f.writelines(final_lines)
             print(f"Fixed: {file_path}")
         except Exception as e:
