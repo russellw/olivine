@@ -39,7 +39,7 @@ BOOST_AUTO_TEST_CASE(ParametersIterationTest) {
 BOOST_AUTO_TEST_CASE(ArithmeticExpressionIterationTest) {
 	Term a = var(intTy(32), "a");
 	Term b = var(intTy(32), "b");
-	Term addExpr = arithmetic(Add, a, b);
+	Term addExpr = Term(Add, a, b);
 
 	// Check size
 	BOOST_CHECK_EQUAL(addExpr.size(), 2);
@@ -57,7 +57,7 @@ BOOST_AUTO_TEST_CASE(ArithmeticExpressionIterationTest) {
 BOOST_AUTO_TEST_CASE(IteratorComparisonTest) {
 	Term a = var(intTy(32), "a");
 	Term b = var(intTy(32), "b");
-	Term expr = arithmetic(Add, a, b);
+	Term expr = Term(Add, a, b);
 
 	auto it1 = expr.begin();
 	auto it2 = expr.begin();

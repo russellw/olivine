@@ -42,12 +42,6 @@ BOOST_AUTO_TEST_CASE(Variables) {
 	BOOST_CHECK(var1 != var2);
 }
 
-Term compound(Tag tag, const vector<Term>& v) {
-	ASSERT(v.size());
-	auto ty = v[0].ty();
-	return Term(tag, ty, v);
-}
-
 // Test arithmetic operations
 BOOST_AUTO_TEST_CASE(ArithmeticOperations) {
 	Type int32Type = intTy(32);
@@ -56,7 +50,7 @@ BOOST_AUTO_TEST_CASE(ArithmeticOperations) {
 
 	// Test addition
 	vector<Term> addOps = {a, b};
-	Term add = compound(Add, addOps);
+	Term add = Term(Add, addOps);
 	BOOST_CHECK_EQUAL(add.ty(), int32Type);
 	BOOST_CHECK_EQUAL(add.tag(), Add);
 	BOOST_CHECK_EQUAL(add.size(), 2);
@@ -65,7 +59,7 @@ BOOST_AUTO_TEST_CASE(ArithmeticOperations) {
 
 	// Test multiplication
 	vector<Term> mulOps = {a, b};
-	Term mul = compound(Mul, mulOps);
+	Term mul = Term(Mul, mulOps);
 	BOOST_CHECK_EQUAL(mul.ty(), int32Type);
 	BOOST_CHECK_EQUAL(mul.tag(), Mul);
 	BOOST_CHECK_EQUAL(mul.size(), 2);
@@ -74,13 +68,13 @@ BOOST_AUTO_TEST_CASE(ArithmeticOperations) {
 	Term f1 = var(floatTy(), 3);
 	Term f2 = var(floatTy(), 4);
 	vector<Term> faddOps = {f1, f2};
-	Term fadd = compound(FAdd, faddOps);
+	Term fadd = Term(FAdd, faddOps);
 	BOOST_CHECK_EQUAL(fadd.ty(), floatTy());
 	BOOST_CHECK_EQUAL(fadd.tag(), FAdd);
 
 	// Test unary operations
 	vector<Term> fnegOps = {f1};
-	Term fneg = compound(FNeg, fnegOps);
+	Term fneg = Term(FNeg, fnegOps);
 	BOOST_CHECK_EQUAL(fneg.ty(), floatTy());
 	BOOST_CHECK_EQUAL(fneg.tag(), FNeg);
 	BOOST_CHECK_EQUAL(fneg.size(), 1);

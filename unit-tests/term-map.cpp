@@ -71,9 +71,9 @@ BOOST_AUTO_TEST_CASE(CompoundTermMapping) {
 	Term a = var(intTy(32), 1);
 	Term b = var(intTy(32), 2);
 
-	Term add = arithmetic(Add, a, b);
-	Term mul = arithmetic(Mul, a, b);
-	Term add_same = arithmetic(Add, a, b); // Same as first add
+	Term add = Term(Add, a, b);
+	Term mul = Term(Mul, a, b);
+	Term add_same = Term(Add, a, b); // Same as first add
 
 	termMap[add] = "a + b";
 	termMap[mul] = "a * b";

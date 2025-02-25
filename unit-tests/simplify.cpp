@@ -36,33 +36,33 @@ BOOST_AUTO_TEST_CASE(basic_arithmetic) {
 	// Addition
 	Term a = intConst(i32, 5);
 	Term b = intConst(i32, 3);
-	Term sum = compound(Add, {a, b});
+	Term sum = Term(Add, {a, b});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, sum).intVal(), 8);
 
 	// x + 0 = x
 	Term zero = intConst(i32, 0);
-	Term addZero = compound(Add, {a, zero});
+	Term addZero = Term(Add, {a, zero});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, addZero), a);
 
 	// Subtraction
-	Term diff = compound(Sub, {a, b});
+	Term diff = Term(Sub, {a, b});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, diff).intVal(), 2);
 
 	// x - x = 0
-	Term subSelf = compound(Sub, {a, a});
+	Term subSelf = Term(Sub, {a, a});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, subSelf).intVal(), 0);
 
 	// Multiplication
-	Term prod = compound(Mul, {a, b});
+	Term prod = Term(Mul, {a, b});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, prod).intVal(), 15);
 
 	// x * 1 = x
 	Term one = intConst(i32, 1);
-	Term mulOne = compound(Mul, {a, one});
+	Term mulOne = Term(Mul, {a, one});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, mulOne), a);
 
 	// x * 0 = 0
-	Term mulZero = compound(Mul, {a, zero});
+	Term mulZero = Term(Mul, {a, zero});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, mulZero).intVal(), 0);
 }
 
@@ -75,19 +75,19 @@ BOOST_AUTO_TEST_CASE(division_and_remainder) {
 	Term zero = intConst(i32, 0);
 
 	// Unsigned division
-	Term udiv = compound(UDiv, {a, b});
+	Term udiv = Term(UDiv, {a, b});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, udiv).intVal(), 3);
 
 	// Division by zero should not be simplified
-	Term divZero = compound(UDiv, {a, zero});
+	Term divZero = Term(UDiv, {a, zero});
 	BOOST_CHECK(simplify(emptyEnv, divZero).tag() == UDiv);
 
 	// Signed division
-	Term sdiv = compound(SDiv, {a, b});
+	Term sdiv = Term(SDiv, {a, b});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, sdiv).intVal(), 3);
 
 	// Remainder
-	Term urem = compound(URem, {a, b});
+	Term urem = Term(URem, {a, b});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, urem).intVal(), 3);
 }
 
@@ -100,27 +100,27 @@ BOOST_AUTO_TEST_CASE(bitwise_operations) {
 	Term zero = intConst(i32, 0);
 
 	// AND
-	Term andOp = compound(And, {a, b});
+	Term andOp = Term(And, {a, b});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, andOp).intVal(), 0b1000);
 
 	// x & 0 = 0
-	Term andZero = compound(And, {a, zero});
+	Term andZero = Term(And, {a, zero});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, andZero).intVal(), 0);
 
 	// OR
-	Term orOp = compound(Or, {a, b});
+	Term orOp = Term(Or, {a, b});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, orOp).intVal(), 0b1110);
 
 	// x | 0 = x
-	Term orZero = compound(Or, {a, zero});
+	Term orZero = Term(Or, {a, zero});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, orZero), a);
 
 	// XOR
-	Term xorOp = compound(Xor, {a, b});
+	Term xorOp = Term(Xor, {a, b});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, xorOp).intVal(), 0b0110);
 
 	// x ^ x = 0
-	Term xorSelf = compound(Xor, {a, a});
+	Term xorSelf = Term(Xor, {a, a});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, xorSelf).intVal(), 0);
 }
 
@@ -133,20 +133,20 @@ BOOST_AUTO_TEST_CASE(shift_operations) {
 	Term shiftTooLarge = intConst(i32, 33); // Larger than type size
 
 	// Logical left shift
-	Term shl = compound(Shl, {a, shift2});
+	Term shl = Term(Shl, {a, shift2});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, shl).intVal(), 0b110000);
 
 	// Invalid shift amount should not be simplified
-	Term shlInvalid = compound(Shl, {a, shiftTooLarge});
+	Term shlInvalid = Term(Shl, {a, shiftTooLarge});
 	BOOST_CHECK(simplify(emptyEnv, shlInvalid).tag() == Shl);
 
 	// Logical right shift
-	Term lshr = compound(LShr, {a, shift2});
+	Term lshr = Term(LShr, {a, shift2});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, lshr).intVal(), 0b11);
 
 	// Arithmetic right shift (with sign bit)
 	Term negative = intConst(i32, -16); // 0xFFFFFFF0 in two's complement
-	Term ashr = compound(AShr, {negative, shift2});
+	Term ashr = Term(AShr, {negative, shift2});
 	Term result = simplify(emptyEnv, ashr);
 	BOOST_CHECK(result.intVal() < 0); // Should preserve sign
 	BOOST_CHECK_EQUAL(result.intVal(), -4);
@@ -183,13 +183,13 @@ BOOST_AUTO_TEST_CASE(floating_point_operations) {
 	Term a = floatConst(floatTy(), "3.14");
 	Term b = floatConst(floatTy(), "2.0");
 
-	Term fadd = compound(FAdd, {a, b});
+	Term fadd = Term(FAdd, {a, b});
 	BOOST_CHECK(simplify(emptyEnv, fadd).tag() == FAdd);
 
-	Term fmul = compound(FMul, {a, b});
+	Term fmul = Term(FMul, {a, b});
 	BOOST_CHECK(simplify(emptyEnv, fmul).tag() == FMul);
 
-	Term fneg = compound(FNeg, {a});
+	Term fneg = Term(FNeg, {a});
 	BOOST_CHECK(simplify(emptyEnv, fneg).tag() == FNeg);
 }
 
@@ -203,9 +203,9 @@ BOOST_AUTO_TEST_CASE(complex_expressions) {
 	Term c = intConst(i32, 10);
 	Term d = intConst(i32, 4);
 
-	Term sum = compound(Add, {a, b});		   // 5 + 3
-	Term diff = compound(Sub, {c, d});		   // 10 - 4
-	Term product = compound(Mul, {sum, diff}); // (5 + 3) * (10 - 4)
+	Term sum = Term(Add, {a, b});		   // 5 + 3
+	Term diff = Term(Sub, {c, d});		   // 10 - 4
+	Term product = Term(Mul, {sum, diff}); // (5 + 3) * (10 - 4)
 
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, product).intVal(), 48); // (8 * 6)
 }
@@ -220,54 +220,54 @@ BOOST_AUTO_TEST_CASE(same_component_simplifications) {
 	Term y = var(i32, 2);
 
 	// x - x = 0
-	Term subSelf = compound(Sub, {x, x});
+	Term subSelf = Term(Sub, {x, x});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, subSelf).intVal(), 0);
 
 	// y - y = 0 (using different variable)
-	Term subSelfY = compound(Sub, {y, y});
+	Term subSelfY = Term(Sub, {y, y});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, subSelfY).intVal(), 0);
 
 	// x ^ x = 0
-	Term xorSelf = compound(Xor, {x, x});
+	Term xorSelf = Term(Xor, {x, x});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, xorSelf).intVal(), 0);
 
 	// x & x = x
-	Term andSelf = compound(And, {x, x});
+	Term andSelf = Term(And, {x, x});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, andSelf), x);
 
 	// x | x = x
-	Term orSelf = compound(Or, {x, x});
+	Term orSelf = Term(Or, {x, x});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, orSelf), x);
 
 	// Nested cases to ensure simplification happens even when subexpressions don't change
 	// (x & y) - (x & y) = 0
-	Term complex1 = compound(And, {x, y});
-	Term subComplex = compound(Sub, {complex1, complex1});
+	Term complex1 = Term(And, {x, y});
+	Term subComplex = Term(Sub, {complex1, complex1});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, subComplex).intVal(), 0);
 
 	// (x | y) ^ (x | y) = 0
-	Term complex2 = compound(Or, {x, y});
-	Term xorComplex = compound(Xor, {complex2, complex2});
+	Term complex2 = Term(Or, {x, y});
+	Term xorComplex = Term(Xor, {complex2, complex2});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, xorComplex).intVal(), 0);
 
 	// Test with constants to ensure the same-component rules take precedence
 	// even when components are constants
 	Term c = intConst(i32, 42);
-	Term subConst = compound(Sub, {c, c});
+	Term subConst = Term(Sub, {c, c});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, subConst).intVal(), 0);
 
 	// Multiple levels of nesting
 	// ((x & y) | (x & y)) = (x & y)
-	Term nested1 = compound(And, {x, y});
-	Term orNested = compound(Or, {nested1, nested1});
+	Term nested1 = Term(And, {x, y});
+	Term orNested = Term(Or, {nested1, nested1});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, orNested), nested1);
 
 	// More complex expressions that should still simplify
 	// (x & x & x) = x
-	Term multiAnd = compound(And, {compound(And, {x, x}), x});
+	Term multiAnd = Term(And, {Term(And, {x, x}), x});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, multiAnd), x);
 
 	// (x | (x | x)) = x
-	Term multiOr = compound(Or, {x, compound(Or, {x, x})});
+	Term multiOr = Term(Or, {x, Term(Or, {x, x})});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, multiOr), x);
 }

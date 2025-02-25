@@ -150,6 +150,12 @@ public:
 	Term(Tag tag, Type ty, Term a, Term b, Term c);
 	Term(Tag tag, Type ty, const vector<Term>& v);
 
+	// Arithmetic and logic terms generally take the type of the first operand
+	// in which case it doesn't need to be explicitly specified
+	Term(Tag tag, Term a);
+	Term(Tag tag, Term a, Term b);
+	Term(Tag tag, const vector<Term>& v);
+
 	// Every term has a tag and type
 	Tag tag() const;
 	Type ty() const;

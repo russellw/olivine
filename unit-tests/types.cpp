@@ -3,14 +3,6 @@
 #define BOOST_TEST_MODULE Unit_Test
 #include <boost/test/included/unit_test.hpp>
 
-Term arithmetic(Tag tag, Term a) {
-	return Term(tag, a.ty(), a);
-}
-
-Term arithmetic(Tag tag, Term a, Term b) {
-	return Term(tag, a.ty(), a, b);
-}
-
 Type funcTy(const vector<Type>& v) {
 	ASSERT(v.size());
 	return funcTy(v[0], tail(v));
