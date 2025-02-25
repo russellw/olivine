@@ -1,4 +1,6 @@
 // Test suite for call function
+#include "all.h"
+#include <boost/test/included/unit_test.hpp>
 BOOST_AUTO_TEST_SUITE(CallTests)
 
 BOOST_AUTO_TEST_CASE(call_no_args) {

@@ -1,4 +1,6 @@
 // Test suite for cons function
+#include "all.h"
+#include <boost/test/included/unit_test.hpp>
 BOOST_AUTO_TEST_SUITE(ConsTests)
 
 BOOST_AUTO_TEST_CASE(cons_empty_vector) {

@@ -33,86 +33,96 @@ def fix_unit_test_file(file_path):
         print(f"Error reading file {file_path}: {e}")
         return False
     
-    # Track if we need to modify the file
-    modified = False
+    # Make a copy of the original lines for change detection
+    original_lines = lines.copy()
     
     # Find first non-blank, non-comment line
     first_code_line_idx = 0
     while first_code_line_idx < len(lines) and is_comment_or_blank(lines[first_code_line_idx]):
         first_code_line_idx += 1
     
-    # Check for "all.h" include
+    if first_code_line_idx >= len(lines):
+        print(f"No code found in {file_path}")
+        return True  # Empty file, nothing to fix
+    
+    # Step 1: Handle "all.h" include - it must be the first non-comment line
     all_h_include = '#include "all.h"\n'
-    has_all_h = False
-    all_h_idx = -1
     
-    for i, line in enumerate(lines):
-        if all_h_include in line:
-            has_all_h = True
-            all_h_idx = i
-            break
-    
-    # Add "all.h" if missing or not the first non-comment line
-    if not has_all_h or all_h_idx != first_code_line_idx:
-        if has_all_h:
-            # Remove existing all.h include
-            lines.pop(all_h_idx)
-            if all_h_idx < first_code_line_idx:
-                first_code_line_idx -= 1
+    # Check if all.h is already the first non-comment line
+    if not (first_code_line_idx < len(lines) and all_h_include in lines[first_code_line_idx]):
+        # Remove any existing all.h include
+        lines = [line for line in lines if all_h_include not in line]
+        
+        # Recalculate first_code_line_idx after removal
+        first_code_line_idx = 0
+        while first_code_line_idx < len(lines) and is_comment_or_blank(lines[first_code_line_idx]):
+            first_code_line_idx += 1
         
         # Insert all.h as first non-comment line
-        lines.insert(first_code_line_idx, all_h_include)
-        modified = True
-        # Adjust indices for any following operations since we added a line
-        first_code_line_idx += 1
+        if first_code_line_idx < len(lines):
+            lines.insert(first_code_line_idx, all_h_include)
+        else:
+            # Empty file after removing comments, add at the end
+            lines.append(all_h_include)
+            first_code_line_idx = len(lines) - 1
     
-    # Check for boost test includes
+    # Step 2: Handle boost includes
     boost_header_only = '#include <boost/test/included/unit_test.hpp>\n'
     boost_regular = '#include <boost/test/unit_test.hpp>\n'
     
+    # Remove any existing boost regular include
+    lines = [line for line in lines if boost_regular not in line]
+    
+    # Check if boost header-only is already present
     has_boost_header_only = any(boost_header_only in line for line in lines)
-    boost_regular_idx = -1
     
-    for i, line in enumerate(lines):
-        if boost_regular in line:
-            boost_regular_idx = i
-            break
-    
-    # Fix boost includes
     if not has_boost_header_only:
-        if boost_regular_idx >= 0:
-            # Replace regular boost include with header-only version
-            lines[boost_regular_idx] = boost_header_only
-            modified = True
-        else:
-            # Find the right location to insert the boost include
-            # It should come after all.h but before any test code starts
-            
-            # First, look for a good position by scanning for test-related lines
-            insert_position = first_code_line_idx + 1  # Default position right after all.h
-            
-            # Find the last include line to insert after that
-            for i in range(first_code_line_idx + 1, len(lines)):
-                line = lines[i].strip()
-                if line.startswith('#include'):
-                    insert_position = i + 1  # Insert after the last include
-                
-                # Don't insert after test code has started
-                if 'BOOST_AUTO_TEST' in line or 'BOOST_TEST' in line:
-                    break
-            
-            lines.insert(insert_position, boost_header_only)
-            modified = True
+        # We need to add the boost header-only include
+        # Find where the first Boost test code or test suite starts
+        test_code_idx = len(lines)
+        for i, line in enumerate(lines):
+            if (line.strip().startswith('BOOST_') or 
+                'BOOST_AUTO_TEST' in line or 
+                'BOOST_TEST' in line or 
+                'test_suite' in line.lower()):
+                test_code_idx = i
+                break
+        
+        # Find the proper position to insert (after all.h but before test code)
+        # Start right after all.h
+        insert_position = first_code_line_idx + 1
+        
+        # Find the last include before test code
+        for i in range(first_code_line_idx + 1, test_code_idx):
+            if lines[i].strip().startswith('#include'):
+                insert_position = i + 1
+        
+        # Insert the boost header at the determined position
+        lines.insert(insert_position, boost_header_only)
     
-    # Remove redundant standard library includes
-    i = 0
-    while i < len(lines):
-        line = lines[i]
+    # Step 3: Remove redundant standard library includes
+    final_lines = []
+    for line in lines:
+        # Skip standard library includes
         if any(f'#include {header}' in line for header in STD_HEADERS):
-            lines.pop(i)
-            modified = True
-        else:
-            i += 1
+            continue
+        final_lines.append(line)
+    
+    # Check if anything changed
+    modified = original_lines != final_lines
+    
+    if modified:
+        try:
+            with open(file_path, 'w') as f:
+                f.writelines(final_lines)
+            print(f"Fixed: {file_path}")
+        except Exception as e:
+            print(f"Error writing to file {file_path}: {e}")
+            return False
+    else:
+        print(f"No changes needed: {file_path}")
+    
+    return True
     
     # Save changes if modified
     if modified:

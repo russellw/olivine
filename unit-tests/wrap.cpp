@@ -1,3 +1,5 @@
+#include "all.h"
+#include <boost/test/included/unit_test.hpp>
 BOOST_AUTO_TEST_SUITE(WrapTests)
 
 // Test valid identifiers that shouldn't need quotes

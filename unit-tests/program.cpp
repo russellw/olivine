@@ -1,7 +1,6 @@
 #include "all.h"
 #define BOOST_TEST_MODULE ProgramTests
 #include <boost/test/included/unit_test.hpp>
-#include <vector>
 
 BOOST_AUTO_TEST_SUITE(ProgramTests)
 

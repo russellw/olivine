@@ -1,3 +1,5 @@
+#include "all.h"
+#include <boost/test/included/unit_test.hpp>
 BOOST_AUTO_TEST_SUITE(TermChecker)
 
 // Helper functions to create common test terms

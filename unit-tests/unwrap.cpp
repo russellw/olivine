@@ -1,4 +1,6 @@
 // Test basic identifier without any special characters
+#include "all.h"
+#include <boost/test/included/unit_test.hpp>
 BOOST_AUTO_TEST_CASE(BasicIdentifier) {
 	BOOST_CHECK_EQUAL(unwrap("identifier"), "identifier");
 	BOOST_CHECK_EQUAL(unwrap("abc123"), "abc123");

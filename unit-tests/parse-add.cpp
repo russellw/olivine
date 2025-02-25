@@ -1,4 +1,6 @@
 
+#include "all.h"
+#include <boost/test/included/unit_test.hpp>
 Term createMockVar(const string& name) {
 	return var(floatTy(), name);
 }

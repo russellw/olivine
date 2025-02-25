@@ -1,4 +1,6 @@
 // Helper function to create a cpp_int with specific bits set
+#include "all.h"
+#include <boost/test/included/unit_test.hpp>
 cpp_int create_test_number(const std::vector<size_t>& set_bits) {
 	cpp_int result = 0;
 	for (size_t bit : set_bits) {
