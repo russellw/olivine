@@ -69,3 +69,46 @@ def clang(
             file=sys.stderr,
         )
         sys.exit(1)
+
+
+def olivine(args="a.ll"):
+    """
+    Run the 'olivine' executable located two directories above the script's location.
+
+    Args:
+        args: List of command-line arguments to pass to olivine
+
+    Returns:
+        CompletedProcess instance with return code, stdout, and stderr
+
+    Raises:
+        FileNotFoundError: If olivine executable is not found
+        PermissionError: If olivine is not executable
+        subprocess.CalledProcessError: If olivine returns a non-zero exit code
+    """
+    # Get the directory where the script is located (not the current working directory)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # Navigate two directories up to find olivine
+    olivine_dir = os.path.normpath(os.path.join(script_dir, "..", ".."))
+    olivine_path = os.path.join(olivine_dir, "olivine.exe")
+
+    # Make sure the executable exists
+    if not os.path.isfile(olivine_path):
+        raise FileNotFoundError(
+            f"The olivine executable was not found at {olivine_path}"
+        )
+
+    # Make sure it's executable
+    if not os.access(olivine_path, os.X_OK):
+        raise PermissionError(
+            f"The olivine executable at {olivine_path} is not executable"
+        )
+
+    # Execute the program with any provided arguments
+    cmd = [olivine_path]
+    if args:
+        cmd.extend(args)
+
+    # Run the process and check return code (will raise CalledProcessError if return code is non-zero)
+    return subprocess.run(cmd, capture_output=True, text=True, check=True)
