@@ -1,5 +1,6 @@
 #include "all.h"
 #include <boost/test/included/unit_test.hpp>
+
 BOOST_AUTO_TEST_CASE(basic_match) {
 	BOOST_TEST(containsAt("Hello World", 6, "World") == true);
 }

@@ -74,7 +74,14 @@ def fix_unit_test_file(file_path):
     lines = [line for line in lines if boost_regular not in line]
     
     # Check if boost header-only is already present
-    has_boost_header_only = any(boost_header_only in line for line in lines)
+    has_boost_header_only = False
+    boost_header_idx = -1
+    
+    for i, line in enumerate(lines):
+        if boost_header_only in line:
+            has_boost_header_only = True
+            boost_header_idx = i
+            break
     
     if not has_boost_header_only:
         # We need to add the boost header-only include
@@ -99,6 +106,14 @@ def fix_unit_test_file(file_path):
         
         # Insert the boost header at the determined position
         lines.insert(insert_position, boost_header_only)
+        boost_header_idx = insert_position
+    
+    # Step 3: Ensure there's a blank line after boost header if followed by any BOOST test code
+    if boost_header_idx >= 0 and boost_header_idx + 1 < len(lines):
+        next_line = lines[boost_header_idx + 1].strip()
+        if next_line.startswith('BOOST_AUTO_TEST_CASE') or next_line.startswith('BOOST_AUTO_TEST_SUITE'):
+            # Insert a blank line between boost include and test code
+            lines.insert(boost_header_idx + 1, '\n')
     
     # Step 3: Remove redundant standard library includes
     final_lines = []

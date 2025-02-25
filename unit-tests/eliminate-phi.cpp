@@ -1,5 +1,6 @@
 #include "all.h"
 #include <boost/test/included/unit_test.hpp>
+
 BOOST_AUTO_TEST_SUITE(PhiEliminationTests)
 
 // Helper function to create a simple function with phi nodes

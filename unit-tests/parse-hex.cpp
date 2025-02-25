@@ -1,5 +1,6 @@
 #include "all.h"
 #include <boost/test/included/unit_test.hpp>
+
 BOOST_AUTO_TEST_CASE(test_basic_parsing) {
 	std::string input = "1A2B3C";
 	size_t pos = 0;

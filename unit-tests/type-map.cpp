@@ -1,5 +1,6 @@
 #include "all.h"
 #include <boost/test/included/unit_test.hpp>
+
 BOOST_AUTO_TEST_CASE(BasicTypeMapping) {
 	std::unordered_map<Type, int> typeMap;
 

@@ -1,6 +1,7 @@
 // Test construction and basic properties of constants
 #include "all.h"
 #include <boost/test/included/unit_test.hpp>
+
 BOOST_AUTO_TEST_CASE(ConstantTerms) {
 	// Test boolean constants
 	BOOST_CHECK_EQUAL(trueConst.ty(), boolTy());

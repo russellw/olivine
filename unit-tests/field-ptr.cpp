@@ -1,5 +1,6 @@
 #include "all.h"
 #include <boost/test/included/unit_test.hpp>
+
 BOOST_AUTO_TEST_SUITE(FieldPtrTests)
 
 // Test accessing first field of a simple struct

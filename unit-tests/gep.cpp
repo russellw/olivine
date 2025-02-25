@@ -1,5 +1,6 @@
 #include "all.h"
 #include <boost/test/included/unit_test.hpp>
+
 BOOST_AUTO_TEST_SUITE(GetElementPtrTests)
 
 // Test GEP on a simple array type

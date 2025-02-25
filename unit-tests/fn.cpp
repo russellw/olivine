@@ -1,5 +1,6 @@
 #include "all.h"
 #include <boost/test/included/unit_test.hpp>
+
 BOOST_AUTO_TEST_SUITE(FuncOperatorTests)
 
 // Helper function to get string output of a Func
