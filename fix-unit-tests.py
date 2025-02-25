@@ -225,8 +225,8 @@ def process_directory(directory):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python fix_unit_tests.py <directory>")
+    if len(sys.argv) > 1:
+        print("Usage: python fix-unit-tests.py")
         print("\nThis script will:")
         print('  1. Ensure #include "all.h" is the first non-blank, non-comment line')
         print("  2. Remove redundant standard library includes")
@@ -237,7 +237,7 @@ if __name__ == "__main__":
         print("  5. Maintain UTF-8 encoding and UNIX line endings")
         sys.exit(1)
 
-    directory = sys.argv[1]
+    directory = "unit-tests"
     if not os.path.isdir(directory):
         print(f"Error: {directory} is not a valid directory")
         sys.exit(1)
