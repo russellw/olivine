@@ -85,9 +85,23 @@ def fix_unit_test_file(file_path):
             lines[boost_regular_idx] = boost_header_only
             modified = True
         else:
-            # Add header-only boost include after all.h
-            include_idx = first_code_line_idx
-            lines.insert(include_idx + 1, boost_header_only)
+            # Find the right location to insert the boost include
+            # It should come after all.h but before any test code starts
+            
+            # First, look for a good position by scanning for test-related lines
+            insert_position = first_code_line_idx + 1  # Default position right after all.h
+            
+            # Find the last include line to insert after that
+            for i in range(first_code_line_idx + 1, len(lines)):
+                line = lines[i].strip()
+                if line.startswith('#include'):
+                    insert_position = i + 1  # Insert after the last include
+                
+                # Don't insert after test code has started
+                if 'BOOST_AUTO_TEST' in line or 'BOOST_TEST' in line:
+                    break
+            
+            lines.insert(insert_position, boost_header_only)
             modified = True
     
     # Remove redundant standard library includes
@@ -143,4 +157,3 @@ if __name__ == "__main__":
         sys.exit(1)
     
     process_directory(directory)
-	
