@@ -4,13 +4,13 @@ import os
 from typing import List, Optional, Union
 
 
-def run_clang(args: List[str], cwd: Optional[str] = None, 
+def clang(args: Union[List[str], str], cwd: Optional[str] = None, 
               capture_output: bool = False) -> Union[subprocess.CompletedProcess, None]:
     """
     Run clang with the given arguments and fail the whole process if compilation fails.
     
     Args:
-        args: List of arguments to pass to clang
+        args: List of arguments or a single string with space-separated arguments to pass to clang
         cwd: Working directory for clang (optional)
         capture_output: Whether to capture stdout/stderr (default: False)
     
@@ -22,8 +22,14 @@ def run_clang(args: List[str], cwd: Optional[str] = None,
         SystemExit: If clang process fails
     """
     try:
+        # Convert string arguments to list if needed
+        if isinstance(args, str):
+            args_list = args.split()
+        else:
+            args_list = args
+            
         # Construct the command: 'clang' followed by all arguments
-        cmd = ['clang'] + args
+        cmd = ['clang'] + args_list
         
         print(f"Running: {' '.join(cmd)}")
         
@@ -57,23 +63,4 @@ def run_clang(args: List[str], cwd: Optional[str] = None,
     except FileNotFoundError:
         print("Error: 'clang' executable not found. Make sure it's installed and in your PATH.", 
               file=sys.stderr)
-        sys.exit(1)
-
-
-# Example usage:
-if __name__ == "__main__":
-    # Example 1: Compile a simple program
-    # run_clang(['-c', 'hello.c', '-o', 'hello.o'])
-    
-    # Example 2: Compile with specific flags and capture output
-    # result = run_clang(['-O2', '-Wall', '-c', 'complex.c', '-o', 'complex.o'], 
-    #                   capture_output=True)
-    # if result:
-    #     print(f"Compilation successful. Warnings:\n{result.stderr}")
-    
-    # Example 3: Run clang with arguments from command line
-    if len(sys.argv) > 1:
-        run_clang(sys.argv[1:])
-    else:
-        print("Usage: python clang_runner.py [clang arguments]")
         sys.exit(1)
