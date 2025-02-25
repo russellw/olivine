@@ -10,7 +10,7 @@ os.makedirs("obj/tests", exist_ok=True)  # New directory for test object files
 f = open("build.ninja", "w")
 
 # Define compiler and flags
-f.write("cxx = clang++\n")
+f.write("cxx = clang\n")
 f.write("cxxflags = -std=c++17 -c -Isrc -I\\boost -Werror -Wno-switch\n")
 f.write("\n")
 
