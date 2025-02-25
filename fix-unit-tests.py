@@ -27,7 +27,7 @@ def is_comment_or_blank(line):
 def fix_unit_test_file(file_path):
     """Fix a unit test file to ensure proper includes."""
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, 'r', encoding='utf-8') as f:
             lines = f.readlines()
     except Exception as e:
         print(f"Error reading file {file_path}: {e}")
@@ -113,7 +113,7 @@ def fix_unit_test_file(file_path):
     
     if modified:
         try:
-            with open(file_path, 'w') as f:
+            with open(file_path, 'w', encoding='utf-8') as f:
                 f.writelines(final_lines)
             print(f"Fixed: {file_path}")
         except Exception as e:
