@@ -5,4 +5,6 @@ extern string datalayout;
 extern string triple;
 
 extern vector<Fn> decls;
+
+void clear();
 } // namespace context
