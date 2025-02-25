@@ -157,7 +157,6 @@ Type ptrTy() {
 }
 
 Type vecTy(size_t len, Type element) {
-	// TODO
 	ASSERT(element != voidTy());
 	auto p = new TypeImpl(VecKind, len, element);
 	return Type(tyInterner.intern(p));
@@ -178,13 +177,14 @@ Type structTy(const vector<Type>& fields) {
 }
 
 Type fnTy(const vector<Type>& v) {
+	ASSERT(v.size());
+	for (size_t i = 1; i != v.size(); ++i) {
+		ASSERT(v[i] != voidTy());
+	}
 	auto p = new TypeImpl(FuncKind, v);
 	return Type(tyInterner.intern(p));
 }
 
 Type fnTy(Type rty, const vector<Type>& params) {
-	for (auto param : params) {
-		ASSERT(param != voidTy());
-	}
 	return fnTy(cons(rty, params));
 }
