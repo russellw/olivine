@@ -2,8 +2,9 @@
 import glob
 import os
 
-# Create obj directory if it doesn't exist
+# Create obj directories if they don't exist
 os.makedirs("obj", exist_ok=True)
+os.makedirs("obj/tests", exist_ok=True)  # New directory for test object files
 
 # Write the ninja build file
 f = open("build.ninja", "w")
@@ -67,7 +68,7 @@ f.write("\ndefault olivine.exe\n\n")
 test_obj_files = []
 for test in test_files:
     test_obj = os.path.basename(test).replace(".cpp", ".o")
-    test_obj_path = f"obj\\{test_obj}"
+    test_obj_path = f"obj\\tests\\{test_obj}"  # Put test objects in obj/tests directory
     test_obj_files.append(test_obj_path)
 
     # Each test file compilation
