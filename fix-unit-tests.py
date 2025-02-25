@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 """
 Script to fix C++ unit test files to ensure proper includes for boost testing.
+
+This script:
+1. Ensures #include "all.h" is the first non-blank non-comment line
+2. Removes redundant standard library headers (since they're in all.h)
+3. Ensures #include <boost/test/unit_test.hpp> is present before any test code
+4. Adds a blank line between the boost include and any BOOST_AUTO_TEST_* macros
+5. Maintains UTF-8 encoding and UNIX line endings
 """
 
 import os
@@ -110,24 +117,20 @@ def fix_unit_test_file(file_path):
             first_code_line_idx = len(lines) - 1
 
     # Step 2: Handle boost includes
-    boost_header_only = "#include <boost/test/included/unit_test.hpp>\n"
-    boost_regular = "#include <boost/test/unit_test.hpp>\n"
+    boost_include = "#include <boost/test/unit_test.hpp>\n"
 
-    # Remove any existing boost regular include
-    lines = [line for line in lines if boost_regular not in line]
-
-    # Check if boost header-only is already present
-    has_boost_header_only = False
-    boost_header_idx = -1
+    # Check if boost include is already present
+    has_boost_include = False
+    boost_include_idx = -1
 
     for i, line in enumerate(lines):
-        if boost_header_only in line:
-            has_boost_header_only = True
-            boost_header_idx = i
+        if boost_include in line:
+            has_boost_include = True
+            boost_include_idx = i
             break
 
-    if not has_boost_header_only:
-        # We need to add the boost header-only include
+    if not has_boost_include:
+        # We need to add the boost include
         # Find where the first Boost test code or test suite starts
         test_code_idx = len(lines)
         for i, line in enumerate(lines):
@@ -150,17 +153,17 @@ def fix_unit_test_file(file_path):
                 insert_position = i + 1
 
         # Insert the boost header at the determined position
-        lines.insert(insert_position, boost_header_only)
-        boost_header_idx = insert_position
+        lines.insert(insert_position, boost_include)
+        boost_include_idx = insert_position
 
     # Step 3: Ensure there's a blank line after boost header if followed by any BOOST test code
-    if boost_header_idx >= 0 and boost_header_idx + 1 < len(lines):
-        next_line = lines[boost_header_idx + 1].strip()
+    if boost_include_idx >= 0 and boost_include_idx + 1 < len(lines):
+        next_line = lines[boost_include_idx + 1].strip()
         if next_line.startswith("BOOST_AUTO_TEST_CASE") or next_line.startswith(
             "BOOST_AUTO_TEST_SUITE"
         ):
             # Insert a blank line between boost include and test code
-            lines.insert(boost_header_idx + 1, "\n")
+            lines.insert(boost_include_idx + 1, "\n")
 
     # Step 3: Remove redundant standard library includes
     final_lines = []
@@ -224,6 +227,14 @@ def process_directory(directory):
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python fix_unit_tests.py <directory>")
+        print("\nThis script will:")
+        print('  1. Ensure #include "all.h" is the first non-blank, non-comment line')
+        print("  2. Remove redundant standard library includes")
+        print(
+            "  3. Ensure #include <boost/test/unit_test.hpp> is present before test code"
+        )
+        print("  4. Add a blank line between the boost include and test code")
+        print("  5. Maintain UTF-8 encoding and UNIX line endings")
         sys.exit(1)
 
     directory = sys.argv[1]
