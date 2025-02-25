@@ -311,7 +311,7 @@ BOOST_AUTO_TEST_CASE(ComplexTypeCompositions) {
 	BOOST_CHECK(complex_func[1] == complex_struct);
 	BOOST_CHECK(complex_func[2] == ptrTy());
 }
-
+--types.cpp
 // Test construction and basic properties of constants
 BOOST_AUTO_TEST_CASE(ConstantTerms) {
 	// Test boolean constants
@@ -416,7 +416,7 @@ BOOST_AUTO_TEST_CASE(TermEquality) {
 	BOOST_CHECK(var1 == var2);
 	BOOST_CHECK(var1 != var3);
 }
-
+--terms.cpp
 // Helper function to convert Type to string
 std::string typeToString(Type ty) {
 	std::ostringstream oss;
@@ -525,7 +525,7 @@ BOOST_AUTO_TEST_CASE(ComplexTypeOutput) {
 
 	BOOST_CHECK_EQUAL(typeToString(complexType), "{[2 x <4 x i32>], ptr} (double, [3 x float])");
 }
-
+--type-output.cpp
 BOOST_AUTO_TEST_CASE(BasicTypeMapping) {
 	std::unordered_map<Type, int> typeMap;
 
@@ -618,7 +618,7 @@ BOOST_AUTO_TEST_CASE(TypeMapErase) {
 	BOOST_CHECK_EQUAL(eraseCount, 1);
 	BOOST_CHECK_EQUAL(typeMap.count(int32Type), 0);
 }
-
+--type-map.cpp
 BOOST_AUTO_TEST_CASE(BasicTermMapping) {
 	std::unordered_map<Term, int> termMap;
 
@@ -737,7 +737,7 @@ BOOST_AUTO_TEST_CASE(TermMapOperations) {
 	BOOST_CHECK_EQUAL(eraseCount, 1);
 	BOOST_CHECK_EQUAL(termMap.count(var1), 0);
 }
-
+--term-map.cpp
 // Helper function to create test environment
 unordered_map<Term, Term> makeEnv(const vector<pair<Term, Term>>& bindings) {
 	unordered_map<Term, Term> env;
@@ -1009,7 +1009,7 @@ BOOST_AUTO_TEST_CASE(same_component_simplifications) {
 	Term multiOr = compound(Or, {x, compound(Or, {x, x})});
 	BOOST_CHECK_EQUAL(simplify(emptyEnv, multiOr), x);
 }
-
+--simplify.cpp
 BOOST_AUTO_TEST_CASE(test_fneg_float_constant) {
 	// Create a float constant to negate
 	Term f = floatConst(floatTy(), "1.0");
@@ -1090,7 +1090,7 @@ BOOST_AUTO_TEST_CASE(test_fneg_type_preservation) {
 	BOOST_CHECK_EQUAL(negF.ty(), f.ty());
 	BOOST_CHECK_EQUAL(negD.ty(), d.ty());
 }
-
+--fneg.cpp
 BOOST_AUTO_TEST_CASE(basic_match) {
 	BOOST_TEST(containsAt("Hello World", 6, "World") == true);
 }
@@ -1135,7 +1135,7 @@ BOOST_AUTO_TEST_CASE(case_sensitivity) {
 BOOST_AUTO_TEST_CASE(special_characters) {
 	BOOST_TEST(containsAt("Hello\n\tWorld", 5, "\n\t") == true);
 }
-
+--contains-at.cpp
 BOOST_AUTO_TEST_CASE(test_basic_parsing) {
 	std::string input = "1A2B3C";
 	size_t pos = 0;
@@ -1220,7 +1220,7 @@ BOOST_AUTO_TEST_CASE(test_max_value) {
 	BOOST_CHECK_EQUAL(result, 0xFFFFFFFF);
 	BOOST_CHECK_EQUAL(pos, 8);
 }
-
+--parse-hex.cpp
 // Test basic identifier without any special characters
 BOOST_AUTO_TEST_CASE(BasicIdentifier) {
 	BOOST_CHECK_EQUAL(unwrap("identifier"), "identifier");
@@ -1275,7 +1275,7 @@ BOOST_AUTO_TEST_CASE(EdgeCases) {
 BOOST_AUTO_TEST_CASE(WhitespaceHandling) {
 	BOOST_CHECK_EQUAL(unwrap("\"  spaced  \""), "  spaced  "); // Preserve internal spaces
 }
-
+--unwrap.cpp
 // Test fixture for Parser tests
 class ParserFixture {
 protected:
@@ -1377,7 +1377,7 @@ BOOST_AUTO_TEST_CASE(IgnoreWhitespace) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
+--parser.cpp
 BOOST_AUTO_TEST_SUITE(ParserTests)
 
 // Test parsing target triple and datalayout
@@ -1391,7 +1391,7 @@ BOOST_AUTO_TEST_CASE(TargetInfo) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
+--target.cpp
 BOOST_AUTO_TEST_SUITE(TypeIteratorTests)
 
 // Test scalar types have empty iteration range
@@ -1527,7 +1527,7 @@ BOOST_AUTO_TEST_CASE(IteratorInvalidation) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
+--type-iterator.cpp
 BOOST_AUTO_TEST_SUITE(TermIteratorTests)
 
 // Test empty term iteration
@@ -1629,6 +1629,7 @@ BOOST_AUTO_TEST_CASE(IteratorInvalidationTest) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+--term-iterator.cpp
 
 Term createMockVar(const string& name) {
 	return var(floatTy(), name);
@@ -1669,7 +1670,7 @@ define i32 @test() {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
+--parse-add.cpp
 BOOST_AUTO_TEST_SUITE(ParseRefTests)
 
 // Test basic numeric references
@@ -1752,7 +1753,7 @@ BOOST_AUTO_TEST_CASE(EdgeCases) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
+--parse-ref.cpp
 BOOST_AUTO_TEST_SUITE(HashVectorTests)
 
 BOOST_AUTO_TEST_CASE(EmptyVectorTest) {
@@ -1817,7 +1818,7 @@ BOOST_AUTO_TEST_CASE(LargeVectorTest) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
+--hash-vector.cpp
 // Test suite for cons function
 BOOST_AUTO_TEST_SUITE(ConsTests)
 
@@ -1859,7 +1860,7 @@ BOOST_AUTO_TEST_CASE(cons_with_string) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
+--cons.cpp
 // Test suite for call function
 BOOST_AUTO_TEST_SUITE(CallTests)
 
@@ -1923,7 +1924,7 @@ BOOST_AUTO_TEST_CASE(call_void_return) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
+--call.cpp
 BOOST_AUTO_TEST_SUITE(ZeroValTests)
 
 // Test void type
@@ -2074,7 +2075,7 @@ BOOST_AUTO_TEST_CASE(TestFunctionType) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
+--zero-val.cpp
 BOOST_AUTO_TEST_CASE(test_parse_alloca_instruction) {
 	// The test input: a function with a single alloca instruction.
 	// Note: the alloca instruction has three operands:
@@ -2120,7 +2121,7 @@ BOOST_AUTO_TEST_CASE(test_parse_alloca_instruction) {
 	BOOST_CHECK_EQUAL(numElem.intVal(), 1);
 	BOOST_CHECK(numElem.ty() == intTy(64));
 }
-
+--parse-alloca.cpp
 BOOST_AUTO_TEST_SUITE(ElementPtrTests)
 
 // Test elementPtr with a basic integer array
@@ -2247,7 +2248,7 @@ BOOST_AUTO_TEST_CASE(EdgeCases) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
+--element-ptr.cpp
 BOOST_AUTO_TEST_SUITE(FieldPtrTests)
 
 // Test accessing first field of a simple struct
@@ -2355,7 +2356,7 @@ BOOST_AUTO_TEST_CASE(StructWithArray) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
+--field-ptr.cpp
 BOOST_AUTO_TEST_SUITE(GetElementPtrTests)
 
 // Test GEP on a simple array type
@@ -2474,7 +2475,7 @@ BOOST_AUTO_TEST_CASE(NullPointerBase) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
+--gep.cpp
 BOOST_AUTO_TEST_SUITE(TermChecker)
 
 // Helper functions to create common test terms
@@ -2671,7 +2672,7 @@ BOOST_AUTO_TEST_CASE(CastInvalidTypes) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
+--check-terms.cpp
 BOOST_AUTO_TEST_SUITE(RecursiveTermChecker)
 
 // Helper function to create test terms
@@ -2833,6 +2834,7 @@ BOOST_AUTO_TEST_CASE(ComplexNestedExpressionValid) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+--check-terms-recur.cpp
 
 // Helper functions to create test values
 Term makeIntVar(const string& name, size_t bits = 32) {
@@ -3058,7 +3060,7 @@ BOOST_AUTO_TEST_CASE(test_unreachable) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
+--check-inst.cpp
 // Helper function to parse LLVM IR string
 std::unique_ptr<Module> parseString(const std::string& input) {
 	return std::unique_ptr<Module>(Parser("test.ll", input).module);
@@ -3256,7 +3258,7 @@ BOOST_AUTO_TEST_CASE(ErrorHandling) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
+--parse-types.cpp
 // Test atomic term outputs
 BOOST_AUTO_TEST_CASE(test_atomic_terms) {
 	std::ostringstream os;
@@ -3430,7 +3432,7 @@ BOOST_AUTO_TEST_CASE(test_division_operations) {
 	os << urem;
 	BOOST_CHECK_EQUAL(os.str(), "urem (i32 %a, i32 %b)");
 }
-
+--term-output.cpp
 BOOST_AUTO_TEST_SUITE(WrapTests)
 
 // Test valid identifiers that shouldn't need quotes
@@ -3530,7 +3532,7 @@ BOOST_AUTO_TEST_CASE(EdgeCases) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
+--wrap
 // Disable max/min macros to avoid conflicts with std::numeric_limits
 #undef max
 #undef min
@@ -3621,7 +3623,7 @@ BOOST_AUTO_TEST_CASE(ZeroNumericRef) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
+--ref-output.cpp
 BOOST_AUTO_TEST_SUITE(InstStreamOperatorTests)
 
 // Helper function to compare instruction string output
@@ -3743,7 +3745,7 @@ BOOST_AUTO_TEST_CASE(InvalidInstructions) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
+--inst-output.cpp
 BOOST_AUTO_TEST_SUITE(FuncOperatorTests)
 
 // Helper function to get string output of a Func
@@ -3840,7 +3842,7 @@ BOOST_AUTO_TEST_CASE(EscapedFunctionName) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
+--fn.cpp
 // Helper function to create a cpp_int with specific bits set
 cpp_int create_test_number(const std::vector<size_t>& set_bits) {
 	cpp_int result = 0;
@@ -3906,7 +3908,7 @@ BOOST_AUTO_TEST_CASE(test_specific_bit_patterns) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
+--int-bits.cpp
 namespace fw = fixed_width_ops;
 
 BOOST_AUTO_TEST_SUITE(FixedWidthOpsTests)
@@ -3963,7 +3965,7 @@ BOOST_AUTO_TEST_CASE(test_edge_cases) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
+--fixed-width.cpp
 // Helper functions to create test functions
 namespace {
 Term createIntVar(const string& name, size_t bits = 32) {
@@ -4144,7 +4146,7 @@ BOOST_AUTO_TEST_CASE(MissingReturn) {
 
 	BOOST_CHECK_THROW(check(f), runtime_error);
 }
-
+--check-fn.cpp
 BOOST_AUTO_TEST_SUITE(PhiEliminationTests)
 
 // Helper function to create a simple function with phi nodes
@@ -4357,7 +4359,7 @@ BOOST_AUTO_TEST_CASE(SelfLoop) {
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
+--eliminate-phi.cpp
 // Helper: Create a function that includes a phi node.
 Fn createFunctionWithPhi() {
 	// Create a function with one parameter (of type int32)
@@ -4524,3 +4526,4 @@ BOOST_AUTO_TEST_CASE(test_convert_to_ssa) {
 	BOOST_CHECK(foundStoreForX);
 	BOOST_CHECK(retUsesLoadForX);
 }
+--eliminate-phi2.cpp
