@@ -71,7 +71,7 @@ def clang(
         sys.exit(1)
 
 
-def olivine(args="a.ll"):
+def olivine(args):
     """
     Run the 'olivine' executable located two directories above the script's location.
 
