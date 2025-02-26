@@ -4,5 +4,6 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from common.etc import *
 
-clang("-emit-llvm -S add.c")
+src = os.path.join(os.path.dirname(__file__), "add.c")
+clang("-emit-llvm -S " + src)
 olivine("add.ll")
