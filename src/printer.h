@@ -10,7 +10,7 @@ ostream& operator<<(ostream&, const Ref&);
 ostream& operator<<(ostream&, Type);
 
 // Output a tag as an LLVM mnemonic
-// e.g. 
+// e.g.
 // Add -> add
 // Eq -> icmp eq
 ostream& operator<<(ostream&, Tag);

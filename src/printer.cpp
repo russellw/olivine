@@ -64,77 +64,121 @@ ostream& operator<<(ostream& os, Type ty) {
 }
 
 ostream& operator<<(ostream& os, Tag tag) {
-    switch (tag) {
-        // Arithmetic operations
-        case Add: return os << "add";
-        case Sub: return os << "sub";
-        case Mul: return os << "mul";
-        case UDiv: return os << "udiv";
-        case SDiv: return os << "sdiv";
-        case URem: return os << "urem";
-        case SRem: return os << "srem";
-        
-        // Floating point operations
-        case FAdd: return os << "fadd";
-        case FSub: return os << "fsub";
-        case FMul: return os << "fmul";
-        case FDiv: return os << "fdiv";
-        case FRem: return os << "frem";
-        case FNeg: return os << "fneg";
-        
-        // Bitwise operations
-        case And: return os << "and";
-        case Or: return os << "or";
-        case Xor: return os << "xor";
-        case Shl: return os << "shl";
-        case LShr: return os << "lshr";
-        case AShr: return os << "ashr";
-        
-        // Integer comparisons
-        case Eq: return os << "icmp eq";
-        case ULt: return os << "icmp ult";
-        case ULe: return os << "icmp ule";
-        case SLt: return os << "icmp slt";
-        case SLe: return os << "icmp sle";
-        
-        // Floating point comparisons
-        case FEq: return os << "fcmp oeq";
-        case FLt: return os << "fcmp olt";
-        case FLe: return os << "fcmp ole";
-        
-        // Logical operations
-        case Not: return os << "not";
-        
-        // Conversion operations
-        case Cast: return os << "bitcast";
-        case SCast: return os << "sext";
-        
-        // Memory operations
-        case Load: return os << "load";
-        case ElementPtr: return os << "getelementptr";
-        case FieldPtr: return os << "getelementptr";
-        
-        // Reference types
-        case Null: return os << "null";
-        case GlobalRef: return os << "global";
-        case Var: return os << "var";
-        case Label: return os << "label";
-        
-        // Compound types
-        case Array: return os << "array";
-        case Tuple: return os << "struct";
-        case Vec: return os << "vector";
-        
-        // Constants
-        case Int: return os << "i";
-        case Float: return os << "float";
-        
-        // Function-related
-        case Call: return os << "call";
-        
-        // Default case for any unhandled tags
-        default: return os << "unknown_tag";
-    }
+	switch (tag) {
+	// Arithmetic operations
+	case Add:
+		return os << "add";
+	case Mul:
+		return os << "mul";
+	case SDiv:
+		return os << "sdiv";
+	case SRem:
+		return os << "srem";
+	case Sub:
+		return os << "sub";
+	case UDiv:
+		return os << "udiv";
+	case URem:
+		return os << "urem";
+
+	// Floating point operations
+	case FAdd:
+		return os << "fadd";
+	case FDiv:
+		return os << "fdiv";
+	case FMul:
+		return os << "fmul";
+	case FNeg:
+		return os << "fneg";
+	case FRem:
+		return os << "frem";
+	case FSub:
+		return os << "fsub";
+
+	// Bitwise operations
+	case AShr:
+		return os << "ashr";
+	case And:
+		return os << "and";
+	case LShr:
+		return os << "lshr";
+	case Or:
+		return os << "or";
+	case Shl:
+		return os << "shl";
+	case Xor:
+		return os << "xor";
+
+	// Integer comparisons
+	case Eq:
+		return os << "icmp eq";
+	case SLe:
+		return os << "icmp sle";
+	case SLt:
+		return os << "icmp slt";
+	case ULe:
+		return os << "icmp ule";
+	case ULt:
+		return os << "icmp ult";
+
+	// Floating point comparisons
+	case FEq:
+		return os << "fcmp oeq";
+	case FLe:
+		return os << "fcmp ole";
+	case FLt:
+		return os << "fcmp olt";
+
+	// Logical operations
+	case Not:
+		return os << "not";
+
+	// Conversion operations
+	case Cast:
+		return os << "bitcast";
+	case SCast:
+		return os << "sext";
+
+	// Memory operations
+	case ElementPtr:
+		return os << "getelementptr";
+	case FieldPtr:
+		return os << "getelementptr";
+	case Load:
+		return os << "load";
+
+	// Reference types
+	case GlobalRef:
+		return os << "global";
+	case Label:
+		return os << "label";
+	case Null:
+		return os << "null";
+	case Var:
+		return os << "var";
+
+	// Compound types
+	case Array:
+		return os << "array";
+	case Tuple:
+		return os << "struct";
+	case Vec:
+		return os << "vector";
+
+	// Constants
+	case Float:
+		return os << "float";
+	case Int:
+		return os << "i";
+
+	// Function-related
+	case Call:
+		return os << "call";
+
+	// Default case for any unhandled tags
+	default:
+		return os << "unknown_tag";
+	}
 }
 
 ostream& operator<<(ostream& os, Term a) {
