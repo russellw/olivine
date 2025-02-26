@@ -270,6 +270,10 @@ ostream& operator<<(ostream& os, Inst inst) {
 	case Assign: {
 		// Format: %var = expr
 		ASSERT(inst.size() == 2);
+		// TODO: this is not actually valid
+		// cannot use Term output operator
+		// because that uses the constant expression format
+		// However, the correct code could still use the Tag output operator
 		os << inst[0] << " = " << inst[1];
 		break;
 	}
