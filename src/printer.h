@@ -9,6 +9,12 @@ ostream& operator<<(ostream&, const Ref&);
 // Output a type in LLVM format
 ostream& operator<<(ostream&, Type);
 
+// Output a tag as an LLVM mnemonic
+// e.g. 
+// Add -> add
+// Eq -> icmp eq
+ostream& operator<<(ostream&, Tag);
+
 // Output a term in LLVM format
 // Compound terms are printed in constant expression format
 // LLVM itself now only supports constant expressions for basic arithmetic operations
