@@ -1,3 +1,5 @@
 cls
 ninja olivine.exe||exit /b
-olivine %*
+rem olivine %*
+python integration-tests\all.py
+type integration-tests\add\a.ll
