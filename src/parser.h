@@ -530,7 +530,7 @@ class Parser {
 		}
 		// END
 
-		throw error("expected type");
+		throw error(quote(tok) + ": expected type");
 	}
 
 	Term ptrExpr() {
