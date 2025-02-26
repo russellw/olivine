@@ -4,6 +4,12 @@ import sys
 from typing import List, Optional, Union
 
 
+def split_args(args):
+    if isinstance(args, str):
+        return args.split()
+    return args
+
+
 def clang(
     args: Union[List[str], str], cwd: Optional[str] = None, capture_output: bool = False
 ) -> Union[subprocess.CompletedProcess, None]:
@@ -24,10 +30,7 @@ def clang(
     """
     try:
         # Convert string arguments to list if needed
-        if isinstance(args, str):
-            args_list = args.split()
-        else:
-            args_list = args
+        args_list = split_args(args)
 
         # Construct the command: 'clang' followed by all arguments
         cmd = ["clang"] + args_list
@@ -104,6 +107,9 @@ def olivine(args):
         raise PermissionError(
             f"The olivine executable at {olivine_path} is not executable"
         )
+
+    # Convert string arguments to list if needed
+    args = split_args(args)
 
     # Execute the program with any provided arguments
     cmd = [olivine_path]
