@@ -117,4 +117,8 @@ def olivine(args):
         cmd.extend(args)
 
     # Run the process and check return code (will raise CalledProcessError if return code is non-zero)
-    return subprocess.run(cmd, capture_output=True, text=True, check=True)
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, check=True)
+    except subprocess.CalledProcessError as e:
+        print(e.stderr, file=sys.stderr, end="")
+        raise
