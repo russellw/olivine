@@ -34,10 +34,18 @@ int main(int argc, char** argv) {
 			}
 			files.push_back(s);
 		}
+		if (files.empty()) {
+			cerr << "Usage: olivine [options] file.ll ...\n";
+			return 1;
+		}
+		vector<Module*> modules;
 		for (auto file : files) {
 			auto text = readFile(file);
 			Parser parser(file, text);
+			modules.push_back(parser.module);
 		}
+		std::ofstream os("a.ll", std::ios::binary);
+		os << modules[0];
 		return 0;
 	} catch (const std::exception& e) {
 		cerr << e.what() << '\n';
