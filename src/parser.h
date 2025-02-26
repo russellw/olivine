@@ -284,8 +284,19 @@ class Parser {
 			if (tok == "alloca") {
 				lex();
 				auto ty = type();
-				expect(",");
-				auto n = typeExpr();
+				auto n = nullConst;
+				while (tok == ",") {
+					lex();
+					if (tok == "align") {
+						lex();
+						int1();
+						continue;
+					}
+					if (tok == "addrspace") {
+						throw error("multiple address spaces not supported");
+					}
+					n = typeExpr();
+				}
 				return alloca(var(ptrTy(), lval), ty, n);
 			}
 			if (tok == "phi") {

@@ -187,7 +187,7 @@ ostream& operator<<(ostream& os, Term a) {
 		opName = "xor";
 		break;
 	default:
-		throw runtime_error("unknown tag");
+		throw runtime_error(to_string(int(a.tag())) + ": unknown tag");
 	}
 
 	os << opName << " (";
