@@ -122,3 +122,43 @@ def olivine(args):
     except subprocess.CalledProcessError as e:
         print(e.stderr, file=sys.stderr, end="")
         raise
+
+
+def check_return_code(executable, args=None, expected_return_code=0):
+    """
+    Run a specified executable with optional arguments and check its return code.
+
+    Args:
+        executable (str): Path to the executable to run
+        args (list, optional): List of arguments to pass to the executable
+        expected_return_code (int, optional): Expected return code, defaults to 0
+
+    Returns:
+        tuple: (stdout_data, stderr_data) as strings
+
+    Raises:
+        RuntimeError: If the return code doesn't match the expected value
+    """
+    # Prepare the command
+    command = [executable]
+    if args:
+        command.extend(args)
+
+    # Run the process
+    process = subprocess.run(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,  # Return strings instead of bytes
+        check=False,  # Don't automatically raise exception on non-zero return
+    )
+
+    # Check return code
+    if process.returncode != expected_return_code:
+        raise RuntimeError(
+            f"Executable '{executable}' returned {process.returncode} instead of expected {expected_return_code}.\n"
+            f"STDOUT: {process.stdout}\n"
+            f"STDERR: {process.stderr}"
+        )
+
+    return process.stdout, process.stderr
