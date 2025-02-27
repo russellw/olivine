@@ -20,4 +20,4 @@ olivine(name + ".ll")
 clang("a.ll")
 
 # Check result
-check_return_code("a.exe", (), 123)
+check_return_code("a", (), 123)
