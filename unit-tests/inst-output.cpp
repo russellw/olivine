@@ -259,4 +259,132 @@ BOOST_AUTO_TEST_CASE(AssignBoolConstant) {
 	BOOST_CHECK_EQUAL(ossFalse.str(), "%flag = i1 false");
 }
 
+// Helper function to capture output of an instruction
+std::string captureInstructionOutput(const Inst& inst) {
+	std::ostringstream oss;
+	oss << inst;
+	return oss.str();
+}
+
+// Test unsigned integer cast operations (Cast)
+BOOST_AUTO_TEST_CASE(UnsignedIntegerCastTests) {
+	// Variable to assign to
+	Term destVar = var(intTy(32), Ref("dest"));
+
+	// Widening cast (i8 -> i32)
+	Term sourceTerm8 = var(intTy(8), Ref("source8"));
+	Term wideCast = Term(Cast, intTy(32), sourceTerm8);
+	Inst wideAssign = assign(destVar, wideCast);
+
+	// Narrowing cast (i64 -> i32)
+	Term sourceTerm64 = var(intTy(64), Ref("source64"));
+	Term narrowCast = Term(Cast, intTy(32), sourceTerm64);
+	Inst narrowAssign = assign(destVar, narrowCast);
+
+	// Same-size cast (i32 -> i32)
+	Term sourceTerm32 = var(intTy(32), Ref("source32"));
+	Term sameSizeCast = Term(Cast, intTy(32), sourceTerm32);
+	Inst sameSizeAssign = assign(destVar, sameSizeCast);
+
+	// Check the output
+	BOOST_CHECK_EQUAL(captureInstructionOutput(wideAssign), "%dest = zext i8 %source8 to i32");
+
+	BOOST_CHECK_EQUAL(captureInstructionOutput(narrowAssign), "%dest = trunc i64 %source64 to i32");
+
+	BOOST_CHECK_EQUAL(captureInstructionOutput(sameSizeAssign), "%dest = bitcast i32 %source32 to i32");
+}
+
+// Test signed integer cast operations (SCast)
+BOOST_AUTO_TEST_CASE(SignedIntegerCastTests) {
+	// Variable to assign to
+	Term destVar = var(intTy(32), Ref("dest"));
+
+	// Widening signed cast (i8 -> i32)
+	Term sourceTerm8 = var(intTy(8), Ref("source8"));
+	Term wideSCast = Term(SCast, intTy(32), sourceTerm8);
+	Inst wideAssign = assign(destVar, wideSCast);
+
+	// Narrowing signed cast (i64 -> i32)
+	Term sourceTerm64 = var(intTy(64), Ref("source64"));
+	Term narrowSCast = Term(SCast, intTy(32), sourceTerm64);
+	Inst narrowAssign = assign(destVar, narrowSCast);
+
+	// Check the output
+	BOOST_CHECK_EQUAL(captureInstructionOutput(wideAssign), "%dest = sext i8 %source8 to i32");
+
+	BOOST_CHECK_EQUAL(captureInstructionOutput(narrowAssign), "%dest = trunc i64 %source64 to i32");
+}
+
+// Test float-to-int and int-to-float cast operations
+BOOST_AUTO_TEST_CASE(FloatIntCastTests) {
+	// Variables to assign to
+	Term intDestVar = var(intTy(32), Ref("int_dest"));
+	Term floatDestVar = var(floatTy(), Ref("float_dest"));
+
+	// Float to int cast
+	Term floatSource = var(floatTy(), Ref("float_source"));
+	Term floatToIntCast = Term(Cast, intTy(32), floatSource);
+	Inst floatToIntAssign = assign(intDestVar, floatToIntCast);
+
+	// Int to float cast
+	Term intSource = var(intTy(32), Ref("int_source"));
+	Term intToFloatCast = Term(Cast, floatTy(), intSource);
+	Inst intToFloatAssign = assign(floatDestVar, intToFloatCast);
+
+	// Check the output
+	BOOST_CHECK_EQUAL(captureInstructionOutput(floatToIntAssign), "%int_dest = fptosi float %float_source to i32");
+
+	BOOST_CHECK_EQUAL(captureInstructionOutput(intToFloatAssign), "%float_dest = sitofp i32 %int_source to float");
+}
+
+// Test pointer cast operations
+BOOST_AUTO_TEST_CASE(PointerCastTests) {
+	// Variables to assign to
+	Term intDestVar = var(intTy(64), Ref("int_dest"));
+	Term ptrDestVar = var(ptrTy(), Ref("ptr_dest"));
+
+	// Pointer to int cast
+	Term ptrSource = var(ptrTy(), Ref("ptr_source"));
+	Term ptrToIntCast = Term(Cast, intTy(64), ptrSource);
+	Inst ptrToIntAssign = assign(intDestVar, ptrToIntCast);
+
+	// Int to pointer cast
+	Term intSource = var(intTy(64), Ref("int_source"));
+	Term intToPtrCast = Term(Cast, ptrTy(), intSource);
+	Inst intToPtrAssign = assign(ptrDestVar, intToPtrCast);
+
+	// Check the output
+	BOOST_CHECK_EQUAL(captureInstructionOutput(ptrToIntAssign), "%int_dest = ptrtoint ptr %ptr_source to i64");
+
+	BOOST_CHECK_EQUAL(captureInstructionOutput(intToPtrAssign), "%ptr_dest = inttoptr i64 %int_source to ptr");
+}
+
+// Test more complex casting scenarios
+BOOST_AUTO_TEST_CASE(ComplexCastTests) {
+	// Test double to i32 cast
+	Term doubleSource = var(doubleTy(), Ref("double_source"));
+	Term intDestVar = var(intTy(32), Ref("int_dest"));
+	Term doubleToIntCast = Term(Cast, intTy(32), doubleSource);
+	Inst doubleToIntAssign = assign(intDestVar, doubleToIntCast);
+
+	// Test float to double cast
+	Term floatSource = var(floatTy(), Ref("float_source"));
+	Term doubleDestVar = var(doubleTy(), Ref("double_dest"));
+	Term floatToDoubleCast = Term(Cast, doubleTy(), floatSource);
+	Inst floatToDoubleAssign = assign(doubleDestVar, floatToDoubleCast);
+
+	// Test i1 (bool) to i8 signed cast
+	Term boolSource = var(boolTy(), Ref("bool_source"));
+	Term charDestVar = var(intTy(8), Ref("char_dest"));
+	Term boolToCharSCast = Term(SCast, intTy(8), boolSource);
+	Inst boolToCharAssign = assign(charDestVar, boolToCharSCast);
+
+	// Check the outputs
+	BOOST_CHECK_EQUAL(captureInstructionOutput(doubleToIntAssign), "%int_dest = fptosi double %double_source to i32");
+
+	BOOST_CHECK_EQUAL(captureInstructionOutput(floatToDoubleAssign), "%double_dest = bitcast float %float_source to double");
+
+	BOOST_CHECK_EQUAL(captureInstructionOutput(boolToCharAssign), "%char_dest = sext i1 %bool_source to i8");
+}
+
 BOOST_AUTO_TEST_SUITE_END()
