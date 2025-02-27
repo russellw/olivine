@@ -36,7 +36,7 @@ BOOST_AUTO_TEST_CASE(AssignInstruction) {
 	Term rhs = intConst(intTy(32), 42);
 	Inst assignInst = assign(lhs, rhs);
 
-	BOOST_CHECK_EQUAL(instToString(assignInst), "%result = 42");
+	BOOST_CHECK_EQUAL(instToString(assignInst), "%result = i32 42");
 }
 
 BOOST_AUTO_TEST_CASE(BlockInstruction) {

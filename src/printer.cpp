@@ -270,11 +270,24 @@ ostream& operator<<(ostream& os, Inst inst) {
 	case Assign: {
 		// Format: %var = expr
 		ASSERT(inst.size() == 2);
-		// TODO: this is not actually valid
-		// cannot use Term output operator
-		// because that uses the constant expression format
-		// However, the correct code could still use the Tag output operator
-		os << inst[0] << " = " << inst[1];
+		Term lhs = inst[0];
+		Term rhs = inst[1];
+
+		os << lhs << " = ";
+
+		// For compound expressions, format as operation with operands
+		if (rhs.size() > 0) {
+			os << rhs.tag() << " " << rhs.ty() << " ";
+			for (size_t i = 0; i < rhs.size(); ++i) {
+				if (i > 0) {
+					os << ", ";
+				}
+				os << rhs[i].ty() << " " << rhs[i];
+			}
+		} else {
+			// For atomic terms, just output the term
+			os << rhs.ty() << " " << rhs;
+		}
 		break;
 	}
 	case Block: {
