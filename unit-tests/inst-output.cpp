@@ -175,7 +175,7 @@ BOOST_AUTO_TEST_CASE(AssignBinaryOperation) {
 	oss << inst;
 
 	// Check the formatted output
-	BOOST_CHECK_EQUAL(oss.str(), "%result = add i32 i32 %a, i32 %b");
+	BOOST_CHECK_EQUAL(oss.str(), "%result = add i32 %a, %b");
 }
 
 // Test assigning a global reference

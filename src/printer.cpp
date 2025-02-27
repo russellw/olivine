@@ -275,17 +275,19 @@ ostream& operator<<(ostream& os, Inst inst) {
 
 		os << lhs << " = ";
 
-		// For compound expressions, format as operation with operands
+		// For compound expressions, format according to the instruction type
 		if (rhs.size() > 0) {
 			os << rhs.tag() << " " << rhs.ty() << " ";
+
+			// Output operands without repeating their types
 			for (size_t i = 0; i < rhs.size(); ++i) {
 				if (i > 0) {
 					os << ", ";
 				}
-				os << rhs[i].ty() << " " << rhs[i];
+				os << rhs[i];
 			}
 		} else {
-			// For atomic terms, just output the term
+			// For atomic terms, just output the term with its type
 			os << rhs.ty() << " " << rhs;
 		}
 		break;
