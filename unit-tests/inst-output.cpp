@@ -233,7 +233,7 @@ BOOST_AUTO_TEST_CASE(AssignLoadOperation) {
 	oss << inst;
 
 	// Check the formatted output
-	BOOST_CHECK_EQUAL(oss.str(), "%value = load i32 ptr %ptr");
+	BOOST_CHECK_EQUAL(oss.str(), "%value = load i32, ptr %ptr");
 }
 
 // Test assigning a Boolean constant
