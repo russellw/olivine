@@ -121,4 +121,142 @@ BOOST_AUTO_TEST_CASE(InvalidInstructions) {
 	BOOST_CHECK_THROW(instToString(Inst(Alloca, invalidAllocaOps)), std::runtime_error);
 }
 
+// Test assigning a simple integer constant
+BOOST_AUTO_TEST_CASE(AssignSimpleIntConstant) {
+	// Create a variable to assign to
+	Term lhs = var(intTy(32), Ref("x"));
+
+	// Create an integer constant to assign
+	Term rhs = intConst(intTy(32), 42);
+
+	// Create an assignment instruction
+	Inst inst = assign(lhs, rhs);
+
+	// Format the instruction as a string
+	std::ostringstream oss;
+	oss << inst;
+
+	// Check the formatted output
+	BOOST_CHECK_EQUAL(oss.str(), "%x = i32 42");
+}
+
+// Test assigning a variable
+BOOST_AUTO_TEST_CASE(AssignVariable) {
+	// Create variables
+	Term lhs = var(intTy(32), Ref("x"));
+	Term rhs = var(intTy(32), Ref("y"));
+
+	// Create an assignment instruction
+	Inst inst = assign(lhs, rhs);
+
+	// Format the instruction as a string
+	std::ostringstream oss;
+	oss << inst;
+
+	// Check the formatted output
+	BOOST_CHECK_EQUAL(oss.str(), "%x = i32 %y");
+}
+
+// Test assigning the result of a binary operation
+BOOST_AUTO_TEST_CASE(AssignBinaryOperation) {
+	// Create variables
+	Term lhs = var(intTy(32), Ref("result"));
+	Term a = var(intTy(32), Ref("a"));
+	Term b = var(intTy(32), Ref("b"));
+
+	// Create an add expression
+	Term rhs = Term(Add, intTy(32), a, b);
+
+	// Create an assignment instruction
+	Inst inst = assign(lhs, rhs);
+
+	// Format the instruction as a string
+	std::ostringstream oss;
+	oss << inst;
+
+	// Check the formatted output
+	BOOST_CHECK_EQUAL(oss.str(), "%result = add i32 i32 %a, i32 %b");
+}
+
+// Test assigning a global reference
+BOOST_AUTO_TEST_CASE(AssignGlobalRef) {
+	// Create a variable to assign to
+	Term lhs = var(ptrTy(), Ref("ptr"));
+
+	// Create a global reference to assign
+	Term rhs = globalRef(ptrTy(), Ref("global_var"));
+
+	// Create an assignment instruction
+	Inst inst = assign(lhs, rhs);
+
+	// Format the instruction as a string
+	std::ostringstream oss;
+	oss << inst;
+
+	// Check the formatted output
+	BOOST_CHECK_EQUAL(oss.str(), "%ptr = ptr @global_var");
+}
+
+// Test assigning a null pointer
+BOOST_AUTO_TEST_CASE(AssignNullPointer) {
+	// Create a variable to assign to
+	Term lhs = var(ptrTy(), Ref("ptr"));
+
+	// Create a null pointer to assign
+	Term rhs = nullConst;
+
+	// Create an assignment instruction
+	Inst inst = assign(lhs, rhs);
+
+	// Format the instruction as a string
+	std::ostringstream oss;
+	oss << inst;
+
+	// Check the formatted output
+	BOOST_CHECK_EQUAL(oss.str(), "%ptr = ptr null");
+}
+
+// Test assigning the result of a load operation
+BOOST_AUTO_TEST_CASE(AssignLoadOperation) {
+	// Create variables
+	Term lhs = var(intTy(32), Ref("value"));
+	Term ptr = var(ptrTy(), Ref("ptr"));
+
+	// Create a load expression
+	Term rhs = Term(Load, intTy(32), ptr);
+
+	// Create an assignment instruction
+	Inst inst = assign(lhs, rhs);
+
+	// Format the instruction as a string
+	std::ostringstream oss;
+	oss << inst;
+
+	// Check the formatted output
+	BOOST_CHECK_EQUAL(oss.str(), "%value = load i32 ptr %ptr");
+}
+
+// Test assigning a Boolean constant
+BOOST_AUTO_TEST_CASE(AssignBoolConstant) {
+	// Create a variable to assign to
+	Term lhs = var(boolTy(), Ref("flag"));
+
+	// Create Boolean constants
+	Term rhsTrue = trueConst;
+	Term rhsFalse = falseConst;
+
+	// Create assignment instructions
+	Inst instTrue = assign(lhs, rhsTrue);
+	Inst instFalse = assign(lhs, rhsFalse);
+
+	// Format the instructions as strings
+	std::ostringstream ossTrue, ossFalse;
+	ossTrue << instTrue;
+	ossFalse << instFalse;
+
+	// Check the formatted outputs
+	BOOST_CHECK_EQUAL(ossTrue.str(), "%flag = i1 true");
+	BOOST_CHECK_EQUAL(ossFalse.str(), "%flag = i1 false");
+}
+
 BOOST_AUTO_TEST_SUITE_END()
