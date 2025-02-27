@@ -284,7 +284,7 @@ class Parser {
 			if (tok == "alloca") {
 				lex();
 				auto ty = type();
-				auto n = nullConst;
+				auto n = intConst(intTy(64), 1);
 				while (tok == ",") {
 					lex();
 					if (tok == "align") {

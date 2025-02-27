@@ -7,3 +7,4 @@ from common.etc import *
 src = os.path.join(os.path.dirname(__file__), "add.c")
 clang("-emit-llvm -S " + src)
 olivine("add.ll")
+clang("-c a.ll")
