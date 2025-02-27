@@ -275,19 +275,108 @@ ostream& operator<<(ostream& os, Inst inst) {
 
 		os << lhs << " = ";
 
-		// For compound expressions, format according to the instruction type
+		// Handle different expression types with their specific syntax
 		if (rhs.size() > 0) {
-			os << rhs.tag() << " " << rhs.ty() << " ";
+			switch (rhs.tag()) {
+			case Load:
+				// Format: load <type>, ptr <pointer>
+				ASSERT(rhs.size() == 1);
+				os << "load " << rhs.ty() << ", ptr " << rhs[0];
+				break;
 
-			// Output operands without repeating their types
-			for (size_t i = 0; i < rhs.size(); ++i) {
-				if (i > 0) {
-					os << ", ";
+			case AShr:
+			case Add:
+			case And:
+			case LShr:
+			case Mul:
+			case Or:
+			case SDiv:
+			case SRem:
+			case Shl:
+			case Sub:
+			case UDiv:
+			case URem:
+			case Xor:
+				// Format: <op> <type> <operand1>, <operand2>
+				ASSERT(rhs.size() == 2);
+				os << rhs.tag() << " " << rhs.ty() << " " << rhs[0] << ", " << rhs[1];
+				break;
+
+			case FAdd:
+			case FDiv:
+			case FMul:
+			case FRem:
+			case FSub:
+				// Format: <op> <type> <operand1>, <operand2>
+				ASSERT(rhs.size() == 2);
+				os << rhs.tag() << " " << rhs.ty() << " " << rhs[0] << ", " << rhs[1];
+				break;
+
+			case FNeg:
+				// Format: fneg <type> <operand>
+				ASSERT(rhs.size() == 1);
+				os << "fneg " << rhs.ty() << " " << rhs[0];
+				break;
+
+			case Eq:
+			case SLe:
+			case SLt:
+			case ULe:
+			case ULt:
+				// Format: icmp <predicate> <type> <operand1>, <operand2>
+				ASSERT(rhs.size() == 2);
+				os << rhs.tag() << " " << rhs[0].ty() << " " << rhs[0] << ", " << rhs[1];
+				break;
+
+			case FEq:
+			case FLe:
+			case FLt:
+				// Format: fcmp <predicate> <type> <operand1>, <operand2>
+				ASSERT(rhs.size() == 2);
+				os << rhs.tag() << " " << rhs[0].ty() << " " << rhs[0] << ", " << rhs[1];
+				break;
+
+			case Cast:
+			case SCast:
+				// Format: <cast-op> <src-type> <value> to <dst-type>
+				ASSERT(rhs.size() == 1);
+				os << rhs.tag() << " " << rhs[0].ty() << " " << rhs[0] << " to " << rhs.ty();
+				break;
+
+			case ElementPtr:
+				// Handle getelementptr with appropriate syntax
+				os << "getelementptr ";
+				if (rhs.size() >= 3) {
+					os << "inbounds "; // Common in LLVM IR
+					os << rhs[0].ty() << ", ptr " << rhs[1];
+					for (size_t i = 2; i < rhs.size(); ++i) {
+						os << ", " << rhs[i].ty() << " " << rhs[i];
+					}
 				}
-				os << rhs[i];
+				break;
+
+			case Call:
+				// Format: call <return-type> <function>(<args...>)
+				os << "call " << rhs.ty() << " " << rhs[0] << "(";
+				for (size_t i = 1; i < rhs.size(); ++i) {
+					if (i > 1) {
+						os << ", ";
+					}
+					os << rhs[i].ty() << " " << rhs[i];
+				}
+				os << ")";
+				break;
+
+			default:
+				// For other compound expressions, use a generic format
+				os << rhs.tag() << " " << rhs.ty();
+				for (size_t i = 0; i < rhs.size(); ++i) {
+					os << (i == 0 ? " " : ", ") << rhs[i];
+				}
+				break;
 			}
 		} else {
-			// For atomic terms, just output the term with its type
+			// For atomic terms, output with type
 			os << rhs.ty() << " " << rhs;
 		}
 		break;
