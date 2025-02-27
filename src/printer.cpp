@@ -338,12 +338,49 @@ ostream& operator<<(ostream& os, Inst inst) {
 
 			case Cast:
 			case SCast:
-				// Format: <cast-op> <src-type> <value> to <dst-type>
-				// TODO: Write a version that actually works properly!
-				//`os << rhs.tag()` is no good because the required llvm mnemonic depends on the specific types
-				// as well as on whether it is signed or unsigned
+				// Format for cast operations: <cast-op> <src-type> <value> to <dst-type>
 				ASSERT(rhs.size() == 1);
-				os << rhs.tag() << " " << rhs[0].ty() << " " << rhs[0] << " to " << rhs.ty();
+
+				// Determine the appropriate LLVM cast operation based on the types and cast kind
+				if (rhs.tag() == Cast) {
+					// Handle different bitcast variations based on source and destination types
+					if (isInt(rhs[0].ty()) && isInt(rhs.ty())) {
+						// Integer to integer bitcast
+						if (rhs[0].ty().len() < rhs.ty().len()) {
+							os << "zext "; // Zero extension for unsigned
+						} else if (rhs[0].ty().len() > rhs.ty().len()) {
+							os << "trunc "; // Truncation
+						} else {
+							os << "bitcast "; // Same-size conversion
+						}
+					} else if (isFloat(rhs[0].ty()) && isInt(rhs.ty())) {
+						os << "fptosi "; // Float to signed integer
+					} else if (isInt(rhs[0].ty()) && isFloat(rhs.ty())) {
+						os << "sitofp "; // Signed integer to float
+					} else if (rhs[0].ty().kind() == PtrKind && isInt(rhs.ty())) {
+						os << "ptrtoint "; // Pointer to integer
+					} else if (isInt(rhs[0].ty()) && rhs.ty().kind() == PtrKind) {
+						os << "inttoptr "; // Integer to pointer
+					} else {
+						os << "bitcast "; // Default to bitcast for other cases
+					}
+				} else { // SCast
+					// Handle signed cast operations
+					if (isInt(rhs[0].ty()) && isInt(rhs.ty())) {
+						if (rhs[0].ty().len() < rhs.ty().len()) {
+							os << "sext "; // Sign extension
+						} else if (rhs[0].ty().len() > rhs.ty().len()) {
+							os << "trunc "; // Truncation (same as unsigned)
+						} else {
+							os << "bitcast "; // Same-size conversion
+						}
+					} else {
+						// For other cases, default to appropriate conversions
+						os << "bitcast ";
+					}
+				}
+
+				os << rhs[0].ty() << " " << rhs[0] << " to " << rhs.ty();
 				break;
 
 			case ElementPtr:
