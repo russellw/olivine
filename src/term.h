@@ -249,6 +249,10 @@ inline Term globalRef(Type ty, const Ref& ref) {
 	return Term(GlobalRef, ty, ref);
 }
 
+inline Term intConst(const cpp_int& val) {
+	return intConst(intTy(64), val);
+}
+
 inline Term label(const Ref& ref) {
 	return Term(Label, ptrTy(), ref);
 }
