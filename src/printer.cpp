@@ -339,6 +339,9 @@ ostream& operator<<(ostream& os, Inst inst) {
 			case Cast:
 			case SCast:
 				// Format: <cast-op> <src-type> <value> to <dst-type>
+				// TODO: Write a version that actually works properly!
+				//`os << rhs.tag()` is no good because the required llvm mnemonic depends on the specific types
+				// as well as on whether it is signed or unsigned
 				ASSERT(rhs.size() == 1);
 				os << rhs.tag() << " " << rhs[0].ty() << " " << rhs[0] << " to " << rhs.ty();
 				break;
