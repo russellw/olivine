@@ -1,5 +1,4 @@
 #include "all.h"
-using std::invalid_argument;
 
 #ifdef _WIN32
 #include <windows.h>
@@ -27,7 +26,7 @@ int main(int argc, char** argv) {
 		SetUnhandledExceptionFilter(unhandledExceptionFilter);
 #endif
 		vector<string> files;
-		const char* outFile = "a.ll";
+		auto outFile = "a.ll";
 		for (int i = 1; i < argc; i++) {
 			auto s = argv[i];
 			if (*s == '-') {
