@@ -174,7 +174,7 @@ class Parser {
 		case '@':
 			return globalRef(ty, globalRef1());
 		}
-		if (isDigit(tok[0])) {
+		if (isDigit(tok[0]) || (tok[0] == '-' && tok.size() > 1 && isDigit(tok[1]))) {
 			if (isInt(ty)) {
 				auto a = intConst(ty, cpp_int(tok));
 				lex();
