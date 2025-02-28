@@ -240,6 +240,9 @@ void check(Term a) {
 		break;
 
 	case Label:
+		ASSERT(a.ty() == ptrTy());
+		break;
+
 	case None:
 		// These are valid with any type
 		break;
