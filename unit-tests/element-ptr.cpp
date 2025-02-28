@@ -54,8 +54,8 @@ BOOST_AUTO_TEST_CASE(StructArrayTest) {
 	BOOST_CHECK_EQUAL(result.ty(), ptrTy());
 	BOOST_CHECK_EQUAL(result.size(), 3);
 
-	// Check that first operand is zero value of struct type
-	BOOST_CHECK_EQUAL(result[0], zeroVal(structType));
+	// Check that first operand is the struct type
+	BOOST_CHECK_EQUAL(result[0], none(structType));
 
 	// Check pointer operand
 	BOOST_CHECK_EQUAL(result[1], arrayPtr);
@@ -106,8 +106,8 @@ BOOST_AUTO_TEST_CASE(VectorTest) {
 	BOOST_CHECK_EQUAL(result.tag(), ElementPtr);
 	BOOST_CHECK_EQUAL(result.ty(), ptrTy());
 
-	// Check that first operand is zero value of element type
-	BOOST_CHECK_EQUAL(result[0], zeroVal(elementType));
+	// Check that first operand is the element type
+	BOOST_CHECK_EQUAL(result[0], none(elementType));
 }
 
 // Test error cases (these might need to be handled at a higher level)
