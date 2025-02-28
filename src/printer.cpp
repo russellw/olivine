@@ -514,7 +514,9 @@ ostream& operator<<(ostream& os, Fn f) {
 			continue;
 		}
 		os << params[i].ty();
-		os << ' ' << params[i];
+		if (params[i].tag() == Var) {
+			os << ' ' << params[i];
+		}
 	}
 	os << ')';
 
