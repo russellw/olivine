@@ -33,13 +33,9 @@ BOOST_AUTO_TEST_CASE(test_parse_alloca_instruction) {
 	BOOST_CHECK_EQUAL(lval.tag(), Var);
 	BOOST_CHECK(lval.ty() == ptrTy());
 
-	// Check operand 1: the zero value for the allocated type.
-	// It is constructed as zeroVal(i32) by the parser.
-	const Term& zeroValTerm = inst[1];
-	BOOST_CHECK(zeroValTerm.ty() == intTy(32));
-	// Compare with an expected zero value for type i32.
-	Term expectedZero = zeroVal(intTy(32));
-	BOOST_CHECK_EQUAL(zeroValTerm, expectedZero);
+	// Check operand 1:
+	// Compare with type i32.
+	BOOST_CHECK_EQUAL(inst[1], none(intTy(32)));
 
 	// Check operand 2: the number of elements (should be constant 1 of type i32).
 	const Term& numElem = inst[2];
