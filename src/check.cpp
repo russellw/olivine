@@ -234,9 +234,13 @@ void check(Term a) {
 		}
 	} break;
 
+	case Var:
+		ASSERT(a.ty() != voidTy());
+		break;
+
 	case GlobalRef:
 	case Label:
-	case Var:
+	case None:
 		// These are valid with any type
 		break;
 
