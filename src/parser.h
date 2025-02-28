@@ -45,6 +45,10 @@ class Parser {
 		expect("declare");
 		linkage();
 
+		// The syntax in the documentation says declarations don't have a preemption specifier
+		// but Clang outputs declarations with dso_local
+		preemption();
+
 		// Return type
 		auto rty = type();
 
@@ -70,7 +74,7 @@ class Parser {
 		*/
 		expect("define");
 		linkage();
-		dsoPreemptable();
+		preemption();
 
 		// Return type
 		auto rty = type();
@@ -103,20 +107,6 @@ class Parser {
 		expect("}");
 
 		return Fn(rty, ref, params, body);
-	}
-
-	bool dsoPreemptable() {
-		if (tok == "dso_local") {
-			lex();
-			return false;
-		}
-		if (tok == "dso_preemptable") {
-			lex();
-			return true;
-		}
-
-		// If a preemption specifier isn’t given explicitly, then a symbol is assumed to be dso_preemptable.
-		return true;
 	}
 
 	// This function takes:
@@ -547,6 +537,18 @@ class Parser {
 		auto fty = fnTy(rty, params);
 		auto f = globalRef(fty, ref);
 		return call(rty, f, args);
+	}
+
+	void preemption() {
+		if (tok == "dso_local") {
+			lex();
+			return;
+		}
+		if (tok == "dso_preemptable") {
+			lex();
+			return;
+		}
+		// If a preemption specifier isn’t given explicitly, then a symbol is assumed to be dso_preemptable.
 	}
 
 	Type primaryType() {
