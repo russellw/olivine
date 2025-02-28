@@ -488,6 +488,10 @@ ostream& operator<<(ostream& os, Inst inst) {
 	return os;
 }
 
+ostream& operator<<(ostream& os, Global a) {
+	return os << '@' << a.ref() << '=' << "global " << a.ty();
+}
+
 ostream& operator<<(ostream& os, Fn f) {
 	// Output declare/define based on whether function has a body
 	if (f.size() == 0) {
@@ -552,7 +556,7 @@ ostream& operator<<(ostream& out, Module* module) {
 
 	// Print global variables
 	for (const auto& global : module->globals) {
-		out << '@' << global.ref() << '=' << "global " << global.ty() << "\n";
+		out << global << "\n";
 	}
 
 	// Print function declarations
