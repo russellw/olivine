@@ -174,6 +174,10 @@ class Parser {
 			return var1(ty);
 		case '@':
 			return globalRef(ty, globalRef1());
+		case 'c':
+			if (tok.size() > 1 && tok[1] == '"') {
+			}
+			break;
 		}
 		if (isDigit(tok[0]) || (tok[0] == '-' && tok.size() > 1 && isDigit(tok[1]))) {
 			if (isInt(ty)) {

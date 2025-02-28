@@ -219,3 +219,18 @@ Term getElementPtr(Type ty, Term p, const vector<Term>& idxs) {
 	}
 	return p;
 }
+
+Term arrayBytes(unsigned char* v, size_t n) {
+	// Create a vector to hold the Term for each byte
+	vector<Term> elements;
+	elements.reserve(n);
+
+	// Convert each byte to an 8-bit integer Term
+	for (size_t i = 0; i < n; ++i) {
+		// Create an integer constant Term with intTy(8) type and the byte value
+		elements.push_back(intConst(intTy(8), cpp_int(v[i])));
+	}
+
+	// Create and return an Array Term containing all the byte elements
+	return array(intTy(8), elements);
+}

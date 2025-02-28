@@ -232,6 +232,10 @@ Term zeroVal(Type ty);
 // This function translates the former to the latter, returning a nested expression equivalent to the input GEP index array
 Term getElementPtr(Type ty, Term p, const vector<Term>& idxs);
 
+// Take an array of bytes, and convert it to a Term
+// being an Array of intTy(8) Int's
+Term arrayBytes(unsigned char* v, size_t n);
+
 // SORT FUNCTIONS
 
 inline Term array(Type elementType, const vector<Term>& elements) {
