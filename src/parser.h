@@ -43,7 +43,7 @@ class Parser {
 			[prefix Constant] [prologue Constant]
 		*/
 		expect("declare");
-		dsoPreemptable();
+		linkage();
 
 		// Return type
 		auto rty = type();
@@ -69,6 +69,7 @@ class Parser {
 			(!name !N)* { ... }
 		*/
 		expect("define");
+		linkage();
 		dsoPreemptable();
 
 		// Return type
@@ -401,6 +402,49 @@ class Parser {
 			}
 		}
 		throw error("unclosed quote");
+	}
+
+	void linkage() {
+		if (tok == "private") {
+			lex();
+			return;
+		}
+		if (tok == "internal") {
+			lex();
+			return;
+		}
+		if (tok == "available_externally") {
+			lex();
+			return;
+		}
+		if (tok == "linkonce") {
+			lex();
+			return;
+		}
+		if (tok == "weak") {
+			lex();
+			return;
+		}
+		if (tok == "common") {
+			lex();
+			return;
+		}
+		if (tok == "appending") {
+			lex();
+			return;
+		}
+		if (tok == "extern_weak") {
+			lex();
+			return;
+		}
+		if (tok == "linkonce_odr" || tok == "weak_odr") {
+			lex();
+			return;
+		}
+		if (tok == "external") {
+			lex();
+			return;
+		}
 	}
 
 	void maybeColon() {
