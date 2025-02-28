@@ -1,26 +1,26 @@
 #include "all.h"
 
-struct FuncImpl {
+struct FnImpl {
 	const Type rty;
 	const Ref ref;
 	const vector<Term> params;
 	const vector<Inst> body;
 
-	FuncImpl(Type rty, const Ref& ref, const vector<Term>& params, const vector<Inst>& body)
+	FnImpl(Type rty, const Ref& ref, const vector<Term>& params, const vector<Inst>& body)
 		: rty(rty), ref(ref), params(params), body(body) {
 	}
 };
 
 Fn::Fn() {
-	p = new FuncImpl(voidTy(), 0, {}, {});
+	p = new FnImpl(voidTy(), 0, {}, {});
 }
 
 Fn::Fn(Type rty, const Ref& ref, const vector<Term>& params) {
-	p = new FuncImpl(rty, ref, params, {});
+	p = new FnImpl(rty, ref, params, {});
 }
 
 Fn::Fn(Type rty, const Ref& ref, const vector<Term>& params, const vector<Inst>& body) {
-	p = new FuncImpl(rty, ref, params, body);
+	p = new FnImpl(rty, ref, params, body);
 }
 
 Type Fn::rty() const {

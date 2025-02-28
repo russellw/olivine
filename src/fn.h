@@ -1,13 +1,13 @@
-struct FuncImpl;
+struct FnImpl;
 
 class Fn {
-	FuncImpl* p;
+	FnImpl* p;
 
 public:
 	Fn();
 
 	// For internal use
-	explicit Fn(FuncImpl* p): p(p) {
+	explicit Fn(FnImpl* p): p(p) {
 	}
 
 	Fn(Type rty, const Ref& ref, const vector<Term>& params);
