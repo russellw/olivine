@@ -13,10 +13,10 @@ static char* optArg(int argc, char** argv, int& i, char* s) {
 	if (s[1]) {
 		return s + 1;
 	}
-	++i;
-	if (i == argc) {
+	if (i + 1 == argc) {
 		throw runtime_error(string(argv[i]) + ": expected arg");
 	}
+	++i;
 	return argv[i];
 }
 
