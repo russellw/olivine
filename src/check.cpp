@@ -18,6 +18,7 @@ void check(Term a) {
 		}
 	};
 
+	// TODO: this should be sorted
 	switch (a.tag()) {
 	case NullPtr:
 		if (a.ty().kind() != PtrKind) {
