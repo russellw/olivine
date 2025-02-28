@@ -133,22 +133,3 @@ BOOST_AUTO_TEST_CASE(test_program_with_globals) {
 	BOOST_CHECK_EQUAL(program.globals().size(), 2);
 	BOOST_CHECK(program.empty()); // Should be empty as no function definitions
 }
-
-// Test handling of invalid global variable definitions
-BOOST_AUTO_TEST_CASE(test_invalid_global_type) {
-	// This test would need access to actual parser implementation
-	// to test error handling for invalid type specifications
-
-	// For mock purposes, we'll just demonstrate the concept
-	try {
-		// Assuming a function to construct a global with an invalid type
-		// Global invalidGlobal(fnTy(voidTy(), {}), Ref("invalid_global"));
-		// This should throw an exception since function types are not valid for globals
-
-		// Since we can't actually test this with our mock, we'll just pass the test
-		BOOST_CHECK(true);
-	} catch (const std::runtime_error& e) {
-		// Expected exception
-		BOOST_CHECK(std::string(e.what()).find("Invalid type for global variable") != std::string::npos);
-	}
-}
