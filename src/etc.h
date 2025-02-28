@@ -3,13 +3,13 @@ void stackTrace(std::ostream& out = std::cout);
 // Helper function to create detailed error messages
 namespace message_detail {
 template <typename T> string toString(const T& val) {
-	ostringstream oss;
+	std::ostringstream oss;
 	oss << val;
 	return oss.str();
 }
 
 inline string makeAssertMessage(const char* expression, const char* file, int line, const string& message = "") {
-	ostringstream oss;
+	std::ostringstream oss;
 	oss << "Assertion failed: " << expression << "\nFile: " << file << "\nLine: " << line;
 
 	if (!message.empty()) {

@@ -20,7 +20,6 @@ using std::cerr;
 using std::cout;
 using std::hash;
 using std::ostream;
-using std::ostringstream;
 using std::pair;
 using std::runtime_error;
 using std::string;

@@ -5,7 +5,7 @@ BOOST_AUTO_TEST_SUITE(FuncOperatorTests)
 
 // Helper function to get string output of a Func
 string toString(const Fn& f) {
-	ostringstream oss;
+	std::ostringstream oss;
 	oss << f;
 	return oss.str();
 }
