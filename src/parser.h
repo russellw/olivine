@@ -575,7 +575,7 @@ class Parser {
 			module->defs.push_back(define());
 			return;
 		}
-		if (tok == "global") {
+		if (tok[0] == '@') {
 			module->globals.push_back(global());
 			return;
 		}
