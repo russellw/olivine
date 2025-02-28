@@ -17,11 +17,9 @@
 #include <variant>
 #include <vector>
 using std::all_of;
-using std::back_inserter;
 using std::cerr;
 using std::cout;
 using std::hash;
-using std::invoke_result_t;
 using std::ostream;
 using std::ostringstream;
 using std::pair;
