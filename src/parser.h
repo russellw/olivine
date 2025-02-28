@@ -214,6 +214,24 @@ class Parser {
 		(, !name !N)*
 		*/
 		auto ref = globalRef1();
+		expect("=");
+		linkage();
+		preemption();
+
+		if (tok == "unnamed_addr" | tok == "local_unnamed_addr") {
+			lex();
+		}
+
+		if (tok == "global") {
+			lex();
+		} else if (tok == "constant") {
+			lex();
+		} else {
+			throw error(quote(tok) + ": expected 'global' or 'constant'");
+		}
+
+		auto ty = type();
+		auto val = expr(ty);
 	}
 
 	Ref globalRef1() {
