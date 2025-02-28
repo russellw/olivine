@@ -3,6 +3,7 @@
 struct GlobalImpl {
 	const Type ty;
 	const Ref ref;
+	const Term val;
 
 	GlobalImpl(Type ty, const Ref& ref): ty(ty), ref(ref) {
 	}
@@ -22,4 +23,16 @@ Type Global::ty() const {
 
 Ref Global::ref() const {
 	return p->ref;
+}
+
+bool Global::operator==(Global b0) const {
+	auto a = p;
+	auto b = b0.p;
+	if (a->ty != b->ty) {
+		return false;
+	}
+	if (a->ref != b->ref) {
+		return false;
+	}
+	return a->val == b->val;
 }

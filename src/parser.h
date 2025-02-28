@@ -1,5 +1,5 @@
 class Parser {
-	const string& file;
+	const string file;
 	string text;
 	size_t pos = 0;
 	string tok;
@@ -563,6 +563,17 @@ class Parser {
 	}
 
 	void parse() {
+		if (!endsWith(text, '\n')) {
+			text += '\n';
+		}
+		lex();
+		while (tok != eof) {
+			parse1();
+			nextLine();
+		}
+	}
+
+	void parse1() {
 		if (tok == "target") {
 			target1();
 			return;
@@ -1085,14 +1096,11 @@ class Parser {
 public:
 	Module* module = new Module;
 
+	Parser(const string& text): file("nameless.ll"), text(text) {
+		parse();
+	}
+
 	Parser(const string& file, const string& text): file(file), text(text) {
-		if (!endsWith(text, '\n')) {
-			this->text += '\n';
-		}
-		lex();
-		while (tok != eof) {
-			parse();
-			nextLine();
-		}
+		parse();
 	}
 };
