@@ -176,6 +176,9 @@ class Parser {
 			return globalRef(ty, globalRef1());
 		case 'c':
 			if (tok.size() > 1 && tok[1] == '"') {
+				auto s = unwrap(tok);
+				lex();
+				return arrayBytes((unsigned char*)s.data(), s.size());
 			}
 			break;
 		}
