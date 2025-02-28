@@ -54,7 +54,7 @@ int main(int argc, char** argv) {
 			files.push_back(s);
 		}
 		if (files.empty()) {
-			throw runtime_error("No files given");
+			throw runtime_error("No input files");
 		}
 		vector<Module*> modules;
 		for (auto file : files) {
