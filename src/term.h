@@ -94,7 +94,7 @@ enum Tag {
 	// and having introduced it, we don't need separate tags for Ne and FNe
 	Not,
 
-	Null,
+	NullPtr,
 	Or,
 
 	// Convert the single operand to the specified type

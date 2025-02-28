@@ -5,7 +5,7 @@ Term simplify(const unordered_map<Term, Term>& env, Term a) {
 	switch (a.tag()) {
 	case Float:
 	case Int:
-	case Null:
+	case NullPtr:
 		return a;
 	case Var:
 		auto it = env.find(a);

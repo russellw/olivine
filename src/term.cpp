@@ -27,7 +27,7 @@ struct TermImpl {
 TermImpl trueImpl(Int, boolTy(), cpp_int(1));
 TermImpl falseImpl(Int, boolTy(), cpp_int(0));
 
-TermImpl nullImpl(Null, ptrTy());
+TermImpl nullImpl(NullPtr, ptrTy());
 
 Term::Term(): p(&nullImpl) {
 }

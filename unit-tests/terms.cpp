@@ -14,7 +14,7 @@ BOOST_AUTO_TEST_CASE(ConstantTerms) {
 
 	// Test null constant
 	BOOST_CHECK_EQUAL(nullConst.ty(), ptrTy());
-	BOOST_CHECK_EQUAL(nullConst.tag(), Null);
+	BOOST_CHECK_EQUAL(nullConst.tag(), NullPtr);
 
 	// Test integer constant creation
 	Type int32Type = intTy(32);

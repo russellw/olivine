@@ -22,7 +22,7 @@ BOOST_AUTO_TEST_CASE(NullTermValid) {
 }
 
 BOOST_AUTO_TEST_CASE(NullTermInvalidType) {
-	Term invalidNull(Null, intTy(32), Ref());
+	Term invalidNull(NullPtr, intTy(32), Ref());
 	BOOST_CHECK_THROW(check(invalidNull), runtime_error);
 }
 

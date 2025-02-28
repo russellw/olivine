@@ -7,7 +7,7 @@ BOOST_AUTO_TEST_SUITE(ZeroValTests)
 BOOST_AUTO_TEST_CASE(TestVoidType) {
 	Type ty = voidTy();
 	Term result = zeroVal(ty);
-	BOOST_CHECK_EQUAL(result.tag(), Tag::Null);
+	BOOST_CHECK_EQUAL(result.tag(), Tag::NullPtr);
 }
 
 // Test integer types

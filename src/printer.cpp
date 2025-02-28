@@ -152,7 +152,7 @@ ostream& operator<<(ostream& os, Tag tag) {
 		return os << "global";
 	case Label:
 		return os << "label";
-	case Null:
+	case NullPtr:
 		return os << "null";
 	case Var:
 		return os << "var";
@@ -221,7 +221,7 @@ ostream& operator<<(ostream& os, Term a) {
 	case Var:
 		os << '%' << a.ref();
 		return os;
-	case Null:
+	case NullPtr:
 		os << "null";
 		return os;
 	}

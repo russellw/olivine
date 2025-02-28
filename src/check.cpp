@@ -19,9 +19,9 @@ void check(Term a) {
 	};
 
 	switch (a.tag()) {
-	case Null:
+	case NullPtr:
 		if (a.ty().kind() != PtrKind) {
-			throw runtime_error("Null must have pointer type");
+			throw runtime_error("NullPtr must have pointer type");
 		}
 		break;
 
@@ -258,7 +258,7 @@ void checkRecursive(Term a) {
 	case GlobalRef:
 	case Int:
 	case Label:
-	case Null:
+	case NullPtr:
 	case Var:
 		// These are leaf nodes with no nested terms to check
 		return;
