@@ -1,6 +1,7 @@
-// Helper: Create a function that includes a phi node.
 #include "all.h"
 #include <boost/test/unit_test.hpp>
+
+// Helper: Create a function that includes a phi node.
 Fn createFunctionWithPhi() {
 	// Create a function with one parameter (of type int32)
 	vector<Term> params;

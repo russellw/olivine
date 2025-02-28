@@ -32,7 +32,7 @@ BOOST_AUTO_TEST_CASE(test_alloca) {
 	Inst badFirst = alloca(intConst(intTy(32), 0), intTy(32), size);
 	BOOST_CHECK_THROW(check(badFirst), runtime_error);
 
-	// Second operand not a zero value
+	// Second operand 
 	Inst badSecond = Inst(Alloca, ptr, intConst(intTy(32), 1), size);
 	BOOST_CHECK_THROW(check(badSecond), runtime_error);
 

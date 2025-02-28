@@ -1,6 +1,7 @@
-// Helper functions to create test functions
 #include "all.h"
 #include <boost/test/unit_test.hpp>
+
+// Helper functions to create test functions
 namespace {
 Term createIntVar(const string& name, size_t bits = 32) {
 	return var(intTy(bits), Ref(name));

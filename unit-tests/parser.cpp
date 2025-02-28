@@ -1,6 +1,7 @@
-// Test fixture for Parser tests
 #include "all.h"
 #include <boost/test/unit_test.hpp>
+
+// Test fixture for Parser tests
 class ParserFixture {
 protected:
 	void parseFiles(const std::string& content1, const std::string& content2 = "") {

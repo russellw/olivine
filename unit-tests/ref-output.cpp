@@ -1,6 +1,7 @@
-// Disable max/min macros to avoid conflicts with std::numeric_limits
 #include "all.h"
 #include <boost/test/unit_test.hpp>
+
+// Disable max/min macros to avoid conflicts with std::numeric_limits
 #undef max
 #undef min
 

@@ -5,7 +5,7 @@ BOOST_AUTO_TEST_CASE(test_parse_alloca_instruction) {
 	// The test input: a function with a single alloca instruction.
 	// Note: the alloca instruction has three operands:
 	//  - The LHS variable (%1) which is a Var (with type ptrTy()),
-	//  - A “zero value” for the allocated type (here, zero of i32),
+	//  - The allocated type (here, i32),
 	//  - And the number of elements (the constant 1, of type i32).
 	std::string input = "define void @test() {\n"
 						"%1 = alloca i32, i64 1\n"
