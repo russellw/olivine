@@ -1,6 +1,7 @@
-// Helper function to create test environment
 #include "all.h"
 #include <boost/test/unit_test.hpp>
+
+// Helper function to create test environment
 unordered_map<Term, Term> makeEnv(const vector<pair<Term, Term>>& bindings) {
 	unordered_map<Term, Term> env;
 	for (const auto& p : bindings) {
