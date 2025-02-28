@@ -239,7 +239,7 @@ class Parser {
 
 		auto ty = type();
 		auto val = expr(ty);
-		return Global(ty, ref);
+		return Global(ty, ref, val);
 	}
 
 	Ref globalRef1() {

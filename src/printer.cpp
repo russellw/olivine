@@ -184,6 +184,16 @@ ostream& operator<<(ostream& os, Tag tag) {
 ostream& operator<<(ostream& os, Term a) {
 	// Handle special cases first
 	switch (a.tag()) {
+	case Array:
+		os << '[';
+		for (size_t i = 0; i < a.size(); ++i) {
+			if (i) {
+				os << ", ";
+			}
+			os << a[i].ty() << " " << a[i];
+		}
+		os << ']';
+		return os;
 	case Call: {
 		// Format: call returnType (functionType function)(args...)
 		// Example: call i32 (i32, i32)* @sum(i32 %x, i32 %y)
@@ -489,7 +499,11 @@ ostream& operator<<(ostream& os, Inst inst) {
 }
 
 ostream& operator<<(ostream& os, Global a) {
-	return os << '@' << a.ref() << '=' << "global " << a.ty();
+	os << '@' << a.ref() << '=' << "global " << a.ty();
+	if (a.val().tag() != None) {
+		os << ' ' << a.val();
+	}
+	return os;
 }
 
 ostream& operator<<(ostream& os, Fn f) {
