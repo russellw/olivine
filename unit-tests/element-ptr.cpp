@@ -23,8 +23,8 @@ BOOST_AUTO_TEST_CASE(BasicIntArrayTest) {
 	BOOST_CHECK_EQUAL(result.ty(), ptrTy());
 	BOOST_CHECK_EQUAL(result.size(), 3);
 
-	// Check that first operand is zero value of element type
-	BOOST_CHECK_EQUAL(result[0], zeroVal(elementType));
+	// Check that first operand is the element type
+	BOOST_CHECK_EQUAL(result[0], none(elementType));
 
 	// Check pointer operand
 	BOOST_CHECK_EQUAL(result[1], arrayPtr);
