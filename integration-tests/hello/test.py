@@ -20,4 +20,4 @@ olivine(name + ".ll")
 clang("a.ll")
 
 # Check output
-check_output("a", expected_output='hello\n')
+check_output("a", expected_output="hello\n")
