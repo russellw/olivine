@@ -1,0 +1,85 @@
+#include "all.h"
+#include <boost/test/unit_test.hpp>
+
+BOOST_AUTO_TEST_SUITE(RefSetSuite)
+
+BOOST_AUTO_TEST_CASE(test_ref_set_deterministic_order) {
+	// Create a set with our custom comparator
+	std::set<Ref, RefComparator> refSet;
+
+	// Add elements in different order each time
+	refSet.insert(std::string("banana"));
+	refSet.insert(size_t(100));
+	refSet.insert(std::string("apple"));
+	refSet.insert(size_t(50));
+
+	// Check size is correct
+	BOOST_CHECK_EQUAL(refSet.size(), 4);
+
+	// Convert to vector to check order
+	std::vector<Ref> orderedRefs(refSet.begin(), refSet.end());
+
+	// Check that integers come before strings (by index comparison)
+	BOOST_CHECK_EQUAL(std::holds_alternative<size_t>(orderedRefs[0]), true);
+	BOOST_CHECK_EQUAL(std::holds_alternative<size_t>(orderedRefs[1]), true);
+	BOOST_CHECK_EQUAL(std::holds_alternative<std::string>(orderedRefs[2]), true);
+	BOOST_CHECK_EQUAL(std::holds_alternative<std::string>(orderedRefs[3]), true);
+
+	// Check that values are in correct order within each type
+	BOOST_CHECK_EQUAL(std::get<size_t>(orderedRefs[0]), 50);
+	BOOST_CHECK_EQUAL(std::get<size_t>(orderedRefs[1]), 100);
+	BOOST_CHECK_EQUAL(std::get<std::string>(orderedRefs[2]), "apple");
+	BOOST_CHECK_EQUAL(std::get<std::string>(orderedRefs[3]), "banana");
+}
+
+BOOST_AUTO_TEST_CASE(test_ref_set_insertion_order_invariance) {
+	// Create two sets with different insertion orders
+	std::set<Ref, RefComparator> refSet1;
+	std::set<Ref, RefComparator> refSet2;
+
+	// First set: Insert in one order
+	refSet1.insert(size_t(42));
+	refSet1.insert(std::string("hello"));
+	refSet1.insert(size_t(10));
+	refSet1.insert(std::string("world"));
+
+	// Second set: Insert in different order
+	refSet2.insert(std::string("world"));
+	refSet2.insert(size_t(10));
+	refSet2.insert(std::string("hello"));
+	refSet2.insert(size_t(42));
+
+	// Convert both to vectors
+	std::vector<Ref> vec1(refSet1.begin(), refSet1.end());
+	std::vector<Ref> vec2(refSet2.begin(), refSet2.end());
+
+	// Check that the order is the same regardless of insertion order
+	BOOST_REQUIRE_EQUAL(vec1.size(), vec2.size());
+	for (size_t i = 0; i < vec1.size(); ++i) {
+		BOOST_CHECK_EQUAL(vec1[i].index(), vec2[i].index());
+		if (vec1[i].index() == 0) {
+			BOOST_CHECK_EQUAL(std::get<size_t>(vec1[i]), std::get<size_t>(vec2[i]));
+		} else {
+			BOOST_CHECK_EQUAL(std::get<std::string>(vec1[i]), std::get<std::string>(vec2[i]));
+		}
+	}
+}
+
+BOOST_AUTO_TEST_CASE(test_ref_set_duplicate_handling) {
+	std::set<Ref, RefComparator> refSet;
+
+	// Insert elements
+	refSet.insert(size_t(42));
+	refSet.insert(std::string("hello"));
+
+	// Try to insert duplicates
+	auto result1 = refSet.insert(size_t(42));
+	auto result2 = refSet.insert(std::string("hello"));
+
+	// Verify duplicates were not inserted
+	BOOST_CHECK_EQUAL(result1.second, false);
+	BOOST_CHECK_EQUAL(result2.second, false);
+	BOOST_CHECK_EQUAL(refSet.size(), 2);
+}
+
+BOOST_AUTO_TEST_SUITE_END()

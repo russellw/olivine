@@ -123,6 +123,32 @@ size_t currentLine(const string& input, size_t pos);
 // In LLVM, some things can be referred to by index numbers or strings
 typedef std::variant<size_t, string> Ref;
 
+#include <iostream>
+#include <set>
+#include <string>
+#include <variant>
+
+typedef std::variant<size_t, string> Ref;
+
+// Custom comparator for std::variant
+struct RefComparator {
+	bool operator()(const Ref& a, const Ref& b) const {
+		// First compare by index (which type is in the variant)
+		if (a.index() != b.index()) {
+			return a.index() < b.index();
+		}
+
+		// Same type, now compare values
+		if (a.index() == 0) {
+			// Both are size_t
+			return std::get<size_t>(a) < std::get<size_t>(b);
+		} else {
+			// Both are string
+			return std::get<string>(a) < std::get<string>(b);
+		}
+	}
+};
+
 // Parse an LLVM identifier or string to a reference containing index number or string as appropriate
 // after removing the leading sigil if there is one
 // Correctly distinguishes between %9 and %"9"
