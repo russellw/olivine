@@ -34,13 +34,24 @@ class Parser {
 		return v;
 	}
 
+	Term call1() {
+		expect("call");
+		auto rty = type();
+		auto ref = globalRef1();
+		auto args = args1();
+		auto params = map(args, [](Term a) { return a.ty(); });
+		auto fty = fnTy(rty, params);
+		auto f = globalRef(fty, ref);
+		return call(rty, f, args);
+	}
+
 	Fn declare() {
 		/*
-			declare [linkage] [visibility] [DLLStorageClass]
-			[cconv] [ret attrs]
-			<ResultType> @<FunctionName> ([argument list])
-			[(unnamed_addr|local_unnamed_addr)] [align N] [gc]
-			[prefix Constant] [prologue Constant]
+		declare [linkage] [visibility] [DLLStorageClass]
+		[cconv] [ret attrs]
+		<ResultType> @<FunctionName> ([argument list])
+		[(unnamed_addr|local_unnamed_addr)] [align N] [gc]
+		[prefix Constant] [prologue Constant]
 		*/
 		expect("declare");
 		linkage();
@@ -64,13 +75,13 @@ class Parser {
 
 	Fn define() {
 		/*
-			define [linkage] [PreemptionSpecifier] [visibility] [DLLStorageClass]
-			[cconv] [ret attrs]
-			<ResultType> @<FunctionName> ([argument list])
-			[(unnamed_addr|local_unnamed_addr)] [AddrSpace] [fn Attrs]
-			[section "name"] [partition "name"] [comdat [($name)]] [align N]
-			[gc] [prefix Constant] [prologue Constant] [personality Constant]
-			(!name !N)* { ... }
+		define [linkage] [PreemptionSpecifier] [visibility] [DLLStorageClass]
+		[cconv] [ret attrs]
+		<ResultType> @<FunctionName> ([argument list])
+		[(unnamed_addr|local_unnamed_addr)] [AddrSpace] [fn Attrs]
+		[section "name"] [partition "name"] [comdat [($name)]] [align N]
+		[gc] [prefix Constant] [prologue Constant] [personality Constant]
+		(!name !N)* { ... }
 		*/
 		expect("define");
 		linkage();
@@ -186,6 +197,25 @@ class Parser {
 		}
 	}
 
+	Global global() {
+		// https://llvm.org/docs/LangRef.html#global-variables
+		/*
+		@<GlobalVarName> =
+		[Linkage] [PreemptionSpecifier] [Visibility]
+		[DLLStorageClass] [ThreadLocal]
+		[(unnamed_addr|local_unnamed_addr)] [AddrSpace]
+		[ExternallyInitialized]
+		<global | constant> <Type> [<InitializerConstant>]
+		[, section "name"] [, partition "name"]
+		[, comdat [($name)]] [, align <Alignment>]
+		[, code_model "model"]
+		[, no_sanitize_address] [, no_sanitize_hwaddress]
+		[, sanitize_address_dyninit] [, sanitize_memtag]
+		(, !name !N)*
+		*/
+		auto ref = globalRef1();
+	}
+
 	Ref globalRef1() {
 		if (tok[0] != '@') {
 			throw error(quote(tok) + ": expected global name");
@@ -225,7 +255,7 @@ class Parser {
 			return br(cond, yes, no);
 		}
 		if (tok == "call") {
-			return Inst(Drop, parseCall());
+			return Inst(Drop, call1());
 		}
 		if (tok == "ret") {
 			lex();
@@ -528,17 +558,10 @@ class Parser {
 			module->defs.push_back(define());
 			return;
 		}
-	}
-
-	Term parseCall() {
-		expect("call");
-		auto rty = type();
-		auto ref = globalRef1();
-		auto args = args1();
-		auto params = map(args, [](Term a) { return a.ty(); });
-		auto fty = fnTy(rty, params);
-		auto f = globalRef(fty, ref);
-		return call(rty, f, args);
+		if (tok == "global") {
+			module->globals.push_back(global());
+			return;
+		}
 	}
 
 	void preemption() {
@@ -639,7 +662,7 @@ class Parser {
 			return Term(AShr, ty, a, b);
 		}
 		if (tok == "call") {
-			return parseCall();
+			return call1();
 		}
 		if (tok == "fadd") {
 			lex();
