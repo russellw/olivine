@@ -115,7 +115,7 @@ BOOST_AUTO_TEST_CASE(EdgeCases) {
 	Type elementType = intTy(32);
 
 	// Test with null pointer
-	Term nullPtr = nullConst;
+	Term nullPtr = nullPtrConst;
 	Term index = intConst(intTy(64), 0);
 
 	Term result = elementPtr(elementType, nullPtr, index);

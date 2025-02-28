@@ -203,8 +203,8 @@ template <> struct hash<Term> {
 extern Term trueConst;
 extern Term falseConst;
 
-// Null is the only pointer constant
-extern Term nullConst;
+// NullPtr is the only pointer constant
+extern Term nullPtrConst;
 
 // Integer constants are arbitrary precision
 Term intConst(Type ty, const cpp_int& val);

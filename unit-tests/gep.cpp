@@ -111,10 +111,10 @@ BOOST_AUTO_TEST_CASE(NullPointerBase) {
 	auto arrayType = arrayTy(4, intTy(32));
 	auto idx = intConst(intTy(64), 2);
 
-	auto result = getElementPtr(arrayType, nullConst, {idx});
+	auto result = getElementPtr(arrayType, nullPtrConst, {idx});
 
 	// Should work with null pointer base
-	auto expected = elementPtr(intTy(32), nullConst, idx);
+	auto expected = elementPtr(intTy(32), nullPtrConst, idx);
 	BOOST_CHECK_EQUAL(result, expected);
 }
 

@@ -60,7 +60,7 @@ BOOST_AUTO_TEST_CASE(TestFloatTypes) {
 BOOST_AUTO_TEST_CASE(TestPointerType) {
 	Type ty = ptrTy();
 	Term result = zeroVal(ty);
-	BOOST_CHECK_EQUAL(result, nullConst);
+	BOOST_CHECK_EQUAL(result, nullPtrConst);
 }
 
 // Test array type
@@ -114,7 +114,7 @@ BOOST_AUTO_TEST_CASE(TestStructType) {
 	BOOST_CHECK_EQUAL(result[1].tag(), Tag::Float);
 	BOOST_CHECK_EQUAL(result[1].str(), "0.0");
 
-	BOOST_CHECK_EQUAL(result[2], nullConst);
+	BOOST_CHECK_EQUAL(result[2], nullPtrConst);
 }
 
 // Test nested types
@@ -137,8 +137,8 @@ BOOST_AUTO_TEST_CASE(TestNestedTypes) {
 	// Check array field
 	BOOST_CHECK_EQUAL(result[1].tag(), Tag::Array);
 	BOOST_CHECK_EQUAL(result[1].size(), 2);
-	BOOST_CHECK_EQUAL(result[1][0], nullConst);
-	BOOST_CHECK_EQUAL(result[1][1], nullConst);
+	BOOST_CHECK_EQUAL(result[1][0], nullPtrConst);
+	BOOST_CHECK_EQUAL(result[1][1], nullPtrConst);
 }
 
 // Test function type (should throw)

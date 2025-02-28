@@ -24,7 +24,7 @@ BOOST_AUTO_TEST_CASE(test_atomic_terms) {
 	os.str("");
 
 	// Test null constant
-	os << nullConst;
+	os << nullPtrConst;
 	BOOST_CHECK_EQUAL(os.str(), "null");
 	os.str("");
 

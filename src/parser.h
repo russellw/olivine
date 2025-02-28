@@ -155,7 +155,7 @@ class Parser {
 				throw error("type mismatch");
 			}
 			lex();
-			return nullConst;
+			return nullPtrConst;
 		}
 		if (tok == "true") {
 			if (ty != boolTy()) {

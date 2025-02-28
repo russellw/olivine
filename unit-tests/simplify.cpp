@@ -11,7 +11,7 @@ unordered_map<Term, Term> makeEnv(const vector<pair<Term, Term>>& bindings) {
 
 BOOST_AUTO_TEST_CASE(constants_and_variables) {
 	// Constants should remain unchanged
-	Term nullTerm = nullConst;
+	Term nullTerm = nullPtrConst;
 	Term intTerm = intConst(intTy(32), 42);
 	Term floatTerm = floatConst(floatTy(), "3.14");
 

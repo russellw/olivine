@@ -7,11 +7,11 @@ BOOST_AUTO_TEST_CASE(BasicTermMapping) {
 	// Test constant terms
 	termMap[trueConst] = 1;
 	termMap[falseConst] = 2;
-	termMap[nullConst] = 3;
+	termMap[nullPtrConst] = 3;
 
 	BOOST_CHECK_EQUAL(termMap[trueConst], 1);
 	BOOST_CHECK_EQUAL(termMap[falseConst], 2);
-	BOOST_CHECK_EQUAL(termMap[nullConst], 3);
+	BOOST_CHECK_EQUAL(termMap[nullPtrConst], 3);
 }
 
 BOOST_AUTO_TEST_CASE(IntegerTermMapping) {

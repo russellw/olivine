@@ -69,10 +69,10 @@ BOOST_AUTO_TEST_CASE(NullPointer) {
 	vector<Type> fields = {intTy(32)};
 	Type structType = structTy(fields);
 
-	Term result = fieldPtr(structType, nullConst, 0);
+	Term result = fieldPtr(structType, nullPtrConst, 0);
 
 	BOOST_CHECK_EQUAL(result.tag(), FieldPtr);
-	BOOST_CHECK_EQUAL(result[1], nullConst);
+	BOOST_CHECK_EQUAL(result[1], nullPtrConst);
 }
 
 // Test with empty struct

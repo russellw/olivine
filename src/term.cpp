@@ -135,7 +135,7 @@ bool Term::operator==(Term b0) const {
 Term trueConst(&trueImpl);
 Term falseConst(&falseImpl);
 
-Term nullConst(&nullImpl);
+Term nullPtrConst(&nullImpl);
 
 Term intConst(Type ty, const cpp_int& val) {
 	ASSERT(ty.kind() == IntKind);
@@ -163,7 +163,7 @@ Term zeroVal(Type ty) {
 
 	case PtrKind:
 		// For pointers, return null
-		return nullConst;
+		return nullPtrConst;
 
 	case ArrayKind: {
 		// For arrays, create an array of zero values

@@ -18,7 +18,7 @@ Term makeDoubleTerm(const string& val) {
 
 // Null tests
 BOOST_AUTO_TEST_CASE(NullTermValid) {
-	BOOST_CHECK_NO_THROW(check(nullConst));
+	BOOST_CHECK_NO_THROW(check(nullPtrConst));
 }
 
 BOOST_AUTO_TEST_CASE(NullTermInvalidType) {

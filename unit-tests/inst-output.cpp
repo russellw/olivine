@@ -203,7 +203,7 @@ BOOST_AUTO_TEST_CASE(AssignNullPointer) {
 	Term lhs = var(ptrTy(), Ref("ptr"));
 
 	// Create a null pointer to assign
-	Term rhs = nullConst;
+	Term rhs = nullPtrConst;
 
 	// Create an assignment instruction
 	Inst inst = assign(lhs, rhs);
