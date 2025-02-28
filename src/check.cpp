@@ -367,10 +367,10 @@ void check(Inst inst) {
 			throw runtime_error("First operand of Alloca must be a variable");
 		}
 
-		// Second operand must be a zero value of the type to allocate
+		// Second operand must be the type to allocate
 		Term typeSpec = inst[1];
-		if (typeSpec != zeroVal(typeSpec.ty())) {
-			throw runtime_error("Second operand of Alloca must be a zero value");
+		if (typeSpec != none(typeSpec.ty())) {
+			throw runtime_error("Second operand of Alloca must be the type to allocate");
 		}
 
 		// Third operand must be an integer for number of elements

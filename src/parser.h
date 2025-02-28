@@ -540,9 +540,7 @@ class Parser {
 		if (tok[0] == '%') {
 			return var1(ty);
 		}
-		// TODO: Is this use of zero values when we just want a placeholder for a type actually correct
-		// or would it be better to have an actual tag for this purpose?
-		return zeroVal(ty);
+		return none(ty);
 	}
 
 	void paramAttrs() {

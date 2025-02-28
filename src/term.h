@@ -89,6 +89,11 @@ enum Tag {
 
 	Mul,
 
+	// None represents the absence of a term
+	// for example, the name of an anonymous function parameter
+	// or a placeholder for instructions that syntactically require a term but semantically only a type
+	None,
+
 	// Logical negation doesn't correspond to an LLVM instruction
 	// but is useful enough to be worth having in the internal representation
 	// and having introduced it, we don't need separate tags for Ne and FNe
@@ -133,7 +138,7 @@ class Term {
 	TermImpl* p;
 
 public:
-	// The default Term is Null
+	// The default Term is None
 	Term();
 
 	// For internal use
@@ -206,8 +211,16 @@ extern Term falseConst;
 // NullPtr is the only pointer constant
 extern Term nullPtrConst;
 
+inline Term none(Type ty) {
+	return Term(None, ty, 0);
+}
+
 // Integer constants are arbitrary precision
 Term intConst(Type ty, const cpp_int& val);
+
+inline Term intConst(const cpp_int& val) {
+	return intConst(intTy(64), val);
+}
 
 // Returns the zero/null value for any data type
 // including recursively on structs, arrays etc.
@@ -234,11 +247,11 @@ inline Term cmp(Tag tag, Term a, Term b) {
 }
 
 inline Term elementPtr(Type ty, Term p, Term i) {
-	return Term(ElementPtr, ptrTy(), zeroVal(ty), p, i);
+	return Term(ElementPtr, ptrTy(), none(ty), p, i);
 }
 
 inline Term fieldPtr(Type ty, Term p, size_t i) {
-	return Term(FieldPtr, ptrTy(), zeroVal(ty), p, intConst(intTy(64), i));
+	return Term(FieldPtr, ptrTy(), none(ty), p, intConst(i));
 }
 
 inline Term floatConst(Type ty, const string& val) {
@@ -247,10 +260,6 @@ inline Term floatConst(Type ty, const string& val) {
 
 inline Term globalRef(Type ty, const Ref& ref) {
 	return Term(GlobalRef, ty, ref);
-}
-
-inline Term intConst(const cpp_int& val) {
-	return intConst(intTy(64), val);
 }
 
 inline Term label(const Ref& ref) {

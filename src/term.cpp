@@ -29,7 +29,8 @@ TermImpl falseImpl(Int, boolTy(), cpp_int(0));
 
 TermImpl nullImpl(NullPtr, ptrTy());
 
-Term::Term(): p(&nullImpl) {
+Term::Term() {
+	p = new TermImpl(None, voidTy());
 }
 
 Term::Term(Tag tag) {
@@ -145,10 +146,6 @@ Term intConst(Type ty, const cpp_int& val) {
 
 Term zeroVal(Type ty) {
 	switch (ty.kind()) {
-	case VoidKind:
-		// Void type has no value
-		return Term();
-
 	case IntKind:
 		// For integers, return a zero constant of the appropriate bit length
 		return intConst(ty, 0);

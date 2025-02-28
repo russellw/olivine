@@ -101,7 +101,7 @@ public:
 // SORT FUNCTIONS
 
 inline Inst alloca(Term lval, Type ty, Term n) {
-	return Inst(Alloca, lval, zeroVal(ty), n);
+	return Inst(Alloca, lval, none(ty), n);
 }
 
 inline Inst assign(Term a, Term b) {
