@@ -21,7 +21,6 @@ using std::back_inserter;
 using std::cerr;
 using std::cout;
 using std::hash;
-using std::invalid_argument;
 using std::invoke_result_t;
 using std::ostream;
 using std::ostringstream;

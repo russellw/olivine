@@ -1,4 +1,5 @@
 #include "all.h"
+using std::invalid_argument;
 
 #ifdef _WIN32
 #include <windows.h>
@@ -9,12 +10,24 @@ LONG WINAPI unhandledExceptionFilter(EXCEPTION_POINTERS* exInfo) {
 }
 #endif
 
+static char* optArg(int argc, char** argv, int& i, char* s) {
+	if (s[1]) {
+		return s + 1;
+	}
+	++i;
+	if (i == argc) {
+		throw runtime_error(string(argv[i]) + ": expected arg");
+	}
+	return argv[i];
+}
+
 int main(int argc, char** argv) {
 	try {
 #ifdef _WIN32
 		SetUnhandledExceptionFilter(unhandledExceptionFilter);
 #endif
 		vector<string> files;
+		const char* outFile = "a.ll";
 		for (int i = 1; i < argc; i++) {
 			auto s = argv[i];
 			if (*s == '-') {
@@ -33,15 +46,16 @@ int main(int argc, char** argv) {
 					cout << "-V          Show version\n";
 					cout << "-o file.ll  Name output file\n";
 					return 0;
+				case 'o':
+					outFile = optArg(argc, argv, i, s);
+					continue;
 				}
-				cerr << argv[i] << ": unknown option\n";
-				return 1;
+				throw runtime_error(string(argv[i]) + ": unknown option");
 			}
 			files.push_back(s);
 		}
 		if (files.empty()) {
-			cerr << "No files given\n";
-			return 1;
+			throw runtime_error("No files given");
 		}
 		vector<Module*> modules;
 		for (auto file : files) {
@@ -49,7 +63,7 @@ int main(int argc, char** argv) {
 			Parser parser(file, text);
 			modules.push_back(parser.module);
 		}
-		std::ofstream os("a.ll", std::ios::binary);
+		std::ofstream os(outFile, std::ios::binary);
 		os << modules[0];
 		return 0;
 	} catch (const std::exception& e) {
