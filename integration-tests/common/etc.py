@@ -162,3 +162,66 @@ def check_return_code(executable, args=None, expected_return_code=0):
         )
 
     return process.stdout, process.stderr
+import subprocess
+import re
+
+def check_output(executable, args=None, expected_output=None, expected_pattern=None, expected_return_code=0):
+    """
+    Run a specified executable with optional arguments and check its stdout output.
+    
+    Args:
+        executable (str): Path to the executable to run
+        args (list, optional): List of arguments to pass to the executable
+        expected_output (str, optional): Expected exact stdout output
+        expected_pattern (str, optional): Regular expression pattern the stdout should match
+        expected_return_code (int, optional): Expected return code, defaults to 0
+    
+    Returns:
+        tuple: (stdout_data, stderr_data, return_code) as strings and integer
+    
+    Raises:
+        RuntimeError: If the return code doesn't match the expected value
+        ValueError: If the stdout output doesn't match expected output or pattern
+    """
+    # Validate input arguments
+    if expected_output is not None and expected_pattern is not None:
+        raise ValueError("Cannot specify both expected_output and expected_pattern")
+    
+    # Prepare the command
+    command = [executable]
+    if args:
+        command.extend(args)
+    
+    # Run the process
+    process = subprocess.run(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,  # Return strings instead of bytes
+        check=False,  # Don't automatically raise exception on non-zero return
+    )
+    
+    # Check return code
+    if process.returncode != expected_return_code:
+        raise RuntimeError(
+            f"Executable '{executable}' returned {process.returncode} instead of expected {expected_return_code}.\n"
+            f"STDOUT: {process.stdout}\n"
+            f"STDERR: {process.stderr}"
+        )
+    
+    # Check stdout output if expected_output is provided
+    if expected_output is not None and process.stdout.strip() != expected_output.strip():
+        raise ValueError(
+            f"Executable '{executable}' stdout output doesn't match expected output.\n"
+            f"Expected: {expected_output}\n"
+            f"Actual: {process.stdout}"
+        )
+    
+    # Check stdout against pattern if expected_pattern is provided
+    if expected_pattern is not None and not re.search(expected_pattern, process.stdout):
+        raise ValueError(
+            f"Executable '{executable}' stdout output doesn't match expected pattern '{expected_pattern}'.\n"
+            f"Actual output: {process.stdout}"
+        )
+    
+    return process.stdout, process.stderr, process.returncode
