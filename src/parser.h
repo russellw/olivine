@@ -304,7 +304,7 @@ class Parser {
 					expect("[");
 					v.push_back(expr(ty));
 					expect(",");
-					v.push_back(label1());
+					v.push_back(label(ref1()));
 					expect("]");
 				} while (maybeComma());
 
