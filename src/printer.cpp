@@ -554,6 +554,11 @@ ostream& operator<<(ostream& out, Module* module) {
 		out << "target triple = \"" << context::triple << "\"\n";
 	}
 
+	// Print comdats
+	for (const auto& ref : context::comdats) {
+		out << '$' << ref << " = comdat any\n";
+	}
+
 	// Print global variables
 	for (const auto& global : module->globals) {
 		out << global << "\n";

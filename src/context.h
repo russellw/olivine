@@ -3,7 +3,7 @@
 namespace context {
 extern string datalayout;
 extern string triple;
-
+extern std::set<Ref> comdats;
 extern vector<Fn> decls;
 
 void clear();

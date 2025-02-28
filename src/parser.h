@@ -407,6 +407,7 @@ class Parser {
 				lexQuote();
 				maybeColon();
 				return;
+			case '$':
 			case '%':
 			case '@':
 				tok = text.substr(pos++, 1);
@@ -591,6 +592,15 @@ class Parser {
 		}
 		if (tok == "define") {
 			module->defs.push_back(define());
+			return;
+		}
+		if (tok[0] == '$') {
+			auto ref = unwrap(tok);
+			lex();
+			expect("=");
+			expect("comdat");
+			expect("any");
+			context::comdats.insert(ref);
 			return;
 		}
 		if (tok[0] == '@') {
