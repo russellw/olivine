@@ -490,6 +490,11 @@ class Parser {
 	}
 
 	Term param1() {
+		if (tok == "...") {
+			lex();
+			return Term(Array);
+		}
+
 		// <type> [parameter Attrs] [name]
 		auto ty = type();
 		paramAttrs();

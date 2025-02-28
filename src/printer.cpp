@@ -509,6 +509,10 @@ ostream& operator<<(ostream& os, Fn f) {
 		if (i > 0) {
 			os << ", ";
 		}
+		if (params[i].tag() == Array) {
+			os << "...";
+			continue;
+		}
 		os << params[i].ty();
 		os << ' ' << params[i];
 	}
