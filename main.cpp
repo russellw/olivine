@@ -27,6 +27,11 @@ int main(int argc, char** argv) {
 					cout << "Olivine 0\n";
 					return 0;
 				case 'h':
+					cout << "Usage: olivine [options] file.ll ...\n";
+					cout << "\n";
+					cout << "-h          Show help\n";
+					cout << "-V          Show version\n";
+					cout << "-o file.ll  Name output file\n";
 					return 0;
 				}
 				cerr << argv[i] << ": unknown option\n";
@@ -35,7 +40,7 @@ int main(int argc, char** argv) {
 			files.push_back(s);
 		}
 		if (files.empty()) {
-			cerr << "Usage: olivine [options] file.ll ...\n";
+			cerr << "No files given\n";
 			return 1;
 		}
 		vector<Module*> modules;
