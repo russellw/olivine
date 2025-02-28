@@ -547,7 +547,7 @@ ostream& operator<<(ostream& out, Module* module) {
 		out << "target datalayout = \"" << context::datalayout << "\"\n";
 	}
 	if (context::triple.size()) {
-		out << "target triple = \"" << context::triple << "\"\n\n";
+		out << "target triple = \"" << context::triple << "\"\n";
 	}
 
 	// Print global variables
