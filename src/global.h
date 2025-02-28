@@ -11,9 +11,11 @@ public:
 	}
 
 	Global(Type ty, const Ref& ref);
+	Global(Type ty, const Ref& ref, Term val);
 
 	Type ty() const;
 	Ref ref() const;
+	Term val() const;
 
 	// Comparison by value
 	bool operator==(Global b) const;

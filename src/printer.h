@@ -26,6 +26,9 @@ ostream& operator<<(ostream&, Term);
 // Output an instruction in LLVM format
 ostream& operator<<(ostream&, Inst);
 
+// Output a global variable in LLVM format
+ostream& operator<<(ostream&, Global);
+
 // Output a function in LLVM format
 // with `declare` or `define` depending on whether the function has a body
 ostream& operator<<(ostream&, Fn);
