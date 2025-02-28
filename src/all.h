@@ -16,7 +16,6 @@
 #include <utility>
 #include <variant>
 #include <vector>
-using std::all_of;
 using std::cerr;
 using std::cout;
 using std::hash;
@@ -26,7 +25,6 @@ using std::pair;
 using std::runtime_error;
 using std::string;
 using std::to_string;
-using std::transform;
 using std::unordered_map;
 using std::unordered_set;
 using std::vector;

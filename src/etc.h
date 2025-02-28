@@ -101,7 +101,7 @@ template <typename T, typename F> vector<std::invoke_result_t<F, T>> map(const v
 	vector<std::invoke_result_t<F, T>> result;
 	result.reserve(input.size());
 
-	transform(input.begin(), input.end(), std::back_inserter(result), func);
+	std::transform(input.begin(), input.end(), std::back_inserter(result), func);
 
 	return result;
 }

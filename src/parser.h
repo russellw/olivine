@@ -375,7 +375,7 @@ class Parser {
 	}
 
 	size_t int1() {
-		if (!all_of(tok.begin(), tok.end(), isDigit)) {
+		if (!std::all_of(tok.begin(), tok.end(), isDigit)) {
 			throw error("expected integer");
 		}
 		auto n = stoull(tok);
