@@ -552,7 +552,7 @@ ostream& operator<<(ostream& out, Module* module) {
 
 	// Print global variables
 	for (const auto& global : module->globals) {
-		out << "global " << global.ty() << " " << global.ref() << "\n";
+		out << '@' << global.ref() << '=' << "global " << global.ty() << "\n";
 	}
 
 	// Print function declarations
