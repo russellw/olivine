@@ -123,13 +123,6 @@ size_t currentLine(const string& input, size_t pos);
 // In LLVM, some things can be referred to by index numbers or strings
 typedef std::variant<size_t, string> Ref;
 
-#include <iostream>
-#include <set>
-#include <string>
-#include <variant>
-
-typedef std::variant<size_t, string> Ref;
-
 // Custom comparator for std::variant
 struct RefComparator {
 	bool operator()(const Ref& a, const Ref& b) const {

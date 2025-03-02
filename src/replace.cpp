@@ -238,3 +238,52 @@ size_t nextGlobalNumber(const Module* module) {
 	// Return the next available number (max + 1)
 	return maxNumber + 1;
 }
+
+void renameInternals(Module* module) {
+	// If the module is empty, nothing to do
+	if (module->globals.empty() && module->decls.empty() && module->defs.empty()) {
+		return;
+	}
+
+	// Get the next available global number to start renaming from
+	size_t nextNum = nextGlobalNumber(module);
+
+	// Create a mapping from old names to new names
+	unordered_map<Ref, Ref> renameMap;
+
+	// Process global variables
+	for (const Global& global : module->globals) {
+		Ref ref = global.ref();
+		// If this global is not in the externals set, it has internal visibility
+		if (module->externals.find(ref) == module->externals.end()) {
+			// Assign a new unique number
+			renameMap[ref] = nextNum++;
+		}
+	}
+
+	// Process function declarations
+	for (const Fn& decl : module->decls) {
+		Ref ref = decl.ref();
+		// If this function is not in the externals set, it has internal visibility
+		if (module->externals.find(ref) == module->externals.end()) {
+			// Assign a new unique number
+			renameMap[ref] = nextNum++;
+		}
+	}
+
+	// Process function definitions
+	for (const Fn& def : module->defs) {
+		Ref ref = def.ref();
+		// If this function is not in the externals set, it has internal visibility
+		if (module->externals.find(ref) == module->externals.end()) {
+			// Assign a new unique number
+			renameMap[ref] = nextNum++;
+		}
+	}
+
+	// If we have any references to rename, apply the renaming
+	if (!renameMap.empty()) {
+		// Use the rename function to update the module
+		rename(module, renameMap);
+	}
+}

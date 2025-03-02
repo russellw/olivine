@@ -26,3 +26,8 @@ void rename(Module* module, const unordered_map<Ref, Ref>&);
 // This function checks all existing global numbers
 // and returns a number one greater than the largest one
 size_t nextGlobalNumber(const Module* module);
+
+// Rename all global variables and functions that have only internal visibility
+// so that they won't conflict with globals in other modules when linked
+// The new numbers for renamed globals are generated starting with nextGlobalNumber
+void renameInternals(Module* module);
