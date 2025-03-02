@@ -53,6 +53,7 @@ using boost::multiprecision::cpp_int;
 
 // Algorithms
 #include "check.h"
+#include "fixed.h"
 #include "link.h"
 #include "replace.h"
 #include "simplify.h"
