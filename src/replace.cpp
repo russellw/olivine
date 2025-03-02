@@ -33,3 +33,23 @@ Term replace(Term term, const unordered_map<Term, Term>& replacements) {
 	// Create a new term with the same tag and type, but with the new operands
 	return Term(term.tag(), term.ty(), newOperands);
 }
+
+Inst replace(Inst inst, const unordered_map<Term, Term>& replacements) {
+	// If the instruction has no operands, return it as is
+	if (inst.size() == 0) {
+		return inst;
+	}
+
+	// Create a vector to hold the transformed operands
+	vector<Term> newOperands;
+	newOperands.reserve(inst.size());
+
+	// Transform each operand
+	for (size_t i = 0; i < inst.size(); ++i) {
+		// Apply replacement recursively to each operand
+		newOperands.push_back(replace(inst[i], replacements));
+	}
+
+	// Create a new instruction with the same opcode but with transformed operands
+	return Inst(inst.opcode(), newOperands);
+}
