@@ -1064,14 +1064,6 @@ class Parser {
 		throw error(quote(tok) + ": expected rval");
 	}
 
-	void setConsistent(string& var, const string& val, const char* name) {
-		ASSERT(val.size());
-		if (var.size() && var != val) {
-			throw error(string("inconsistent ") + name);
-		}
-		var = val;
-	}
-
 	void target1() {
 		expect("target");
 		if (tok == "datalayout") {
@@ -1080,7 +1072,7 @@ class Parser {
 			if (tok[0] != '"') {
 				throw error("expected string");
 			}
-			setConsistent(module->datalayout, unwrap(tok), "datalayout");
+			module->datalayout = unwrap(tok);
 			return;
 		}
 		if (tok == "triple") {
@@ -1089,7 +1081,7 @@ class Parser {
 			if (tok[0] != '"') {
 				throw error("expected string");
 			}
-			setConsistent(module->triple, unwrap(tok), "triple");
+			module->triple = unwrap(tok);
 			return;
 		}
 	}
