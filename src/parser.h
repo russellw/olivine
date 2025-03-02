@@ -600,7 +600,7 @@ class Parser {
 			expect("=");
 			expect("comdat");
 			expect("any");
-			context::comdats.insert(ref);
+			module->comdats.push_back(ref);
 			return;
 		}
 		if (tok[0] == '@') {
@@ -1080,7 +1080,7 @@ class Parser {
 			if (tok[0] != '"') {
 				throw error("expected string");
 			}
-			setConsistent(context::datalayout, unwrap(tok), "datalayout");
+			setConsistent(module->datalayout, unwrap(tok), "datalayout");
 			return;
 		}
 		if (tok == "triple") {
@@ -1089,7 +1089,7 @@ class Parser {
 			if (tok[0] != '"') {
 				throw error("expected string");
 			}
-			setConsistent(context::triple, unwrap(tok), "triple");
+			setConsistent(module->triple, unwrap(tok), "triple");
 			return;
 		}
 	}

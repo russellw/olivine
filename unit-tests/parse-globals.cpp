@@ -70,15 +70,15 @@ BOOST_AUTO_TEST_CASE(test_globals_with_declarations) {
 
 BOOST_AUTO_TEST_CASE(test_context_datalayout_and_triple) {
 	// Set up test data
-	context::datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128";
-	context::triple = "x86_64-pc-linux-gnu";
+	context.datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128";
+	context.triple = "x86_64-pc-linux-gnu";
 
 	// Verify the data is set correctly
-	BOOST_CHECK_EQUAL(context::datalayout, "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128");
-	BOOST_CHECK_EQUAL(context::triple, "x86_64-pc-linux-gnu");
+	BOOST_CHECK_EQUAL(context.datalayout, "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128");
+	BOOST_CHECK_EQUAL(context.triple, "x86_64-pc-linux-gnu");
 
 	// Clear context for other tests
-	context::clear();
+	context = Module();
 }
 
 BOOST_AUTO_TEST_CASE(test_module_output) {
@@ -90,8 +90,8 @@ BOOST_AUTO_TEST_CASE(test_module_output) {
 	Module* module = parser.module;
 
 	// Setup context for output testing
-	context::datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128";
-	context::triple = "x86_64-pc-linux-gnu";
+	module->datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128";
+	module->triple = "x86_64-pc-linux-gnu";
 
 	// Test outputting the module
 	std::ostringstream oss;
@@ -105,7 +105,7 @@ BOOST_AUTO_TEST_CASE(test_module_output) {
 	BOOST_CHECK(output.find("@global_ptr") != std::string::npos);
 
 	// Clear context for other tests
-	context::clear();
+	context = Module();
 }
 
 // Test for global variable equality comparison
