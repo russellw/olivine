@@ -10,7 +10,7 @@ struct GlobalImpl {
 };
 
 Global::Global() {
-	p = new GlobalImpl(voidTy(), 0, Term());
+	p = new GlobalImpl(voidTy(), (size_t)0, Term());
 }
 
 Global::Global(Type ty, const Ref& ref) {

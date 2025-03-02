@@ -18,14 +18,14 @@ BOOST_AUTO_TEST_CASE(EmptyFunctionDeclaration) {
 
 BOOST_AUTO_TEST_CASE(SimpleIntFunctionDeclaration) {
 	// Test an int32 function declaration with one parameter
-	vector<Term> params = {var(intTy(32), Ref(0))};
+	vector<Term> params = {var(intTy(32), Ref((size_t)0))};
 	auto f = Fn(intTy(32), Ref("simple"), params);
 	BOOST_CHECK_EQUAL(toString(f), "declare i32 @simple(i32 %0)");
 }
 
 BOOST_AUTO_TEST_CASE(MultiParamFunctionDeclaration) {
 	// Test function with multiple parameters of different types
-	vector<Term> params = {var(intTy(32), Ref(0)), var(ptrTy(), Ref(1)), var(doubleTy(), Ref(2))};
+	vector<Term> params = {var(intTy(32), Ref((size_t)0)), var(ptrTy(), Ref(1)), var(doubleTy(), Ref(2))};
 	auto f = Fn(intTy(64), Ref("multi"), params);
 	BOOST_CHECK_EQUAL(toString(f), "declare i64 @multi(i32 %0, ptr %1, double %2)");
 }
@@ -40,7 +40,7 @@ BOOST_AUTO_TEST_CASE(EmptyFunctionDefinition) {
 
 BOOST_AUTO_TEST_CASE(SimpleFunctionDefinition) {
 	// Test a function definition with one parameter and simple body
-	vector<Term> params = {var(intTy(32), Ref(0))};
+	vector<Term> params = {var(intTy(32), Ref((size_t)0))};
 	vector<Inst> body = {alloca(var(ptrTy(), Ref(1)), intTy(32), intConst(intTy(32), 1)), store(params[0], var(ptrTy(), Ref(1))),
 						 ret()};
 	auto f = Fn(voidTy(), Ref("simple_def"), params, body);
@@ -56,7 +56,7 @@ BOOST_AUTO_TEST_CASE(SimpleFunctionDefinition) {
 
 BOOST_AUTO_TEST_CASE(ComplexFunctionDefinition) {
 	// Test a function with control flow and multiple blocks
-	vector<Term> params = {var(intTy(32), Ref(0))};
+	vector<Term> params = {var(intTy(32), Ref((size_t)0))};
 	vector<Inst> body = {block(Ref("entry")),
 						 alloca(var(ptrTy(), Ref(1)), intTy(32), intConst(intTy(32), 1)),
 						 store(params[0], var(ptrTy(), Ref(1))),

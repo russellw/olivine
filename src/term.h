@@ -212,7 +212,7 @@ extern Term falseConst;
 extern Term nullPtrConst;
 
 inline Term none(Type ty) {
-	return Term(None, ty, 0);
+	return Term(None, ty, (size_t)0);
 }
 
 // Integer constants are arbitrary precision

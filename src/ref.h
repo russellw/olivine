@@ -9,6 +9,9 @@ public:
 	Ref(const string& str): str1(str) {
 	}
 
+	Ref(const char* str): str1(str) {
+	}
+
 	Ref(size_t num): num1(num) {
 	}
 

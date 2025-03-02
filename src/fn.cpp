@@ -12,7 +12,7 @@ struct FnImpl {
 };
 
 Fn::Fn() {
-	p = new FnImpl(voidTy(), 0, {}, {});
+	p = new FnImpl(voidTy(), (size_t)0, {}, {});
 }
 
 Fn::Fn(Type rty, const Ref& ref, const vector<Term>& params) {
