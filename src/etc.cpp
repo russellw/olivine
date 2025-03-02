@@ -103,13 +103,6 @@ void stackTrace(std::ostream& out) {
 #endif
 }
 
-string quote(const string& s) {
-	if (s == "\n") {
-		return "newline";
-	}
-	return '\'' + s + '\'';
-}
-
 string readFile(const string& filename) {
 	std::ifstream file(filename, std::ios::binary | std::ios::ate);
 	if (!file) {

@@ -172,7 +172,13 @@ Ref parseRef(string s) {
 	return Ref(unwrap(s));
 }
 
-// Count newlines before current position to get line number
+string quote(const string& s) {
+	if (s == "\n") {
+		return "newline";
+	}
+	return '\'' + s + '\'';
+}
+
 size_t currentLine(const string& text, size_t pos) {
 	size_t line = 1;
 	for (size_t i = 0; i < pos; i++) {

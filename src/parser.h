@@ -40,6 +40,10 @@ string unwrap(string s);
 // Correctly distinguishes between %9 and %"9"
 Ref parseRef(string s);
 
+// Quote a string, particularly a token, for echoing to the user
+// Newline is translated to something readable
+string quote(const string& s);
+
 // Count newlines before current position to get line number
 size_t currentLine(const string& input, size_t pos);
 
