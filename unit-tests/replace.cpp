@@ -438,7 +438,7 @@ BOOST_AUTO_TEST_CASE(replace_preserves_unchanged_elements_test) {
 	BOOST_CHECK_EQUAL(resultFunc.rty(), testFunc.rty());
 
 	// Check that function reference is preserved
-	BOOST_CHECK_EQUAL(std::get<string>(resultFunc.ref()), std::get<string>(testFunc.ref()));
+	BOOST_CHECK_EQUAL(resultFunc.ref(), testFunc.ref());
 
 	// Check that parameters are preserved
 	BOOST_CHECK_EQUAL(resultFunc.params().size(), testFunc.params().size());

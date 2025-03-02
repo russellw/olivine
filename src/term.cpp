@@ -53,6 +53,7 @@ Term::Term(Tag tag, Type ty, Term a, Term b, Term c) {
 	p = new TermImpl(tag, ty, {a, b, c});
 }
 
+// TODO: fmt?
 Term ::Term(Tag tag, Type ty, const vector<Term>& v) {
 	p = new TermImpl(tag, ty, v);
 }
