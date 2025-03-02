@@ -1,3 +1,39 @@
+// The signedness of plain char is implementation-defined, typically signed
+// and the ctype.h functions have undefined behavior on signed input
+// so, unless we want to count on never forgetting to cast to unsigned at every call site,
+// we need to provide our own
+inline bool isSpace(int c) {
+	return c <= ' ' && c;
+}
+
+inline bool isDigit(int c) {
+	return '0' <= c && c <= '9';
+}
+
+inline bool isLower(int c) {
+	return 'a' <= c && c <= 'z';
+}
+
+inline bool isUpper(int c) {
+	return 'A' <= c && c <= 'Z';
+}
+
+inline bool isAlpha(int c) {
+	return isLower(c) || isUpper(c);
+}
+
+inline bool isAlnum(int c) {
+	return isAlpha(c) || isDigit(c);
+}
+
+inline bool isXDigit(int c) {
+	return isDigit(c) || ('a' <= c && c <= 'f') || ('A' <= c && c <= 'F');
+}
+
+// Is the input character a valid part of an LLVM identifier?
+// This includes more punctuation than most programming languages
+bool isIdPart(int c);
+
 // Parse an LLVM identifier or string to a reference containing index number or string as appropriate
 // after removing the leading sigil if there is one
 // Correctly distinguishes between %9 and %"9"

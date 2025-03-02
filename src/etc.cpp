@@ -103,17 +103,6 @@ void stackTrace(std::ostream& out) {
 #endif
 }
 
-bool isIdPart(int c) {
-	switch (c) {
-	case '$':
-	case '-':
-	case '.':
-	case '_':
-		return true;
-	}
-	return isAlnum(c);
-}
-
 bool containsAt(const string& haystack, size_t position, const string& needle) {
 	// Position beyond string length is invalid
 	if (position > haystack.length()) {
