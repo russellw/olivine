@@ -1,12 +1,12 @@
 #include "all.h"
 
 ostream& operator<<(ostream& os, const Ref& ref) {
-	// For string variants, use wrap() to properly escape and quote
-	if (std::holds_alternative<string>(ref)) {
-		return os << wrap(std::get<string>(ref));
-	}
 	// For numeric variants, output directly
-	return os << std::get<size_t>(ref);
+	if (ref.numeric()) {
+		return os << ref.num();
+	}
+	// For string variants, use wrap() to properly escape and quote
+	return os << wrap(ref.str());
 }
 
 ostream& operator<<(ostream& os, Type ty) {

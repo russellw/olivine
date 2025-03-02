@@ -25,6 +25,7 @@ void rename(Module* module, const unordered_map<Ref, Ref>&);
 // it is efficient, and avoids the risk of generating a name with unintended significance
 // This function checks all existing global numbers
 // and returns a number one greater than the largest one
+// TODO: rename
 size_t nextGlobalNumber(const Module* module);
 
 // Rename all global variables and functions that have only internal visibility

@@ -83,7 +83,8 @@ Ref Term::ref() const {
 }
 
 string Term::str() const {
-	return std::get<string>(p->ref);
+	ASSERT(!p->ref.numeric());
+	return p->ref.str();
 }
 
 cpp_int Term::intVal() const {

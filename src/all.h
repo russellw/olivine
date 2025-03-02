@@ -14,7 +14,6 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
-#include <variant>
 #include <vector>
 using std::cerr;
 using std::cout;
@@ -37,6 +36,7 @@ using boost::multiprecision::cpp_int;
 #include "etc.h"
 
 // Data structures
+#include "ref.h"
 #include "type.h"
 
 // clang-format sorts includes

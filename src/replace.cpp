@@ -209,8 +209,8 @@ size_t nextGlobalNumber(const Module* module) {
 		const Ref& ref = global.ref();
 
 		// If the reference is a number, check if it's larger than our current max
-		if (ref.index() == 0) {
-			size_t num = std::get<size_t>(ref);
+		if (ref.numeric()) {
+			size_t num = ref.num();
 			maxNumber = std::max(maxNumber, num);
 		}
 	}
@@ -219,8 +219,8 @@ size_t nextGlobalNumber(const Module* module) {
 	for (const Fn& fn : module->decls) {
 		const Ref& ref = fn.ref();
 
-		if (ref.index() == 0) {
-			size_t num = std::get<size_t>(ref);
+		if (ref.numeric()) {
+			size_t num = ref.num();
 			maxNumber = std::max(maxNumber, num);
 		}
 	}
@@ -229,8 +229,8 @@ size_t nextGlobalNumber(const Module* module) {
 	for (const Fn& fn : module->defs) {
 		const Ref& ref = fn.ref();
 
-		if (ref.index() == 0) {
-			size_t num = std::get<size_t>(ref);
+		if (ref.numeric()) {
+			size_t num = ref.num();
 			maxNumber = std::max(maxNumber, num);
 		}
 	}

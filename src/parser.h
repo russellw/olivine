@@ -1,3 +1,9 @@
+// Parse an LLVM identifier or string to a reference containing index number or string as appropriate
+// after removing the leading sigil if there is one
+// Correctly distinguishes between %9 and %"9"
+Ref parseRef(string s);
+
+// Parser for LLVM `.ll` format
 class Parser {
 	const string file;
 	string text;

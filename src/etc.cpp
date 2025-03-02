@@ -238,22 +238,6 @@ size_t currentLine(const string& text, size_t pos) {
 	return line;
 }
 
-Ref parseRef(string s) {
-	s = removeSigil(s);
-	ASSERT(s.size());
-
-	// Index number
-	if (isDigit(s[0])) {
-		for (auto c : s) {
-			ASSERT(isDigit(c));
-		}
-		return Ref(stoull(s));
-	}
-
-	// Identifier or string
-	return Ref(unwrap(s));
-}
-
 string quote(const string& s) {
 	if (s == "\n") {
 		return "newline";
