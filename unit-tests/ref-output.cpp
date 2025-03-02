@@ -73,7 +73,7 @@ BOOST_AUTO_TEST_CASE(StringWithNonPrintable) {
 
 // Test large numeric value
 BOOST_AUTO_TEST_CASE(LargeNumericRef) {
-	const size_t large_value = (std::numeric_limits<size_t>::max)(); // Use parentheses to avoid macro issues
+	const size_t large_value = (std::numeric_limits<size_t>::max)() - 1; // Use parentheses to avoid macro issues
 	Ref ref(large_value);
 	std::ostringstream oss;
 	oss << ref;

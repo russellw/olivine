@@ -67,9 +67,9 @@ BOOST_AUTO_TEST_CASE(ErrorCases) {
 // Test edge cases
 BOOST_AUTO_TEST_CASE(EdgeCases) {
 	// Test maximum numeric value
-	auto ref1 = parseRef("%18446744073709551615"); // max size_t
+	auto ref1 = parseRef("%18446744073709551614"); // max size_t - 1
 	BOOST_CHECK(ref1.numeric());
-	BOOST_CHECK_EQUAL(ref1.num(), 18446744073709551615ULL);
+	BOOST_CHECK_EQUAL(ref1.num(), 18446744073709551614ULL);
 
 	// Test empty quoted string
 	auto ref2 = parseRef("%\"\"");

@@ -1,6 +1,8 @@
 #include "all.h"
 #include <boost/test/unit_test.hpp>
 
+BOOST_AUTO_TEST_SUITE(RenameInternalsTests)
+
 // Setup test fixtures
 struct TestModule {
 	std::unique_ptr<Module> module;
@@ -202,3 +204,5 @@ BOOST_AUTO_TEST_CASE(TestUniqueness) {
 		BOOST_CHECK(uniqueRefs.insert(func.ref()).second);
 	}
 }
+
+BOOST_AUTO_TEST_SUITE_END()
