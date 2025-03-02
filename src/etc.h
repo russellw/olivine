@@ -30,11 +30,26 @@ inline string makeAssertMessage(const char* expression, const char* file, int li
 
 #define dbg(a) cout << __FILE__ << ':' << __LINE__ << ": " << (a) << '\n'
 
-template <typename T> std::vector<T> tail(const std::vector<T>& vec) {
-	if (vec.empty()) {
-		return std::vector<T>();
+// SORT FUNCTIONS
+
+template <typename T> vector<T> cons(const T& x, const vector<T>& xs) {
+	vector<T> result;
+	result.reserve(1 + xs.size());
+	result.push_back(x);
+	result.insert(result.end(), xs.begin(), xs.end());
+	return result;
+}
+
+template <typename Iterator> size_t hashRange(Iterator first, Iterator last) {
+	size_t h = 0;
+	for (; first != last; ++first) {
+		hash_combine(h, hash<typename Iterator::value_type>()(*first));
 	}
-	return std::vector<T>(vec.begin() + 1, vec.end());
+	return h;
+}
+
+template <typename T> size_t hashVector(const vector<T>& v) {
+	return hashRange(v.begin(), v.end());
 }
 
 template <typename T, typename F> vector<std::invoke_result_t<F, T>> map(const vector<T>& input, F func) {
@@ -57,24 +72,9 @@ template <class K, class V> ostream& operator<<(ostream& os, const unordered_map
 	return os << '}';
 }
 
-template <typename Iterator> size_t hashRange(Iterator first, Iterator last) {
-	size_t h = 0;
-	for (; first != last; ++first) {
-		hash_combine(h, hash<typename Iterator::value_type>()(*first));
+template <typename T> std::vector<T> tail(const std::vector<T>& vec) {
+	if (vec.empty()) {
+		return std::vector<T>();
 	}
-	return h;
+	return std::vector<T>(vec.begin() + 1, vec.end());
 }
-
-template <typename T> size_t hashVector(const vector<T>& v) {
-	return hashRange(v.begin(), v.end());
-}
-
-template <typename T> vector<T> cons(const T& x, const vector<T>& xs) {
-	vector<T> result;
-	result.reserve(1 + xs.size());
-	result.push_back(x);
-	result.insert(result.end(), xs.begin(), xs.end());
-	return result;
-}
-
-// TODO: move some of these
