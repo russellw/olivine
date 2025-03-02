@@ -102,23 +102,3 @@ void stackTrace(std::ostream& out) {
 	}
 #endif
 }
-
-string readFile(const string& filename) {
-	std::ifstream file(filename, std::ios::binary | std::ios::ate);
-	if (!file) {
-		// Get the error code and create a system_error with the OS error message
-		std::error_code ec(errno, std::system_category());
-		throw std::system_error(ec, "Failed to open file: " + filename);
-	}
-
-	std::streamsize size = file.tellg();
-	file.seekg(0, std::ios::beg);
-
-	string content(size, '\0');
-	if (!file.read(&content[0], size)) {
-		std::error_code ec(errno, std::system_category());
-		throw std::system_error(ec, "Failed to read file: " + filename);
-	}
-
-	return content;
-}

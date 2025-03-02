@@ -1,3 +1,5 @@
+string readFile(const string& filename);
+
 // The signedness of plain char is implementation-defined, typically signed
 // and the ctype.h functions have undefined behavior on signed input
 // so, unless we want to count on never forgetting to cast to unsigned at every call site,

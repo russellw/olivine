@@ -78,4 +78,3 @@ template <typename T> vector<T> cons(const T& x, const vector<T>& xs) {
 }
 
 // TODO: move some of these
-string readFile(const string& filename);
