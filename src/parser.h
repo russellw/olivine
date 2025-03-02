@@ -35,6 +35,7 @@ inline bool isXDigit(int c) {
 bool isIdPart(int c);
 
 bool containsAt(const string& haystack, size_t position, const string& needle);
+bool endsWith(const string& s, int c);
 
 // Parse hexadecimal digits starting at a given position, updating pos accordingly
 // Hexadecimal digits are classified by the function isXDigit

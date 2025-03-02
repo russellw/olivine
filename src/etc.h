@@ -30,10 +30,6 @@ inline string makeAssertMessage(const char* expression, const char* file, int li
 
 #define dbg(a) cout << __FILE__ << ':' << __LINE__ << ": " << (a) << '\n'
 
-inline bool endsWith(const string& s, int c) {
-	return s.size() && s.back() == c;
-}
-
 template <typename T> std::vector<T> tail(const std::vector<T>& vec) {
 	if (vec.empty()) {
 		return std::vector<T>();

@@ -30,6 +30,10 @@ bool containsAt(const string& haystack, size_t position, const string& needle) {
 	return haystack.substr(position, needle.length()) == needle;
 }
 
+bool endsWith(const string& s, int c) {
+	return s.size() && s.back() == c;
+}
+
 unsigned parseHex(const string& s, size_t& pos, int maxLen) {
 	// Check if we're already at the end of the string
 	if (pos >= s.length()) {
