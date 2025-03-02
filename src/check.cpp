@@ -37,7 +37,8 @@ void check(Term a) {
 		if (k != FloatKind && k != DoubleKind) {
 			throw runtime_error("Float constant must have float or double type");
 		}
-	} break;
+		break;
+	}
 
 	case Add:
 	case And:
@@ -50,7 +51,8 @@ void check(Term a) {
 		if (!isIntegral(a.ty()) || a.ty() != a[0].ty()) {
 			throw runtime_error("Invalid types for integer arithmetic");
 		}
-	} break;
+		break;
+	}
 
 	case SDiv:
 	case SRem:
@@ -61,7 +63,8 @@ void check(Term a) {
 		if (!isIntegral(a.ty()) || a.ty() != a[0].ty()) {
 			throw runtime_error("Invalid types for division");
 		}
-	} break;
+		break;
+	}
 
 	case FAdd:
 	case FDiv:
@@ -74,7 +77,8 @@ void check(Term a) {
 		if ((k != FloatKind && k != DoubleKind) || a.ty() != a[0].ty()) {
 			throw runtime_error("Invalid types for floating-point arithmetic");
 		}
-	} break;
+		break;
+	}
 
 	case FNeg: {
 		checkOperandCount(a, 1);
@@ -82,7 +86,8 @@ void check(Term a) {
 		if ((k != FloatKind && k != DoubleKind) || a.ty() != a[0].ty()) {
 			throw runtime_error("Invalid types for floating-point negation");
 		}
-	} break;
+		break;
+	}
 
 	case Eq: {
 		checkOperandCount(a, 2);
@@ -90,7 +95,8 @@ void check(Term a) {
 		if (a.ty().kind() != IntKind || a.ty().len() != 1) {
 			throw runtime_error("Equality must return bool type");
 		}
-	} break;
+		break;
+	}
 
 	case FEq: {
 		checkOperandCount(a, 2);
@@ -102,7 +108,8 @@ void check(Term a) {
 		if (a.ty().kind() != IntKind || a.ty().len() != 1) {
 			throw runtime_error("FEq must return bool type");
 		}
-	} break;
+		break;
+	}
 
 	case SLe:
 	case SLt:
@@ -116,7 +123,8 @@ void check(Term a) {
 		if (a.ty().kind() != IntKind || a.ty().len() != 1) {
 			throw runtime_error("Comparison must return bool type");
 		}
-	} break;
+		break;
+	}
 
 	case FLe:
 	case FLt: {
@@ -129,7 +137,8 @@ void check(Term a) {
 		if (a.ty().kind() != IntKind || a.ty().len() != 1) {
 			throw runtime_error("Floating comparison must return bool type");
 		}
-	} break;
+		break;
+	}
 
 	case Not: {
 		checkOperandCount(a, 1);
@@ -139,7 +148,8 @@ void check(Term a) {
 		if (a.ty() != a[0].ty()) {
 			throw runtime_error("Not must return bool type");
 		}
-	} break;
+		break;
+	}
 
 	case Cast:
 	case SCast: {
@@ -150,14 +160,16 @@ void check(Term a) {
 		if ((sk != IntKind && sk != FloatKind && sk != DoubleKind) || (dk != IntKind && dk != FloatKind && dk != DoubleKind)) {
 			throw runtime_error("Cast requires numeric types");
 		}
-	} break;
+		break;
+	}
 
 	case Load: {
 		checkOperandCount(a, 1);
 		if (a[0].ty().kind() != PtrKind) {
 			throw runtime_error("Load requires pointer operand");
 		}
-	} break;
+		break;
+	}
 
 	case ElementPtr: {
 		checkOperandCount(a, 3);
@@ -170,7 +182,8 @@ void check(Term a) {
 		if (a.ty().kind() != PtrKind) {
 			throw runtime_error("ElementPtr must return pointer type");
 		}
-	} break;
+		break;
+	}
 
 	case FieldPtr: {
 		checkOperandCount(a, 3);
@@ -183,7 +196,8 @@ void check(Term a) {
 		if (a.ty().kind() != PtrKind) {
 			throw runtime_error("FieldPtr must return pointer type");
 		}
-	} break;
+		break;
+	}
 
 	case Array: {
 		if (a.ty().kind() != ArrayKind) {
@@ -195,7 +209,8 @@ void check(Term a) {
 				throw runtime_error("Array elements must have consistent type");
 			}
 		}
-	} break;
+		break;
+	}
 
 	case Tuple: {
 		if (a.ty().kind() != StructKind) {
@@ -209,7 +224,8 @@ void check(Term a) {
 				throw runtime_error("Tuple element type mismatch");
 			}
 		}
-	} break;
+		break;
+	}
 
 	case Call: {
 		if (a.size() < 1) {
@@ -233,7 +249,8 @@ void check(Term a) {
 				throw runtime_error("Call argument type mismatch");
 			}
 		}
-	} break;
+		break;
+	}
 
 	case GlobalRef:
 	case Var:
