@@ -1,5 +1,33 @@
 #include "all.h"
 
+bool isSpace(int c) {
+	return c <= ' ' && c;
+}
+
+bool isDigit(int c) {
+	return '0' <= c && c <= '9';
+}
+
+bool isLower(int c) {
+	return 'a' <= c && c <= 'z';
+}
+
+bool isUpper(int c) {
+	return 'A' <= c && c <= 'Z';
+}
+
+bool isAlpha(int c) {
+	return isLower(c) || isUpper(c);
+}
+
+bool isAlnum(int c) {
+	return isAlpha(c) || isDigit(c);
+}
+
+bool isXDigit(int c) {
+	return isDigit(c) || ('a' <= c && c <= 'f') || ('A' <= c && c <= 'F');
+}
+
 bool isIdPart(int c) {
 	switch (c) {
 	case '$':

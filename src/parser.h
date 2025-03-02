@@ -2,33 +2,13 @@
 // and the ctype.h functions have undefined behavior on signed input
 // so, unless we want to count on never forgetting to cast to unsigned at every call site,
 // we need to provide our own
-inline bool isSpace(int c) {
-	return c <= ' ' && c;
-}
-
-inline bool isDigit(int c) {
-	return '0' <= c && c <= '9';
-}
-
-inline bool isLower(int c) {
-	return 'a' <= c && c <= 'z';
-}
-
-inline bool isUpper(int c) {
-	return 'A' <= c && c <= 'Z';
-}
-
-inline bool isAlpha(int c) {
-	return isLower(c) || isUpper(c);
-}
-
-inline bool isAlnum(int c) {
-	return isAlpha(c) || isDigit(c);
-}
-
-inline bool isXDigit(int c) {
-	return isDigit(c) || ('a' <= c && c <= 'f') || ('A' <= c && c <= 'F');
-}
+bool isSpace(int c);
+bool isDigit(int c);
+bool isLower(int c);
+bool isUpper(int c);
+bool isAlpha(int c);
+bool isAlnum(int c);
+bool isXDigit(int c);
 
 // Is the input character a valid part of an LLVM identifier?
 // This includes more punctuation than most programming languages
