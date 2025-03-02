@@ -13,3 +13,8 @@ Global replace(Global, const unordered_map<Term, Term>&);
 
 // Transform a function by performing term replacement over all parameters and instructions
 Fn replace(Fn, const unordered_map<Term, Term>&);
+
+// Transform a module by changing the names of global variables and functions
+// This involves both renaming global objects
+// and using `replace` to update GlobalRefs in values and function bodies
+void rename(Module* module, const unordered_map<Ref, Ref>&);

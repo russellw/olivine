@@ -93,3 +93,109 @@ Fn replace(Fn func, const unordered_map<Term, Term>& replacements) {
 	// Create and return a new function with the replaced parameters and body
 	return Fn(returnType, funcRef, newParams, newBody);
 }
+
+void rename(Module* module, const unordered_map<Ref, Ref>& renameMap) {
+	// Create maps for converting global references
+	unordered_map<Term, Term> termRenameMap;
+
+	// Process globals
+	vector<Global> newGlobals;
+	for (const Global& global : module->globals) {
+		Ref oldRef = global.ref();
+
+		// Check if this global should be renamed
+		auto it = renameMap.find(oldRef);
+		if (it != renameMap.end()) {
+			Ref newRef = it->second;
+
+			// Create new global with renamed reference
+			Global newGlobal = Global(global.ty(), newRef);
+
+			// If global has a value, apply the same rename process
+			if (global.val() != Term()) {
+				newGlobal = Global(global.ty(), newRef, global.val());
+			}
+
+			// Add mapping for any references to this global
+			termRenameMap[globalRef(global.ty(), oldRef)] = globalRef(global.ty(), newRef);
+
+			newGlobals.push_back(newGlobal);
+		} else {
+			// Keep the global as is
+			newGlobals.push_back(global);
+		}
+	}
+
+	// Replace globals with renamed versions
+	module->globals = newGlobals;
+
+	// Process function declarations
+	vector<Fn> newDecls;
+	for (const Fn& decl : module->decls) {
+		Ref oldRef = decl.ref();
+
+		// Check if this function should be renamed
+		auto it = renameMap.find(oldRef);
+		if (it != renameMap.end()) {
+			Ref newRef = it->second;
+
+			// Create new declaration with renamed reference
+			Fn newDecl = Fn(decl.rty(), newRef, decl.params());
+
+			// Add mapping for any references to this function
+			Type fnType = fnTy(decl.rty(), map(decl.params(), [](Term p) { return p.ty(); }));
+			termRenameMap[globalRef(fnType, oldRef)] = globalRef(fnType, newRef);
+
+			newDecls.push_back(newDecl);
+		} else {
+			// Keep the declaration as is
+			newDecls.push_back(decl);
+		}
+	}
+
+	// Replace declarations with renamed versions
+	module->decls = newDecls;
+
+	// Process function definitions
+	vector<Fn> newDefs;
+	for (const Fn& def : module->defs) {
+		Ref oldRef = def.ref();
+
+		// Check if this function should be renamed
+		auto it = renameMap.find(oldRef);
+		if (it != renameMap.end()) {
+			Ref newRef = it->second;
+
+			// Create new definition with renamed reference and body
+			vector<Term> params = def.params();
+			vector<Inst> body(def.begin(), def.end());
+
+			Fn newDef = Fn(def.rty(), newRef, params, body);
+
+			// Add mapping for any references to this function
+			Type fnType = fnTy(def.rty(), map(def.params(), [](Term p) { return p.ty(); }));
+			termRenameMap[globalRef(fnType, oldRef)] = globalRef(fnType, newRef);
+
+			newDefs.push_back(newDef);
+		} else {
+			// Keep the definition as is
+			newDefs.push_back(def);
+		}
+	}
+
+	// Replace definitions with renamed versions
+	module->defs = newDefs;
+
+	// Apply the term replacements to all globals that have values
+	for (auto& global : module->globals) {
+		Term val = global.val();
+		if (val != Term()) { // Check if global has a value
+			global = replace(global, termRenameMap);
+		}
+	}
+
+	// Apply the term replacements to all function bodies
+	for (auto& def : module->defs) {
+		def = replace(def, termRenameMap);
+	}
+}
