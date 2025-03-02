@@ -21,10 +21,12 @@ public:
 	}
 
 	string str() const {
+		ASSERT(!numeric());
 		return str1;
 	}
 
 	size_t num() const {
+		ASSERT(numeric());
 		return num1;
 	}
 

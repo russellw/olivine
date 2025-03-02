@@ -83,7 +83,6 @@ Ref Term::ref() const {
 }
 
 string Term::str() const {
-	ASSERT(!p->ref.numeric());
 	return p->ref.str();
 }
 

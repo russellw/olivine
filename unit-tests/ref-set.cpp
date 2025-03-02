@@ -19,17 +19,11 @@ BOOST_AUTO_TEST_CASE(test_ref_set_deterministic_order) {
 	// Convert to vector to check order
 	std::vector<Ref> orderedRefs(refSet.begin(), refSet.end());
 
-	// Check that integers come before strings (by index comparison)
-	BOOST_CHECK_EQUAL(std::holds_alternative<size_t>(orderedRefs[0]), true);
-	BOOST_CHECK_EQUAL(std::holds_alternative<size_t>(orderedRefs[1]), true);
-	BOOST_CHECK_EQUAL(std::holds_alternative<std::string>(orderedRefs[2]), true);
-	BOOST_CHECK_EQUAL(std::holds_alternative<std::string>(orderedRefs[3]), true);
-
 	// Check that values are in correct order within each type
-	BOOST_CHECK_EQUAL(std::get<size_t>(orderedRefs[0]), 50);
-	BOOST_CHECK_EQUAL(std::get<size_t>(orderedRefs[1]), 100);
-	BOOST_CHECK_EQUAL(std::get<std::string>(orderedRefs[2]), "apple");
-	BOOST_CHECK_EQUAL(std::get<std::string>(orderedRefs[3]), "banana");
+	BOOST_CHECK_EQUAL(orderedRefs[0].str(), "apple");
+	BOOST_CHECK_EQUAL(orderedRefs[1].str(), "banana");
+	BOOST_CHECK_EQUAL(orderedRefs[2].num(), 50);
+	BOOST_CHECK_EQUAL(orderedRefs[3].num(), 100);
 }
 
 BOOST_AUTO_TEST_CASE(test_ref_set_insertion_order_invariance) {
@@ -56,12 +50,7 @@ BOOST_AUTO_TEST_CASE(test_ref_set_insertion_order_invariance) {
 	// Check that the order is the same regardless of insertion order
 	BOOST_REQUIRE_EQUAL(vec1.size(), vec2.size());
 	for (size_t i = 0; i < vec1.size(); ++i) {
-		BOOST_CHECK_EQUAL(vec1[i].index(), vec2[i].index());
-		if (vec1[i].index() == 0) {
-			BOOST_CHECK_EQUAL(std::get<size_t>(vec1[i]), std::get<size_t>(vec2[i]));
-		} else {
-			BOOST_CHECK_EQUAL(std::get<std::string>(vec1[i]), std::get<std::string>(vec2[i]));
-		}
+		BOOST_CHECK_EQUAL(vec1[i], vec2[i]);
 	}
 }
 

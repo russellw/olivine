@@ -421,7 +421,7 @@ BOOST_AUTO_TEST_CASE(replace_function_ref_test) {
 
 	// Check that the function reference in the call was replaced
 	Term resultCallExpr = resultFunc[0][1];
-	BOOST_CHECK_EQUAL(std::get<string>(resultCallExpr[0].ref()), "new_function");
+	BOOST_CHECK_EQUAL(resultCallExpr[0].ref().str(), "new_function");
 }
 
 BOOST_AUTO_TEST_CASE(replace_preserves_unchanged_elements_test) {

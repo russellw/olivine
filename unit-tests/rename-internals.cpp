@@ -111,10 +111,10 @@ BOOST_AUTO_TEST_CASE(OnlyInternalGlobals) {
 	BOOST_CHECK(fixture.module->defs[0].ref() != func2Ref);
 
 	// Check that the new references are numeric (size_t)
-	BOOST_CHECK(fixture.module->globals[0].ref().index() == 0);
-	BOOST_CHECK(fixture.module->globals[1].ref().index() == 0);
-	BOOST_CHECK(fixture.module->decls[0].ref().index() == 0);
-	BOOST_CHECK(fixture.module->defs[0].ref().index() == 0);
+	BOOST_CHECK(fixture.module->globals[0].ref().numeric());
+	BOOST_CHECK(fixture.module->globals[1].ref().numeric());
+	BOOST_CHECK(fixture.module->decls[0].ref().numeric());
+	BOOST_CHECK(fixture.module->defs[0].ref().numeric());
 }
 
 BOOST_AUTO_TEST_CASE(MixedGlobalsAndFunctions) {
@@ -150,9 +150,9 @@ BOOST_AUTO_TEST_CASE(MixedGlobalsAndFunctions) {
 	BOOST_CHECK(fixture.module->defs[1].ref() != internalFuncDefRef);
 
 	// Check that the new internal references are numeric (size_t)
-	BOOST_CHECK(fixture.module->globals[1].ref().index() == 0);
-	BOOST_CHECK(fixture.module->decls[1].ref().index() == 0);
-	BOOST_CHECK(fixture.module->defs[1].ref().index() == 0);
+	BOOST_CHECK(fixture.module->globals[1].ref().numeric());
+	BOOST_CHECK(fixture.module->decls[1].ref().numeric());
+	BOOST_CHECK(fixture.module->defs[1].ref().numeric());
 }
 
 BOOST_AUTO_TEST_CASE(TestInternalReferencesInGlobalValue) {
