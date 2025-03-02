@@ -7,3 +7,6 @@ Term replace(Term, const unordered_map<Term, Term>&);
 
 // Transform an instruction by performing term replacement over all operands
 Inst replace(Inst, const unordered_map<Term, Term>&);
+
+// Transform a function by performing term replacement over all parameters and instructions
+Fn replace(Fn, const unordered_map<Term, Term>&);

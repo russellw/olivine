@@ -53,3 +53,24 @@ Inst replace(Inst inst, const unordered_map<Term, Term>& replacements) {
 	// Create a new instruction with the same opcode but with transformed operands
 	return Inst(inst.opcode(), newOperands);
 }
+
+Fn replace(Fn func, const unordered_map<Term, Term>& replacements) {
+    // Create a new function with the same return type and reference
+    Type returnType = func.rty();
+    Ref funcRef = func.ref();
+    
+    // Replace all parameters
+    vector<Term> newParams;
+    for (const Term& param : func.params()) {
+        newParams.push_back(replace(param, replacements));
+    }
+    
+    // Replace all instructions in the function body
+    vector<Inst> newBody;
+    for (const Inst& inst : func) {
+        newBody.push_back(replace(inst, replacements));
+    }
+    
+    // Create and return a new function with the replaced parameters and body
+    return Fn(returnType, funcRef, newParams, newBody);
+}
