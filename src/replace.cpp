@@ -56,6 +56,23 @@ Inst replace(Inst inst, const unordered_map<Term, Term>& replacements) {
 	return Inst(inst.opcode(), newOperands);
 }
 
+Global replace(Global global, const unordered_map<Term, Term>& replacements) {
+	// Create a new Global with the same type and reference
+	Global result(global.ty(), global.ref());
+
+	// If the global has a value, replace it
+	if (global.val().tag() != None) {
+		// Apply term replacement to the value
+		Term newVal = replace(global.val(), replacements);
+
+		// Create a new Global with the replaced value
+		return Global(global.ty(), global.ref(), newVal);
+	}
+
+	// If there's no value (just a declaration), return the original
+	return result;
+}
+
 Fn replace(Fn func, const unordered_map<Term, Term>& replacements) {
 	// Create a new function with the same return type and reference
 	Type returnType = func.rty();
