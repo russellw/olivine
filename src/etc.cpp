@@ -103,17 +103,6 @@ void stackTrace(std::ostream& out) {
 #endif
 }
 
-// Count newlines before current position to get line number
-size_t currentLine(const string& text, size_t pos) {
-	size_t line = 1;
-	for (size_t i = 0; i < pos; i++) {
-		if (text[i] == '\n') {
-			line++;
-		}
-	}
-	return line;
-}
-
 string quote(const string& s) {
 	if (s == "\n") {
 		return "newline";

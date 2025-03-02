@@ -60,6 +60,9 @@ string unwrap(string s);
 // Correctly distinguishes between %9 and %"9"
 Ref parseRef(string s);
 
+// Count newlines before current position to get line number
+size_t currentLine(const string& input, size_t pos);
+
 // Parser for LLVM `.ll` format
 class Parser {
 	const string file;
