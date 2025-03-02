@@ -561,15 +561,15 @@ ostream& operator<<(ostream& os, Fn f) {
 
 ostream& operator<<(ostream& out, Module* module) {
 	// Print target platform info
-	if (context::datalayout.size()) {
-		out << "target datalayout = \"" << context::datalayout << "\"\n";
+	if (module->datalayout.size()) {
+		out << "target datalayout = \"" << module->datalayout << "\"\n";
 	}
-	if (context::triple.size()) {
-		out << "target triple = \"" << context::triple << "\"\n";
+	if (module->triple.size()) {
+		out << "target triple = \"" << module->triple << "\"\n";
 	}
 
 	// Print comdats
-	for (const auto& ref : context::comdats) {
+	for (const auto& ref : module->comdats) {
 		out << '$' << ref << " = comdat any\n";
 	}
 

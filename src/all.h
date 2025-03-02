@@ -49,8 +49,6 @@ using boost::multiprecision::cpp_int;
 #include "fn.h"
 #include "global.h"
 #include "module.h"
-
-#include "context.h"
 #include "program.h"
 
 // Algorithms
