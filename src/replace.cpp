@@ -2,9 +2,11 @@
 
 Term replace(Term term, const unordered_map<Term, Term>& replacements) {
 	// First, check if the term itself is in the replacement map
-	auto it = replacements.find(term);
-	if (it != replacements.end()) {
-		return it->second;
+	if (term.size() == 0) {
+		auto it = replacements.find(term);
+		if (it != replacements.end()) {
+			return it->second;
+		}
 	}
 
 	// If term is not a compound term (has no children), return it unchanged
