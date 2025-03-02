@@ -1,6 +1,6 @@
 class Ref {
-	const string str1;
-	const size_t num1 = ~(size_t)0;
+	string str1;
+	size_t num1 = ~(size_t)0;
 
 public:
 	Ref(): num1(0) {
