@@ -200,7 +200,7 @@ void rename(Module* module, const unordered_map<Ref, Ref>& renameMap) {
 	}
 }
 
-size_t nextGlobalNumber(const Module* module) {
+size_t nextGlobalNum(const Module* module) {
 	// Find the largest global number used in the module
 	size_t maxNumber = 0;
 
@@ -246,7 +246,7 @@ void renameInternals(Module* module) {
 	}
 
 	// Get the next available global number to start renaming from
-	size_t nextNum = nextGlobalNumber(module);
+	size_t nextNum = nextGlobalNum(module);
 
 	// Create a mapping from old names to new names
 	unordered_map<Ref, Ref> renameMap;

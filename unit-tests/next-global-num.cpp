@@ -6,7 +6,7 @@ BOOST_AUTO_TEST_CASE(EmptyModule) {
 	Module module;
 
 	// For an empty module, the next number should be 1
-	BOOST_CHECK_EQUAL(nextGlobalNumber(&module), 1);
+	BOOST_CHECK_EQUAL(nextGlobalNum(&module), 1);
 }
 
 BOOST_AUTO_TEST_CASE(ModuleWithStringRefsOnly) {
@@ -26,7 +26,7 @@ BOOST_AUTO_TEST_CASE(ModuleWithStringRefsOnly) {
 	module.defs.push_back(strFnDef);
 
 	// For a module with only string references, the next number should still be 1
-	BOOST_CHECK_EQUAL(nextGlobalNumber(&module), 1);
+	BOOST_CHECK_EQUAL(nextGlobalNum(&module), 1);
 }
 
 BOOST_AUTO_TEST_CASE(ModuleWithNumericRefs) {
@@ -46,7 +46,7 @@ BOOST_AUTO_TEST_CASE(ModuleWithNumericRefs) {
 	module.defs.push_back(numFnDef);
 
 	// Next number should be max + 1, so 11 in this case
-	BOOST_CHECK_EQUAL(nextGlobalNumber(&module), 11);
+	BOOST_CHECK_EQUAL(nextGlobalNum(&module), 11);
 }
 
 BOOST_AUTO_TEST_CASE(ModuleWithMixedRefs) {
@@ -66,7 +66,7 @@ BOOST_AUTO_TEST_CASE(ModuleWithMixedRefs) {
 	module.defs.push_back(Fn(intTy(32), Ref(size_t(12)), {}, {}));
 
 	// Next number should be max + 1, so 16 in this case
-	BOOST_CHECK_EQUAL(nextGlobalNumber(&module), 16);
+	BOOST_CHECK_EQUAL(nextGlobalNum(&module), 16);
 }
 
 BOOST_AUTO_TEST_CASE(ModuleWithLargeGaps) {
@@ -79,7 +79,7 @@ BOOST_AUTO_TEST_CASE(ModuleWithLargeGaps) {
 	module.defs.push_back(Fn(intTy(32), Ref(size_t(500)), {}, {}));
 
 	// Next number should be max + 1, so 1001 in this case
-	BOOST_CHECK_EQUAL(nextGlobalNumber(&module), 1001);
+	BOOST_CHECK_EQUAL(nextGlobalNum(&module), 1001);
 }
 
 BOOST_AUTO_TEST_CASE(ModuleWithDuplicateRefs) {
@@ -93,7 +93,7 @@ BOOST_AUTO_TEST_CASE(ModuleWithDuplicateRefs) {
 	module.decls.push_back(Fn(voidTy(), Ref(size_t(42)), {}));
 
 	// Next number should still be max + 1, so 43 in this case
-	BOOST_CHECK_EQUAL(nextGlobalNumber(&module), 43);
+	BOOST_CHECK_EQUAL(nextGlobalNum(&module), 43);
 }
 
 BOOST_AUTO_TEST_CASE(ZeroBasedRefs) {
@@ -104,5 +104,5 @@ BOOST_AUTO_TEST_CASE(ZeroBasedRefs) {
 	module.globals.push_back(Global(intTy(32), Ref(size_t(0))));
 
 	// Next number should be 1
-	BOOST_CHECK_EQUAL(nextGlobalNumber(&module), 1);
+	BOOST_CHECK_EQUAL(nextGlobalNum(&module), 1);
 }
