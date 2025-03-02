@@ -199,3 +199,42 @@ void rename(Module* module, const unordered_map<Ref, Ref>& renameMap) {
 		def = replace(def, termRenameMap);
 	}
 }
+
+size_t nextGlobalNumber(const Module* module) {
+	// Find the largest global number used in the module
+	size_t maxNumber = 0;
+
+	// Check global variable references
+	for (const Global& global : module->globals) {
+		const Ref& ref = global.ref();
+
+		// If the reference is a number, check if it's larger than our current max
+		if (ref.index() == 0) {
+			size_t num = std::get<size_t>(ref);
+			maxNumber = std::max(maxNumber, num);
+		}
+	}
+
+	// Check function declaration references
+	for (const Fn& fn : module->decls) {
+		const Ref& ref = fn.ref();
+
+		if (ref.index() == 0) {
+			size_t num = std::get<size_t>(ref);
+			maxNumber = std::max(maxNumber, num);
+		}
+	}
+
+	// Check function definition references
+	for (const Fn& fn : module->defs) {
+		const Ref& ref = fn.ref();
+
+		if (ref.index() == 0) {
+			size_t num = std::get<size_t>(ref);
+			maxNumber = std::max(maxNumber, num);
+		}
+	}
+
+	// Return the next available number (max + 1)
+	return maxNumber + 1;
+}

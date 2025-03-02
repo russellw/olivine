@@ -18,3 +18,11 @@ Fn replace(Fn, const unordered_map<Term, Term>&);
 // This involves both renaming global objects
 // and using `replace` to update GlobalRefs in values and function bodies
 void rename(Module* module, const unordered_map<Ref, Ref>&);
+
+// In LLVM, globals (variables and functions) can be named or numbered
+// Olivine reflects this by referring to them with the variant Ref type
+// When generating new global references, it is most useful to do this by number
+// it is efficient, and avoids the risk of generating a name with unintended significance
+// This function checks all existing global numbers
+// and returns a number one greater than the largest one
+size_t nextGlobalNumber(const Module* module);
