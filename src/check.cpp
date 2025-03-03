@@ -25,13 +25,11 @@ void check(Term a) {
 			throw runtime_error("NullPtr must have pointer type");
 		}
 		break;
-
 	case Int:
 		if (!isIntegral(a.ty())) {
 			throw runtime_error("Int constant must have integer type");
 		}
 		break;
-
 	case Float: {
 		auto k = a.ty().kind();
 		if (k != FloatKind && k != DoubleKind) {
@@ -39,7 +37,6 @@ void check(Term a) {
 		}
 		break;
 	}
-
 	case Add:
 	case And:
 	case Mul:
@@ -53,7 +50,6 @@ void check(Term a) {
 		}
 		break;
 	}
-
 	case SDiv:
 	case SRem:
 	case UDiv:
@@ -65,7 +61,6 @@ void check(Term a) {
 		}
 		break;
 	}
-
 	case FAdd:
 	case FDiv:
 	case FMul:
@@ -79,7 +74,6 @@ void check(Term a) {
 		}
 		break;
 	}
-
 	case FNeg: {
 		checkOperandCount(a, 1);
 		auto k = a.ty().kind();
@@ -88,7 +82,6 @@ void check(Term a) {
 		}
 		break;
 	}
-
 	case Eq: {
 		checkOperandCount(a, 2);
 		checkTypesMatch(a[0], a[1]);
@@ -97,7 +90,6 @@ void check(Term a) {
 		}
 		break;
 	}
-
 	case FEq: {
 		checkOperandCount(a, 2);
 		checkTypesMatch(a[0], a[1]);
@@ -110,7 +102,6 @@ void check(Term a) {
 		}
 		break;
 	}
-
 	case SLe:
 	case SLt:
 	case ULe:
@@ -125,7 +116,6 @@ void check(Term a) {
 		}
 		break;
 	}
-
 	case FLe:
 	case FLt: {
 		checkOperandCount(a, 2);
@@ -139,7 +129,6 @@ void check(Term a) {
 		}
 		break;
 	}
-
 	case Not: {
 		checkOperandCount(a, 1);
 		if (a[0].ty().kind() != IntKind || a[0].ty().len() != 1) {
@@ -150,7 +139,6 @@ void check(Term a) {
 		}
 		break;
 	}
-
 	case Cast:
 	case SCast: {
 		checkOperandCount(a, 1);
@@ -162,7 +150,6 @@ void check(Term a) {
 		}
 		break;
 	}
-
 	case Load: {
 		checkOperandCount(a, 1);
 		if (a[0].ty().kind() != PtrKind) {
@@ -170,7 +157,6 @@ void check(Term a) {
 		}
 		break;
 	}
-
 	case ElementPtr: {
 		checkOperandCount(a, 3);
 		if (a[1].ty().kind() != PtrKind) {
@@ -184,7 +170,6 @@ void check(Term a) {
 		}
 		break;
 	}
-
 	case FieldPtr: {
 		checkOperandCount(a, 3);
 		if (a[1].ty().kind() != PtrKind) {
@@ -198,7 +183,6 @@ void check(Term a) {
 		}
 		break;
 	}
-
 	case Array: {
 		if (a.ty().kind() != ArrayKind) {
 			throw runtime_error("Array term must have array type");
@@ -211,7 +195,6 @@ void check(Term a) {
 		}
 		break;
 	}
-
 	case Tuple: {
 		if (a.ty().kind() != StructKind) {
 			throw runtime_error("Tuple term must have struct type");
@@ -226,7 +209,6 @@ void check(Term a) {
 		}
 		break;
 	}
-
 	case Call: {
 		if (a.size() < 1) {
 			throw runtime_error("Call must have at least one operand (function)");
@@ -251,20 +233,16 @@ void check(Term a) {
 		}
 		break;
 	}
-
 	case GlobalRef:
 	case Var:
 		ASSERT(a.ty() != voidTy());
 		break;
-
 	case Label:
 		ASSERT(a.ty() == ptrTy());
 		break;
-
 	case None:
 		// These are valid with any type
 		break;
-
 	default:
 		throw runtime_error("Unknown term tag");
 	}
@@ -287,7 +265,6 @@ void checkRecursive(Term a) {
 	case Var:
 		// These are leaf nodes with no nested terms to check
 		return;
-
 	case Array:
 		// For arrays, we need to check that all elements have the same type
 		// This is in addition to checking each element recursively
@@ -301,7 +278,6 @@ void checkRecursive(Term a) {
 			}
 		}
 		return;
-
 	case Tuple:
 		// For tuples, ensure the structure matches the type
 		if (a.ty().kind() != StructKind) {
@@ -317,7 +293,6 @@ void checkRecursive(Term a) {
 			checkRecursive(a[i]);
 		}
 		return;
-
 	case Call:
 		// For function calls, validate the function and all arguments
 		if (a.size() < 1) {
@@ -343,7 +318,6 @@ void checkRecursive(Term a) {
 			checkRecursive(a[i]);
 		}
 		return;
-
 	case ElementPtr:
 	case FieldPtr:
 		// These operations require additional validation beyond their operands
@@ -360,7 +334,6 @@ void checkRecursive(Term a) {
 			throw runtime_error("ElementPtr/FieldPtr must return a pointer");
 		}
 		// Fall through to check operands recursively
-
 	default:
 		// For all other terms, recursively check their operands
 		for (const auto& operand : a) {
@@ -409,7 +382,6 @@ void check(Inst inst) {
 		}
 		break;
 	}
-
 	case Assign: {
 		if (inst.size() != 2) {
 			throw runtime_error("Assign must have exactly 2 operands");
@@ -426,7 +398,6 @@ void check(Inst inst) {
 		}
 		break;
 	}
-
 	case Block: {
 		if (inst.size() != 1) {
 			throw runtime_error("Block must have exactly 1 operand");
@@ -438,7 +409,6 @@ void check(Inst inst) {
 		}
 		break;
 	}
-
 	case Br: {
 		if (inst.size() != 3) {
 			throw runtime_error("Br must have exactly 3 operands");
@@ -455,14 +425,12 @@ void check(Inst inst) {
 		}
 		break;
 	}
-
 	case Drop: {
 		if (inst.size() != 1) {
 			throw runtime_error("Drop must have exactly 1 operand");
 		}
 		break;
 	}
-
 	case Jmp: {
 		if (inst.size() != 1) {
 			throw runtime_error("Jmp must have exactly 1 operand");
@@ -474,7 +442,6 @@ void check(Inst inst) {
 		}
 		break;
 	}
-
 	case Phi: {
 		if (inst.size() < 3 || (inst.size() - 1) % 2 != 0) {
 			throw runtime_error("Phi must have 1 + 2n operands where n >= 1");
@@ -500,21 +467,18 @@ void check(Inst inst) {
 		}
 		break;
 	}
-
 	case Ret: {
 		if (inst.size() != 1) {
 			throw runtime_error("Ret must have exactly 1 operand");
 		}
 		break;
 	}
-
 	case RetVoid: {
 		if (inst.size() != 0) {
 			throw runtime_error("RetVoid must have no operands");
 		}
 		break;
 	}
-
 	case Store: {
 		if (inst.size() != 2) {
 			throw runtime_error("Store must have exactly 2 operands");
@@ -526,7 +490,6 @@ void check(Inst inst) {
 		}
 		break;
 	}
-
 	case Switch: {
 		if (inst.size() < 2 || (inst.size() - 2) % 2 != 0) {
 			throw runtime_error("Switch must have 2 + 2n operands where n >= 0");
@@ -554,14 +517,12 @@ void check(Inst inst) {
 		}
 		break;
 	}
-
 	case Unreachable: {
 		if (inst.size() != 0) {
 			throw runtime_error("Unreachable must have no operands");
 		}
 		break;
 	}
-
 	default:
 		throw runtime_error("Unknown instruction opcode");
 	}
@@ -618,13 +579,11 @@ void check(Fn f) {
 			inBlock = true;
 			break;
 		}
-
 		case Phi: {
 			// Phi instructions are not allowed in internal representation
 			foundPhi = true;
 			break;
 		}
-
 		case Assign: {
 			// Must have exactly two operands
 			ASSERT(inst.size() == 2);
@@ -641,21 +600,18 @@ void check(Fn f) {
 			varTypes[inst[0].ref()] = lhsType;
 			break;
 		}
-
 		case Ret: {
 			// Must have exactly one operand matching function return type
 			ASSERT(inst.size() == 1);
 			ASSERT(inst[0].ty() == returnType);
 			break;
 		}
-
 		case RetVoid: {
 			// Must have no operands and void return type
 			ASSERT(inst.size() == 0);
 			ASSERT(returnType.kind() == VoidKind);
 			break;
 		}
-
 		case Br: {
 			// Must have exactly three operands
 			ASSERT(inst.size() == 3);
@@ -668,14 +624,12 @@ void check(Fn f) {
 			ASSERT(inst[2].tag() == Label);
 			break;
 		}
-
 		case Jmp: {
 			// Must have exactly one operand which is a label
 			ASSERT(inst.size() == 1);
 			ASSERT(inst[0].tag() == Label);
 			break;
 		}
-
 		case Store: {
 			// Must have exactly two operands
 			ASSERT(inst.size() == 2);
@@ -684,7 +638,6 @@ void check(Fn f) {
 			ASSERT(inst[1].ty().kind() == PtrKind);
 			break;
 		}
-
 		case Alloca: {
 			// Must have three operands
 			ASSERT(inst.size() == 3);
@@ -696,7 +649,6 @@ void check(Fn f) {
 			ASSERT(isInt(inst[2].ty()));
 			break;
 		}
-
 		default:
 			// For other instructions, rely on the instruction-level check
 			check(inst);

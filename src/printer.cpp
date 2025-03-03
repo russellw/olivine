@@ -341,7 +341,6 @@ ostream& operator<<(ostream& os, Inst inst) {
 				ASSERT(rhs.size() == 1);
 				os << "load " << rhs.ty() << ", ptr " << rhs[0];
 				break;
-
 			case AShr:
 			case Add:
 			case And:
@@ -359,7 +358,6 @@ ostream& operator<<(ostream& os, Inst inst) {
 				ASSERT(rhs.size() == 2);
 				os << rhs.tag() << " " << rhs.ty() << " " << rhs[0] << ", " << rhs[1];
 				break;
-
 			case FAdd:
 			case FDiv:
 			case FMul:
@@ -369,13 +367,11 @@ ostream& operator<<(ostream& os, Inst inst) {
 				ASSERT(rhs.size() == 2);
 				os << rhs.tag() << " " << rhs.ty() << " " << rhs[0] << ", " << rhs[1];
 				break;
-
 			case FNeg:
 				// Format: fneg <type> <operand>
 				ASSERT(rhs.size() == 1);
 				os << "fneg " << rhs.ty() << " " << rhs[0];
 				break;
-
 			case Eq:
 			case SLe:
 			case SLt:
@@ -385,7 +381,6 @@ ostream& operator<<(ostream& os, Inst inst) {
 				ASSERT(rhs.size() == 2);
 				os << rhs.tag() << " " << rhs[0].ty() << " " << rhs[0] << ", " << rhs[1];
 				break;
-
 			case FEq:
 			case FLe:
 			case FLt:
@@ -393,7 +388,6 @@ ostream& operator<<(ostream& os, Inst inst) {
 				ASSERT(rhs.size() == 2);
 				os << rhs.tag() << " " << rhs[0].ty() << " " << rhs[0] << ", " << rhs[1];
 				break;
-
 			case Cast:
 			case SCast:
 				// Format for cast operations: <cast-op> <src-type> <value> to <dst-type>
@@ -440,7 +434,6 @@ ostream& operator<<(ostream& os, Inst inst) {
 
 				os << rhs[0].ty() << " " << rhs[0] << " to " << rhs.ty();
 				break;
-
 			case ElementPtr:
 				// Handle getelementptr with appropriate syntax
 				os << "getelementptr ";
@@ -452,7 +445,6 @@ ostream& operator<<(ostream& os, Inst inst) {
 					}
 				}
 				break;
-
 			case Call:
 				// Format: call <return-type> <function>(<args...>)
 				os << "call " << rhs.ty() << " " << rhs[0] << "(";
@@ -464,7 +456,6 @@ ostream& operator<<(ostream& os, Inst inst) {
 				}
 				os << ")";
 				break;
-
 			default:
 				// For other compound expressions, use a generic format
 				os << rhs.tag() << " " << rhs.ty();
