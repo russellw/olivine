@@ -8,8 +8,9 @@ for /r %%f in (*.cpp *.h *.c) do (
 	sort-enums -w "%%f"||exit /b
 	sort-blocks -w "%%f"||exit /b
 	sort-fns-cpp -w "%%f"||exit /b
+	unblank-case -w "%%f"||exit /b
 	sort-cases -w "%%f"||exit /b
-	sort-case-blocks -w "%%f"||exit /b
+	rem sort-case-blocks -w "%%f"||exit /b
 )
 
 git diff
