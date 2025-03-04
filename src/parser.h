@@ -46,9 +46,6 @@ Ref parseRef(string s);
 // Newline is translated to something readable
 string quote(const string& s);
 
-// Count newlines before current position to get line number
-size_t currentLine(const string& input, size_t pos);
-
 // Parser for LLVM `.ll` format
 Module* parse(const string& text);
 Module* parse(const string& file, const string& text);

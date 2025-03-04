@@ -199,16 +199,6 @@ string quote(const string& s) {
 	return '\'' + s + '\'';
 }
 
-size_t currentLine(const string& text, size_t pos) {
-	size_t line = 1;
-	for (size_t i = 0; i < pos; i++) {
-		if (text[i] == '\n') {
-			line++;
-		}
-	}
-	return line;
-}
-
 class Parser {
 	const string file;
 	string text;
@@ -254,6 +244,17 @@ class Parser {
 		auto fty = fnTy(rty, params);
 		auto f = globalRef(fty, ref);
 		return call(rty, f, args);
+	}
+
+	// Count newlines before current position to get line number
+	size_t currentLine() const {
+		size_t line = 1;
+		for (size_t i = 0; i < pos; i++) {
+			if (text[i] == '\n') {
+				line++;
+			}
+		}
+		return line;
 	}
 
 	Fn declare() {
@@ -338,7 +339,7 @@ class Parser {
 	// and returns an exception with a composite error message suitable for printing
 	runtime_error error(const string& msg) const {
 		// Build error message with format "file:line: error message"
-		string errorMsg = file + ":" + to_string(currentLine(text, pos)) + ": " + msg;
+		string errorMsg = file + ":" + to_string(currentLine()) + ": " + msg;
 
 		// Return exception with the formatted message
 		return runtime_error(errorMsg);
