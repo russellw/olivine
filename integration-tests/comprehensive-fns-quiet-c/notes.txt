@@ -141,3 +141,33 @@ define dso_local i32 @pure_function(i32 noundef %0) #3 {
 __attribute__((const)) int const_function(int x) {
 ; Function Attrs: noinline nounwind optnone willreturn memory(none) uwtable
 define dso_local i32 @const_function(i32 noundef %0) #4 {
+
+
+https://llvm.org/docs/LangRef.html#function-attributes
+
+
+noinline
+This attribute indicates that the inliner should never inline this function in any situation. This attribute may not be used together with the alwaysinline attribute.
+This seems to be the default for externally visible functions
+Ignore
+
+
+nounwind
+This function attribute indicates that the function never raises an exception. If the function does raise an exception, its runtime behavior is undefined. However, functions marked nounwind may still trap or generate asynchronous exceptions. Exception handling schemes that are recognized by LLVM to handle asynchronous exceptions, such as SEH, will still provide their implementation defined semantics.
+Ignore
+
+
+optnone
+This function attribute indicates that most optimization passes will skip this function, with the exception of interprocedural optimization passes. Code generation defaults to the “fast” instruction selector. This attribute cannot be used together with the alwaysinline attribute; this attribute is also incompatible with the minsize, optsize, and optdebug attributes.
+
+This attribute requires the noinline attribute to be specified on the function as well, so the function is never inlined into any caller. Only functions with the alwaysinline attribute are valid candidates for inlining into the body of this function.
+Ignore
+
+
+willreturn
+This function attribute indicates that a call of this function will either exhibit undefined behavior or comes back and continues execution at a point in the existing call stack that includes the current invocation. Annotated functions may still raise an exception, i.a., nounwind is not implied. If an invocation of an annotated function does not return control back to a point in the call stack, the behavior is undefined.
+Ignore
+
+
+uwtable[(sync|async)]
+This attribute indicates that the ABI being targeted requires that an unwind table entry be produced for this function even if we can show that no exceptions passes by it. This is normally the case for the ELF x86-64 abi, but it can be disabled for some compilation units. The optional parameter describes what kind of unwind tables to generate: sync for normal unwind tables, async for asynchronous (instruction precise) unwind tables. Without the parameter, the attribute uwtable is equivalent to uwtable(async).
