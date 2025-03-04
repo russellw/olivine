@@ -38,7 +38,7 @@ __attribute__((weak)) void weak_function() {
 }
 
 // Function with weak alias (using proper mangled name)
- void original_c_function() {
+void original_c_function() {
 	out = "Original C function";
 }
 
@@ -75,7 +75,7 @@ __attribute__((unused)) static void unused_function() {
 }
 
 // Function with C linkage (instead of C++ name mangling)
- void c_linkage_function() {
+void c_linkage_function() {
 	out = "C linkage function";
 }
 
