@@ -13,4 +13,5 @@ struct Module {
 	unordered_set<Ref> externals;
 };
 
+extern vector<Module*> modules;
 extern Module context;

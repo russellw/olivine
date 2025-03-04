@@ -56,7 +56,6 @@ int main(int argc, char** argv) {
 		if (files.empty()) {
 			throw runtime_error("No input files");
 		}
-		vector<Module*> modules;
 		for (auto file : files) {
 			auto text = readFile(file);
 			Parser parser(file, text);
