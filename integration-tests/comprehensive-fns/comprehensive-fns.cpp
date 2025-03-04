@@ -144,17 +144,14 @@ void dllexport_function() {
     std::cout << "DLL export function" << std::endl;
 }
 
-// Function with Microsoft-specific declspec dllimport (for Windows)
-// Fixed by making it a declaration only for Windows
+// Fix for dllimport function - provide the implementation in all cases
+// but mark it as dllexport on Windows so it can be properly linked
 #ifdef _WIN32
-__declspec(dllimport)
-void dllimport_function();
-#else
-// Implementation for non-Windows platforms
-void dllimport_function() {
-    std::cout << "DLL import function (non-Windows implementation)" << std::endl;
-}
+__declspec(dllexport)  // Using dllexport instead of dllimport for this demo
 #endif
+void dllimport_function() {
+    std::cout << "DLL import/export function" << std::endl;
+}
 
 // Using GNU specific __attribute__((format)) for printf-like functions
 __attribute__((format(printf, 1, 2)))
