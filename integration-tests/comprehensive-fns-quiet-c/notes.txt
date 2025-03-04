@@ -1,0 +1,143 @@
+// Standard function with default visibility
+void default_visibility_function() {
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local void @default_visibility_function() #0 {
+
+// Function with explicit default visibility
+__attribute__((visibility("default"))) void explicit_default_visibility() {
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local void @explicit_default_visibility() #0 {
+
+// Function with hidden visibility (not exported from shared libraries)
+__attribute__((visibility("hidden"))) void hidden_visibility_function() {
+; Function Attrs: noinline nounwind optnone uwtable
+define hidden void @hidden_visibility_function() #0 {
+
+// Function with protected visibility
+__attribute__((visibility("protected"))) void protected_visibility_function() {
+; Function Attrs: noinline nounwind optnone uwtable
+define protected void @protected_visibility_function() #0 {
+
+// Function with internal linkage (static)
+static void internal_linkage_function() {
+
+// Function with external linkage (default in C++)
+extern void external_linkage_function() {
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local void @external_linkage_function() #0 {
+
+// Function with weak symbol
+__attribute__((weak)) void weak_function() {
+; Function Attrs: noinline nounwind optnone uwtable
+define weak dso_local void @weak_function() #0 {
+
+// Function with weak alias (using proper mangled name)
+void original_c_function() {
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local void @original_c_function() #0 {
+
+// Using C linkage so the name doesn't need mangling
+__attribute__((weak, alias("original_c_function"))) void weak_aliased_function();
+
+// Function in a specific section
+__attribute__((section(".custom_section"))) void custom_section_function() {
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local void @custom_section_function() #0 section ".custom_section" {
+
+// COMDAT for variables (fixed extern initializer warning)
+// Removed 'extern' since variables with initializers can't be extern
+__attribute__((visibility("default"))) int comdat_variable = 42;
+
+// Function that always_inline
+__attribute__((always_inline)) inline void always_inline_function() {
+
+// Function that is never inlined
+__attribute__((noinline)) void never_inline_function() {
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local void @never_inline_function() #0 {
+
+// Function with the used attribute (prevents elimination even if unused)
+__attribute__((used)) static void used_function() {
+; Function Attrs: noinline nounwind optnone uwtable
+define internal void @used_function() #0 {
+
+// Function with the unused attribute (suppresses unused warnings)
+__attribute__((unused)) static void unused_function() {
+
+// Function with C linkage (instead of C++ name mangling)
+void c_linkage_function() {
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local void @c_linkage_function() #0 {
+
+// Function with constructor attribute (runs before main)
+__attribute__((constructor)) void constructor_function() {
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local void @constructor_function() #0 {
+
+// Function with destructor attribute (runs after main)
+__attribute__((destructor)) void destructor_function() {
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local void @destructor_function() #0 {
+
+// Function with cold attribute (rarely executed, like error paths)
+__attribute__((cold)) void cold_function() {
+; Function Attrs: cold noinline nounwind optnone uwtable
+define dso_local void @cold_function() #1 {
+
+// Function with hot attribute (frequently executed code)
+__attribute__((hot)) void hot_function() {
+; Function Attrs: hot noinline nounwind optnone uwtable
+define dso_local void @hot_function() #2 {
+
+// Weak function
+__attribute__((weak)) void weak_comdat_function() {
+; Function Attrs: noinline nounwind optnone uwtable
+define weak dso_local void @weak_comdat_function() #0 {
+
+// Function in a custom section
+__attribute__((section(".text.custom_section"))) void custom_section_function2() {
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local void @custom_section_function2() #0 section ".text.custom_section" {
+
+// Function in another custom section
+__attribute__((section(".text.largest_section"))) void largest_section_function() {
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local void @largest_section_function() #0 section ".text.largest_section" {
+
+// Function with Microsoft-specific declspec dllexport (for Windows)
+#ifdef _WIN32
+__declspec(dllexport)
+#endif
+void dllexport_function() {
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local dllexport void @dllexport_function() #0 {
+
+// Using GNU specific __attribute__((format)) for printf-like functions
+__attribute__((format(printf, 1, 2))) void format_function(const char* format, ...) {
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local void @format_function(ptr noundef %0, ...) #0 {
+
+// Function with deprecated attribute
+__attribute__((deprecated("Use new_function instead"))) void deprecated_function() {
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local void @deprecated_function() #0 {
+
+// Function with aligned attribute
+__attribute__((aligned(16))) void aligned_function() {
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local void @aligned_function() #0 align 16 {
+
+// Function with warn_unused_result attribute
+__attribute__((warn_unused_result)) int function_with_result() {
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local i32 @function_with_result() #0 {
+
+// Function with pure attribute (no side effects except return value)
+__attribute__((pure)) int pure_function(int x) {
+; Function Attrs: noinline nounwind optnone willreturn memory(read) uwtable
+define dso_local i32 @pure_function(i32 noundef %0) #3 {
+
+// Function with const attribute (no side effects, no memory access except args)
+__attribute__((const)) int const_function(int x) {
+; Function Attrs: noinline nounwind optnone willreturn memory(none) uwtable
+define dso_local i32 @const_function(i32 noundef %0) #4 {
