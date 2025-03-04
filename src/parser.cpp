@@ -192,7 +192,9 @@ Ref parseRef(string s) {
 	return Ref(unwrap(s));
 }
 
-string quote(const string& s) {
+// Quote a string, particularly a token, for echoing to the user
+// Newline is translated to something readable
+static string quote(const string& s) {
 	if (s == "\n") {
 		return "newline";
 	}

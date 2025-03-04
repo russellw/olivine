@@ -42,10 +42,6 @@ string unwrap(string s);
 // Correctly distinguishes between %9 and %"9"
 Ref parseRef(string s);
 
-// Quote a string, particularly a token, for echoing to the user
-// Newline is translated to something readable
-string quote(const string& s);
-
 // Parser for LLVM `.ll` format
 Module* parse(const string& text);
 Module* parse(const string& file, const string& text);
