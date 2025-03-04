@@ -1,34 +1,13 @@
-void stackTrace(std::ostream& out = std::cout);
+#define dbg(a) cout << __FILE__ << ':' << __LINE__ << ": " << (a) << '\n'
 
-// Helper function to create detailed error messages
-namespace message_detail {
-template <typename T> string toString(const T& val) {
-	std::ostringstream oss;
-	oss << val;
-	return oss.str();
-}
-
-inline string makeAssertMessage(const char* expression, const char* file, int line, const string& message = "") {
-	std::ostringstream oss;
-	oss << "Assertion failed: " << expression << "\nFile: " << file << "\nLine: " << line;
-
-	if (!message.empty()) {
-		oss << "\nMessage: " << message;
-	}
-
-	return oss.str();
-}
-} // namespace message_detail
-
-// Basic assertion that throws std::runtime_error
-#define ASSERT(condition)                                                                                                          \
+#define ASSERT(cond)                                                                                                               \
 	do {                                                                                                                           \
-		if (!(condition)) {                                                                                                        \
-			throw runtime_error(message_detail::makeAssertMessage(#condition, __FILE__, __LINE__));                                \
+		if (!(cond)) {                                                                                                             \
+			throw runtime_error(string(__FILE__) + ':' + std::to_string(__LINE__) + ": " + #cond);                                 \
 		}                                                                                                                          \
 	} while (0)
 
-#define dbg(a) cout << __FILE__ << ':' << __LINE__ << ": " << (a) << '\n'
+void stackTrace(std::ostream& out = std::cout);
 
 // SORT FUNCTIONS
 
