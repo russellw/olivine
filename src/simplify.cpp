@@ -112,17 +112,31 @@ Term simplify(const unordered_map<Term, Term>& env, Term a) {
 		}
 		break;
 	}
-	case Sub: {
-		// x - 0 = x
+	case And: {
+		// x & 0 = 0
 		if (simplified[1].tag() == Int && simplified[1].intVal() == 0) {
-			return simplified[0];
-		}
-		// x - x = 0
-		if (simplified[0] == simplified[1]) {
 			return intConst(simplified[0].ty(), 0);
+		}
+		// 0 & x = 0
+		if (simplified[0].tag() == Int && simplified[0].intVal() == 0) {
+			return intConst(simplified[1].ty(), 0);
+		}
+		// x & x = x
+		if (simplified[0] == simplified[1]) {
+			return simplified[0];
 		}
 		break;
 	}
+	case FAdd:
+	case FDiv:
+	case FMul:
+	case FRem:
+	case FSub:
+		// Skip floating-point evaluation as specified
+		break;
+	case FNeg:
+		// Skip floating-point evaluation as specified
+		break;
 	case Mul: {
 		// x * 0 = 0
 		if ((simplified[0].tag() == Int && simplified[0].intVal() == 0) ||
@@ -136,21 +150,6 @@ Term simplify(const unordered_map<Term, Term>& env, Term a) {
 		// 1 * x = x
 		if (simplified[0].tag() == Int && simplified[0].intVal() == 1) {
 			return simplified[1];
-		}
-		break;
-	}
-	case And: {
-		// x & 0 = 0
-		if (simplified[1].tag() == Int && simplified[1].intVal() == 0) {
-			return intConst(simplified[0].ty(), 0);
-		}
-		// 0 & x = 0
-		if (simplified[0].tag() == Int && simplified[0].intVal() == 0) {
-			return intConst(simplified[1].ty(), 0);
-		}
-		// x & x = x
-		if (simplified[0] == simplified[1]) {
-			return simplified[0];
 		}
 		break;
 	}
@@ -169,6 +168,17 @@ Term simplify(const unordered_map<Term, Term>& env, Term a) {
 		}
 		break;
 	}
+	case Sub: {
+		// x - 0 = x
+		if (simplified[1].tag() == Int && simplified[1].intVal() == 0) {
+			return simplified[0];
+		}
+		// x - x = 0
+		if (simplified[0] == simplified[1]) {
+			return intConst(simplified[0].ty(), 0);
+		}
+		break;
+	}
 	case Xor: {
 		// x ^ 0 = x
 		if (simplified[1].tag() == Int && simplified[1].intVal() == 0) {
@@ -184,16 +194,6 @@ Term simplify(const unordered_map<Term, Term>& env, Term a) {
 		}
 		break;
 	}
-	case FAdd:
-	case FDiv:
-	case FMul:
-	case FRem:
-	case FSub:
-		// Skip floating-point evaluation as specified
-		break;
-	case FNeg:
-		// Skip floating-point evaluation as specified
-		break;
 	}
 
 	// If no simplification was possible, return a new term with simplified components

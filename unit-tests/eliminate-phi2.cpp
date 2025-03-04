@@ -141,19 +141,19 @@ BOOST_AUTO_TEST_CASE(test_convert_to_ssa) {
 			}
 			break;
 		}
-		case Store: {
-			// In our convention, a store's second operand is the pointer.
-			Term ptr = inst[1];
-			if (ptr.ref() == x_ref) {
-				foundStoreForX = true;
-			}
-			break;
-		}
 		case Ret: {
 			// For a return, the operand should now be a load (if it was a variable usage).
 			Term retOp = inst[0];
 			if (retOp.tag() == Load) {
 				retUsesLoadForX = true;
+			}
+			break;
+		}
+		case Store: {
+			// In our convention, a store's second operand is the pointer.
+			Term ptr = inst[1];
+			if (ptr.ref() == x_ref) {
+				foundStoreForX = true;
 			}
 			break;
 		}

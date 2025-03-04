@@ -336,11 +336,6 @@ ostream& operator<<(ostream& os, Inst inst) {
 		// Handle different expression types with their specific syntax
 		if (rhs.size() > 0) {
 			switch (rhs.tag()) {
-			case Load:
-				// Format: load <type>, ptr <pointer>
-				ASSERT(rhs.size() == 1);
-				os << "load " << rhs.ty() << ", ptr " << rhs[0];
-				break;
 			case AShr:
 			case Add:
 			case And:
@@ -358,35 +353,16 @@ ostream& operator<<(ostream& os, Inst inst) {
 				ASSERT(rhs.size() == 2);
 				os << rhs.tag() << " " << rhs.ty() << " " << rhs[0] << ", " << rhs[1];
 				break;
-			case FAdd:
-			case FDiv:
-			case FMul:
-			case FRem:
-			case FSub:
-				// Format: <op> <type> <operand1>, <operand2>
-				ASSERT(rhs.size() == 2);
-				os << rhs.tag() << " " << rhs.ty() << " " << rhs[0] << ", " << rhs[1];
-				break;
-			case FNeg:
-				// Format: fneg <type> <operand>
-				ASSERT(rhs.size() == 1);
-				os << "fneg " << rhs.ty() << " " << rhs[0];
-				break;
-			case Eq:
-			case SLe:
-			case SLt:
-			case ULe:
-			case ULt:
-				// Format: icmp <predicate> <type> <operand1>, <operand2>
-				ASSERT(rhs.size() == 2);
-				os << rhs.tag() << " " << rhs[0].ty() << " " << rhs[0] << ", " << rhs[1];
-				break;
-			case FEq:
-			case FLe:
-			case FLt:
-				// Format: fcmp <predicate> <type> <operand1>, <operand2>
-				ASSERT(rhs.size() == 2);
-				os << rhs.tag() << " " << rhs[0].ty() << " " << rhs[0] << ", " << rhs[1];
+			case Call:
+				// Format: call <return-type> <function>(<args...>)
+				os << "call " << rhs.ty() << " " << rhs[0] << "(";
+				for (size_t i = 1; i < rhs.size(); ++i) {
+					if (i > 1) {
+						os << ", ";
+					}
+					os << rhs[i].ty() << " " << rhs[i];
+				}
+				os << ")";
 				break;
 			case Cast:
 			case SCast:
@@ -445,16 +421,40 @@ ostream& operator<<(ostream& os, Inst inst) {
 					}
 				}
 				break;
-			case Call:
-				// Format: call <return-type> <function>(<args...>)
-				os << "call " << rhs.ty() << " " << rhs[0] << "(";
-				for (size_t i = 1; i < rhs.size(); ++i) {
-					if (i > 1) {
-						os << ", ";
-					}
-					os << rhs[i].ty() << " " << rhs[i];
-				}
-				os << ")";
+			case Eq:
+			case SLe:
+			case SLt:
+			case ULe:
+			case ULt:
+				// Format: icmp <predicate> <type> <operand1>, <operand2>
+				ASSERT(rhs.size() == 2);
+				os << rhs.tag() << " " << rhs[0].ty() << " " << rhs[0] << ", " << rhs[1];
+				break;
+			case FAdd:
+			case FDiv:
+			case FMul:
+			case FRem:
+			case FSub:
+				// Format: <op> <type> <operand1>, <operand2>
+				ASSERT(rhs.size() == 2);
+				os << rhs.tag() << " " << rhs.ty() << " " << rhs[0] << ", " << rhs[1];
+				break;
+			case FEq:
+			case FLe:
+			case FLt:
+				// Format: fcmp <predicate> <type> <operand1>, <operand2>
+				ASSERT(rhs.size() == 2);
+				os << rhs.tag() << " " << rhs[0].ty() << " " << rhs[0] << ", " << rhs[1];
+				break;
+			case FNeg:
+				// Format: fneg <type> <operand>
+				ASSERT(rhs.size() == 1);
+				os << "fneg " << rhs.ty() << " " << rhs[0];
+				break;
+			case Load:
+				// Format: load <type>, ptr <pointer>
+				ASSERT(rhs.size() == 1);
+				os << "load " << rhs.ty() << ", ptr " << rhs[0];
 				break;
 			default:
 				// For other compound expressions, use a generic format
