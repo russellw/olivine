@@ -3,7 +3,7 @@
 #define ASSERT(cond)                                                                                                               \
 	do {                                                                                                                           \
 		if (!(cond)) {                                                                                                             \
-			throw runtime_error(string(__FILE__) + ':' + std::to_string(__LINE__) + ": " + #cond);                                 \
+			throw runtime_error(string(__FILE__) + ':' + to_string(__LINE__) + ": " + #cond);                                      \
 		}                                                                                                                          \
 	} while (0)
 

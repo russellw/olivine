@@ -22,6 +22,7 @@ using std::ostream;
 using std::pair;
 using std::runtime_error;
 using std::string;
+using std::to_string;
 using std::unordered_map;
 using std::unordered_set;
 using std::vector;

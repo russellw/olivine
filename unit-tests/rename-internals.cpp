@@ -186,8 +186,8 @@ BOOST_AUTO_TEST_CASE(TestUniqueness) {
 
 	// Add several internal functions and globals
 	for (int i = 0; i < 5; i++) {
-		fixture.addGlobal(parseRef("@internal_global" + std::to_string(i)), false);
-		fixture.addFunctionDef(parseRef("@internal_func" + std::to_string(i)), false);
+		fixture.addGlobal(parseRef("@internal_global" + to_string(i)), false);
+		fixture.addFunctionDef(parseRef("@internal_func" + to_string(i)), false);
 	}
 
 	// Run the function

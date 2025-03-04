@@ -179,7 +179,7 @@ class Parser {
 	// and returns an exception with a composite error message suitable for printing
 	runtime_error error(const string& msg) const {
 		// Build error message with format "file:line: error message"
-		string errorMsg = file + ":" + std::to_string(currentLine(text, pos)) + ": " + msg;
+		string errorMsg = file + ":" + to_string(currentLine(text, pos)) + ": " + msg;
 
 		// Return exception with the formatted message
 		return runtime_error(errorMsg);
