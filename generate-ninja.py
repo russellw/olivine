@@ -11,7 +11,7 @@ f = open("build.ninja", "w")
 
 # Define compiler and flags
 f.write("cxx = clang\n")
-f.write("cxxflags = -std=c++17 -c -Isrc -I\\boost -Werror -Wno-switch\n")
+f.write("cxxflags = -std=c++17 -c -ferror-limit=1 -Isrc -I\\boost -Werror -Wno-switch\n")
 f.write("\n")
 
 # Define the rule for C++ compilation
