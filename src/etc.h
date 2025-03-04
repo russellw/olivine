@@ -51,6 +51,17 @@ template <class K, class V> ostream& operator<<(ostream& os, const unordered_map
 	return os << '}';
 }
 
+template <class T> ostream& operator<<(ostream& os, const vector<T>& v) {
+	os << '[';
+	for (auto i = begin(v); i != end(v); ++i) {
+		if (i != begin(v)) {
+			os << ", ";
+		}
+		os << *i;
+	}
+	return os << ']';
+}
+
 template <typename T> std::vector<T> tail(const std::vector<T>& vec) {
 	if (vec.empty()) {
 		return std::vector<T>();
