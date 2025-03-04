@@ -1,1 +1,1 @@
-Program link(const vector<Module*>& modules);
+void link();
