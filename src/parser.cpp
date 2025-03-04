@@ -1307,7 +1307,7 @@ public:
 
 	Parser(const string& file, const string& text): file(file), text(text) {
 		if (!endsWith(text, '\n')) {
-this->			text += '\n';
+			this->text += '\n';
 		}
 		lex();
 		while (tok != eof) {
@@ -1317,12 +1317,12 @@ this->			text += '\n';
 	}
 };
 
-Module*parse(const string& text){
-	Parser parser("nameless.ll",text);
+Module* parse(const string& text) {
+	Parser parser("nameless.ll", text);
 	return parser.module;
 }
 
-Module*parse(const string& file, const string& text){
-	Parser parser(file,text);
+Module* parse(const string& file, const string& text) {
+	Parser parser(file, text);
 	return parser.module;
 }

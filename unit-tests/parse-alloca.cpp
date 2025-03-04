@@ -12,7 +12,7 @@ BOOST_AUTO_TEST_CASE(test_parse_alloca_instruction) {
 						"}\n";
 
 	// Construct the parser with the input
-	auto mod= parse("test.ll", input);
+	auto mod = parse("test.ll", input);
 
 	// Retrieve the parsed module
 	BOOST_REQUIRE_EQUAL(mod->defs.size(), 1);

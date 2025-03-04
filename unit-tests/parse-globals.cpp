@@ -3,7 +3,7 @@
 
 BOOST_AUTO_TEST_CASE(test_empty_module) {
 	// Test parsing an empty module
-	auto module=parse("");
+	auto module = parse("");
 
 	BOOST_CHECK(module->globals.empty());
 	BOOST_CHECK(module->decls.empty());
@@ -13,7 +13,7 @@ BOOST_AUTO_TEST_CASE(test_empty_module) {
 BOOST_AUTO_TEST_CASE(test_simple_global_int) {
 	// Test parsing a module with a single global integer
 	std::string input = "@global_int = global i32 42";
-	auto module=parse(input);
+	auto module = parse(input);
 
 	BOOST_CHECK_EQUAL(module->globals.size(), 1);
 	BOOST_CHECK(module->globals[0].ty() == intTy(32));
@@ -23,7 +23,7 @@ BOOST_AUTO_TEST_CASE(test_simple_global_int) {
 BOOST_AUTO_TEST_CASE(test_global_pointer) {
 	// Test parsing a module with a global pointer
 	std::string input = "@global_ptr = global ptr null";
-	auto module=parse(input);
+	auto module = parse(input);
 
 	BOOST_CHECK_EQUAL(module->globals.size(), 1);
 	BOOST_CHECK(module->globals[0].ty() == ptrTy());
@@ -33,7 +33,7 @@ BOOST_AUTO_TEST_CASE(test_global_pointer) {
 BOOST_AUTO_TEST_CASE(test_global_array) {
 	// Test parsing a module with a global array
 	std::string input = "@global_array = global [10 x i64] zeroinitializer";
-	auto module=parse(input);
+	auto module = parse(input);
 
 	BOOST_CHECK_EQUAL(module->globals.size(), 1);
 	BOOST_CHECK(module->globals[0].ty() == arrayTy(10, intTy(64)));
@@ -46,7 +46,7 @@ BOOST_AUTO_TEST_CASE(test_multiple_globals) {
 						"@global_ptr = global ptr null\n"
 						"@global_array = global [10 x i64] zeroinitializer";
 
-	auto module=parse(input);
+	auto module = parse(input);
 
 	BOOST_CHECK_EQUAL(module->globals.size(), 3);
 }
@@ -56,7 +56,7 @@ BOOST_AUTO_TEST_CASE(test_globals_with_declarations) {
 	std::string input = "@global_int = global i32 42\n"
 						"declare void @some_function()\n";
 
-	auto module=parse(input);
+	auto module = parse(input);
 
 	BOOST_CHECK_EQUAL(module->globals.size(), 1);
 	BOOST_CHECK_EQUAL(module->decls.size(), 1);
@@ -80,7 +80,7 @@ BOOST_AUTO_TEST_CASE(test_module_output) {
 	std::string input = "@global_int = global i32 42\n"
 						"@global_ptr = global ptr null\n";
 
-	auto module=parse(input);
+	auto module = parse(input);
 
 	// Setup context for output testing
 	module->datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128";
