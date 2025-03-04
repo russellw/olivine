@@ -37,3 +37,4 @@ build.ninja
 .ninja_log
 *.ll
 __pycache__/
+*.exp

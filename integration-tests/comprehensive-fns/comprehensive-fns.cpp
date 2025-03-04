@@ -43,12 +43,14 @@ void weak_function() {
     std::cout << "Weak function (may be overridden)" << std::endl;
 }
 
-// Function with weak alias
-void original_function() {
-    std::cout << "Original function" << std::endl;
+// Function with weak alias (using proper mangled name)
+extern "C" void original_c_function() {
+    std::cout << "Original C function" << std::endl;
 }
+
 extern "C" {
-    __attribute__((weak, alias("_Z16original_functionv")))
+    // Using C linkage so the name doesn't need mangling
+    __attribute__((weak, alias("original_c_function")))
     void weak_aliased_function();
 }
 
@@ -58,10 +60,10 @@ void custom_section_function() {
     std::cout << "Function in custom section" << std::endl;
 }
 
-// COMDAT for variables (not functions)
-// Since 'selectany' only works on data items with external linkage
+// COMDAT for variables (fixed extern initializer warning)
+// Removed 'extern' since variables with initializers can't be extern
 __attribute__((visibility("default")))
-extern int comdat_variable = 42;
+int comdat_variable = 42;
 
 // Function that always_inline
 __attribute__((always_inline))
@@ -116,19 +118,19 @@ void hot_function() {
     std::cout << "Hot function (frequently executed)" << std::endl;
 }
 
-// Weak function (removing selectany as it's not applicable to functions)
+// Weak function
 __attribute__((weak))
 void weak_comdat_function() {
     std::cout << "Weak function" << std::endl;
 }
 
-// Function in a custom section (removed unsupported comdat attribute)
+// Function in a custom section
 __attribute__((section(".text.custom_section")))
 void custom_section_function2() {
     std::cout << "Function in named custom section" << std::endl;
 }
 
-// Function in another custom section (removed unsupported comdat attribute)
+// Function in another custom section
 __attribute__((section(".text.largest_section")))
 void largest_section_function() {
     std::cout << "Function in another custom section" << std::endl;
@@ -173,6 +175,24 @@ void aligned_function() {
     std::cout << "Function aligned to 16-byte boundary" << std::endl;
 }
 
+// Function with warn_unused_result attribute
+__attribute__((warn_unused_result))
+int function_with_result() {
+    return 42;
+}
+
+// Function with pure attribute (no side effects except return value)
+__attribute__((pure))
+int pure_function(int x) {
+    return x * 2;
+}
+
+// Function with const attribute (no side effects, no memory access except args)
+__attribute__((const))
+int const_function(int x) {
+    return x * x;
+}
+
 // Main function to call some of our visible functions
 int main() {
     std::cout << "Demonstrating various function visibility attributes:" << std::endl;
@@ -184,7 +204,7 @@ int main() {
     internal_linkage_function();
     external_linkage_function();
     weak_function();
-    original_function();
+    original_c_function();
     weak_aliased_function();
     custom_section_function();
     std::cout << "COMDAT variable: " << comdat_variable << std::endl;
@@ -199,6 +219,14 @@ int main() {
     dllexport_function();
     dllimport_function();
     format_function("Test %s", "format");
+    aligned_function();
+    
+    // Call functions with results (avoid unused result warnings)
+    int result = function_with_result();
+    std::cout << "Result: " << result << std::endl;
+    
+    std::cout << "Pure function result: " << pure_function(5) << std::endl;
+    std::cout << "Const function result: " << const_function(6) << std::endl;
     
     return 0;
 }
