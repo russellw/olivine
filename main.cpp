@@ -58,8 +58,7 @@ int main(int argc, char** argv) {
 		}
 		for (auto file : files) {
 			auto text = readFile(file);
-			Parser parser(file, text);
-			modules.push_back(parser.module);
+			modules.push_back(parse(file, text));
 		}
 		std::ofstream os(outFile, std::ios::binary);
 		os << modules[0];

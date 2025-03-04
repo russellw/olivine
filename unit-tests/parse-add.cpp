@@ -17,7 +17,7 @@ define i32 @test() {
     ret i32 %1
 }
 )";
-		BOOST_CHECK_THROW(Parser("test.ll", badInput), runtime_error);
+		BOOST_CHECK_THROW(parse("test.ll", badInput), runtime_error);
 
 		// Missing operand
 		const string missingOperand = R"(
@@ -26,7 +26,7 @@ define i32 @test() {
     ret i32 %1
 }
 )";
-		BOOST_CHECK_THROW(Parser("test.ll", missingOperand), runtime_error);
+		BOOST_CHECK_THROW(parse("test.ll", missingOperand), runtime_error);
 
 		// Missing type
 		const string missingType = R"(
@@ -35,7 +35,7 @@ define i32 @test() {
     ret i32 %1
 }
 )";
-		BOOST_CHECK_THROW(Parser("test.ll", missingType), runtime_error);
+		BOOST_CHECK_THROW(parse("test.ll", missingType), runtime_error);
 	}
 }
 
