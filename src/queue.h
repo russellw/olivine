@@ -13,24 +13,31 @@ public:
 
 	// SORT FUNCTIONS
 
-	T operator*() {
+	T operator*() const {
 		return (*this)[0];
 	}
 
-	void operator++(int) {
-		if (pos < v.size()) {
-			pos++;
-		}
-	}
-
-	T operator[](size_t i) {
+	T operator[](size_t i) const {
 		if (pos + i < v.size()) {
 			return v[pos + i];
 		}
 		return sentinel;
 	}
 
-	size_t size() {
+	T pop() {
+		ASSERT(pos <= v.size());
+		if (pos == v.size()) {
+			return sentinel;
+		}
+		return v[pos++];
+	}
+
+	void push(T a) {
+		v.push_back(a);
+	}
+
+	size_t size() const {
+		ASSERT(pos <= v.size());
 		return v.size() - pos;
 	}
 };
