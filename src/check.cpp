@@ -18,7 +18,6 @@ void check(Term a) {
 		}
 	};
 
-	// TODO: this should be sorted
 	switch (a.tag()) {
 	case Add:
 	case And:
