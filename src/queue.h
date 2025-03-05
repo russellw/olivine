@@ -3,12 +3,16 @@
 // Intentionally not a drop-in replacement for std::queue
 // In particular, trying to read past the end is not an error
 // but returns a sentinel value
-template <class T, T sentinel> class queue {
+template <class T> class queue {
 	vector<T> v;
+	T sentinel;
 	size_t pos = 0;
 
 public:
-	queue(const vector<T>& v): v(v) {
+	queue(const T& sentinel): sentinel(sentinel) {
+	}
+
+	queue(const vector<T>& v, const T& sentinel): v(v), sentinel(sentinel) {
 	}
 
 	// SORT FUNCTIONS

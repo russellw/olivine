@@ -181,15 +181,128 @@ static string quote(const string& s) {
 	return '\'' + s + '\'';
 }
 
-class Parser {
-	const string file;
+struct Tok {
+	size_t line;
+	string s;
+
+	Tok(size_t line, string s): line(line), s(s) {
+	}
+};
+
+class Tokenizer {
+	const string& file;
 	string text;
 	size_t pos = 0;
+	size_t line = 1;
 	string tok;
+	queue<Tok>& toks;
 
-	// End of file is indicated by a token that cannot correspond to any actual token
-	// but is still nonempty, so parsing code can safely check the first character of current token
-	const string sentinel = " ";
+	runtime_error error(const string& msg) const {
+		return runtime_error(file + ':' + to_string(line) + ": " + msg);
+	}
+
+	void quote1() {
+		ASSERT(text[pos] == '"');
+		for (auto i = pos + 1; i < text.size(); i++) {
+			if (text[i] == '"') {
+				i++;
+				tok += text.substr(pos, i - pos);
+				pos = i;
+				return;
+			}
+		}
+		throw error("unclosed quote");
+	}
+
+	void id() {
+		if (text[pos] == '"') {
+			quote1();
+			return;
+		}
+		if (!isIdPart(text[pos])) {
+			throw error("expected identifier");
+		}
+		while (isIdPart(text[pos])) {
+			tok += text[pos++];
+		}
+	}
+
+	void maybeColon() {
+		if (text[pos] == ':') {
+			tok += text[pos++];
+		}
+	}
+
+	void push() {
+		toks.push(Tok(line, tok));
+	}
+
+	Tokenizer(const string& file, const string& text0, queue<Tok>& toks): file(file), text(text0), toks(toks) {
+		if (!endsWith(text, '\n')) {
+			text += '\n';
+		}
+		while (pos < text.size()) {
+			if (containsAt(text, pos, "...")) {
+				tok = text.substr(pos, 3);
+				pos += 3;
+				push();
+				continue;
+			}
+			switch (text[pos]) {
+			case ' ':
+			case '\f':
+			case '\r':
+			case '\t':
+				pos++;
+				continue;
+			case '"':
+				tok.clear();
+				quote1();
+				maybeColon();
+				push();
+				continue;
+			case '$':
+			case '%':
+			case '@':
+				tok = text.substr(pos++, 1);
+				id();
+				push();
+				continue;
+			case ';':
+				while (text[pos] != '\n') {
+					pos++;
+				}
+				continue;
+			case 'c':
+				if (text[pos + 1] == '"') {
+					tok = text.substr(pos++, 1);
+					quote1();
+					push();
+					continue;
+				}
+				break;
+			}
+			if (isIdPart(text[pos])) {
+				tok.clear();
+				id();
+				maybeColon();
+				push();
+				continue;
+			}
+			tok = text.substr(pos++, 1);
+			push();
+		}
+	}
+};
+
+// End is indicated by a token that cannot correspond to any actual token
+// but is still nonempty, so parsing code can safely check the first character of current token
+const Tok sentinel = Tok(0, " ");
+
+class Parser {
+	const string& file;
+
+	queue<Tok> toks = sentinel;
 
 	// SORT FUNCTIONS
 
@@ -226,17 +339,6 @@ class Parser {
 		auto fty = fnTy(rty, params);
 		auto f = globalRef(fty, ref);
 		return call(rty, f, args);
-	}
-
-	// Count newlines before current position to get line number
-	size_t currentLine() const {
-		size_t line = 1;
-		for (size_t i = 0; i < pos; i++) {
-			if (text[i] == '\n') {
-				line++;
-			}
-		}
-		return line;
 	}
 
 	Fn declare() {
@@ -314,16 +416,8 @@ class Parser {
 		return Fn(rty, ref, params, body);
 	}
 
-	// This function takes:
-	// The name of the input file, stored
-	// The current line number, calculated from the count of newline characters before pos
-	// The error message, supplied as a parameter
-	// and returns an exception with a composite error message suitable for printing
 	runtime_error error(const string& msg) const {
-		// Build error message with format "file:line: error message"
 		string errorMsg = file + ":" + to_string(currentLine()) + ": " + msg;
-
-		// Return exception with the formatted message
 		return runtime_error(errorMsg);
 	}
 
@@ -441,19 +535,6 @@ class Parser {
 			throw error(quote(tok) + ": expected global name");
 		}
 		return ref1();
-	}
-
-	void id() {
-		if (text[pos] == '"') {
-			lexQuote();
-			return;
-		}
-		if (!isIdPart(text[pos])) {
-			throw error("expected identifier");
-		}
-		while (isIdPart(text[pos])) {
-			tok += text[pos++];
-		}
 	}
 
 	Inst inst1() {
@@ -582,69 +663,6 @@ class Parser {
 		return label(ref1());
 	}
 
-	void lex() {
-		while (pos < text.size()) {
-			if (containsAt(text, pos, "...")) {
-				tok = text.substr(pos, 3);
-				pos += 3;
-				return;
-			}
-			switch (text[pos]) {
-			case ' ':
-			case '\f':
-			case '\r':
-			case '\t':
-				pos++;
-				continue;
-			case '"':
-				tok.clear();
-				lexQuote();
-				maybeColon();
-				return;
-			case '$':
-			case '%':
-			case '@':
-				tok = text.substr(pos++, 1);
-				id();
-				return;
-			case ';':
-				while (text[pos] != '\n') {
-					pos++;
-				}
-				continue;
-			case 'c':
-				if (text[pos + 1] == '"') {
-					tok = text.substr(pos++, 1);
-					lexQuote();
-					return;
-				}
-				break;
-			}
-			if (isIdPart(text[pos])) {
-				tok.clear();
-				id();
-				maybeColon();
-				return;
-			}
-			tok = text.substr(pos++, 1);
-			return;
-		}
-		tok = sentinel;
-	}
-
-	void lexQuote() {
-		ASSERT(text[pos] == '"');
-		for (auto i = pos + 1; i < text.size(); i++) {
-			if (text[i] == '"') {
-				i++;
-				tok += text.substr(pos, i - pos);
-				pos = i;
-				return;
-			}
-		}
-		throw error("unclosed quote");
-	}
-
 	void linkage() {
 		if (tok == "private") {
 			lex();
@@ -685,12 +703,6 @@ class Parser {
 		if (tok == "external") {
 			lex();
 			return;
-		}
-	}
-
-	void maybeColon() {
-		if (text[pos] == ':') {
-			tok += text[pos++];
 		}
 	}
 
@@ -1288,11 +1300,8 @@ class Parser {
 public:
 	Module* module = new Module;
 
-	Parser(const string& file, const string& text): file(file), text(text) {
-		if (!endsWith(text, '\n')) {
-			this->text += '\n';
-		}
-		lex();
+	Parser(const string& file, const string& text): file(file) {
+		Tokenizer tokenizer(file, text, toks);
 		while (tok != sentinel) {
 			parse1();
 			nextLine();

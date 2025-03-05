@@ -6,7 +6,7 @@ const int SENTINEL_VALUE = -1;
 
 BOOST_AUTO_TEST_CASE(test_constructor) {
 	vector<int> values = {1, 2, 3};
-	queue<int, SENTINEL_VALUE> q(values);
+	queue<int> q(values, SENTINEL_VALUE);
 
 	BOOST_CHECK_EQUAL(q.size(), 3);
 	BOOST_CHECK_EQUAL(*q, 1);
@@ -14,7 +14,7 @@ BOOST_AUTO_TEST_CASE(test_constructor) {
 
 BOOST_AUTO_TEST_CASE(test_dereference_operator) {
 	vector<int> values = {5, 6, 7};
-	queue<int, SENTINEL_VALUE> q(values);
+	queue<int> q(values, SENTINEL_VALUE);
 
 	BOOST_CHECK_EQUAL(*q, 5);
 	q.pop();
@@ -23,7 +23,7 @@ BOOST_AUTO_TEST_CASE(test_dereference_operator) {
 
 BOOST_AUTO_TEST_CASE(test_index_operator) {
 	vector<int> values = {10, 20, 30, 40};
-	queue<int, SENTINEL_VALUE> q(values);
+	queue<int> q(values, SENTINEL_VALUE);
 
 	BOOST_CHECK_EQUAL(q[0], 10);
 	BOOST_CHECK_EQUAL(q[1], 20);
@@ -37,7 +37,7 @@ BOOST_AUTO_TEST_CASE(test_index_operator) {
 
 BOOST_AUTO_TEST_CASE(test_pop) {
 	vector<int> values = {100, 200, 300};
-	queue<int, SENTINEL_VALUE> q(values);
+	queue<int> q(values, SENTINEL_VALUE);
 
 	BOOST_CHECK_EQUAL(q.pop(), 100);
 	BOOST_CHECK_EQUAL(q.pop(), 200);
@@ -50,7 +50,7 @@ BOOST_AUTO_TEST_CASE(test_pop) {
 
 BOOST_AUTO_TEST_CASE(test_push) {
 	vector<int> values = {1000};
-	queue<int, SENTINEL_VALUE> q(values);
+	queue<int> q(values, SENTINEL_VALUE);
 
 	q.push(2000);
 	q.push(3000);
@@ -63,7 +63,7 @@ BOOST_AUTO_TEST_CASE(test_push) {
 
 BOOST_AUTO_TEST_CASE(test_size) {
 	vector<int> values = {1, 2, 3, 4, 5};
-	queue<int, SENTINEL_VALUE> q(values);
+	queue<int> q(values, SENTINEL_VALUE);
 
 	BOOST_CHECK_EQUAL(q.size(), 5);
 
@@ -85,7 +85,7 @@ BOOST_AUTO_TEST_CASE(test_size) {
 
 BOOST_AUTO_TEST_CASE(test_mixed_operations) {
 	vector<int> values = {42};
-	queue<int, SENTINEL_VALUE> q(values);
+	queue<int> q(values, SENTINEL_VALUE);
 
 	BOOST_CHECK_EQUAL(q.size(), 1);
 	BOOST_CHECK_EQUAL(*q, 42);
@@ -111,7 +111,7 @@ BOOST_AUTO_TEST_CASE(test_different_types) {
 	// Test with char type
 	const char CHAR_SENTINEL = '\0';
 	vector<char> chars = {'a', 'b', 'c'};
-	queue<char, CHAR_SENTINEL> char_queue(chars);
+	queue<char> char_queue(chars, CHAR_SENTINEL);
 
 	BOOST_CHECK_EQUAL(char_queue.size(), 3);
 	BOOST_CHECK_EQUAL(*char_queue, 'a');
@@ -122,7 +122,7 @@ BOOST_AUTO_TEST_CASE(test_different_types) {
 
 BOOST_AUTO_TEST_CASE(test_empty_queue) {
 	vector<int> empty;
-	queue<int, SENTINEL_VALUE> q(empty);
+	queue<int> q(empty, SENTINEL_VALUE);
 
 	BOOST_CHECK_EQUAL(q.size(), 0);
 	BOOST_CHECK_EQUAL(*q, SENTINEL_VALUE);
