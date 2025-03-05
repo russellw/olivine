@@ -80,8 +80,9 @@ int main(int argc, char** argv) {
 			auto text = readFile(file);
 			modules.push_back(parse(file, text));
 		}
+		link();
 		std::ofstream os(outFile, std::ios::binary);
-		os << modules[0];
+		os << context;
 		return 0;
 	} catch (const std::exception& e) {
 		cerr << e.what() << '\n';
