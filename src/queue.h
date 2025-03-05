@@ -17,8 +17,12 @@ public:
 
 	// SORT FUNCTIONS
 
-	T& operator*()  {
+	T& operator*() {
 		return (*this)[0];
+	}
+
+	T* operator->() {
+		return &(*this)[0];
 	}
 
 	T& operator[](size_t i) {
@@ -27,9 +31,7 @@ public:
 		}
 		return sentinel;
 	}
-T* operator->() {
-        return &(*this)[0];
-    }
+
 	T pop() {
 		ASSERT(pos <= v.size());
 		if (pos == v.size()) {

@@ -475,7 +475,7 @@ class Parser {
 			return zeroVal(ty);
 		}
 		// END
-		auto tok=toks->s;
+		auto tok = toks->s;
 		switch (tok[0]) {
 		case '%':
 			return var1(ty);
@@ -558,7 +558,7 @@ class Parser {
 
 	Inst inst1() {
 		if (toks->s.back() == ':') {
-		auto tok=toks->s;
+			auto tok = toks->s;
 			return block(parseRef(tok.substr(0, tok.size() - 1)));
 		}
 
@@ -670,7 +670,7 @@ class Parser {
 	}
 
 	size_t int1() {
-		auto tok=toks->s;
+		auto tok = toks->s;
 		if (!std::all_of(tok.begin(), tok.end(), isDigit)) {
 			throw error("expected integer");
 		}
@@ -1240,8 +1240,8 @@ class Parser {
 			auto b = expr(ty);
 			return Term(Sub, ty, a, b);
 		}
-		if (*toks == "trunc" || *toks == "zext" || *toks == "fptrunc" || *toks == "fpext" || *toks == "fptoui" || *toks == "uitofp" ||
-			*toks == "ptrtoint" || *toks == "inttoptr" || *toks == "bitcast") {
+		if (*toks == "trunc" || *toks == "zext" || *toks == "fptrunc" || *toks == "fpext" || *toks == "fptoui" ||
+			*toks == "uitofp" || *toks == "ptrtoint" || *toks == "inttoptr" || *toks == "bitcast") {
 			toks.pop();
 			auto a = typeExpr();
 			expect("to");
@@ -1285,7 +1285,7 @@ class Parser {
 		if (*toks == "datalayout") {
 			toks.pop();
 			expect("=");
-			auto tok=toks->s;
+			auto tok = toks->s;
 			if (tok[0] != '"') {
 				throw error("expected string");
 			}
@@ -1295,7 +1295,7 @@ class Parser {
 		if (*toks == "triple") {
 			toks.pop();
 			expect("=");
-			auto tok=toks->s;
+			auto tok = toks->s;
 			if (tok[0] != '"') {
 				throw error("expected string");
 			}
