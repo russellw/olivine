@@ -5,7 +5,7 @@
 // but returns a sentinel value
 template <class T, T sentinel> class queue {
 	vector<T> v;
-	size_t pos;
+	size_t pos = 0;
 
 public:
 	queue(const vector<T>& v): v(v) {
