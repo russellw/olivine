@@ -11,16 +11,7 @@ public:
 	queue(const vector<T>& v): v(v) {
 	}
 
-	size_t size() {
-		return v.size() - pos;
-	}
-
-	T operator[](size_t i) {
-		if (pos + i < v.size()) {
-			return v[pos + i];
-		}
-		return sentinel;
-	}
+	// SORT FUNCTIONS
 
 	T operator*() {
 		return (*this)[0];
@@ -30,5 +21,16 @@ public:
 		if (pos < v.size()) {
 			pos++;
 		}
+	}
+
+	T operator[](size_t i) {
+		if (pos + i < v.size()) {
+			return v[pos + i];
+		}
+		return sentinel;
+	}
+
+	size_t size() {
+		return v.size() - pos;
 	}
 };
