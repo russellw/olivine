@@ -198,7 +198,6 @@ struct Tok {
 };
 
 class Tokenizer {
-	// TODO: not a useful optimization?
 	string file;
 	string text;
 	size_t pos = 0;

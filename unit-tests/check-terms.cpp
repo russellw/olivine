@@ -8,11 +8,11 @@ Term makeIntTerm(int bits, cpp_int value) {
 	return intConst(intTy(bits), value);
 }
 
-Term makeFloatTerm(const string& val) {
+Term makeFloatTerm(string val) {
 	return floatConst(floatTy(), val);
 }
 
-Term makeDoubleTerm(const string& val) {
+Term makeDoubleTerm(string val) {
 	return floatConst(doubleTy(), val);
 }
 

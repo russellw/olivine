@@ -2,15 +2,15 @@
 #include <boost/test/unit_test.hpp>
 
 // Helper functions to create test values
-Term makeIntVar(const string& name, size_t bits = 32) {
+Term makeIntVar(string name, size_t bits = 32) {
 	return var(intTy(bits), Ref(name));
 }
 
-Term makePtrVar(const string& name) {
+Term makePtrVar(string name) {
 	return var(ptrTy(), Ref(name));
 }
 
-Term makeLabel(const string& name) {
+Term makeLabel(string name) {
 	return label(Ref(name));
 }
 

@@ -3,15 +3,15 @@
 
 // Helper functions to create test functions
 namespace {
-Term createIntVar(const string& name, size_t bits = 32) {
+Term createIntVar(string name, size_t bits = 32) {
 	return var(intTy(bits), Ref(name));
 }
 
-Term createBoolVar(const string& name) {
+Term createBoolVar(string name) {
 	return var(boolTy(), Ref(name));
 }
 
-Term createPtrVar(const string& name) {
+Term createPtrVar(string name) {
 	return var(ptrTy(), Ref(name));
 }
 } // namespace
