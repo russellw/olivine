@@ -1,6 +1,6 @@
 #include "all.h"
 
-string wrap(const string& s) {
+string wrap(string s) {
 	// Empty string needs quotes
 	if (s.empty()) {
 		return "\"\"";

@@ -39,7 +39,7 @@ bool isIdPart(int c) {
 	return isAlnum(c);
 }
 
-bool containsAt(const string& haystack, size_t position, const string& needle) {
+bool containsAt(string haystack, size_t position, string needle) {
 	// Position beyond string length is invalid
 	if (position > haystack.length()) {
 		return false;
@@ -58,11 +58,11 @@ bool containsAt(const string& haystack, size_t position, const string& needle) {
 	return haystack.substr(position, needle.length()) == needle;
 }
 
-bool endsWith(const string& s, int c) {
+bool endsWith(string s, int c) {
 	return s.size() && s.back() == c;
 }
 
-unsigned parseHex(const string& s, size_t& pos, int maxLen) {
+unsigned parseHex(string s, size_t& pos, int maxLen) {
 	// Check if we're already at the end of the string
 	if (pos >= s.length()) {
 		throw runtime_error("No hexadecimal digits found: end of string");
@@ -103,7 +103,7 @@ unsigned parseHex(const string& s, size_t& pos, int maxLen) {
 	return result;
 }
 
-string removeSigil(const string& s) {
+string removeSigil(string s) {
 	ASSERT(s.size());
 	switch (s[0]) {
 	case '$':
@@ -174,7 +174,7 @@ Ref parseRef(string s) {
 
 // Quote a string, particularly a token, for echoing to the user
 // Newline is translated to something readable
-static string quote(const string& s) {
+static string quote(string s) {
 	if (s == "\n") {
 		return "newline";
 	}
@@ -199,14 +199,14 @@ struct Tok {
 
 class Tokenizer {
 	// TODO: not a useful optimization?
-	const string& file;
+	string file;
 	string text;
 	size_t pos = 0;
 	size_t line = 1;
 	string tok;
 	queue<Tok>& toks;
 
-	runtime_error error(const string& msg) const {
+	runtime_error error(string msg) const {
 		return runtime_error(file + ':' + to_string(line) + ": " + msg);
 	}
 
@@ -247,7 +247,7 @@ class Tokenizer {
 	}
 
 public:
-	Tokenizer(const string& file, const string& text0, queue<Tok>& toks): file(file), text(text0), toks(toks) {
+	Tokenizer(string file, string text0, queue<Tok>& toks): file(file), text(text0), toks(toks) {
 		if (!endsWith(text, '\n')) {
 			text += '\n';
 		}
@@ -310,7 +310,7 @@ public:
 const string sentinel = " ";
 
 class Parser {
-	const string& file;
+	string file;
 	queue<Tok> toks = Tok(0, sentinel);
 
 	// SORT FUNCTIONS
@@ -425,7 +425,7 @@ class Parser {
 		return Fn(rty, ref, params, body);
 	}
 
-	runtime_error error(const string& msg) {
+	runtime_error error(string msg) {
 		// File
 		auto s = file + ':';
 
@@ -449,7 +449,7 @@ class Parser {
 		return runtime_error(s);
 	}
 
-	void expect(const string& s) {
+	void expect(string s) {
 		if (*toks == s) {
 			toks.pop();
 			return;
@@ -1333,7 +1333,7 @@ class Parser {
 public:
 	Module* module = new Module;
 
-	Parser(const string& file, const string& text): file(file) {
+	Parser(string file, string text): file(file) {
 		Tokenizer tokenizer(file, text, toks);
 		while (*toks != sentinel) {
 			parse1();
@@ -1342,12 +1342,12 @@ public:
 	}
 };
 
-Module* parse(const string& text) {
+Module* parse(string text) {
 	Parser parser("nameless.ll", text);
 	return parser.module;
 }
 
-Module* parse(const string& file, const string& text) {
+Module* parse(string file, string text) {
 	Parser parser(file, text);
 	return parser.module;
 }

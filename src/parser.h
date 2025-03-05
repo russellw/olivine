@@ -14,17 +14,17 @@ bool isXDigit(int c);
 // This includes more punctuation than most programming languages
 bool isIdPart(int c);
 
-bool containsAt(const string& haystack, size_t position, const string& needle);
-bool endsWith(const string& s, int c);
+bool containsAt(string haystack, size_t position, string needle);
+bool endsWith(string s, int c);
 
 // Parse hexadecimal digits starting at a given position, updating pos accordingly
 // Hexadecimal digits are classified by the function isXDigit
 // Stops when it reaches the end of the string, or a character that is not a hexadecimal digit, or it has parsed maxLen digits
 // At least one hexadecimal digit must be present, or an exception is thrown
-unsigned parseHex(const string& s, size_t& pos, int maxLen = 8);
+unsigned parseHex(string s, size_t& pos, int maxLen = 8);
 
 // Remove the leading sigil from an LLVM identifier or string, if there is one
-string removeSigil(const string& s);
+string removeSigil(string s);
 
 // Unwrap an LLVM identifier or string
 // Remove the leading sigil if any
@@ -41,5 +41,5 @@ string unwrap(string s);
 Ref parseRef(string s);
 
 // Parser for LLVM `.ll` format
-Module* parse(const string& text);
-Module* parse(const string& file, const string& text);
+Module* parse(string text);
+Module* parse(string file, string text);

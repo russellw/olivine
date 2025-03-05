@@ -20,7 +20,7 @@ static char* optArg(int argc, char** argv, int& i, char* s) {
 	return argv[i];
 }
 
-static string readFile(const string& filename) {
+static string readFile(string filename) {
 	std::ifstream file(filename, std::ios::binary | std::ios::ate);
 	if (!file) {
 		// Get the error code and create a system_error with the OS error message

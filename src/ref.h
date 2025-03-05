@@ -6,7 +6,7 @@ public:
 	Ref(): num1(0) {
 	}
 
-	Ref(const string& str): str1(str) {
+	Ref(string str): str1(str) {
 	}
 
 	Ref(const char* str): str1(str) {

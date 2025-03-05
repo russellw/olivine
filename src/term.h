@@ -258,7 +258,7 @@ inline Term fieldPtr(Type ty, Term p, size_t i) {
 	return Term(FieldPtr, ptrTy(), none(ty), p, intConst(i));
 }
 
-inline Term floatConst(Type ty, const string& val) {
+inline Term floatConst(Type ty, string val) {
 	return Term(Float, ty, Ref(val));
 }
 
