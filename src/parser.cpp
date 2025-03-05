@@ -187,6 +187,14 @@ struct Tok {
 
 	Tok(size_t line, string s): line(line), s(s) {
 	}
+
+	bool operator==(string t) const {
+		return s == t;
+	}
+
+	bool operator!=(string t) const {
+		return s != t;
+	}
 };
 
 class Tokenizer {
@@ -297,7 +305,7 @@ class Tokenizer {
 
 // End is indicated by a token that cannot correspond to any actual token
 // but is still nonempty, so parsing code can safely check the first character of current token
-const Tok sentinel = Tok(0, " ");
+const Tok sentinel(0, " ");
 
 class Parser {
 	const string& file;
@@ -313,15 +321,15 @@ class Parser {
 	}
 
 	void argAttrs() {
-		if (tok == "noundef") {
-			lex();
+		if (*toks == "noundef") {
+			toks.pop();
 		}
 	}
 
 	vector<Term> args1() {
 		expect("(");
 		vector<Term> v;
-		if (tok != ")") {
+		if (*toks != ")") {
 			do {
 				v.push_back(arg1());
 			} while (maybeComma());
@@ -394,19 +402,19 @@ class Parser {
 		auto paramTypes = map(params, [](Term a) { return a.ty(); });
 
 		// Trailing tokens
-		while (tok != "{") {
-			if (tok == "\n" || tok == sentinel) {
+		while (*toks != "{") {
+			if (*toks == "\n" || *toks == sentinel) {
 				throw error("expected '{'");
 			}
-			lex();
+			toks.pop();
 		}
 
 		// Body
 		expect("{");
 		newline();
 		vector<Inst> body;
-		while (tok != "}") {
-			if (tok != "\n") {
+		while (*toks != "}") {
+			if (*toks != "\n") {
 				body.push_back(inst1());
 			}
 			nextLine();
@@ -422,8 +430,8 @@ class Parser {
 	}
 
 	void expect(const string& s) {
-		if (tok == s) {
-			lex();
+		if (*toks == s) {
+			toks.pop();
 			return;
 		}
 		throw error(quote(tok) + ": expected " + quote(s));
@@ -435,25 +443,25 @@ class Parser {
 			if (ty != boolTy()) {
 				throw error("type mismatch");
 			}
-			lex();
+			toks.pop();
 			return falseConst;
 		}
 		if (tok == "null") {
 			if (ty != ptrTy()) {
 				throw error("type mismatch");
 			}
-			lex();
+			toks.pop();
 			return nullPtrConst;
 		}
 		if (tok == "true") {
 			if (ty != boolTy()) {
 				throw error("type mismatch");
 			}
-			lex();
+			toks.pop();
 			return trueConst;
 		}
 		if (tok == "zeroinitializer") {
-			lex();
+			toks.pop();
 			return zeroVal(ty);
 		}
 		// END
@@ -465,7 +473,7 @@ class Parser {
 		case 'c':
 			if (tok.size() > 1 && tok[1] == '"') {
 				auto s = unwrap(tok);
-				lex();
+				toks.pop();
 				return arrayBytes((unsigned char*)s.data(), s.size());
 			}
 			break;
@@ -473,12 +481,12 @@ class Parser {
 		if (isDigit(tok[0]) || (tok[0] == '-' && tok.size() > 1 && isDigit(tok[1]))) {
 			if (isInt(ty)) {
 				auto a = intConst(ty, cpp_int(tok));
-				lex();
+				toks.pop();
 				return a;
 			}
 			if (isFloat(ty)) {
 				auto a = floatConst(ty, tok);
-				lex();
+				toks.pop();
 				return a;
 			}
 			throw error(quote(tok) + ": unexpected number");
@@ -488,7 +496,7 @@ class Parser {
 
 	void fastMathFlags() {
 		while (tok == "fast" || tok == "nnan" || tok == "ninf" || tok == "nsz") {
-			lex();
+			toks.pop();
 		}
 	}
 
@@ -514,13 +522,13 @@ class Parser {
 		preemption();
 
 		if (tok == "unnamed_addr" | tok == "local_unnamed_addr") {
-			lex();
+			toks.pop();
 		}
 
 		if (tok == "global") {
-			lex();
+			toks.pop();
 		} else if (tok == "constant") {
-			lex();
+			toks.pop();
 		} else {
 			throw error(quote(tok) + ": expected 'global' or 'constant'");
 		}
@@ -544,7 +552,7 @@ class Parser {
 
 		// SORT BLOCKS
 		if (tok == "br") {
-			lex();
+			toks.pop();
 			if (tok == "label") {
 				return jmp(label1());
 			}
@@ -559,21 +567,21 @@ class Parser {
 			return Inst(Drop, call1());
 		}
 		if (tok == "ret") {
-			lex();
+			toks.pop();
 			if (tok == "void") {
 				return ret();
 			}
 			return ret(typeExpr());
 		}
 		if (tok == "store") {
-			lex();
+			toks.pop();
 			auto a = typeExpr();
 			expect(",");
 			auto p = ptrExpr();
 			return store(a, p);
 		}
 		if (tok == "switch") {
-			lex();
+			toks.pop();
 			vector<Term> v;
 
 			// Value
@@ -601,16 +609,16 @@ class Parser {
 		}
 		if (tok[0] == '%') {
 			auto lval = parseRef(tok);
-			lex();
+			toks.pop();
 			expect("=");
 			if (tok == "alloca") {
-				lex();
+				toks.pop();
 				auto ty = type();
 				auto n = intConst(1);
 				while (tok == ",") {
-					lex();
+					toks.pop();
 					if (tok == "align") {
-						lex();
+						toks.pop();
 						int1();
 						continue;
 					}
@@ -622,7 +630,7 @@ class Parser {
 				return alloca(var(ptrTy(), lval), ty, n);
 			}
 			if (tok == "phi") {
-				lex();
+				toks.pop();
 				fastMathFlags();
 				vector<Term> v;
 
@@ -654,7 +662,7 @@ class Parser {
 			throw error("expected integer");
 		}
 		auto n = stoull(tok);
-		lex();
+		toks.pop();
 		return n;
 	}
 
@@ -665,50 +673,50 @@ class Parser {
 
 	void linkage() {
 		if (tok == "private") {
-			lex();
+			toks.pop();
 			return;
 		}
 		if (tok == "internal") {
-			lex();
+			toks.pop();
 			return;
 		}
 		if (tok == "available_externally") {
-			lex();
+			toks.pop();
 			return;
 		}
 		if (tok == "linkonce") {
-			lex();
+			toks.pop();
 			return;
 		}
 		if (tok == "weak") {
-			lex();
+			toks.pop();
 			return;
 		}
 		if (tok == "common") {
-			lex();
+			toks.pop();
 			return;
 		}
 		if (tok == "appending") {
-			lex();
+			toks.pop();
 			return;
 		}
 		if (tok == "extern_weak") {
-			lex();
+			toks.pop();
 			return;
 		}
 		if (tok == "linkonce_odr" || tok == "weak_odr") {
-			lex();
+			toks.pop();
 			return;
 		}
 		if (tok == "external") {
-			lex();
+			toks.pop();
 			return;
 		}
 	}
 
 	bool maybeComma() {
 		if (tok == ",") {
-			lex();
+			toks.pop();
 			return true;
 		}
 		return false;
@@ -716,7 +724,7 @@ class Parser {
 
 	void newline() {
 		if (tok == "\n") {
-			lex();
+			toks.pop();
 			return;
 		}
 		throw error("expected newline");
@@ -728,23 +736,23 @@ class Parser {
 				stackTrace();
 				throw error("unexpected end of file");
 			}
-			lex();
+			toks.pop();
 		}
-		lex();
+		toks.pop();
 	}
 
 	void noWrap() {
 		if (tok == "nuw") {
-			lex();
+			toks.pop();
 		}
 		if (tok == "nsw") {
-			lex();
+			toks.pop();
 		}
 	}
 
 	Term param1() {
 		if (tok == "...") {
-			lex();
+			toks.pop();
 			return Term(Array);
 		}
 
@@ -760,7 +768,7 @@ class Parser {
 	void paramAttrs() {
 		// https://llvm.org/docs/LangRef.html#paramattrs
 		while (isLower(tok[0])) {
-			lex();
+			toks.pop();
 		}
 	}
 
@@ -791,7 +799,7 @@ class Parser {
 		}
 		if (tok[0] == '$') {
 			auto ref = unwrap(tok);
-			lex();
+			toks.pop();
 			expect("=");
 			expect("comdat");
 			expect("any");
@@ -806,11 +814,11 @@ class Parser {
 
 	void preemption() {
 		if (tok == "dso_local") {
-			lex();
+			toks.pop();
 			return;
 		}
 		if (tok == "dso_preemptable") {
-			lex();
+			toks.pop();
 			return;
 		}
 		// If a preemption specifier isn’t given explicitly, then a symbol is assumed to be dso_preemptable.
@@ -819,7 +827,7 @@ class Parser {
 	Type primaryType() {
 		// SORT BLOCKS
 		if (tok == "<") {
-			lex();
+			toks.pop();
 			auto len = int1();
 			expect("x");
 			auto element = type();
@@ -827,7 +835,7 @@ class Parser {
 			return vecTy(len, element);
 		}
 		if (tok == "[") {
-			lex();
+			toks.pop();
 			auto len = int1();
 			expect("x");
 			auto element = type();
@@ -835,24 +843,24 @@ class Parser {
 			return arrayTy(len, element);
 		}
 		if (tok == "double") {
-			lex();
+			toks.pop();
 			return doubleTy();
 		}
 		if (tok == "float") {
-			lex();
+			toks.pop();
 			return floatTy();
 		}
 		if (tok == "ptr") {
-			lex();
+			toks.pop();
 			return ptrTy();
 		}
 		if (tok == "void") {
-			lex();
+			toks.pop();
 			return voidTy();
 		}
 		if (tok[0] == 'i') {
 			auto len = stoull(tok.substr(1));
-			lex();
+			toks.pop();
 			return intTy(len);
 		}
 		// END
@@ -867,14 +875,14 @@ class Parser {
 
 	Ref ref1() {
 		auto r = parseRef(tok);
-		lex();
+		toks.pop();
 		return r;
 	}
 
 	Term rval1() {
 		// SORT BLOCKS
 		if (tok == "add") {
-			lex();
+			toks.pop();
 			noWrap();
 			auto ty = type();
 			auto a = expr(ty);
@@ -883,7 +891,7 @@ class Parser {
 			return Term(Add, ty, a, b);
 		}
 		if (tok == "and") {
-			lex();
+			toks.pop();
 			auto ty = type();
 			auto a = expr(ty);
 			expect(",");
@@ -891,9 +899,9 @@ class Parser {
 			return Term(And, ty, a, b);
 		}
 		if (tok == "ashr") {
-			lex();
+			toks.pop();
 			if (tok == "exact") {
-				lex();
+				toks.pop();
 			}
 			auto ty = type();
 			auto a = expr(ty);
@@ -905,7 +913,7 @@ class Parser {
 			return call1();
 		}
 		if (tok == "fadd") {
-			lex();
+			toks.pop();
 			fastMathFlags();
 			auto ty = type();
 			auto a = expr(ty);
@@ -914,10 +922,10 @@ class Parser {
 			return Term(FAdd, ty, a, b);
 		}
 		if (tok == "fcmp") {
-			lex();
+			toks.pop();
 			fastMathFlags();
 			if (tok == "oeq") {
-				lex();
+				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
@@ -925,7 +933,7 @@ class Parser {
 				return cmp(FEq, a, b);
 			}
 			if (tok == "ogt") {
-				lex();
+				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
@@ -933,7 +941,7 @@ class Parser {
 				return cmp(FLt, b, a);
 			}
 			if (tok == "oge") {
-				lex();
+				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
@@ -941,7 +949,7 @@ class Parser {
 				return cmp(FLe, b, a);
 			}
 			if (tok == "olt") {
-				lex();
+				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
@@ -949,7 +957,7 @@ class Parser {
 				return cmp(FLt, a, b);
 			}
 			if (tok == "ole") {
-				lex();
+				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
@@ -957,7 +965,7 @@ class Parser {
 				return cmp(FLe, a, b);
 			}
 			if (tok == "ugt") {
-				lex();
+				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
@@ -965,7 +973,7 @@ class Parser {
 				return not1(cmp(FLe, a, b));
 			}
 			if (tok == "uge") {
-				lex();
+				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
@@ -973,7 +981,7 @@ class Parser {
 				return not1(cmp(FLt, a, b));
 			}
 			if (tok == "ult") {
-				lex();
+				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
@@ -981,7 +989,7 @@ class Parser {
 				return not1(cmp(FLe, b, a));
 			}
 			if (tok == "ule") {
-				lex();
+				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
@@ -989,7 +997,7 @@ class Parser {
 				return not1(cmp(FLt, b, a));
 			}
 			if (tok == "une") {
-				lex();
+				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
@@ -999,7 +1007,7 @@ class Parser {
 			throw error(quote(tok) + ": expected condition");
 		}
 		if (tok == "fdiv") {
-			lex();
+			toks.pop();
 			fastMathFlags();
 			auto ty = type();
 			auto a = expr(ty);
@@ -1008,7 +1016,7 @@ class Parser {
 			return Term(FDiv, ty, a, b);
 		}
 		if (tok == "fmul") {
-			lex();
+			toks.pop();
 			fastMathFlags();
 			auto ty = type();
 			auto a = expr(ty);
@@ -1017,14 +1025,14 @@ class Parser {
 			return Term(FMul, ty, a, b);
 		}
 		if (tok == "fneg") {
-			lex();
+			toks.pop();
 			fastMathFlags();
 			auto ty = type();
 			auto a = expr(ty);
 			return Term(FNeg, ty, a);
 		}
 		if (tok == "frem") {
-			lex();
+			toks.pop();
 			fastMathFlags();
 			auto ty = type();
 			auto a = expr(ty);
@@ -1033,7 +1041,7 @@ class Parser {
 			return Term(FRem, ty, a, b);
 		}
 		if (tok == "fsub") {
-			lex();
+			toks.pop();
 			fastMathFlags();
 			auto ty = type();
 			auto a = expr(ty);
@@ -1042,9 +1050,9 @@ class Parser {
 			return Term(FSub, ty, a, b);
 		}
 		if (tok == "getelementptr") {
-			lex();
+			toks.pop();
 			if (tok == "inbounds") {
-				lex();
+				toks.pop();
 			}
 			auto ty = type();
 			expect(",");
@@ -1057,9 +1065,9 @@ class Parser {
 			return getElementPtr(ty, p, idxs);
 		}
 		if (tok == "icmp") {
-			lex();
+			toks.pop();
 			if (tok == "eq") {
-				lex();
+				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
@@ -1067,7 +1075,7 @@ class Parser {
 				return cmp(Eq, a, b);
 			}
 			if (tok == "ne") {
-				lex();
+				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
@@ -1075,7 +1083,7 @@ class Parser {
 				return not1(cmp(Eq, b, a));
 			}
 			if (tok == "ugt") {
-				lex();
+				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
@@ -1083,7 +1091,7 @@ class Parser {
 				return cmp(ULt, b, a);
 			}
 			if (tok == "uge") {
-				lex();
+				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
@@ -1091,7 +1099,7 @@ class Parser {
 				return cmp(ULe, b, a);
 			}
 			if (tok == "ult") {
-				lex();
+				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
@@ -1099,7 +1107,7 @@ class Parser {
 				return cmp(ULt, a, b);
 			}
 			if (tok == "ule") {
-				lex();
+				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
@@ -1107,7 +1115,7 @@ class Parser {
 				return cmp(ULe, a, b);
 			}
 			if (tok == "sgt") {
-				lex();
+				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
@@ -1115,7 +1123,7 @@ class Parser {
 				return cmp(SLt, b, a);
 			}
 			if (tok == "sge") {
-				lex();
+				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
@@ -1123,7 +1131,7 @@ class Parser {
 				return cmp(SLe, b, a);
 			}
 			if (tok == "slt") {
-				lex();
+				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
@@ -1131,7 +1139,7 @@ class Parser {
 				return cmp(SLt, a, b);
 			}
 			if (tok == "sle") {
-				lex();
+				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
 				expect(",");
@@ -1141,16 +1149,16 @@ class Parser {
 			throw error(quote(tok) + ": expected condition");
 		}
 		if (tok == "load") {
-			lex();
+			toks.pop();
 			auto ty = type();
 			expect(",");
 			auto a = ptrExpr();
 			return Term(Load, ty, a);
 		}
 		if (tok == "lshr") {
-			lex();
+			toks.pop();
 			if (tok == "exact") {
-				lex();
+				toks.pop();
 			}
 			auto ty = type();
 			auto a = expr(ty);
@@ -1159,7 +1167,7 @@ class Parser {
 			return Term(LShr, ty, a, b);
 		}
 		if (tok == "mul") {
-			lex();
+			toks.pop();
 			noWrap();
 			auto ty = type();
 			auto a = expr(ty);
@@ -1168,7 +1176,7 @@ class Parser {
 			return Term(Mul, ty, a, b);
 		}
 		if (tok == "or") {
-			lex();
+			toks.pop();
 			auto ty = type();
 			auto a = expr(ty);
 			expect(",");
@@ -1176,9 +1184,9 @@ class Parser {
 			return Term(Or, ty, a, b);
 		}
 		if (tok == "sdiv") {
-			lex();
+			toks.pop();
 			if (tok == "exact") {
-				lex();
+				toks.pop();
 			}
 			auto ty = type();
 			auto a = expr(ty);
@@ -1187,14 +1195,14 @@ class Parser {
 			return Term(SDiv, ty, a, b);
 		}
 		if (tok == "sext" || tok == "fptosi" || tok == "sitofp") {
-			lex();
+			toks.pop();
 			auto a = typeExpr();
 			expect("to");
 			auto ty = type();
 			return Term(SCast, ty, a);
 		}
 		if (tok == "shl") {
-			lex();
+			toks.pop();
 			noWrap();
 			auto ty = type();
 			auto a = expr(ty);
@@ -1203,7 +1211,7 @@ class Parser {
 			return Term(Shl, ty, a, b);
 		}
 		if (tok == "srem") {
-			lex();
+			toks.pop();
 			auto ty = type();
 			auto a = expr(ty);
 			expect(",");
@@ -1211,7 +1219,7 @@ class Parser {
 			return Term(SRem, ty, a, b);
 		}
 		if (tok == "sub") {
-			lex();
+			toks.pop();
 			noWrap();
 			auto ty = type();
 			auto a = expr(ty);
@@ -1221,16 +1229,16 @@ class Parser {
 		}
 		if (tok == "trunc" || tok == "zext" || tok == "fptrunc" || tok == "fpext" || tok == "fptoui" || tok == "uitofp" ||
 			tok == "ptrtoint" || tok == "inttoptr" || tok == "bitcast") {
-			lex();
+			toks.pop();
 			auto a = typeExpr();
 			expect("to");
 			auto ty = type();
 			return Term(Cast, ty, a);
 		}
 		if (tok == "udiv") {
-			lex();
+			toks.pop();
 			if (tok == "exact") {
-				lex();
+				toks.pop();
 			}
 			auto ty = type();
 			auto a = expr(ty);
@@ -1239,7 +1247,7 @@ class Parser {
 			return Term(UDiv, ty, a, b);
 		}
 		if (tok == "urem") {
-			lex();
+			toks.pop();
 			auto ty = type();
 			auto a = expr(ty);
 			expect(",");
@@ -1247,7 +1255,7 @@ class Parser {
 			return Term(URem, ty, a, b);
 		}
 		if (tok == "xor") {
-			lex();
+			toks.pop();
 			auto ty = type();
 			auto a = expr(ty);
 			expect(",");
@@ -1262,7 +1270,7 @@ class Parser {
 	void target1() {
 		expect("target");
 		if (tok == "datalayout") {
-			lex();
+			toks.pop();
 			expect("=");
 			if (tok[0] != '"') {
 				throw error("expected string");
@@ -1271,7 +1279,7 @@ class Parser {
 			return;
 		}
 		if (tok == "triple") {
-			lex();
+			toks.pop();
 			expect("=");
 			if (tok[0] != '"') {
 				throw error("expected string");
