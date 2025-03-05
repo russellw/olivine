@@ -42,4 +42,4 @@ ostream& operator<<(ostream&, Fn);
 
 // Output a module in LLVM format
 // starting with target platform information from context, if present
-ostream& operator<<(ostream&, Module*);
+ostream& operator<<(ostream&, const Module&);

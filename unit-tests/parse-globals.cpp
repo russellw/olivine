@@ -88,7 +88,7 @@ BOOST_AUTO_TEST_CASE(test_module_output) {
 
 	// Test outputting the module
 	std::ostringstream oss;
-	oss << module;
+	oss << *module;
 	std::string output = oss.str();
 
 	// Check if output contains expected strings

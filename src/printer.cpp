@@ -598,32 +598,32 @@ ostream& operator<<(ostream& os, Fn f) {
 	return os;
 }
 
-ostream& operator<<(ostream& out, Module* module) {
+ostream& operator<<(ostream& out, const Module& module) {
 	// Print target platform info
-	if (module->datalayout.size()) {
-		out << "target datalayout = \"" << module->datalayout << "\"\n";
+	if (module.datalayout.size()) {
+		out << "target datalayout = \"" << module.datalayout << "\"\n";
 	}
-	if (module->triple.size()) {
-		out << "target triple = \"" << module->triple << "\"\n";
+	if (module.triple.size()) {
+		out << "target triple = \"" << module.triple << "\"\n";
 	}
 
 	// Print comdats
-	for (const auto& ref : module->comdats) {
+	for (const auto& ref : module.comdats) {
 		out << '$' << ref << " = comdat any\n";
 	}
 
 	// Print global variables
-	for (const auto& global : module->globals) {
+	for (const auto& global : module.globals) {
 		out << global << "\n";
 	}
 
 	// Print function declarations
-	for (const auto& decl : module->decls) {
+	for (const auto& decl : module.decls) {
 		out << decl << "\n";
 	}
 
 	// Print function definitions
-	for (const auto& def : module->defs) {
+	for (const auto& def : module.defs) {
 		out << def << "\n";
 	}
 
