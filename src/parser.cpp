@@ -198,6 +198,7 @@ struct Tok {
 };
 
 class Tokenizer {
+	// TODO: not a useful optimization?
 	const string& file;
 	string text;
 	size_t pos = 0;
@@ -305,12 +306,11 @@ class Tokenizer {
 
 // End is indicated by a token that cannot correspond to any actual token
 // but is still nonempty, so parsing code can safely check the first character of current token
-const Tok sentinel(0, " ");
+const string sentinel = " ";
 
 class Parser {
 	const string& file;
-
-	queue<Tok> toks = sentinel;
+	queue<Tok> toks = Tok(0, sentinel);
 
 	// SORT FUNCTIONS
 
@@ -425,8 +425,17 @@ class Parser {
 	}
 
 	runtime_error error(const string& msg) const {
-		string errorMsg = file + ":" + to_string(currentLine()) + ": " + msg;
-		return runtime_error(errorMsg);
+		auto s = file + ':';
+
+		auto tok = *toks;
+		if (tok.line) {
+			s += to_string(tok.line);
+		} else {
+			s += "EOF";
+		}
+		s += ": ";
+
+		return runtime_error(s + quote(tok.s) + ": " + msg);
 	}
 
 	void expect(const string& s) {
@@ -434,33 +443,33 @@ class Parser {
 			toks.pop();
 			return;
 		}
-		throw error(quote(tok) + ": expected " + quote(s));
+		throw error("expected " + quote(s));
 	}
 
 	Term expr(Type ty) {
 		// SORT BLOCKS
-		if (tok == "false") {
+		if (*toks == "false") {
 			if (ty != boolTy()) {
 				throw error("type mismatch");
 			}
 			toks.pop();
 			return falseConst;
 		}
-		if (tok == "null") {
+		if (*toks == "null") {
 			if (ty != ptrTy()) {
 				throw error("type mismatch");
 			}
 			toks.pop();
 			return nullPtrConst;
 		}
-		if (tok == "true") {
+		if (*toks == "true") {
 			if (ty != boolTy()) {
 				throw error("type mismatch");
 			}
 			toks.pop();
 			return trueConst;
 		}
-		if (tok == "zeroinitializer") {
+		if (*toks == "zeroinitializer") {
 			toks.pop();
 			return zeroVal(ty);
 		}
@@ -489,9 +498,9 @@ class Parser {
 				toks.pop();
 				return a;
 			}
-			throw error(quote(tok) + ": unexpected number");
+			throw error("unexpected number");
 		}
-		throw error(quote(tok) + ": expected expression");
+		throw error("expected expression");
 	}
 
 	void fastMathFlags() {
@@ -530,7 +539,7 @@ class Parser {
 		} else if (tok == "constant") {
 			toks.pop();
 		} else {
-			throw error(quote(tok) + ": expected 'global' or 'constant'");
+			throw error("expected 'global' or 'constant'");
 		}
 
 		auto ty = type();
@@ -540,7 +549,7 @@ class Parser {
 
 	Ref globalRef1() {
 		if (tok[0] != '@') {
-			throw error(quote(tok) + ": expected global name");
+			throw error("expected global name");
 		}
 		return ref1();
 	}
@@ -654,7 +663,7 @@ class Parser {
 		}
 		// END
 
-		throw error(quote(tok) + ": expected inst");
+		throw error("expected inst");
 	}
 
 	size_t int1() {
@@ -865,7 +874,7 @@ class Parser {
 		}
 		// END
 
-		throw error(quote(tok) + ": expected type");
+		throw error("expected type");
 	}
 
 	Term ptrExpr() {
@@ -1004,7 +1013,7 @@ class Parser {
 				auto b = expr(ty);
 				return not1(cmp(FEq, b, a));
 			}
-			throw error(quote(tok) + ": expected condition");
+			throw error("expected condition");
 		}
 		if (tok == "fdiv") {
 			toks.pop();
@@ -1146,7 +1155,7 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(SLe, a, b);
 			}
-			throw error(quote(tok) + ": expected condition");
+			throw error("expected condition");
 		}
 		if (tok == "load") {
 			toks.pop();
@@ -1264,7 +1273,7 @@ class Parser {
 		}
 		// END
 
-		throw error(quote(tok) + ": expected rval");
+		throw error("expected rval");
 	}
 
 	void target1() {
