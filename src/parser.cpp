@@ -425,7 +425,7 @@ class Parser {
 		return Fn(rty, ref, params, body);
 	}
 
-	runtime_error error(const string& msg) const {
+	runtime_error error(const string& msg) {
 		// File
 		auto s = file + ':';
 
