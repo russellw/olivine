@@ -17,17 +17,19 @@ public:
 
 	// SORT FUNCTIONS
 
-	T operator*() const {
+	T& operator*()  {
 		return (*this)[0];
 	}
 
-	T operator[](size_t i) const {
+	T& operator[](size_t i) {
 		if (pos + i < v.size()) {
 			return v[pos + i];
 		}
 		return sentinel;
 	}
-
+T* operator->() {
+        return &(*this)[0];
+    }
 	T pop() {
 		ASSERT(pos <= v.size());
 		if (pos == v.size()) {

@@ -246,6 +246,7 @@ class Tokenizer {
 		toks.push(Tok(line, tok));
 	}
 
+public:
 	Tokenizer(const string& file, const string& text0, queue<Tok>& toks): file(file), text(text0), toks(toks) {
 		if (!endsWith(text, '\n')) {
 			text += '\n';
@@ -474,6 +475,7 @@ class Parser {
 			return zeroVal(ty);
 		}
 		// END
+		auto tok=toks->s;
 		switch (tok[0]) {
 		case '%':
 			return var1(ty);
@@ -504,7 +506,7 @@ class Parser {
 	}
 
 	void fastMathFlags() {
-		while (tok == "fast" || tok == "nnan" || tok == "ninf" || tok == "nsz") {
+		while (*toks == "fast" || *toks == "nnan" || *toks == "ninf" || *toks == "nsz") {
 			toks.pop();
 		}
 	}
@@ -530,13 +532,13 @@ class Parser {
 		linkage();
 		preemption();
 
-		if (tok == "unnamed_addr" | tok == "local_unnamed_addr") {
+		if (*toks == "unnamed_addr" | *toks == "local_unnamed_addr") {
 			toks.pop();
 		}
 
-		if (tok == "global") {
+		if (*toks == "global") {
 			toks.pop();
-		} else if (tok == "constant") {
+		} else if (*toks == "constant") {
 			toks.pop();
 		} else {
 			throw error("expected 'global' or 'constant'");
@@ -548,21 +550,22 @@ class Parser {
 	}
 
 	Ref globalRef1() {
-		if (tok[0] != '@') {
+		if (toks->s[0] != '@') {
 			throw error("expected global name");
 		}
 		return ref1();
 	}
 
 	Inst inst1() {
-		if (tok.back() == ':') {
+		if (toks->s.back() == ':') {
+		auto tok=toks->s;
 			return block(parseRef(tok.substr(0, tok.size() - 1)));
 		}
 
 		// SORT BLOCKS
-		if (tok == "br") {
+		if (*toks == "br") {
 			toks.pop();
-			if (tok == "label") {
+			if (*toks == "label") {
 				return jmp(label1());
 			}
 			auto cond = typeExpr();
@@ -572,24 +575,24 @@ class Parser {
 			auto no = label1();
 			return br(cond, yes, no);
 		}
-		if (tok == "call") {
+		if (*toks == "call") {
 			return Inst(Drop, call1());
 		}
-		if (tok == "ret") {
+		if (*toks == "ret") {
 			toks.pop();
-			if (tok == "void") {
+			if (*toks == "void") {
 				return ret();
 			}
 			return ret(typeExpr());
 		}
-		if (tok == "store") {
+		if (*toks == "store") {
 			toks.pop();
 			auto a = typeExpr();
 			expect(",");
 			auto p = ptrExpr();
 			return store(a, p);
 		}
-		if (tok == "switch") {
+		if (*toks == "switch") {
 			toks.pop();
 			vector<Term> v;
 
@@ -603,7 +606,7 @@ class Parser {
 			// Cases
 			expect("[");
 			newline();
-			while (tok != "]") {
+			while (*toks != "]") {
 				v.push_back(typeExpr());
 				expect(",");
 				v.push_back(label1());
@@ -613,32 +616,32 @@ class Parser {
 
 			return Inst(Switch, v);
 		}
-		if (tok == "unreachable") {
+		if (*toks == "unreachable") {
 			return unreachable();
 		}
-		if (tok[0] == '%') {
-			auto lval = parseRef(tok);
+		if (toks->s[0] == '%') {
+			auto lval = parseRef(toks->s);
 			toks.pop();
 			expect("=");
-			if (tok == "alloca") {
+			if (*toks == "alloca") {
 				toks.pop();
 				auto ty = type();
 				auto n = intConst(1);
-				while (tok == ",") {
+				while (*toks == ",") {
 					toks.pop();
-					if (tok == "align") {
+					if (*toks == "align") {
 						toks.pop();
 						int1();
 						continue;
 					}
-					if (tok == "addrspace") {
+					if (*toks == "addrspace") {
 						throw error("multiple address spaces not supported");
 					}
 					n = typeExpr();
 				}
 				return alloca(var(ptrTy(), lval), ty, n);
 			}
-			if (tok == "phi") {
+			if (*toks == "phi") {
 				toks.pop();
 				fastMathFlags();
 				vector<Term> v;
@@ -667,6 +670,7 @@ class Parser {
 	}
 
 	size_t int1() {
+		auto tok=toks->s;
 		if (!std::all_of(tok.begin(), tok.end(), isDigit)) {
 			throw error("expected integer");
 		}
@@ -681,50 +685,50 @@ class Parser {
 	}
 
 	void linkage() {
-		if (tok == "private") {
+		if (*toks == "private") {
 			toks.pop();
 			return;
 		}
-		if (tok == "internal") {
+		if (*toks == "internal") {
 			toks.pop();
 			return;
 		}
-		if (tok == "available_externally") {
+		if (*toks == "available_externally") {
 			toks.pop();
 			return;
 		}
-		if (tok == "linkonce") {
+		if (*toks == "linkonce") {
 			toks.pop();
 			return;
 		}
-		if (tok == "weak") {
+		if (*toks == "weak") {
 			toks.pop();
 			return;
 		}
-		if (tok == "common") {
+		if (*toks == "common") {
 			toks.pop();
 			return;
 		}
-		if (tok == "appending") {
+		if (*toks == "appending") {
 			toks.pop();
 			return;
 		}
-		if (tok == "extern_weak") {
+		if (*toks == "extern_weak") {
 			toks.pop();
 			return;
 		}
-		if (tok == "linkonce_odr" || tok == "weak_odr") {
+		if (*toks == "linkonce_odr" || *toks == "weak_odr") {
 			toks.pop();
 			return;
 		}
-		if (tok == "external") {
+		if (*toks == "external") {
 			toks.pop();
 			return;
 		}
 	}
 
 	bool maybeComma() {
-		if (tok == ",") {
+		if (*toks == ",") {
 			toks.pop();
 			return true;
 		}
@@ -732,7 +736,7 @@ class Parser {
 	}
 
 	void newline() {
-		if (tok == "\n") {
+		if (*toks == "\n") {
 			toks.pop();
 			return;
 		}
@@ -740,8 +744,8 @@ class Parser {
 	}
 
 	void nextLine() {
-		while (tok != "\n") {
-			if (tok == sentinel) {
+		while (*toks != "\n") {
+			if (*toks == sentinel) {
 				stackTrace();
 				throw error("unexpected end of file");
 			}
@@ -751,16 +755,16 @@ class Parser {
 	}
 
 	void noWrap() {
-		if (tok == "nuw") {
+		if (*toks == "nuw") {
 			toks.pop();
 		}
-		if (tok == "nsw") {
+		if (*toks == "nsw") {
 			toks.pop();
 		}
 	}
 
 	Term param1() {
-		if (tok == "...") {
+		if (*toks == "...") {
 			toks.pop();
 			return Term(Array);
 		}
@@ -768,7 +772,7 @@ class Parser {
 		// <type> [parameter Attrs] [name]
 		auto ty = type();
 		paramAttrs();
-		if (tok[0] == '%') {
+		if (toks->s[0] == '%') {
 			return var1(ty);
 		}
 		return none(ty);
@@ -776,7 +780,7 @@ class Parser {
 
 	void paramAttrs() {
 		// https://llvm.org/docs/LangRef.html#paramattrs
-		while (isLower(tok[0])) {
+		while (isLower(toks->s[0])) {
 			toks.pop();
 		}
 	}
@@ -784,7 +788,7 @@ class Parser {
 	vector<Term> params1() {
 		expect("(");
 		vector<Term> v;
-		if (tok != ")") {
+		if (*toks != ")") {
 			do {
 				v.push_back(param1());
 			} while (maybeComma());
@@ -794,20 +798,20 @@ class Parser {
 	}
 
 	void parse1() {
-		if (tok == "target") {
+		if (*toks == "target") {
 			target1();
 			return;
 		}
-		if (tok == "declare") {
+		if (*toks == "declare") {
 			module->decls.push_back(declare());
 			return;
 		}
-		if (tok == "define") {
+		if (*toks == "define") {
 			module->defs.push_back(define());
 			return;
 		}
-		if (tok[0] == '$') {
-			auto ref = unwrap(tok);
+		if (toks->s[0] == '$') {
+			auto ref = unwrap(toks->s);
 			toks.pop();
 			expect("=");
 			expect("comdat");
@@ -815,18 +819,18 @@ class Parser {
 			module->comdats.push_back(ref);
 			return;
 		}
-		if (tok[0] == '@') {
+		if (toks->s[0] == '@') {
 			module->globals.push_back(global());
 			return;
 		}
 	}
 
 	void preemption() {
-		if (tok == "dso_local") {
+		if (*toks == "dso_local") {
 			toks.pop();
 			return;
 		}
-		if (tok == "dso_preemptable") {
+		if (*toks == "dso_preemptable") {
 			toks.pop();
 			return;
 		}
@@ -835,7 +839,7 @@ class Parser {
 
 	Type primaryType() {
 		// SORT BLOCKS
-		if (tok == "<") {
+		if (*toks == "<") {
 			toks.pop();
 			auto len = int1();
 			expect("x");
@@ -843,7 +847,7 @@ class Parser {
 			expect(">");
 			return vecTy(len, element);
 		}
-		if (tok == "[") {
+		if (*toks == "[") {
 			toks.pop();
 			auto len = int1();
 			expect("x");
@@ -851,24 +855,24 @@ class Parser {
 			expect("]");
 			return arrayTy(len, element);
 		}
-		if (tok == "double") {
+		if (*toks == "double") {
 			toks.pop();
 			return doubleTy();
 		}
-		if (tok == "float") {
+		if (*toks == "float") {
 			toks.pop();
 			return floatTy();
 		}
-		if (tok == "ptr") {
+		if (*toks == "ptr") {
 			toks.pop();
 			return ptrTy();
 		}
-		if (tok == "void") {
+		if (*toks == "void") {
 			toks.pop();
 			return voidTy();
 		}
-		if (tok[0] == 'i') {
-			auto len = stoull(tok.substr(1));
+		if (toks->s[0] == 'i') {
+			auto len = stoull(toks->s.substr(1));
 			toks.pop();
 			return intTy(len);
 		}
@@ -883,14 +887,14 @@ class Parser {
 	}
 
 	Ref ref1() {
-		auto r = parseRef(tok);
+		auto r = parseRef(toks->s);
 		toks.pop();
 		return r;
 	}
 
 	Term rval1() {
 		// SORT BLOCKS
-		if (tok == "add") {
+		if (*toks == "add") {
 			toks.pop();
 			noWrap();
 			auto ty = type();
@@ -899,7 +903,7 @@ class Parser {
 			auto b = expr(ty);
 			return Term(Add, ty, a, b);
 		}
-		if (tok == "and") {
+		if (*toks == "and") {
 			toks.pop();
 			auto ty = type();
 			auto a = expr(ty);
@@ -907,9 +911,9 @@ class Parser {
 			auto b = expr(ty);
 			return Term(And, ty, a, b);
 		}
-		if (tok == "ashr") {
+		if (*toks == "ashr") {
 			toks.pop();
-			if (tok == "exact") {
+			if (*toks == "exact") {
 				toks.pop();
 			}
 			auto ty = type();
@@ -918,10 +922,10 @@ class Parser {
 			auto b = expr(ty);
 			return Term(AShr, ty, a, b);
 		}
-		if (tok == "call") {
+		if (*toks == "call") {
 			return call1();
 		}
-		if (tok == "fadd") {
+		if (*toks == "fadd") {
 			toks.pop();
 			fastMathFlags();
 			auto ty = type();
@@ -930,10 +934,10 @@ class Parser {
 			auto b = expr(ty);
 			return Term(FAdd, ty, a, b);
 		}
-		if (tok == "fcmp") {
+		if (*toks == "fcmp") {
 			toks.pop();
 			fastMathFlags();
-			if (tok == "oeq") {
+			if (*toks == "oeq") {
 				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
@@ -941,7 +945,7 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(FEq, a, b);
 			}
-			if (tok == "ogt") {
+			if (*toks == "ogt") {
 				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
@@ -949,7 +953,7 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(FLt, b, a);
 			}
-			if (tok == "oge") {
+			if (*toks == "oge") {
 				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
@@ -957,7 +961,7 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(FLe, b, a);
 			}
-			if (tok == "olt") {
+			if (*toks == "olt") {
 				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
@@ -965,7 +969,7 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(FLt, a, b);
 			}
-			if (tok == "ole") {
+			if (*toks == "ole") {
 				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
@@ -973,7 +977,7 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(FLe, a, b);
 			}
-			if (tok == "ugt") {
+			if (*toks == "ugt") {
 				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
@@ -981,7 +985,7 @@ class Parser {
 				auto b = expr(ty);
 				return not1(cmp(FLe, a, b));
 			}
-			if (tok == "uge") {
+			if (*toks == "uge") {
 				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
@@ -989,7 +993,7 @@ class Parser {
 				auto b = expr(ty);
 				return not1(cmp(FLt, a, b));
 			}
-			if (tok == "ult") {
+			if (*toks == "ult") {
 				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
@@ -997,7 +1001,7 @@ class Parser {
 				auto b = expr(ty);
 				return not1(cmp(FLe, b, a));
 			}
-			if (tok == "ule") {
+			if (*toks == "ule") {
 				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
@@ -1005,7 +1009,7 @@ class Parser {
 				auto b = expr(ty);
 				return not1(cmp(FLt, b, a));
 			}
-			if (tok == "une") {
+			if (*toks == "une") {
 				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
@@ -1015,7 +1019,7 @@ class Parser {
 			}
 			throw error("expected condition");
 		}
-		if (tok == "fdiv") {
+		if (*toks == "fdiv") {
 			toks.pop();
 			fastMathFlags();
 			auto ty = type();
@@ -1024,7 +1028,7 @@ class Parser {
 			auto b = expr(ty);
 			return Term(FDiv, ty, a, b);
 		}
-		if (tok == "fmul") {
+		if (*toks == "fmul") {
 			toks.pop();
 			fastMathFlags();
 			auto ty = type();
@@ -1033,14 +1037,14 @@ class Parser {
 			auto b = expr(ty);
 			return Term(FMul, ty, a, b);
 		}
-		if (tok == "fneg") {
+		if (*toks == "fneg") {
 			toks.pop();
 			fastMathFlags();
 			auto ty = type();
 			auto a = expr(ty);
 			return Term(FNeg, ty, a);
 		}
-		if (tok == "frem") {
+		if (*toks == "frem") {
 			toks.pop();
 			fastMathFlags();
 			auto ty = type();
@@ -1049,7 +1053,7 @@ class Parser {
 			auto b = expr(ty);
 			return Term(FRem, ty, a, b);
 		}
-		if (tok == "fsub") {
+		if (*toks == "fsub") {
 			toks.pop();
 			fastMathFlags();
 			auto ty = type();
@@ -1058,9 +1062,9 @@ class Parser {
 			auto b = expr(ty);
 			return Term(FSub, ty, a, b);
 		}
-		if (tok == "getelementptr") {
+		if (*toks == "getelementptr") {
 			toks.pop();
-			if (tok == "inbounds") {
+			if (*toks == "inbounds") {
 				toks.pop();
 			}
 			auto ty = type();
@@ -1073,9 +1077,9 @@ class Parser {
 			} while (maybeComma());
 			return getElementPtr(ty, p, idxs);
 		}
-		if (tok == "icmp") {
+		if (*toks == "icmp") {
 			toks.pop();
-			if (tok == "eq") {
+			if (*toks == "eq") {
 				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
@@ -1083,7 +1087,7 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(Eq, a, b);
 			}
-			if (tok == "ne") {
+			if (*toks == "ne") {
 				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
@@ -1091,7 +1095,7 @@ class Parser {
 				auto b = expr(ty);
 				return not1(cmp(Eq, b, a));
 			}
-			if (tok == "ugt") {
+			if (*toks == "ugt") {
 				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
@@ -1099,7 +1103,7 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(ULt, b, a);
 			}
-			if (tok == "uge") {
+			if (*toks == "uge") {
 				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
@@ -1107,7 +1111,7 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(ULe, b, a);
 			}
-			if (tok == "ult") {
+			if (*toks == "ult") {
 				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
@@ -1115,7 +1119,7 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(ULt, a, b);
 			}
-			if (tok == "ule") {
+			if (*toks == "ule") {
 				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
@@ -1123,7 +1127,7 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(ULe, a, b);
 			}
-			if (tok == "sgt") {
+			if (*toks == "sgt") {
 				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
@@ -1131,7 +1135,7 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(SLt, b, a);
 			}
-			if (tok == "sge") {
+			if (*toks == "sge") {
 				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
@@ -1139,7 +1143,7 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(SLe, b, a);
 			}
-			if (tok == "slt") {
+			if (*toks == "slt") {
 				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
@@ -1147,7 +1151,7 @@ class Parser {
 				auto b = expr(ty);
 				return cmp(SLt, a, b);
 			}
-			if (tok == "sle") {
+			if (*toks == "sle") {
 				toks.pop();
 				auto ty = type();
 				auto a = expr(ty);
@@ -1157,16 +1161,16 @@ class Parser {
 			}
 			throw error("expected condition");
 		}
-		if (tok == "load") {
+		if (*toks == "load") {
 			toks.pop();
 			auto ty = type();
 			expect(",");
 			auto a = ptrExpr();
 			return Term(Load, ty, a);
 		}
-		if (tok == "lshr") {
+		if (*toks == "lshr") {
 			toks.pop();
-			if (tok == "exact") {
+			if (*toks == "exact") {
 				toks.pop();
 			}
 			auto ty = type();
@@ -1175,7 +1179,7 @@ class Parser {
 			auto b = expr(ty);
 			return Term(LShr, ty, a, b);
 		}
-		if (tok == "mul") {
+		if (*toks == "mul") {
 			toks.pop();
 			noWrap();
 			auto ty = type();
@@ -1184,7 +1188,7 @@ class Parser {
 			auto b = expr(ty);
 			return Term(Mul, ty, a, b);
 		}
-		if (tok == "or") {
+		if (*toks == "or") {
 			toks.pop();
 			auto ty = type();
 			auto a = expr(ty);
@@ -1192,9 +1196,9 @@ class Parser {
 			auto b = expr(ty);
 			return Term(Or, ty, a, b);
 		}
-		if (tok == "sdiv") {
+		if (*toks == "sdiv") {
 			toks.pop();
-			if (tok == "exact") {
+			if (*toks == "exact") {
 				toks.pop();
 			}
 			auto ty = type();
@@ -1203,14 +1207,14 @@ class Parser {
 			auto b = expr(ty);
 			return Term(SDiv, ty, a, b);
 		}
-		if (tok == "sext" || tok == "fptosi" || tok == "sitofp") {
+		if (*toks == "sext" || *toks == "fptosi" || *toks == "sitofp") {
 			toks.pop();
 			auto a = typeExpr();
 			expect("to");
 			auto ty = type();
 			return Term(SCast, ty, a);
 		}
-		if (tok == "shl") {
+		if (*toks == "shl") {
 			toks.pop();
 			noWrap();
 			auto ty = type();
@@ -1219,7 +1223,7 @@ class Parser {
 			auto b = expr(ty);
 			return Term(Shl, ty, a, b);
 		}
-		if (tok == "srem") {
+		if (*toks == "srem") {
 			toks.pop();
 			auto ty = type();
 			auto a = expr(ty);
@@ -1227,7 +1231,7 @@ class Parser {
 			auto b = expr(ty);
 			return Term(SRem, ty, a, b);
 		}
-		if (tok == "sub") {
+		if (*toks == "sub") {
 			toks.pop();
 			noWrap();
 			auto ty = type();
@@ -1236,17 +1240,17 @@ class Parser {
 			auto b = expr(ty);
 			return Term(Sub, ty, a, b);
 		}
-		if (tok == "trunc" || tok == "zext" || tok == "fptrunc" || tok == "fpext" || tok == "fptoui" || tok == "uitofp" ||
-			tok == "ptrtoint" || tok == "inttoptr" || tok == "bitcast") {
+		if (*toks == "trunc" || *toks == "zext" || *toks == "fptrunc" || *toks == "fpext" || *toks == "fptoui" || *toks == "uitofp" ||
+			*toks == "ptrtoint" || *toks == "inttoptr" || *toks == "bitcast") {
 			toks.pop();
 			auto a = typeExpr();
 			expect("to");
 			auto ty = type();
 			return Term(Cast, ty, a);
 		}
-		if (tok == "udiv") {
+		if (*toks == "udiv") {
 			toks.pop();
-			if (tok == "exact") {
+			if (*toks == "exact") {
 				toks.pop();
 			}
 			auto ty = type();
@@ -1255,7 +1259,7 @@ class Parser {
 			auto b = expr(ty);
 			return Term(UDiv, ty, a, b);
 		}
-		if (tok == "urem") {
+		if (*toks == "urem") {
 			toks.pop();
 			auto ty = type();
 			auto a = expr(ty);
@@ -1263,7 +1267,7 @@ class Parser {
 			auto b = expr(ty);
 			return Term(URem, ty, a, b);
 		}
-		if (tok == "xor") {
+		if (*toks == "xor") {
 			toks.pop();
 			auto ty = type();
 			auto a = expr(ty);
@@ -1278,18 +1282,20 @@ class Parser {
 
 	void target1() {
 		expect("target");
-		if (tok == "datalayout") {
+		if (*toks == "datalayout") {
 			toks.pop();
 			expect("=");
+			auto tok=toks->s;
 			if (tok[0] != '"') {
 				throw error("expected string");
 			}
 			module->datalayout = unwrap(tok);
 			return;
 		}
-		if (tok == "triple") {
+		if (*toks == "triple") {
 			toks.pop();
 			expect("=");
+			auto tok=toks->s;
 			if (tok[0] != '"') {
 				throw error("expected string");
 			}
@@ -1308,7 +1314,7 @@ class Parser {
 	}
 
 	Term var1(Type ty) {
-		if (tok[0] != '%') {
+		if (toks->s[0] != '%') {
 			throw error("expected variable name");
 		}
 		return var(ty, ref1());
@@ -1319,7 +1325,7 @@ public:
 
 	Parser(const string& file, const string& text): file(file) {
 		Tokenizer tokenizer(file, text, toks);
-		while (tok != sentinel) {
+		while (*toks != sentinel) {
 			parse1();
 			nextLine();
 		}
