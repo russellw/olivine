@@ -189,7 +189,7 @@ class Parser {
 
 	// End of file is indicated by a token that cannot correspond to any actual token
 	// but is still nonempty, so parsing code can safely check the first character of current token
-	const string eof = " ";
+	const string sentinel = " ";
 
 	// SORT FUNCTIONS
 
@@ -293,7 +293,7 @@ class Parser {
 
 		// Trailing tokens
 		while (tok != "{") {
-			if (tok == "\n" || tok == eof) {
+			if (tok == "\n" || tok == sentinel) {
 				throw error("expected '{'");
 			}
 			lex();
@@ -629,7 +629,7 @@ class Parser {
 			tok = text.substr(pos++, 1);
 			return;
 		}
-		tok = eof;
+		tok = sentinel;
 	}
 
 	void lexQuote() {
@@ -712,7 +712,7 @@ class Parser {
 
 	void nextLine() {
 		while (tok != "\n") {
-			if (tok == eof) {
+			if (tok == sentinel) {
 				stackTrace();
 				throw error("unexpected end of file");
 			}
@@ -1293,7 +1293,7 @@ public:
 			this->text += '\n';
 		}
 		lex();
-		while (tok != eof) {
+		while (tok != sentinel) {
 			parse1();
 			nextLine();
 		}

@@ -35,7 +35,7 @@ using boost::multiprecision::cpp_int;
 
 // Project header files
 #include "etc.h"
-#include "tstream.h"
+#include "queue.h"
 
 // Data structures
 #include "ref.h"
