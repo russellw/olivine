@@ -426,8 +426,10 @@ class Parser {
 	}
 
 	runtime_error error(const string& msg) const {
+		// File
 		auto s = file + ':';
 
+		// Line
 		auto tok = *toks;
 		if (tok.line) {
 			s += to_string(tok.line);
@@ -436,7 +438,15 @@ class Parser {
 		}
 		s += ": ";
 
-		return runtime_error(s + quote(tok.s) + ": " + msg);
+		// Current token
+		s += quote(tok.s) + ": ";
+
+		// Specific message
+		s += msg;
+
+		// Return exception object instead of throwing it
+		// so the compiler can recognize control flow at the call site
+		return runtime_error(s);
 	}
 
 	void expect(const string& s) {
