@@ -1,0 +1,4 @@
+Adventure game written by Claude
+with only one missing #include needing to be added
+697 nonblank noncomment lines of code
+as of Wednesday, March 5, 2025 it is the largest program I have seen written by AI in one piece
