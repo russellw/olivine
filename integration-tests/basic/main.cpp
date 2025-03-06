@@ -75,6 +75,7 @@ int main(int argc, char** argv) {
 		auto text = readLines(file);
 		text = map(text, removeComment);
 		auto lines = map(text, parseLabel);
+		lines = extractStringLiterals(lines);
 		for (auto a : lines) {
 			cout << a << '\n';
 		}
