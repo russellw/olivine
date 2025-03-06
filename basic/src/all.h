@@ -35,3 +35,4 @@ using boost::multiprecision::cpp_int;
 
 // Project header files
 #include "etc.h"
+#include "parser.h"
