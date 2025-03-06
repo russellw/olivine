@@ -81,6 +81,8 @@ Type intTy(size_t len);
 Type floatTy();
 Type doubleTy();
 
+// Early versions of LLVM handled pointers like C, identifying the type pointed to
+// but current LLVM has only a single pointer type called `ptr`
 Type ptrTy();
 
 Type vecTy(size_t len, Type element);

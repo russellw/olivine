@@ -87,7 +87,7 @@ BOOST_AUTO_TEST_CASE(test_invalid_phi_node) {
 						  "else:\n"										// Line 6
 						  "    br label %merge\n"						// Line 7
 						  "merge:\n"									// Line 8
-						  "    %result = phi i32 [42, %then] []\n"		// Line 9 - invalid phi node
+						  "    %result = phi i32 [42, %then], []\n"		// Line 9 - invalid phi node
 						  "    ret i32 %result\n"						// Line 10
 						  "}\n";										// Line 11
 
@@ -120,7 +120,7 @@ BOOST_AUTO_TEST_CASE(test_complex_function_with_error) {
 	std::string ir_code = "define i32 @outer() {\n"							   // Line 1
 						  "entry:\n"										   // Line 2
 						  "    %x = alloca i32\n"							   // Line 3
-						  "    store i32 42, i32* %x\n"						   // Line 4
+						  "    store i32 42, ptr %x\n"						   // Line 4
 						  "    %cond = icmp eq i32 42, 42\n"				   // Line 5
 						  "    br i1 %cond, label %true_bb, label %false_bb\n" // Line 6
 						  "true_bb:\n"										   // Line 7

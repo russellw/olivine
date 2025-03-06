@@ -688,13 +688,16 @@ class Parser {
 		if (!std::all_of(tok.begin(), tok.end(), isDigit)) {
 			throw error("expected integer");
 		}
-		auto n = stoull(tok);
+		auto n = stoull1(tok);
 		toks.pop();
 		return n;
 	}
 
 	Term label1() {
 		expect("label");
+		if (toks->s[0] != '%') {
+			throw error("expected label");
+		}
 		return label(ref1());
 	}
 
@@ -886,7 +889,7 @@ class Parser {
 			return voidTy();
 		}
 		if (toks->s[0] == 'i') {
-			auto len = stoull(toks->s.substr(1));
+			auto len = stoull1(toks->s.substr(1));
 			toks.pop();
 			return intTy(len);
 		}
@@ -1292,6 +1295,14 @@ class Parser {
 		// END
 
 		throw error("expected rval");
+	}
+
+	unsigned long long stoull1(const std::string& str, std::size_t* pos = nullptr, int base = 10) {
+		try {
+			return stoull(str, pos, base);
+		} catch (const std::exception& e) {
+			throw error(e.what());
+		}
 	}
 
 	void target1() {
