@@ -239,3 +239,59 @@ Line upper(Line line) {
 	// Return a new Line with the uppercase label and text
 	return Line(upperLabel, upperText);
 }
+
+Line insertLet(Line line) {
+	// Skip string literal definitions that have already been extracted
+	if (line.text.substr(0, 18) == "LET STRING_LITERAL_") {
+		return line;
+	}
+
+	// Check if the line already starts with LET
+	if (line.text.substr(0, 4) == "LET ") {
+		return line;
+	}
+
+	// Check if this is an assignment statement
+	// Variable names in BASIC can start with a letter and contain letters, digits, and underscores
+	// They can also end with $ for string variables
+	// We need to look for patterns like "X = ..." or "NAME$ = ..." at the beginning of the line
+
+	size_t pos = 0;
+	size_t len = line.text.length();
+
+	// Skip leading whitespace
+	while (pos < len && std::isspace(line.text[pos])) {
+		pos++;
+	}
+
+	// Check if we have a variable name at the start
+	if (pos < len && (std::isalpha(line.text[pos]) || line.text[pos] == '_')) {
+		size_t varStart = pos;
+
+		// Consume the variable name (letters, digits, underscores)
+		pos++;
+		while (pos < len && (std::isalnum(line.text[pos]) || line.text[pos] == '_')) {
+			pos++;
+		}
+
+		// Check for string variable marker $
+		if (pos < len && line.text[pos] == '$') {
+			pos++;
+		}
+
+		// Skip whitespace after variable name
+		while (pos < len && std::isspace(line.text[pos])) {
+			pos++;
+		}
+
+		// If we have an equal sign, this is an assignment
+		if (pos < len && line.text[pos] == '=') {
+			// Insert LET at the beginning (respecting leading whitespace)
+			string whitespace = line.text.substr(0, varStart);
+			string remainder = line.text.substr(varStart);
+			line.text = whitespace + "LET " + remainder;
+		}
+	}
+
+	return line;
+}

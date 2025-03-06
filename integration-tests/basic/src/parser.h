@@ -67,3 +67,12 @@ Lines beginning with `LET STRING_LITERAL_` are returned unchanged
 As all string literals have been factored out by now, that means we do not need to worry about quoted strings
 */
 Line upper(Line);
+
+/*
+Take a Basic line that may start with a variable assignment
+and insert the keyword LET if necessary
+This function can assume all previous transformations have already been done
+so only one statement per line
+and everything is upper case
+*/
+Line insertLet(Line);
