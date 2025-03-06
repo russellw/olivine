@@ -201,7 +201,6 @@ def fix_unit_test_file(file_path):
             print(f"Error writing to file {file_path}: {e}")
             return False
     else:
-        print(f"No changes needed: {file_path}")
         return True
 
 
