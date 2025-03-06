@@ -5,13 +5,21 @@
 // Otherwise, wrap it in quotes, and escape some characters as necessary
 string wrap(string s);
 
+inline string wrap(const char* s) {
+	return wrap(string(s));
+}
+
 // Output a reference in format suitable for an LLVM identifier
 // That is, an index number is printed unchanged
 // A string that is already a valid LLVM identifier is printed unchanged
 // A string that begins with a digit, or is otherwise not a valid identifier, is wrapped in quotes
 // and special characters are escaped as a pair of hex digits
 // with the single exception of `\` which is converted to `\\`
-ostream& operator<<(ostream&, const Ref&);
+string wrap(const Ref&);
+
+inline ostream& operator<<(ostream& os, const Ref& ref) {
+	return os << wrap(ref);
+}
 
 // Output a type in LLVM format
 ostream& operator<<(ostream&, Type);

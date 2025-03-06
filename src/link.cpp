@@ -29,7 +29,7 @@ void link() {
 					if (g.ref() == originalRef) {
 						// Check type compatibility
 						if (g.ty() != global.ty()) {
-							throw runtime_error("Type mismatch for global: " + wrap(originalRef.str()));
+							throw runtime_error("Type mismatch for global: " + wrap(originalRef));
 						}
 
 						// Add to mapping
@@ -58,13 +58,13 @@ void link() {
 				if (d.ref() == originalRef) {
 					// Check return type and parameter compatibility
 					if (d.rty() != decl.rty() || d.params().size() != decl.params().size()) {
-						throw runtime_error("Function declaration mismatch: " + wrap(originalRef.str()));
+						throw runtime_error("Function declaration mismatch: " + wrap(originalRef));
 					}
 
 					// Check parameter types
 					for (size_t i = 0; i < d.params().size(); i++) {
 						if (d.params()[i].ty() != decl.params()[i].ty()) {
-							throw runtime_error("Function parameter type mismatch: " + wrap(originalRef.str()));
+							throw runtime_error("Function parameter type mismatch: " + wrap(originalRef));
 						}
 					}
 
@@ -93,7 +93,7 @@ void link() {
 			bool exists = false;
 			for (const auto& d : context.defs) {
 				if (d.ref() == originalRef) {
-					throw runtime_error("Duplicate function definition: " + wrap(originalRef.str()));
+					throw runtime_error("Duplicate function definition: " + wrap(originalRef));
 				}
 			}
 

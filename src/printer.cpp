@@ -48,13 +48,11 @@ string wrap(string s) {
 	return result;
 }
 
-ostream& operator<<(ostream& os, const Ref& ref) {
-	// For numeric variants, output directly
+string wrap(const Ref& ref) {
 	if (ref.numeric()) {
-		return os << ref.num();
+		return to_string(ref.num());
 	}
-	// For string variants, use wrap() to properly escape and quote
-	return os << wrap(ref.str());
+	return wrap(ref.str());
 }
 
 ostream& operator<<(ostream& os, Type ty) {
