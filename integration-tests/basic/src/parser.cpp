@@ -168,3 +168,49 @@ vector<Line> extractStringLiterals(vector<Line> lines) {
 
 	return result;
 }
+
+vector<Line> splitColons(Line line) {
+	// If the line begins with "LET STRING_LITERAL_", return it unchanged
+	if (line.text.substr(0, 17) == "LET STRING_LITERAL_") {
+		return {line};
+	}
+
+	vector<Line> result;
+	string currentText = line.text;
+	size_t pos = 0;
+	bool inQuote = false;
+
+	// Find the position of the next colon that's not inside a quoted string
+	for (size_t i = 0; i < currentText.length(); ++i) {
+		if (currentText[i] == '"') {
+			inQuote = !inQuote;
+		} else if (currentText[i] == ':' && !inQuote) {
+			// Found a colon not in a quoted string
+			string statement = currentText.substr(pos, i - pos);
+
+			// First statement gets the label, others don't
+			if (result.empty()) {
+				result.push_back(Line(line.label, statement));
+			} else {
+				result.push_back(Line("", statement));
+			}
+
+			pos = i + 1; // Skip the colon
+		}
+	}
+
+	// Add the last statement
+	if (pos < currentText.length()) {
+		string lastStatement = currentText.substr(pos);
+		if (result.empty()) {
+			result.push_back(Line(line.label, lastStatement));
+		} else {
+			result.push_back(Line("", lastStatement));
+		}
+	} else if (pos == currentText.length() && result.empty()) {
+		// Handle case where the line ends with a colon
+		result.push_back(Line(line.label, ""));
+	}
+
+	return result;
+}

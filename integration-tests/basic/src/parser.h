@@ -45,9 +45,9 @@ LET STRING_LITERAL_1$ = "FOO"
 vector<Line> extractStringLiterals(vector<Line>);
 
 /*
-Given a Basic program where lines can contain colons
-split it up into strictly one statement per line
+Take a Basic line that may contain colons
+and split it up into strictly one statement per line
 If a line with a label, is split into several, only the first of the resulting group inherits the label
-Lines beginning with `LET STRING_LITERAL_` are skipped
+Lines beginning with `LET STRING_LITERAL_` are returned unchanged
 */
-vector<string> splitColons(vector<string>);
+vector<Line> splitColons(Line);
