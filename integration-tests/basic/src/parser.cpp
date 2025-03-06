@@ -175,7 +175,7 @@ vector<Line> extractStringLiterals(vector<Line> lines) {
 
 vector<Line> splitColons(Line line) {
 	// If the line begins with "LET _STRING_LITERAL_", return it unchanged
-	if (line.text.substr(0, 18) == "LET _STRING_LITERAL_") {
+	if (line.text.substr(0, 20) == "LET _STRING_LITERAL_") {
 		return {line};
 	}
 
@@ -362,8 +362,8 @@ Line normSpaces(Line line) {
 }
 
 vector<Line> splitPrint(Line line) {
-	// If this isn't a PRINT statement or is a string literal definition, return unchanged
-	if (line.text.substr(0, 6) != "PRINT " || line.text.substr(0, 18) == "LET STRING_LITERAL") {
+	// If this isn't a PRINT statement, return unchanged
+	if (line.text.substr(0, 6) != "PRINT ") {
 		return {line};
 	}
 
