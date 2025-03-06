@@ -44,7 +44,7 @@ private:
 
 public:
 	Item(const std::string& name, const std::string& description, int value, bool isWeapon = false, int damage = 0,
-		 bool isArmor = false, int defense = 0, bool isConsumable = false, int healthRestore = 0)
+		bool isArmor = false, int defense = 0, bool isConsumable = false, int healthRestore = 0)
 		: name(name), description(description), value(value), isWeapon(isWeapon), damage(damage), isArmor(isArmor),
 		  defense(defense), isConsumable(isConsumable), healthRestore(healthRestore) {
 	}

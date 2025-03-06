@@ -44,8 +44,8 @@ BOOST_AUTO_TEST_CASE(test_malformed_function_signature) {
 						  "    ret void\n"			  // Line 2
 						  "}\n";					  // Line 3
 
-	BOOST_CHECK_MESSAGE(error_contains_line_number(ir_code, 1),
-						"Parser should report error at line 1 for malformed function signature");
+	BOOST_CHECK_MESSAGE(
+		error_contains_line_number(ir_code, 1), "Parser should report error at line 1 for malformed function signature");
 }
 
 BOOST_AUTO_TEST_CASE(test_invalid_operand_count) {
@@ -63,8 +63,8 @@ BOOST_AUTO_TEST_CASE(test_invalid_global_variable) {
 						  "    ret i32 0\n"		   // Line 3
 						  "}\n";				   // Line 4
 
-	BOOST_CHECK_MESSAGE(error_contains_line_number(ir_code, 1),
-						"Parser should report error at line 1 for invalid global variable declaration");
+	BOOST_CHECK_MESSAGE(
+		error_contains_line_number(ir_code, 1), "Parser should report error at line 1 for invalid global variable declaration");
 }
 
 BOOST_AUTO_TEST_CASE(test_invalid_block_label) {

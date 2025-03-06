@@ -22,7 +22,7 @@ void link() {
 			// Otherwise, if the name is already in context, map it
 			if (module->externals.count(originalRef) &&
 				any_of(context.globals.begin(), context.globals.end(),
-					   [&originalRef](const Global& g) { return g.ref() == originalRef; })) {
+					[&originalRef](const Global& g) { return g.ref() == originalRef; })) {
 				// Find the existing global in context
 				for (const auto& g : context.globals) {
 					if (g.ref() == originalRef) {
