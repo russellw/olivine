@@ -66,12 +66,12 @@ int main(int argc, char** argv) {
 				}
 				throw runtime_error(string(argv[i]) + ": unknown option");
 			}
-			file=s;
+			file = s;
 		}
 		if (file.empty()) {
 			throw runtime_error("No input file");
 		}
-			auto text = readFile(file);
+		auto text = readFile(file);
 		return 0;
 	} catch (const std::exception& e) {
 		cerr << e.what() << '\n';
