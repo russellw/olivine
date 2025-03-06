@@ -230,7 +230,7 @@ BOOST_AUTO_TEST_CASE(TestLinkInternalRenaming) {
 	}
 
 	// Check that we have 4 unique references (no duplicates)
-	std::sort(refs.begin(), refs.end(), [](const Ref& a, const Ref& b) { return a.str() < b.str(); });
+	std::sort(refs.begin(), refs.end());
 	auto last = std::unique(refs.begin(), refs.end());
 	BOOST_CHECK_EQUAL(std::distance(refs.begin(), last), 4);
 
