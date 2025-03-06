@@ -97,10 +97,11 @@ BOOST_AUTO_TEST_CASE(SwitchInstruction) {
 	vector<Term> switchOps = {switchVal, defaultLabel, case1Val, case1Label, case2Val, case2Label};
 
 	Inst switchInst(Switch, switchOps);
-	BOOST_CHECK_EQUAL(instToString(switchInst), "switch i32 %val, label %default [\n"
-												"    i32 1, label %case1\n"
-												"    i32 2, label %case2\n"
-												"  ]");
+	BOOST_CHECK_EQUAL(instToString(switchInst),
+					  "switch i32 %val, label %default [\n"
+					  "    i32 1, label %case1\n"
+					  "    i32 2, label %case2\n"
+					  "  ]");
 }
 
 BOOST_AUTO_TEST_CASE(DropInstruction) {

@@ -159,8 +159,9 @@ BOOST_AUTO_TEST_CASE(NestedBranches) {
 						 jmp(Ref("merge")),
 
 						 block(Ref("merge")),
-						 Inst(Phi, {resultVar, intConst(i32, 1), label(Ref("then2")), intConst(i32, 2), label(Ref("else2")),
-									intConst(i32, 3), label(Ref("else1"))}),
+						 Inst(Phi,
+							  {resultVar, intConst(i32, 1), label(Ref("then2")), intConst(i32, 2), label(Ref("else2")),
+							   intConst(i32, 3), label(Ref("else1"))}),
 						 ret(resultVar)};
 
 	Fn func = createTestFunction(i32, params, body);
