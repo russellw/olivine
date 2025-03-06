@@ -295,3 +295,27 @@ Line insertLet(Line line) {
 
 	return line;
 }
+
+Line convertTabs(Line line) {
+	// Return string literals unchanged
+	if (line.text.find("LET STRING_LITERAL_") == 0) {
+		return line;
+	}
+
+	// Create a new string for the modified text
+	string newText;
+	newText.reserve(line.text.length()); // Reserve space to avoid reallocations
+
+	// Process each character, replacing tabs with spaces
+	for (char c : line.text) {
+		if (c == '\t') {
+			// Replace tab with a single space
+			newText += ' ';
+		} else {
+			newText += c;
+		}
+	}
+
+	// Return a new Line with the same label and modified text
+	return Line(line.label, newText);
+}
