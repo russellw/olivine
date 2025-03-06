@@ -1,10 +1,10 @@
 #define dbg(a) cout << __FILE__ << ':' << __LINE__ << ": " << (a) << '\n'
 
-#define ASSERT(cond)                                                                                                               \
-	do {                                                                                                                           \
-		if (!(cond)) {                                                                                                             \
-			throw runtime_error(string(__FILE__) + ':' + to_string(__LINE__) + ": " + #cond);                                      \
-		}                                                                                                                          \
+#define ASSERT(cond)                                                                          \
+	do {                                                                                      \
+		if (!(cond)) {                                                                        \
+			throw runtime_error(string(__FILE__) + ':' + to_string(__LINE__) + ": " + #cond); \
+		}                                                                                     \
 	} while (0)
 
 void stackTrace(std::ostream& out = std::cout);

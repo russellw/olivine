@@ -58,7 +58,7 @@ AlignConsecutiveTableGenDefinitionColons:
   AlignCompound:   false
   AlignFunctionPointers: false
   PadOperators:    false
-AlignEscapedNewlines: Right
+AlignEscapedNewlines: Left
 AlignOperands:   DontAlign
 AlignTrailingComments:
   Kind:            Always
