@@ -21,60 +21,38 @@ vector<string> readLines(string file) {
 	return lines;
 }
 
-vector<string> splitColons(vector<string> lines) {
-    vector<string> result;
-    
-    for (const string& line : lines) {
-        if (line.empty()) {
-            result.push_back(line);
+string removeComment(string line) {
+    bool inQuote = false;
+    size_t i = 0;
+
+    // Process the line character by character
+    while (i < line.length()) {
+        // Handle quoted strings
+        if (line[i] == '\"') {
+            inQuote = !inQuote;
+            i++;
             continue;
         }
-        
-        // Skip processing if the line is already a single statement or has no colons
-        if (line.find(':') == string::npos) {
-            result.push_back(line);
-            continue;
-        }
-        
-        string currentStatement;
-        bool inQuotes = false;
-        bool inComment = false;
-        
-        for (size_t i = 0; i < line.size(); ++i) {
-            char c = line[i];
-            
-            // Check for comments (REM or ')
-            if (!inQuotes && !inComment && 
-                (c == '\'' || (c == 'R' && i + 2 < line.size() && 
-                 line[i+1] == 'E' && line[i+2] == 'M' && 
-                 (i + 3 == line.size() || isspace(line[i+3]))))) {
-                inComment = true;
+
+        // Only check for comments when not inside a quoted string
+        if (!inQuote) {
+            // Check for REM comment - need to ensure it's not part of a word
+            if (i + 3 <= line.length() && 
+                line.substr(i, 3) == "REM" &&
+                (i == 0 || !isalnum(line[i-1])) &&
+                (i + 3 == line.length() || !isalnum(line[i+3]))) {
+                return line.substr(0, i);
             }
-            
-            // Check for quotes
-            if (c == '"' && !inComment) {
-                inQuotes = !inQuotes;
+
+            // Check for apostrophe comment
+            if (line[i] == '\'') {
+                return line.substr(0, i);
             }
-            
-            // Process colons that are not in quotes or comments
-            if (c == ':' && !inQuotes && !inComment) {
-                // Add current statement if it's not empty
-                if (!currentStatement.empty()) {
-                    result.push_back(currentStatement);
-                }
-                currentStatement.clear();
-                continue;
-            }
-            
-            // Add character to current statement
-            currentStatement += c;
         }
-        
-        // Add the last statement if not empty
-        if (!currentStatement.empty()) {
-            result.push_back(currentStatement);
-        }
+
+        i++;
     }
-    
-    return result;
+
+    // No comment found, return the original line
+    return line;
 }
