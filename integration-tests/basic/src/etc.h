@@ -11,14 +11,6 @@ void stackTrace(std::ostream& out = std::cout);
 
 // SORT FUNCTIONS
 
-template <typename T> vector<T> cons(const T& x, const vector<T>& xs) {
-	vector<T> result;
-	result.reserve(1 + xs.size());
-	result.push_back(x);
-	result.insert(result.end(), xs.begin(), xs.end());
-	return result;
-}
-
 template <typename Iterator> size_t hashRange(Iterator first, Iterator last) {
 	size_t h = 0;
 	for (; first != last; ++first) {
@@ -60,11 +52,4 @@ template <class T> ostream& operator<<(ostream& os, const vector<T>& v) {
 		os << *i;
 	}
 	return os << ']';
-}
-
-template <typename T> std::vector<T> tail(const std::vector<T>& vec) {
-	if (vec.empty()) {
-		return std::vector<T>();
-	}
-	return std::vector<T>(vec.begin() + 1, vec.end());
 }
