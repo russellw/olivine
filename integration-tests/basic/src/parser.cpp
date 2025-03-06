@@ -358,71 +358,71 @@ Line normSpaces(Line line) {
 }
 
 vector<Line> splitPrint(Line line) {
-    // If this isn't a PRINT statement or is a string literal definition, return unchanged
-    if (line.text.substr(0, 6) != "PRINT " || line.text.substr(0, 17) == "LET STRING_LITERAL") {
-        return {line};
-    }
-    
-    vector<Line> result;
-    string printContent = line.text.substr(6); // Remove "PRINT " from the beginning
-    
-    // If the PRINT statement is empty, return it unchanged
-    if (printContent.empty()) {
-        return {line};
-    }
-    
-    // State tracking variables
-    size_t pos = 0;
-    size_t startPos = 0;
-    int parenDepth = 0;
-    
-    while (pos < printContent.size()) {
-        char c = printContent[pos];
-        
-        // Track parentheses to avoid splitting inside expressions
-        if (c == '(') {
-            parenDepth++;
-        } else if (c == ')') {
-            parenDepth--;
-        }
-        
-        // Only consider delimiters outside of parentheses
-        if (parenDepth == 0 && (c == ';' || c == ',')) {
-            // Extract the current operand (excluding the delimiter)
-            string operand = printContent.substr(startPos, pos - startPos);
-            
-            // Determine which keyword to use based on the delimiter
-            string printKeyword;
-            if (c == ';') {
-                printKeyword = "PRINT_SEMI";
-            } else { // c == ','
-                printKeyword = "PRINT_TAB";
-            }
-            
-            // For the first operand, preserve the original line's label
-            string newLabel = result.empty() ? line.label : "";
-            result.push_back(Line(newLabel, printKeyword + " " + operand));
-            
-            // Move past the delimiter
-            startPos = pos + 1;
-        }
-        
-        pos++;
-    }
-    
-    // Add the final operand if there is any content remaining
-    if (startPos < printContent.size()) {
-        string finalOperand = printContent.substr(startPos);
-        // Final operand uses regular PRINT keyword
-        string newLabel = result.empty() ? line.label : "";
-        result.push_back(Line(newLabel, "PRINT " + finalOperand));
-    }
-    
-    // Edge case: If there were no delimiters found but there is content, 
-    // return the original line (already a single PRINT statement)
-    if (result.empty() && !printContent.empty()) {
-        return {line};
-    }
-    
-    return result;
+	// If this isn't a PRINT statement or is a string literal definition, return unchanged
+	if (line.text.substr(0, 6) != "PRINT " || line.text.substr(0, 17) == "LET STRING_LITERAL") {
+		return {line};
+	}
+
+	vector<Line> result;
+	string printContent = line.text.substr(6); // Remove "PRINT " from the beginning
+
+	// If the PRINT statement is empty, return it unchanged
+	if (printContent.empty()) {
+		return {line};
+	}
+
+	// State tracking variables
+	size_t pos = 0;
+	size_t startPos = 0;
+	int parenDepth = 0;
+
+	while (pos < printContent.size()) {
+		char c = printContent[pos];
+
+		// Track parentheses to avoid splitting inside expressions
+		if (c == '(') {
+			parenDepth++;
+		} else if (c == ')') {
+			parenDepth--;
+		}
+
+		// Only consider delimiters outside of parentheses
+		if (parenDepth == 0 && (c == ';' || c == ',')) {
+			// Extract the current operand (excluding the delimiter)
+			string operand = printContent.substr(startPos, pos - startPos);
+
+			// Determine which keyword to use based on the delimiter
+			string printKeyword;
+			if (c == ';') {
+				printKeyword = "PRINT_SEMI";
+			} else { // c == ','
+				printKeyword = "PRINT_COMMA";
+			}
+
+			// For the first operand, preserve the original line's label
+			string newLabel = result.empty() ? line.label : "";
+			result.push_back(Line(newLabel, printKeyword + " " + operand));
+
+			// Move past the delimiter
+			startPos = pos + 1;
+		}
+
+		pos++;
+	}
+
+	// Add the final operand if there is any content remaining
+	if (startPos < printContent.size()) {
+		string finalOperand = printContent.substr(startPos);
+		// Final operand uses regular PRINT keyword
+		string newLabel = result.empty() ? line.label : "";
+		result.push_back(Line(newLabel, "PRINT " + finalOperand));
+	}
+
+	// Edge case: If there were no delimiters found but there is content,
+	// return the original line (already a single PRINT statement)
+	if (result.empty() && !printContent.empty()) {
+		return {line};
+	}
+
+	return result;
 }
