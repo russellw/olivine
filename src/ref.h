@@ -64,21 +64,3 @@ template <> struct hash<Ref> {
 	}
 };
 } // namespace std
-
-struct RefComparator {
-	bool operator()(const Ref& a, const Ref& b) const {
-		// First compare by which type
-		if (a.numeric() != b.numeric()) {
-			return a.numeric() < b.numeric();
-		}
-
-		// Same type, now compare values
-		if (a.numeric()) {
-			// Both are size_t
-			return a.num() < b.num();
-		} else {
-			// Both are string
-			return a.str() < b.str();
-		}
-	}
-};

@@ -5,7 +5,7 @@ BOOST_AUTO_TEST_SUITE(RefSetSuite)
 
 BOOST_AUTO_TEST_CASE(test_ref_set_deterministic_order) {
 	// Create a set with our custom comparator
-	std::set<Ref, RefComparator> refSet;
+	std::set<Ref> refSet;
 
 	// Add elements in different order each time
 	refSet.insert(std::string("banana"));
@@ -28,8 +28,8 @@ BOOST_AUTO_TEST_CASE(test_ref_set_deterministic_order) {
 
 BOOST_AUTO_TEST_CASE(test_ref_set_insertion_order_invariance) {
 	// Create two sets with different insertion orders
-	std::set<Ref, RefComparator> refSet1;
-	std::set<Ref, RefComparator> refSet2;
+	std::set<Ref> refSet1;
+	std::set<Ref> refSet2;
 
 	// First set: Insert in one order
 	refSet1.insert(size_t(42));
@@ -55,7 +55,7 @@ BOOST_AUTO_TEST_CASE(test_ref_set_insertion_order_invariance) {
 }
 
 BOOST_AUTO_TEST_CASE(test_ref_set_duplicate_handling) {
-	std::set<Ref, RefComparator> refSet;
+	std::set<Ref> refSet;
 
 	// Insert elements
 	refSet.insert(size_t(42));
