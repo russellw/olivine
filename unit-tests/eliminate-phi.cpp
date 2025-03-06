@@ -43,16 +43,23 @@ BOOST_AUTO_TEST_CASE(SimplePhiNode) {
 
 	vector<Term> params = {condVar, paramA, paramB};
 	vector<Inst> body = {// entry block
-		block(Ref("entry")), br(condVar, Ref("then"), Ref("else")),
+		block(Ref("entry")),
+		br(condVar, Ref("then"), Ref("else")),
 
 		// then block
-		block(Ref("then")), assign(xVar, Term(Add, i32, paramA, paramB)), jmp(Ref("merge")),
+		block(Ref("then")),
+		assign(xVar, Term(Add, i32, paramA, paramB)),
+		jmp(Ref("merge")),
 
 		// else block
-		block(Ref("else")), assign(yVar, Term(Sub, i32, paramA, paramB)), jmp(Ref("merge")),
+		block(Ref("else")),
+		assign(yVar, Term(Sub, i32, paramA, paramB)),
+		jmp(Ref("merge")),
 
 		// merge block
-		block(Ref("merge")), Inst(Phi, {resultVar, xVar, label(Ref("then")), yVar, label(Ref("else"))}), ret(resultVar)};
+		block(Ref("merge")),
+		Inst(Phi, {resultVar, xVar, label(Ref("then")), yVar, label(Ref("else"))}),
+		ret(resultVar)};
 
 	Fn func = createTestFunction(i32, params, body);
 	Fn transformed = eliminatePhiNodes(func);
@@ -92,14 +99,23 @@ BOOST_AUTO_TEST_CASE(MultiplePhiNodes) {
 	Term y2 = var(i32, Ref("y2"));
 
 	vector<Term> params = {condVar};
-	vector<Inst> body = {block(Ref("entry")), br(condVar, Ref("then"), Ref("else")),
+	vector<Inst> body = {block(Ref("entry")),
+		br(condVar, Ref("then"), Ref("else")),
 
-		block(Ref("then")), assign(x1, intConst(i32, 1)), assign(x2, intConst(i32, 2)), jmp(Ref("merge")),
+		block(Ref("then")),
+		assign(x1, intConst(i32, 1)),
+		assign(x2, intConst(i32, 2)),
+		jmp(Ref("merge")),
 
-		block(Ref("else")), assign(y1, intConst(i32, 3)), assign(y2, intConst(i32, 4)), jmp(Ref("merge")),
+		block(Ref("else")),
+		assign(y1, intConst(i32, 3)),
+		assign(y2, intConst(i32, 4)),
+		jmp(Ref("merge")),
 
-		block(Ref("merge")), Inst(Phi, {resultA, x1, label(Ref("then")), y1, label(Ref("else"))}),
-		Inst(Phi, {resultB, x2, label(Ref("then")), y2, label(Ref("else"))}), ret(Term(Add, i32, resultA, resultB))};
+		block(Ref("merge")),
+		Inst(Phi, {resultA, x1, label(Ref("then")), y1, label(Ref("else"))}),
+		Inst(Phi, {resultB, x2, label(Ref("then")), y2, label(Ref("else"))}),
+		ret(Term(Add, i32, resultA, resultB))};
 
 	Fn func = createTestFunction(i32, params, body);
 	Fn transformed = eliminatePhiNodes(func);
@@ -133,19 +149,29 @@ BOOST_AUTO_TEST_CASE(NestedBranches) {
 	Term resultVar = var(i32, Ref("result"));
 
 	vector<Term> params = {cond1, cond2};
-	vector<Inst> body = {block(Ref("entry")), br(cond1, Ref("then1"), Ref("else1")),
+	vector<Inst> body = {block(Ref("entry")),
+		br(cond1, Ref("then1"), Ref("else1")),
 
-		block(Ref("then1")), br(cond2, Ref("then2"), Ref("else2")),
+		block(Ref("then1")),
+		br(cond2, Ref("then2"), Ref("else2")),
 
-		block(Ref("then2")), jmp(Ref("merge")),
+		block(Ref("then2")),
+		jmp(Ref("merge")),
 
-		block(Ref("else2")), jmp(Ref("merge")),
+		block(Ref("else2")),
+		jmp(Ref("merge")),
 
-		block(Ref("else1")), jmp(Ref("merge")),
+		block(Ref("else1")),
+		jmp(Ref("merge")),
 
 		block(Ref("merge")),
 		Inst(Phi,
-			{resultVar, intConst(i32, 1), label(Ref("then2")), intConst(i32, 2), label(Ref("else2")), intConst(i32, 3),
+			{resultVar,
+				intConst(i32, 1),
+				label(Ref("then2")),
+				intConst(i32, 2),
+				label(Ref("else2")),
+				intConst(i32, 3),
 				label(Ref("else1"))}),
 		ret(resultVar)};
 
@@ -172,12 +198,17 @@ BOOST_AUTO_TEST_CASE(SelfLoop) {
 	Term i = var(i32, Ref("i"));
 
 	vector<Term> params = {n};
-	vector<Inst> body = {block(Ref("entry")), assign(i, intConst(i32, 0)), jmp(Ref("loop")),
+	vector<Inst> body = {block(Ref("entry")),
+		assign(i, intConst(i32, 0)),
+		jmp(Ref("loop")),
 
-		block(Ref("loop")), Inst(Phi, {i, i, label(Ref("entry")), Term(Add, i32, i, intConst(i32, 1)), label(Ref("loop"))}),
-		assign(cond, cmp(ULt, i, n)), br(cond, Ref("loop"), Ref("exit")),
+		block(Ref("loop")),
+		Inst(Phi, {i, i, label(Ref("entry")), Term(Add, i32, i, intConst(i32, 1)), label(Ref("loop"))}),
+		assign(cond, cmp(ULt, i, n)),
+		br(cond, Ref("loop"), Ref("exit")),
 
-		block(Ref("exit")), ret(i)};
+		block(Ref("exit")),
+		ret(i)};
 
 	Fn func = createTestFunction(i32, params, body);
 	Fn transformed = eliminatePhiNodes(func);

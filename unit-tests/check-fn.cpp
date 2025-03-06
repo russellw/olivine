@@ -41,8 +41,12 @@ BOOST_AUTO_TEST_CASE(ValidVoidFunction) {
 
 BOOST_AUTO_TEST_CASE(ValidFunctionWithBranching) {
 	vector<Term> params = {createBoolVar("cond")};
-	vector<Inst> body = {block(Ref("entry")), br(params[0], Ref("then"), Ref("else")), block(Ref("then")),
-		ret(intConst(intTy(32), 1)), block(Ref("else")), ret(intConst(intTy(32), 0))};
+	vector<Inst> body = {block(Ref("entry")),
+		br(params[0], Ref("then"), Ref("else")),
+		block(Ref("then")),
+		ret(intConst(intTy(32), 1)),
+		block(Ref("else")),
+		ret(intConst(intTy(32), 0))};
 
 	Fn f(intTy(32), Ref("branching"), params, body);
 
@@ -70,9 +74,13 @@ BOOST_AUTO_TEST_CASE(InvalidReturnType) {
 }
 
 BOOST_AUTO_TEST_CASE(InvalidBranchCondition) {
-	vector<Term> params = {createIntVar("not_bool")};								   // Int instead of bool
-	vector<Inst> body = {block(Ref("entry")), br(params[0], Ref("then"), Ref("else")), // Using int as condition
-		block(Ref("then")), ret(intConst(intTy(32), 1)), block(Ref("else")), ret(intConst(intTy(32), 0))};
+	vector<Term> params = {createIntVar("not_bool")}; // Int instead of bool
+	vector<Inst> body = {block(Ref("entry")),
+		br(params[0], Ref("then"), Ref("else")), // Using int as condition
+		block(Ref("then")),
+		ret(intConst(intTy(32), 1)),
+		block(Ref("else")),
+		ret(intConst(intTy(32), 0))};
 
 	Fn f(intTy(32), Ref("invalid_branch"), params, body);
 
@@ -95,7 +103,8 @@ BOOST_AUTO_TEST_CASE(InvalidPhiInstruction) {
 	vector<Term> params = {};
 	Term result = createIntVar("result");
 	vector<Inst> body = {block(Ref("entry")),
-		Inst(Phi, {result, intConst(intTy(32), 1), label(Ref("l1")), intConst(intTy(32), 2), label(Ref("l2"))}), ret(result)};
+		Inst(Phi, {result, intConst(intTy(32), 1), label(Ref("l1")), intConst(intTy(32), 2), label(Ref("l2"))}),
+		ret(result)};
 
 	Fn f(intTy(32), Ref("phi_func"), params, body);
 
@@ -106,7 +115,8 @@ BOOST_AUTO_TEST_CASE(InconsistentVariableTypes) {
 	vector<Term> params = {createIntVar("x", 32)};
 	vector<Inst> body = {block(Ref("entry")),
 		// Try to assign 64-bit integer to 32-bit variable
-		assign(params[0], intConst(intTy(64), 42)), ret(params[0])};
+		assign(params[0], intConst(intTy(64), 42)),
+		ret(params[0])};
 
 	Fn f(intTy(32), Ref("inconsistent_types"), params, body);
 
@@ -124,7 +134,8 @@ BOOST_AUTO_TEST_CASE(ValidStore) {
 
 BOOST_AUTO_TEST_CASE(InvalidStore) {
 	vector<Term> params = {createIntVar("not_ptr"), createIntVar("val")};
-	vector<Inst> body = {block(Ref("entry")), store(params[1], params[0]), // First param should be a pointer
+	vector<Inst> body = {block(Ref("entry")),
+		store(params[1], params[0]), // First param should be a pointer
 		ret()};
 
 	Fn f(voidTy(), Ref("invalid_store"), params, body);
@@ -137,14 +148,20 @@ BOOST_AUTO_TEST_CASE(ValidComplexFunction) {
 	vector<Term> params = {createIntVar("x"), createIntVar("y")};
 	Term result = createIntVar("result");
 	Term temp = createIntVar("temp");
-	vector<Inst> body = {block(Ref("entry")), assign(temp, Term(Add, intTy(32), params[0], params[1])),
+	vector<Inst> body = {block(Ref("entry")),
+		assign(temp, Term(Add, intTy(32), params[0], params[1])),
 		br(Term(Eq, boolTy(), temp, intConst(intTy(32), 0)), Ref("zero"), Ref("nonzero")),
 
-		block(Ref("zero")), assign(result, intConst(intTy(32), 42)), jmp(Ref("exit")),
+		block(Ref("zero")),
+		assign(result, intConst(intTy(32), 42)),
+		jmp(Ref("exit")),
 
-		block(Ref("nonzero")), assign(result, temp), jmp(Ref("exit")),
+		block(Ref("nonzero")),
+		assign(result, temp),
+		jmp(Ref("exit")),
 
-		block(Ref("exit")), ret(result)};
+		block(Ref("exit")),
+		ret(result)};
 
 	Fn f(intTy(32), Ref("complex"), params, body);
 

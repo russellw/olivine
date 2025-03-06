@@ -57,12 +57,16 @@ BOOST_AUTO_TEST_CASE(SimpleFunctionDefinition) {
 BOOST_AUTO_TEST_CASE(ComplexFunctionDefinition) {
 	// Test a function with control flow and multiple blocks
 	vector<Term> params = {var(intTy(32), Ref((size_t)0))};
-	vector<Inst> body = {block(Ref("entry")), alloca(var(ptrTy(), Ref(1)), intTy(32), intConst(intTy(32), 1)),
-		store(params[0], var(ptrTy(), Ref(1))), br(trueConst, Ref("then"), Ref("else")),
+	vector<Inst> body = {block(Ref("entry")),
+		alloca(var(ptrTy(), Ref(1)), intTy(32), intConst(intTy(32), 1)),
+		store(params[0], var(ptrTy(), Ref(1))),
+		br(trueConst, Ref("then"), Ref("else")),
 
-		block(Ref("then")), ret(intConst(intTy(32), 1)),
+		block(Ref("then")),
+		ret(intConst(intTy(32), 1)),
 
-		block(Ref("else")), ret(intConst(intTy(32), 0))};
+		block(Ref("else")),
+		ret(intConst(intTy(32), 0))};
 
 	auto f = Fn(intTy(32), Ref("complex_def"), params, body);
 
