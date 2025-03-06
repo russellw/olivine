@@ -91,6 +91,9 @@ Take a Basic line that may contain spaces
 and remove extraneous spaces
 There should be no leading spaces
 No trailing spaces
-Exactly one space after the keyword
 No runs of more than one space
+Lines beginning with `LET STRING_LITERAL_` are returned unchanged
+This function can assume all previous transformations have already been done
+As all string literals have been factored out by now, that means we do not need to worry about quoted strings
 */
+Line normSpaces(Line);

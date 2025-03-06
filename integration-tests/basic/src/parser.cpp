@@ -319,3 +319,40 @@ Line convertTabs(Line line) {
 	// Return a new Line with the same label and modified text
 	return Line(line.label, newText);
 }
+
+Line normSpaces(Line line) {
+	// Don't modify string literal lines
+	if (line.text.substr(0, 19) == "LET STRING_LITERAL_") {
+		return line;
+	}
+
+	string text = line.text;
+	string result;
+
+	// Skip leading spaces
+	size_t start = 0;
+	while (start < text.length() && text[start] == ' ') {
+		start++;
+	}
+
+	// Process the text, handling consecutive spaces
+	bool prevSpace = false;
+	for (size_t i = start; i < text.length(); i++) {
+		if (text[i] == ' ') {
+			if (!prevSpace) {
+				result += ' ';
+				prevSpace = true;
+			}
+		} else {
+			result += text[i];
+			prevSpace = false;
+		}
+	}
+
+	// Remove trailing space if it exists
+	if (!result.empty() && result.back() == ' ') {
+		result.pop_back();
+	}
+
+	return Line(line.label, result);
+}
