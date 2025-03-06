@@ -33,3 +33,59 @@ string removeComment(string line) {
 	// No comment found, return the original line
 	return line;
 }
+
+Line parseLabel(string line) {
+	// Skip leading whitespace
+	size_t start = 0;
+	while (start < line.length() && isspace(line[start])) {
+		start++;
+	}
+
+	if (start >= line.length()) {
+		return Line("", "");
+	}
+
+	// Check for numeric label (one or more digits)
+	if (isdigit(line[start])) {
+		size_t labelEnd = start;
+		while (labelEnd < line.length() && isdigit(line[labelEnd])) {
+			labelEnd++;
+		}
+
+		string label = line.substr(start, labelEnd - start);
+
+		// Skip whitespace after the label
+		while (labelEnd < line.length() && isspace(line[labelEnd])) {
+			labelEnd++;
+		}
+
+		string text = (labelEnd < line.length()) ? line.substr(labelEnd) : "";
+		return Line(label, text);
+	}
+
+	// Check for alphanumeric label
+	// (starts with letter/underscore, followed by letters/digits/underscores, ends with colon)
+	if (isalpha(line[start]) || line[start] == '_') {
+		size_t labelEnd = start;
+		while (labelEnd < line.length() && (isalnum(line[labelEnd]) || line[labelEnd] == '_')) {
+			labelEnd++;
+		}
+
+		// Check if the label is followed by a colon
+		if (labelEnd < line.length() && line[labelEnd] == ':') {
+			string label = line.substr(start, labelEnd - start);
+
+			// Skip the colon and any whitespace after it
+			labelEnd++;
+			while (labelEnd < line.length() && isspace(line[labelEnd])) {
+				labelEnd++;
+			}
+
+			string text = (labelEnd < line.length()) ? line.substr(labelEnd) : "";
+			return Line(label, text);
+		}
+	}
+
+	// No label found
+	return Line("", line);
+}
