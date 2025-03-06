@@ -1,9 +1,9 @@
 // Read a file into a vector of strings, one per line
 vector<string> readLines(string file);
 
-//Given one line of Basic, remove the comment if there is one
-//Make sure to avoid false positive in case REM is a substring of a longer word
-//or in case it is within a quoted string
+// Given one line of Basic, remove the comment if there is one
+// Make sure to avoid false positive in case REM is a substring of a longer word
+// or in case it is within a quoted string
 string removeComment(string);
 
 // Given a Basic program where lines can contain colons
