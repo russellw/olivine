@@ -36,7 +36,7 @@ LET STRING_LITERAL_0$ = "FOO"
 LET STRING_LITERAL_1$ = "FOO"
 10 PRINT STRING_LITERAL_0+STRING_LITERAL_1
 */
-vector<string> splitColons(vector<string>);
+vector<Line> extractStringLiterals(vector<Line>);
 
 /*
 Given a Basic program where lines can contain colons
