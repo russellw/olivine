@@ -51,3 +51,11 @@ If a line with a label, is split into several, only the first of the resulting g
 Lines beginning with `LET STRING_LITERAL_` are returned unchanged
 */
 vector<Line> splitColons(Line);
+
+/*
+Take a Basic line that may be in mixed case
+and convert it to all upper case, both label and text
+Lines beginning with `LET STRING_LITERAL_` are returned unchanged
+As all string literals have been factored out by now, that means we do not need to worry about quoted strings
+*/
+Line upper(Line);

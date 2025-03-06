@@ -214,3 +214,28 @@ vector<Line> splitColons(Line line) {
 
 	return result;
 }
+
+/*
+ * Take a Basic line that may be in mixed case
+ * and convert it to all upper case, both label and text
+ * Lines beginning with `LET STRING_LITERAL_` are returned unchanged
+ * As all string literals have been factored out by now, that means we do not need to worry about quoted strings
+ */
+Line upper(Line line) {
+	// Check if the line begins with `LET STRING_LITERAL_`
+	// If it does, return it unchanged
+	if (line.text.size() >= 18 && line.text.substr(0, 18) == "LET STRING_LITERAL_") {
+		return line;
+	}
+
+	// Convert the label to uppercase
+	string upperLabel = line.label;
+	std::transform(upperLabel.begin(), upperLabel.end(), upperLabel.begin(), ::toupper);
+
+	// Convert the text to uppercase
+	string upperText = line.text;
+	std::transform(upperText.begin(), upperText.end(), upperText.begin(), ::toupper);
+
+	// Return a new Line with the uppercase label and text
+	return Line(upperLabel, upperText);
+}
