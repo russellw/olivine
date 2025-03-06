@@ -60,6 +60,43 @@ if it is not already present
 */
 vector<Line> addEnd(vector<Line>);
 
+extern size_t subroutineNumber;
+
+/*
+Add a subroutine to the end of a program:
+First add a line with the label naming the subroutine
+Then the body that was passed as a parameter
+And finally a RETURN statement
+
+The name of each subroutine so added, is constructed from:
+the string `_SUBROUTINE_`
+and the integer subroutineNumber
+
+The name is then returned from addSubroutine
+
+For example, if as a starting condition subroutineNumber=0
+and `PRINT A$` is passed
+the added code is:
+_SUBROUTINE_0:
+PRINT A$
+RETURN
+
+subroutineNumber is incremented to 1
+and "_SUBROUTINE_0" is returned
+*/
+string addSubroutine(vector<Line>&, vector<Line>);
+
+/*
+Take a Basic program containing If statements
+And factor out the THEN parts
+that is, each such statement, consider whether it is simple or complex
+It is simple if it takes one of these forms:
+IF condition THEN GOTO label
+IF condition THEN GOSUB label
+Otherwise it is complex, and needs to be factored
+to factor a complex conditional statement, take the b
+*/
+
 /*
 Take a Basic line that may contain colons
 and split it up into strictly one statement per line

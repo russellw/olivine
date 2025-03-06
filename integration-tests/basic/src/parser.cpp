@@ -211,6 +211,53 @@ vector<Line> addEnd(vector<Line> lines) {
 	return lines;
 }
 
+// Declare subroutineNumber as a global variable with initialization
+size_t subroutineNumber = 0;
+
+/*
+Add a subroutine to the end of a program:
+First add a line with the label naming the subroutine
+Then the body that was passed as a parameter
+And finally a RETURN statement
+
+The name of each subroutine so added, is constructed from:
+the string `_SUBROUTINE_`
+and the integer subroutineNumber
+
+The name is then returned from addSubroutine
+
+For example, if as a starting condition subroutineNumber=0
+and `PRINT A$` is passed
+the added code is:
+_SUBROUTINE_0:
+PRINT A$
+RETURN
+
+subroutineNumber is incremented to 1
+and "_SUBROUTINE_0" is returned
+*/
+string addSubroutine(vector<Line>& program, vector<Line> body) {
+	// Construct the subroutine name
+	string subroutineName = "_SUBROUTINE_" + to_string(subroutineNumber);
+
+	// Create the subroutine label line
+	Line labelLine(subroutineName, "");
+	program.push_back(labelLine);
+
+	// Add the body of the subroutine
+	program.insert(program.end(), body.begin(), body.end());
+
+	// Add the RETURN statement at the end
+	Line returnLine("", "RETURN");
+	program.push_back(returnLine);
+
+	// Increment the subroutine counter
+	subroutineNumber++;
+
+	// Return the name of the subroutine
+	return subroutineName;
+}
+
 vector<Line> splitColons(Line line) {
 	// If the line begins with "LET _STRING_LITERAL_", return it unchanged
 	if (line.text.substr(0, 20) == "LET _STRING_LITERAL_") {
