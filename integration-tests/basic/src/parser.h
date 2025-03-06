@@ -47,6 +47,7 @@ vector<Line> extractStringLiterals(vector<Line>);
 /*
 Given a Basic program where lines can contain colons
 split it up into strictly one statement per line
-making sure to avoid splitting on colons that are within comments or quoted strings
+If a line with a label, is split into several, only the first of the resulting group inherits the label
+Lines beginning with `LET STRING_LITERAL_` are skipped
 */
 vector<string> splitColons(vector<string>);
