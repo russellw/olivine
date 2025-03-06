@@ -173,6 +173,44 @@ vector<Line> extractStringLiterals(vector<Line> lines) {
 	return result;
 }
 
+/*
+Add END terminating statement to a Basic program
+if it is not already present
+*/
+vector<Line> addEnd(vector<Line> lines) {
+	// Check if there's already an END statement in the program
+	bool hasEnd = false;
+
+	for (const Line& line : lines) {
+		// Convert the line text to uppercase for case-insensitive comparison
+		string upperText = line.text;
+		std::transform(upperText.begin(), upperText.end(), upperText.begin(), [](unsigned char c) { return std::toupper(c); });
+
+		// Remove any leading spaces for the comparison
+		size_t firstNonSpace = upperText.find_first_not_of(" \t");
+		if (firstNonSpace != string::npos) {
+			upperText = upperText.substr(firstNonSpace);
+		}
+
+		// Check if the line starts with "END"
+		if (upperText == "END" || upperText.find("END ") == 0) {
+			hasEnd = true;
+			break;
+		}
+	}
+
+	// If there's no END statement, add one
+	if (!hasEnd && !lines.empty()) {
+		lines.push_back(Line("", "END"));
+	}
+	// If the vector is empty, add an END statement with no label
+	else if (lines.empty()) {
+		lines.push_back(Line("", "END"));
+	}
+
+	return lines;
+}
+
 vector<Line> splitColons(Line line) {
 	// If the line begins with "LET _STRING_LITERAL_", return it unchanged
 	if (line.text.substr(0, 20) == "LET _STRING_LITERAL_") {

@@ -76,6 +76,7 @@ int main(int argc, char** argv) {
 		text = map(text, removeComment);
 		auto lines = map(text, parseLabel);
 		lines = extractStringLiterals(lines);
+		lines = addEnd(lines);
 		lines = mapMulti(lines, splitColons);
 		lines = map(lines, upper);
 		lines = map(lines, insertLet);

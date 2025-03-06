@@ -55,6 +55,12 @@ LET _STRING_LITERAL_1$ = "FOO"
 vector<Line> extractStringLiterals(vector<Line>);
 
 /*
+Add END terminating statement to a Basic program
+if it is not already present
+*/
+vector<Line> addEnd(vector<Line>);
+
+/*
 Take a Basic line that may contain colons
 and split it up into strictly one statement per line
 If a line with a label, is split into several, only the first of the resulting group inherits the label
