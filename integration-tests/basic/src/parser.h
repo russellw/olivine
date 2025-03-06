@@ -102,8 +102,9 @@ Line normSpaces(Line);
 Take a Basic line that may consist of a PRINT statement
 and break it down into component statements, one per operand
 For this purpose, I am inventing two new keywords, PRINT_SEMI and PRINT_COMMA
-Each output statement should have one of three keywords, based on whether the ending punctuation for the operand was `;`, `,` or
-nothing For example, PRINT A$;B$ should convert to:
+Each output statement should have one of three keywords
+based on whether the ending punctuation for the operand was `;`, `,` or nothing
+For example, PRINT A$;B$ should convert to:
 
 PRINT_SEMI A$
 PRINT B$
