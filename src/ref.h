@@ -13,6 +13,7 @@ public:
 	}
 
 	Ref(size_t num): num1(num) {
+		ASSERT(num != (std::numeric_limits<size_t>::max)());
 	}
 
 	// Accessors
