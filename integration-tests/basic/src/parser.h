@@ -16,6 +16,14 @@ struct Line {
 
 	Line(string label, string text): label(label), text(text) {
 	}
+
+	bool operator==(const Line& b) const {
+		return label == b.label && text == b.text;
+	}
+
+	bool operator!=(const Line& b) const {
+		return !(*this == b);
+	}
 };
 
 /*
