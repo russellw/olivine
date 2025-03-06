@@ -282,6 +282,9 @@ public:
 					pos++;
 				}
 				continue;
+			case '\n':
+				line++;
+				break;
 			case 'c':
 				if (text[pos + 1] == '"') {
 					tok = text.substr(pos++, 1);
