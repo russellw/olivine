@@ -33,9 +33,9 @@ BOOST_AUTO_TEST_CASE(StringVariable) {
 
 // Test 5: Should not modify string literal definitions
 BOOST_AUTO_TEST_CASE(StringLiteralDefinition) {
-	Line input("", "LET STRING_LITERAL_0$ = \"HELLO\"");
+	Line input("", "LET _STRING_LITERAL_0$ = \"HELLO\"");
 	Line result = insertLet(input);
-	BOOST_CHECK_EQUAL(result.text, "LET STRING_LITERAL_0$ = \"HELLO\"");
+	BOOST_CHECK_EQUAL(result.text, "LET _STRING_LITERAL_0$ = \"HELLO\"");
 }
 
 // Test 6: Should not modify non-assignment statements

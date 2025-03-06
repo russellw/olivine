@@ -20,7 +20,7 @@ bool lineVectorsEqual(const vector<Line>& a, const vector<Line>& b) {
 }
 
 BOOST_AUTO_TEST_CASE(TestStringLiteralPreservation) {
-	Line input("10", "LET STRING_LITERAL_0$ = \"Hello:World\"");
+	Line input("10", "LET _STRING_LITERAL_0$ = \"Hello:World\"");
 	vector<Line> expected = {input}; // Should remain unchanged
 	vector<Line> result = splitColons(input);
 

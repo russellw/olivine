@@ -152,7 +152,7 @@ vector<Line> extractStringLiterals(vector<Line> lines) {
 			size_t length = replacements[i].second;
 
 			// Replace the literal with the variable
-			newText.replace(startPos, length, "STRING_LITERAL_" + to_string(literalIndex) + "$");
+			newText.replace(startPos, length, "_STRING_LITERAL_" + to_string(literalIndex) + "$");
 		}
 
 		// Add the modified line to the result
@@ -166,7 +166,7 @@ vector<Line> extractStringLiterals(vector<Line> lines) {
 
 	// Add string literal definitions at the beginning
 	for (size_t i = 0; i < stringLiterals.size(); i++) {
-		string definition = "LET STRING_LITERAL_" + to_string(i) + "$ = " + stringLiterals[i];
+		string definition = "LET _STRING_LITERAL_" + to_string(i) + "$ = " + stringLiterals[i];
 		result.insert(result.begin() + i, Line("", definition));
 	}
 
@@ -174,8 +174,8 @@ vector<Line> extractStringLiterals(vector<Line> lines) {
 }
 
 vector<Line> splitColons(Line line) {
-	// If the line begins with "LET STRING_LITERAL_", return it unchanged
-	if (line.text.substr(0, 17) == "LET STRING_LITERAL_") {
+	// If the line begins with "LET _STRING_LITERAL_", return it unchanged
+	if (line.text.substr(0, 18) == "LET _STRING_LITERAL_") {
 		return {line};
 	}
 
@@ -222,13 +222,13 @@ vector<Line> splitColons(Line line) {
 /*
  * Take a Basic line that may be in mixed case
  * and convert it to all upper case, both label and text
- * Lines beginning with `LET STRING_LITERAL_` are returned unchanged
+ * Lines beginning with `LET _STRING_LITERAL_` are returned unchanged
  * As all string literals have been factored out by now, that means we do not need to worry about quoted strings
  */
 Line upper(Line line) {
-	// Check if the line begins with `LET STRING_LITERAL_`
+	// Check if the line begins with `LET _STRING_LITERAL_`
 	// If it does, return it unchanged
-	if (line.text.size() >= 18 && line.text.substr(0, 18) == "LET STRING_LITERAL_") {
+	if (line.text.size() >= 20 && line.text.substr(0, 20) == "LET _STRING_LITERAL_") {
 		return line;
 	}
 
@@ -246,7 +246,7 @@ Line upper(Line line) {
 
 Line insertLet(Line line) {
 	// Skip string literal definitions that have already been extracted
-	if (line.text.substr(0, 18) == "LET STRING_LITERAL_") {
+	if (line.text.substr(0, 20) == "LET _STRING_LITERAL_") {
 		return line;
 	}
 
@@ -302,7 +302,7 @@ Line insertLet(Line line) {
 
 Line convertTabs(Line line) {
 	// Return string literals unchanged
-	if (line.text.find("LET STRING_LITERAL_") == 0) {
+	if (line.text.find("LET _STRING_LITERAL_") == 0) {
 		return line;
 	}
 
@@ -326,7 +326,7 @@ Line convertTabs(Line line) {
 
 Line normSpaces(Line line) {
 	// Don't modify string literal lines
-	if (line.text.substr(0, 19) == "LET STRING_LITERAL_") {
+	if (line.text.substr(0, 20) == "LET _STRING_LITERAL_") {
 		return line;
 	}
 
@@ -363,7 +363,7 @@ Line normSpaces(Line line) {
 
 vector<Line> splitPrint(Line line) {
 	// If this isn't a PRINT statement or is a string literal definition, return unchanged
-	if (line.text.substr(0, 6) != "PRINT " || line.text.substr(0, 17) == "LET STRING_LITERAL") {
+	if (line.text.substr(0, 6) != "PRINT " || line.text.substr(0, 18) == "LET STRING_LITERAL") {
 		return {line};
 	}
 

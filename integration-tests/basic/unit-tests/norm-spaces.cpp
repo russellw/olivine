@@ -3,9 +3,9 @@
 
 BOOST_AUTO_TEST_CASE(test_string_literal_preservation) {
 	// String literal lines should be preserved exactly as they are
-	Line input("", "LET STRING_LITERAL_0$ = \"test with  spaces\"");
+	Line input("", "LET _STRING_LITERAL_0$ = \"test with  spaces\"");
 	Line result = normSpaces(input);
-	BOOST_CHECK_EQUAL(result.text, "LET STRING_LITERAL_0$ = \"test with  spaces\"");
+	BOOST_CHECK_EQUAL(result.text, "LET _STRING_LITERAL_0$ = \"test with  spaces\"");
 	BOOST_CHECK_EQUAL(result.label, "");
 }
 
@@ -67,9 +67,9 @@ BOOST_AUTO_TEST_CASE(test_with_label) {
 
 BOOST_AUTO_TEST_CASE(test_label_with_string_literal) {
 	// String literal with label should be preserved
-	Line input("10", "LET STRING_LITERAL_1$ = \"preserved   spaces\"");
+	Line input("10", "LET _STRING_LITERAL_1$ = \"preserved   spaces\"");
 	Line result = normSpaces(input);
-	BOOST_CHECK_EQUAL(result.text, "LET STRING_LITERAL_1$ = \"preserved   spaces\"");
+	BOOST_CHECK_EQUAL(result.text, "LET _STRING_LITERAL_1$ = \"preserved   spaces\"");
 	BOOST_CHECK_EQUAL(result.label, "10");
 }
 

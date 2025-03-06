@@ -25,7 +25,7 @@ BOOST_AUTO_TEST_CASE(test_non_print_statement) {
 }
 
 BOOST_AUTO_TEST_CASE(test_string_literal) {
-	Line input("", "LET STRING_LITERAL_0$ = \"HELLO\"");
+	Line input("", "LET _STRING_LITERAL_0$ = \"HELLO\"");
 	vector<Line> expected = {input};
 	vector<Line> result = splitPrint(input);
 

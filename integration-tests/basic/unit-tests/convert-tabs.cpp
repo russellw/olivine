@@ -71,8 +71,8 @@ BOOST_AUTO_TEST_CASE(EmptyText) {
 
 // Test 7: String literal preservation
 BOOST_AUTO_TEST_CASE(StringLiteralPreservation) {
-	Line input("", "LET STRING_LITERAL_0$ = \"HELLO\tWORLD\"");
-	Line expected("", "LET STRING_LITERAL_0$ = \"HELLO\tWORLD\"");
+	Line input("", "LET _STRING_LITERAL_0$ = \"HELLO\tWORLD\"");
+	Line expected("", "LET _STRING_LITERAL_0$ = \"HELLO\tWORLD\"");
 
 	Line result = convertTabs(input);
 
@@ -115,8 +115,8 @@ BOOST_AUTO_TEST_CASE(LabelOnlyWithNoText) {
 
 // Test 11: String literal that's not at the beginning
 BOOST_AUTO_TEST_CASE(NonLeadingStringLiteral) {
-	Line input("100", "A = LET STRING_LITERAL_1$ + \t\"TAB\"");
-	Line expected("100", "A = LET STRING_LITERAL_1$ +  \"TAB\"");
+	Line input("100", "A = LET _STRING_LITERAL_1$ + \t\"TAB\"");
+	Line expected("100", "A = LET _STRING_LITERAL_1$ +  \"TAB\"");
 
 	Line result = convertTabs(input);
 
