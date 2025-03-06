@@ -89,6 +89,9 @@ private:
         double end;
         int returnLine;
         
+        // Default constructor required for std::map
+        ForLoopState() : step(0), end(0), returnLine(0) {}
+        
         ForLoopState(const std::string& var, double s, double e, int line)
             : variable(var), step(s), end(e), returnLine(line) {}
     };
