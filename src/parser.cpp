@@ -283,8 +283,10 @@ public:
 				}
 				continue;
 			case '\n':
+				tok = text.substr(pos++, 1);
+				push();
 				line++;
-				break;
+				continue;
 			case 'c':
 				if (text[pos + 1] == '"') {
 					tok = text.substr(pos++, 1);
