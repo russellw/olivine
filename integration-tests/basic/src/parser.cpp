@@ -34,6 +34,10 @@ string removeComment(string line) {
 	return line;
 }
 
+ostream& operator<<(ostream& os, const Line& line) {
+	return os << std::left << std::setw(6) << line.label << ' ' << line.text;
+}
+
 Line parseLabel(string line) {
 	// Skip leading whitespace
 	size_t start = 0;

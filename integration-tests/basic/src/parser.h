@@ -26,6 +26,8 @@ struct Line {
 	}
 };
 
+ostream& operator<<(ostream& os, const Line& line);
+
 /*
 Parse a line of Basic code to extract the label
 This may consist of one or more digits

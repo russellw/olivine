@@ -72,8 +72,12 @@ int main(int argc, char** argv) {
 		if (file.empty()) {
 			throw runtime_error("No input file");
 		}
-		auto lines = readLines(file);
-		dbg(lines);
+		auto text = readLines(file);
+		text = map(text, removeComment);
+		auto lines = map(text, parseLabel);
+		for (auto a : lines) {
+			cout << a << '\n';
+		}
 		return 0;
 	} catch (const std::exception& e) {
 		cerr << e.what() << '\n';

@@ -3,6 +3,7 @@
 // C++ standard library
 #include <algorithm>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <limits>
 #include <memory>
