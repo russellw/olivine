@@ -45,8 +45,15 @@ private:
 public:
 	Item(const std::string& name, const std::string& description, int value, bool isWeapon = false, int damage = 0,
 		bool isArmor = false, int defense = 0, bool isConsumable = false, int healthRestore = 0)
-		: name(name), description(description), value(value), isWeapon(isWeapon), damage(damage), isArmor(isArmor),
-		  defense(defense), isConsumable(isConsumable), healthRestore(healthRestore) {
+		: name(name),
+		  description(description),
+		  value(value),
+		  isWeapon(isWeapon),
+		  damage(damage),
+		  isArmor(isArmor),
+		  defense(defense),
+		  isConsumable(isConsumable),
+		  healthRestore(healthRestore) {
 	}
 
 	std::string getName() const {
@@ -109,7 +116,12 @@ private:
 
 public:
 	Enemy(const std::string& name, const std::string& description, int health, int damage, int defense, int goldReward)
-		: name(name), description(description), health(health), maxHealth(health), damage(damage), defense(defense),
+		: name(name),
+		  description(description),
+		  health(health),
+		  maxHealth(health),
+		  damage(damage),
+		  defense(defense),
 		  goldReward(goldReward) {
 	}
 
@@ -294,8 +306,15 @@ private:
 
 public:
 	Player(const std::string& name, Room* startingRoom)
-		: name(name), health(100), maxHealth(100), damage(5), defense(0), gold(10), currentRoom(startingRoom),
-		  equippedWeapon(nullptr), equippedArmor(nullptr) {
+		: name(name),
+		  health(100),
+		  maxHealth(100),
+		  damage(5),
+		  defense(0),
+		  gold(10),
+		  currentRoom(startingRoom),
+		  equippedWeapon(nullptr),
+		  equippedArmor(nullptr) {
 	}
 
 	std::string getName() const {
