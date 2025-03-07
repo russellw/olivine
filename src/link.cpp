@@ -1,5 +1,55 @@
 #include "all.h"
 
+void linkTargetInfo() {
+	if (modules.empty()) {
+		return; // Nothing to link
+	}
+
+	// Keep track of non-empty datalayout and triple values
+	string firstDatalayout;
+	string firstTriple;
+	bool foundDatalayout = false;
+	bool foundTriple = false;
+
+	// Check each module for consistent datalayout and triple values
+	for (const Module* module : modules) {
+		// Check datalayout
+		if (!module->datalayout.empty()) {
+			if (!foundDatalayout) {
+				// First non-empty datalayout found
+				firstDatalayout = module->datalayout;
+				foundDatalayout = true;
+			} else if (module->datalayout != firstDatalayout) {
+				// Found inconsistent datalayout
+				throw runtime_error(
+					"Inconsistent datalayout found during linking: '" + firstDatalayout + "' vs '" + module->datalayout + "'");
+			}
+		}
+
+		// Check triple
+		if (!module->triple.empty()) {
+			if (!foundTriple) {
+				// First non-empty triple found
+				firstTriple = module->triple;
+				foundTriple = true;
+			} else if (module->triple != firstTriple) {
+				// Found inconsistent triple
+				throw runtime_error(
+					"Inconsistent target triple found during linking: '" + firstTriple + "' vs '" + module->triple + "'");
+			}
+		}
+	}
+
+	// Copy the found values to context if they exist and context values are empty
+	if (foundDatalayout && context.datalayout.empty()) {
+		context.datalayout = firstDatalayout;
+	}
+
+	if (foundTriple && context.triple.empty()) {
+		context.triple = firstTriple;
+	}
+}
+
 void link() {
 	// Rename internal globals in each module to avoid conflicts
 	for (auto module : modules) {
