@@ -87,15 +87,25 @@ and "_SUBROUTINE_0" is returned
 string addSubroutine(vector<Line>&, vector<Line>);
 
 /*
-Take a Basic program containing If statements
-And factor out the THEN parts
-that is, each such statement, consider whether it is simple or complex
+Take a Basic program containing IF statements
+and factor out the THEN parts
+
+That is, each such statement, consider whether it is simple or complex
 It is simple if it takes one of these forms:
 IF condition THEN GOTO label
 IF condition THEN GOSUB label
+IF condition THEN RETURN
 Otherwise it is complex, and needs to be factored
-to factor a complex conditional statement, take the b
+
+To factor a complex conditional statement:
+Take the body (the part after THEN)
+Convert it to a subroutine (using addSubroutine)
+Replace it with GOSUB (the label returned by addSubroutine)
+so now the resulting statement has a simple form
+
+Finally return the converted program, with the converted statements and the appended subroutines
 */
+vector<Line> factorThens(vector<Line>);
 
 /*
 Take a Basic line that may contain colons
