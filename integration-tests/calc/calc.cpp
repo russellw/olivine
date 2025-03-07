@@ -4,6 +4,7 @@
 #include <stack>
 #include <cctype>
 #include <cmath>
+#include <limits>
 #include <boost/multiprecision/cpp_dec_float.hpp>
 
 // Define decimal type with 50 digits of precision
@@ -63,6 +64,8 @@ private:
         }
 
         values.push(result);
+        // Set maximum precision for output
+        std::cout.precision(std::numeric_limits<decimal>::max_digits10);
         std::cout << "= " << result << std::endl;
         last_was_operation = true;
     }
@@ -103,6 +106,8 @@ private:
             }
             
             values.push(value);
+            // Set maximum precision for output
+            std::cout.precision(std::numeric_limits<decimal>::max_digits10);
             std::cout << "Pushed: " << value << std::endl;
             last_was_operation = false;
         } catch (const std::exception& e) {
@@ -114,6 +119,10 @@ public:
     Calculator() : last_was_operation(false) {}
 
     void run() {
+        // Set output to use scientific notation and maximum precision
+        std::cout.precision(std::numeric_limits<decimal>::max_digits10);
+        std::cout << std::scientific;
+        
         show_help();
         
         std::string input;
