@@ -224,7 +224,7 @@ public:
 	void run() {
 		// Set output to use scientific notation and maximum precision
 		std::cout.precision(std::numeric_limits<decimal>::max_digits10);
-		std::cout << std::scientific;
+		// std::cout << std::scientific;
 
 		show_help();
 
