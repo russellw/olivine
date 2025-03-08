@@ -1,4 +1,5 @@
 #include <boost/multiprecision/cpp_dec_float.hpp>
+#include <boost/multiprecision/cpp_int.hpp>
 #include <cctype>
 #include <cmath>
 #include <iostream>
@@ -18,7 +19,44 @@ private:
 
 	// Helper function to check if a character is an operator
 	bool is_operator(char c) {
-		return c == '+' || c == '-' || c == '*' || c == '/' || c == '^';
+		return c == '+' || c == '-' || c == '*' || c == '/' || c == '^' || c == '&' || c == '|' || c == 'x' || c == '~' ||
+			c == '<' || c == '>';
+	}
+
+	// Execute unary operation
+	void execute_unary_operation(char op) {
+		if (values.empty()) {
+			std::cout << "Error: No value for unary operation" << std::endl;
+			return;
+		}
+
+		decimal a = values.top();
+		values.pop();
+		decimal result;
+
+		switch (op) {
+		case '~': // Bitwise NOT
+			try {
+				// Convert to integer with truncation
+				boost::multiprecision::int128_t int_val = static_cast<boost::multiprecision::int128_t>(a);
+				int_val = ~int_val;
+				result = decimal(int_val);
+			} catch (const std::exception& e) {
+				std::cout << "Error in bitwise NOT: " << e.what() << std::endl;
+				values.push(a); // Push a back
+				return;
+			}
+			break;
+		default:
+			std::cout << "Error: Unknown unary operator" << std::endl;
+			values.push(a); // Push a back
+			return;
+		}
+
+		values.push(result);
+		std::cout.precision(std::numeric_limits<decimal>::max_digits10);
+		std::cout << "= " << result << std::endl;
+		last_was_operation = true;
 	}
 
 	// Execute binary operation
@@ -35,6 +73,54 @@ private:
 		decimal result;
 
 		switch (op) {
+		case '&': // Bitwise AND
+		case '<': // Bitwise left shift
+		case '>': // Bitwise right shift
+		case 'x': // Bitwise XOR
+		case '|': // Bitwise OR
+			try {
+				// Convert to integers with truncation
+				boost::multiprecision::int128_t int_a = static_cast<boost::multiprecision::int128_t>(a);
+				boost::multiprecision::int128_t int_b = static_cast<boost::multiprecision::int128_t>(b);
+
+				boost::multiprecision::int128_t int_result;
+				switch (op) {
+				case '&':
+					int_result = int_a & int_b;
+					break;
+				case '<':
+					if (int_b < 0 || int_b > 128) {
+						std::cout << "Error: Shift amount out of range" << std::endl;
+						values.push(a); // Push a back
+						values.push(b); // Push b back
+						return;
+					}
+					int_result = int_a << static_cast<unsigned>(int_b);
+					break;
+				case '>':
+					if (int_b < 0 || int_b > 128) {
+						std::cout << "Error: Shift amount out of range" << std::endl;
+						values.push(a); // Push a back
+						values.push(b); // Push b back
+						return;
+					}
+					int_result = int_a >> static_cast<unsigned>(int_b);
+					break;
+				case 'x':
+					int_result = int_a ^ int_b;
+					break;
+				case '|':
+					int_result = int_a | int_b;
+					break;
+				}
+				result = decimal(int_result);
+			} catch (const std::exception& e) {
+				std::cout << "Error in bitwise operation: " << e.what() << std::endl;
+				values.push(a); // Push a back
+				values.push(b); // Push b back
+				return;
+			}
+			break;
 		case '*':
 			result = a * b;
 			break;
@@ -102,7 +188,11 @@ private:
 
 		// Handle single operator case
 		if (input.length() == 1 && is_operator(input[0])) {
-			execute_binary_operation(input[0]);
+			if (input[0] == '~') {
+				execute_unary_operation(input[0]);
+			} else {
+				execute_binary_operation(input[0]);
+			}
 			return;
 		}
 
@@ -150,7 +240,9 @@ public:
 		std::cout << "RPN Calculator with Arbitrary Precision\n";
 		std::cout << "--------------------------------------\n";
 		std::cout << "Enter numbers to push them onto the stack\n";
-		std::cout << "Enter operators (+, -, *, /, ^) to perform operations\n";
+		std::cout << "Enter operators to perform operations:\n";
+		std::cout << "  Arithmetic: +, -, *, /, ^ (power)\n";
+		std::cout << "  Bitwise: & (AND), | (OR), x (XOR), ~ (NOT), < (left shift), > (right shift)\n";
 		std::cout << "Commands:\n";
 		std::cout << "  h, help  - Show this help message\n";
 		std::cout << "  c, clear - Clear the stack\n";
