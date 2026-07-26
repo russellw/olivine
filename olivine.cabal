@@ -1,0 +1,55 @@
+cabal-version:      3.0
+name:               olivine
+version:            0.1.0.0
+synopsis:           A whole-program optimizer for LLVM IR
+description:        Olivine reads LLVM intermediate code and writes the same
+                    format back out, so it can optimize any language and
+                    target LLVM supports.  Each pass is a pure function from
+                    program to program.
+license:            MIT
+license-file:       LICENSE
+author:             Russell Wallace
+maintainer:         russell.wallace@gmail.com
+build-type:         Simple
+extra-doc-files:    CLAUDE.md
+
+common warnings
+    ghc-options: -Wall -Wcompat -Wredundant-constraints -Wunused-packages
+
+library
+    import:           warnings
+    hs-source-dirs:   src
+    exposed-modules:  Olivine.Syntax.Ast
+                      Olivine.Syntax.Parser
+                      Olivine.Syntax.Printer
+                      Olivine.Pipeline
+    build-depends:    base >=4.17 && <5,
+                      megaparsec >=9.0 && <10,
+                      text >=2.0 && <3
+    default-language: GHC2021
+
+executable olivine
+    import:           warnings
+    hs-source-dirs:   app
+    main-is:          Main.hs
+    ghc-options:      -rtsopts
+    build-depends:    base,
+                      olivine,
+                      optparse-applicative >=0.17 && <0.20,
+                      text
+    default-language: GHC2021
+
+test-suite olivine-test
+    import:           warnings
+    type:             exitcode-stdio-1.0
+    hs-source-dirs:   test
+    main-is:          Main.hs
+    other-modules:    RoundTrip
+    build-depends:    base,
+                      filepath,
+                      olivine,
+                      tasty >=1.4 && <1.6,
+                      tasty-hunit >=0.10 && <0.11,
+                      directory,
+                      text
+    default-language: GHC2021
