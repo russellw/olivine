@@ -22,6 +22,8 @@ library
     import:           defaults
     hs-source-dirs:   src
     exposed-modules:  Olivine.Syntax.Ast
+                      Olivine.Syntax.Name
+                      Olivine.Syntax.Type
                       Olivine.Syntax.Parser
                       Olivine.Syntax.Printer
                       Olivine.Pipeline
@@ -49,6 +51,7 @@ test-suite olivine-test
     other-modules:    Corpus
                       RoundTrip
                       Structure
+                      Types
     build-depends:    base,
                       filepath,
                       olivine,

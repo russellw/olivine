@@ -3,6 +3,7 @@
 module Corpus
   ( dataDir
   , corpusFiles
+  , readCorpusFile
   , parseCorpusFile
   , expectParse
   ) where
@@ -28,9 +29,16 @@ corpusFiles =
 
 -- | Read and parse one corpus file, failing the test if it does not parse.
 parseCorpusFile :: FilePath -> IO Module
-parseCorpusFile name = do
+parseCorpusFile = fmap snd . readCorpusFile
+
+-- | As 'parseCorpusFile', but keeping the source text, so that a test can
+-- state what it expects of the parse in terms of what the file contains.
+readCorpusFile :: FilePath -> IO (Text, Module)
+readCorpusFile name = do
   let path = dataDir </> name
-  expectParse path =<< TIO.readFile path
+  source <- TIO.readFile path
+  parsed <- expectParse path source
+  pure (source, parsed)
 
 expectParse :: FilePath -> Text -> IO Module
 expectParse name source =

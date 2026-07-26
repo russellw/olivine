@@ -18,6 +18,9 @@ module Olivine.Syntax.Ast
 
 import Data.Text (Text)
 
+import Olivine.Syntax.Name (Name)
+import Olivine.Syntax.Type (Type)
+
 -- | A whole translation unit.  Olivine optimizes whole programs, so a
 -- complete input is eventually a set of these linked together; for now one
 -- module is one file.
@@ -43,6 +46,8 @@ data Entry
     ETargetDataLayout Text
   | -- | @target triple = "..."@.
     ETargetTriple Text
+  | -- | @%name = type <T>@.  Usually a struct, but LLVM permits any type.
+    ETypeDefinition Name Type
   | -- | Source text not yet modelled, retained exactly as written.
     EOpaque Text
   deriving (Eq, Show)
