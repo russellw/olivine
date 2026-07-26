@@ -59,6 +59,7 @@ test-suite olivine-test
                       Types
                       Globals
                       Declares
+                      Attributes
     build-depends:    base,
                       filepath,
                       olivine,

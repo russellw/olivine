@@ -11,6 +11,7 @@ module Olivine.Syntax.Parser
   ) where
 
 import Data.Char (isDigit, isHexDigit)
+import Data.List.NonEmpty (NonEmpty ((:|)))
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -55,6 +56,7 @@ pEntry =
     , try pTypeDefinition
     , try pGlobal
     , try pDeclare
+    , try pAttributeGroup
     , pOpaqueLine
     ]
 
@@ -231,7 +233,7 @@ pSignature = do
   (parameters, arity) <- symbol "(" *> pParameters' <* symbol ")"
   unnamedAddr <- optional pUnnamedAddr
   addrSpace <- optional pAddrSpace
-  attributeGroups <- many (char '#' *> pNatural)
+  attributes <- many pSignatureAttribute
   pure
     Signature
       { signatureLinkage = linkage
@@ -246,8 +248,111 @@ pSignature = do
       , signatureArity = arity
       , signatureUnnamedAddr = unnamedAddr
       , signatureAddrSpace = addrSpace
-      , signatureAttributeGroups = attributeGroups
+      , signatureAttributes = attributes
       }
+
+pSignatureAttribute :: Parser SignatureAttribute
+pSignatureAttribute =
+  (SAGroup <$> (char '#' *> pNatural))
+    <|> (SAAttribute <$> pFunctionAttribute OnFunction)
+
+-- | @attributes #N = { ... }@.
+pAttributeGroup :: Parser Entry
+pAttributeGroup = do
+  hspace
+  keyword "attributes"
+  _ <- char '#'
+  number <- pNatural
+  symbol "="
+  symbol "{"
+  attributes <- pNonEmpty (pFunctionAttribute InGroup)
+  symbol "}"
+  endOfLine
+  pure (EAttributeGroup number attributes)
+
+pNonEmpty :: Parser a -> Parser (NonEmpty a)
+pNonEmpty p = (:|) <$> p <*> many p
+
+pFunctionAttribute :: AttributeContext -> Parser FunctionAttribute
+pFunctionAttribute context =
+  choice
+    [ FAAlwaysInline <$ keyword "alwaysinline"
+    , FABuiltin <$ keyword "builtin"
+    , FACold <$ keyword "cold"
+    , FAConvergent <$ keyword "convergent"
+    , FADisableSanitizerInstrumentation
+        <$ keyword "disable_sanitizer_instrumentation"
+    , FAFnRetThunkExtern <$ keyword "fn_ret_thunk_extern"
+    , FAHot <$ keyword "hot"
+    , FAInlineHint <$ keyword "inlinehint"
+    , FAJumpTable <$ keyword "jumptable"
+    , FAMinSize <$ keyword "minsize"
+    , FAMustProgress <$ keyword "mustprogress"
+    , FANaked <$ keyword "naked"
+    , FANoBuiltin <$ keyword "nobuiltin"
+    , FANoCallback <$ keyword "nocallback"
+    , FANoCfCheck <$ keyword "nocf_check"
+    , FANoDuplicate <$ keyword "noduplicate"
+    , FANoFree <$ keyword "nofree"
+    , FANoImplicitFloat <$ keyword "noimplicitfloat"
+    , FANoInline <$ keyword "noinline"
+    , FANoMerge <$ keyword "nomerge"
+    , FANonLazyBind <$ keyword "nonlazybind"
+    , FANoProfile <$ keyword "noprofile"
+    , FANoRecurse <$ keyword "norecurse"
+    , FANoRedZone <$ keyword "noredzone"
+    , FANoReturn <$ keyword "noreturn"
+    , FANoSanitizeBounds <$ keyword "nosanitize_bounds"
+    , FANoSanitizeCoverage <$ keyword "nosanitize_coverage"
+    , FANoSync <$ keyword "nosync"
+    , FANoUnwind <$ keyword "nounwind"
+    , FANullPointerIsValid <$ keyword "null_pointer_is_valid"
+    , FAOptDebug <$ keyword "optdebug"
+    , FAOptForFuzzing <$ keyword "optforfuzzing"
+    , FAOptNone <$ keyword "optnone"
+    , FAOptSize <$ keyword "optsize"
+    , FAPreSplitCoroutine <$ keyword "presplitcoroutine"
+    , FAReturnsTwice <$ keyword "returns_twice"
+    , FASafeStack <$ keyword "safestack"
+    , FASanitizeAddress <$ keyword "sanitize_address"
+    , FASanitizeHwAddress <$ keyword "sanitize_hwaddress"
+    , FASanitizeMemTag <$ keyword "sanitize_memtag"
+    , FASanitizeMemory <$ keyword "sanitize_memory"
+    , FASanitizeRealtime <$ keyword "sanitize_realtime"
+    , FASanitizeThread <$ keyword "sanitize_thread"
+    , FASanitizeType <$ keyword "sanitize_type"
+    , FAShadowCallStack <$ keyword "shadowcallstack"
+    , FASpeculatable <$ keyword "speculatable"
+    , FASpeculativeLoadHardening <$ keyword "speculative_load_hardening"
+    , FAStrictFP <$ keyword "strictfp"
+    , FASspReq <$ keyword "sspreq"
+    , FASspStrong <$ keyword "sspstrong"
+    , FASsp <$ keyword "ssp"
+    , FAWillReturn <$ keyword "willreturn"
+    , FAAlignStack <$> (keyword "alignstack" *> pAlignStackArgument)
+    , FAAllocKind <$> (keyword "allockind" *> pParenthesized (pQuoted <* hspace))
+    , FAAllocSize <$> (keyword "allocsize" *> symbol "(" *> pNatural) <*> pSecond
+    , FAVScaleRange <$> (keyword "vscale_range" *> symbol "(" *> pNatural) <*> pSecond
+    , FAUwTable <$> (keyword "uwtable" *> optional pRawParenthesized)
+    , FAMemory <$> (keyword "memory" *> pRawParenthesized)
+    , pStringAttribute
+    ]
+  where
+    -- The optional second number of allocsize and vscale_range, through to
+    -- the closing parenthesis they share.
+    pSecond = optional (symbol "," *> pNatural) <* symbol ")"
+    pAlignStackArgument = case context of
+      InGroup -> symbol "=" *> pNatural
+      OnFunction -> pParenthesized pNatural
+
+-- | @"key"@ or @"key"="value"@.  This is the one attribute kind that cannot
+-- be enumerated: the front end uses it to pass target configuration through.
+pStringAttribute :: Parser FunctionAttribute
+pStringAttribute = do
+  key <- pQuoted
+  hspace
+  value <- optional (symbol "=" *> pQuoted <* hspace)
+  pure (FAString key value)
 
 -- As with a function type's parameters, @...@ may stand alone or close the
 -- list, so the recursion carries the arity back out rather than trying to

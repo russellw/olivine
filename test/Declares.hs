@@ -87,6 +87,8 @@ accepted =
     "declare i32 @f(i32 %x)"
   , -- LLVM 21 renames this one on the way out.
     "declare void @f(ptr nocapture)"
+  , -- An attribute written out on the function is hoisted into a group.
+    "declare void @f() nounwind"
   , -- Attributes are reordered into LLVM's canonical order when it prints.
     "declare void @f(ptr writable dead_on_unwind)"
   , "declare void @f() addrspace(1)"
@@ -102,7 +104,6 @@ rejected =
   , "declare void @f("
   , "declare @f()" -- the return type is not optional
   , "declare void f()" -- nor is the sigil
-  , "declare void @f() nounwind" -- function attributes are not modelled
   , "declare void @f() gc \"shadow-stack\""
   , "declare void @f(ptr captures(none)" -- unbalanced
   ]
@@ -173,9 +174,16 @@ fieldTests =
           "declare void @f() local_unnamed_addr"
           (Just LocalUnnamedAddr)
     , testCase "attribute groups" $
-        field signatureAttributeGroups "declare void @f() #3" [3]
-    , testCase "no attribute groups" $
-        field signatureAttributeGroups "declare void @f()" []
+        field signatureAttributes "declare void @f() #3" [SAGroup 3]
+    , testCase "no attributes" $
+        field signatureAttributes "declare void @f()" []
+    , -- Group references and attributes written out share one slot, so both
+      -- have to survive in the order they were written.
+      testCase "attributes written out in full" $
+        field
+          signatureAttributes
+          "declare void @f() nounwind #3 cold"
+          [SAAttribute FANoUnwind, SAGroup 3, SAAttribute FACold]
     , -- The interior of an attribute whose argument is its own small
       -- language is carried as written.
       testCase "a nested attribute argument" $

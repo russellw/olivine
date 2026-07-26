@@ -16,9 +16,11 @@ module Olivine.Syntax.Printer
   , renderName
   ) where
 
+import Data.List.NonEmpty qualified as NE
 import Data.Maybe (catMaybes)
 import Data.Text (Text)
 import Data.Text qualified as T
+import Numeric.Natural (Natural)
 
 import Olivine.Syntax.Ast
 import Olivine.Syntax.Attribute
@@ -41,7 +43,20 @@ renderEntry (ETypeDefinition name t) =
   "%" <> renderName name <> " = type " <> renderType t
 renderEntry (EGlobal g) = renderGlobal g
 renderEntry (EDeclare s) = "declare " <> renderSignature s
+renderEntry (EAttributeGroup n attributes) =
+  "attributes #" <> showText n <> " = " <> renderAttributeGroupBody attributes
 renderEntry (EOpaque t) = t
+
+-- LLVM spaces the braces off from the attributes.
+renderAttributeGroupBody :: NE.NonEmpty FunctionAttribute -> Text
+renderAttributeGroupBody attributes =
+  "{ "
+    <> T.unwords (map (renderFunctionAttribute InGroup) (NE.toList attributes))
+    <> " }"
+
+renderSignatureAttribute :: SignatureAttribute -> Text
+renderSignatureAttribute (SAGroup n) = "#" <> showText n
+renderSignatureAttribute (SAAttribute a) = renderFunctionAttribute OnFunction a
 
 renderSignature :: Signature -> Text
 renderSignature s =
@@ -69,7 +84,7 @@ renderSignature s =
         [ renderUnnamedAddr <$> signatureUnnamedAddr s
         , (\n -> "addrspace(" <> showText n <> ")") <$> signatureAddrSpace s
         ]
-        <> ["#" <> showText n | n <- signatureAttributeGroups s]
+        <> map renderSignatureAttribute (signatureAttributes s)
 
 renderParameter :: Parameter -> Text
 renderParameter p =
@@ -309,3 +324,78 @@ singleQuoted t = "'" <> t <> "'"
 
 showText :: Show a => a -> Text
 showText = T.pack . show
+
+renderFunctionAttribute :: AttributeContext -> FunctionAttribute -> Text
+renderFunctionAttribute _ FAAlwaysInline = "alwaysinline"
+renderFunctionAttribute _ FABuiltin = "builtin"
+renderFunctionAttribute _ FACold = "cold"
+renderFunctionAttribute _ FAConvergent = "convergent"
+renderFunctionAttribute _ FADisableSanitizerInstrumentation =
+  "disable_sanitizer_instrumentation"
+renderFunctionAttribute _ FAFnRetThunkExtern = "fn_ret_thunk_extern"
+renderFunctionAttribute _ FAHot = "hot"
+renderFunctionAttribute _ FAInlineHint = "inlinehint"
+renderFunctionAttribute _ FAJumpTable = "jumptable"
+renderFunctionAttribute _ FAMinSize = "minsize"
+renderFunctionAttribute _ FAMustProgress = "mustprogress"
+renderFunctionAttribute _ FANaked = "naked"
+renderFunctionAttribute _ FANoBuiltin = "nobuiltin"
+renderFunctionAttribute _ FANoCallback = "nocallback"
+renderFunctionAttribute _ FANoCfCheck = "nocf_check"
+renderFunctionAttribute _ FANoDuplicate = "noduplicate"
+renderFunctionAttribute _ FANoFree = "nofree"
+renderFunctionAttribute _ FANoImplicitFloat = "noimplicitfloat"
+renderFunctionAttribute _ FANoInline = "noinline"
+renderFunctionAttribute _ FANoMerge = "nomerge"
+renderFunctionAttribute _ FANonLazyBind = "nonlazybind"
+renderFunctionAttribute _ FANoProfile = "noprofile"
+renderFunctionAttribute _ FANoRecurse = "norecurse"
+renderFunctionAttribute _ FANoRedZone = "noredzone"
+renderFunctionAttribute _ FANoReturn = "noreturn"
+renderFunctionAttribute _ FANoSanitizeBounds = "nosanitize_bounds"
+renderFunctionAttribute _ FANoSanitizeCoverage = "nosanitize_coverage"
+renderFunctionAttribute _ FANoSync = "nosync"
+renderFunctionAttribute _ FANoUnwind = "nounwind"
+renderFunctionAttribute _ FANullPointerIsValid = "null_pointer_is_valid"
+renderFunctionAttribute _ FAOptDebug = "optdebug"
+renderFunctionAttribute _ FAOptForFuzzing = "optforfuzzing"
+renderFunctionAttribute _ FAOptNone = "optnone"
+renderFunctionAttribute _ FAOptSize = "optsize"
+renderFunctionAttribute _ FAPreSplitCoroutine = "presplitcoroutine"
+renderFunctionAttribute _ FAReturnsTwice = "returns_twice"
+renderFunctionAttribute _ FASafeStack = "safestack"
+renderFunctionAttribute _ FASanitizeAddress = "sanitize_address"
+renderFunctionAttribute _ FASanitizeHwAddress = "sanitize_hwaddress"
+renderFunctionAttribute _ FASanitizeMemTag = "sanitize_memtag"
+renderFunctionAttribute _ FASanitizeMemory = "sanitize_memory"
+renderFunctionAttribute _ FASanitizeRealtime = "sanitize_realtime"
+renderFunctionAttribute _ FASanitizeThread = "sanitize_thread"
+renderFunctionAttribute _ FASanitizeType = "sanitize_type"
+renderFunctionAttribute _ FAShadowCallStack = "shadowcallstack"
+renderFunctionAttribute _ FASpeculatable = "speculatable"
+renderFunctionAttribute _ FASpeculativeLoadHardening =
+  "speculative_load_hardening"
+renderFunctionAttribute _ FAStrictFP = "strictfp"
+renderFunctionAttribute _ FASsp = "ssp"
+renderFunctionAttribute _ FASspReq = "sspreq"
+renderFunctionAttribute _ FASspStrong = "sspstrong"
+renderFunctionAttribute _ FAWillReturn = "willreturn"
+renderFunctionAttribute InGroup (FAAlignStack n) = "alignstack=" <> showText n
+renderFunctionAttribute OnFunction (FAAlignStack n) =
+  "alignstack(" <> showText n <> ")"
+renderFunctionAttribute _ (FAAllocKind kind) =
+  "allockind(" <> quoted kind <> ")"
+renderFunctionAttribute _ (FAAllocSize a b) = withOptional "allocsize" a b
+renderFunctionAttribute _ (FAVScaleRange a b) = withOptional "vscale_range" a b
+renderFunctionAttribute _ (FAUwTable Nothing) = "uwtable"
+renderFunctionAttribute _ (FAUwTable (Just kind)) = "uwtable(" <> kind <> ")"
+renderFunctionAttribute _ (FAMemory effects) = "memory(" <> effects <> ")"
+renderFunctionAttribute _ (FAString key Nothing) = quoted key
+renderFunctionAttribute _ (FAString key (Just value)) =
+  quoted key <> "=" <> quoted value
+
+-- LLVM writes the two-argument attributes closed up, with no space after the
+-- comma, unlike everywhere else it separates a list.
+withOptional :: Text -> Natural -> Maybe Natural -> Text
+withOptional name a b =
+  name <> "(" <> showText a <> foldMap (("," <>) . showText) b <> ")"

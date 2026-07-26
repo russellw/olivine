@@ -16,8 +16,11 @@ module Olivine.Syntax.Ast
   , Entry (..)
   ) where
 
+import Data.List.NonEmpty (NonEmpty)
 import Data.Text (Text)
+import Numeric.Natural (Natural)
 
+import Olivine.Syntax.Attribute (FunctionAttribute)
 import Olivine.Syntax.Function (Signature)
 import Olivine.Syntax.Global (Global)
 import Olivine.Syntax.Name (Name)
@@ -54,6 +57,9 @@ data Entry
     EGlobal Global
   | -- | @declare <signature>@.
     EDeclare Signature
+  | -- | @attributes #N = { ... }@.  LLVM rejects a group with no attributes
+    -- in it, so the list cannot be empty here either.
+    EAttributeGroup Natural (NonEmpty FunctionAttribute)
   | -- | Source text not yet modelled, retained exactly as written.
     EOpaque Text
   deriving (Eq, Show)

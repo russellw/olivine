@@ -12,6 +12,8 @@
 -- until a pass actually asks.
 module Olivine.Syntax.Attribute
   ( ParamAttribute (..)
+  , FunctionAttribute (..)
+  , AttributeContext (..)
   ) where
 
 import Data.Text (Text)
@@ -61,4 +63,90 @@ data ParamAttribute
   | PARange Text
   | PANoFPClass Text
   | PAInitializes Text
+  deriving (Eq, Show)
+
+-- | Where a function attribute is written.
+--
+-- It matters for exactly one attribute: LLVM spells stack alignment
+-- @alignstack(16)@ on a function but @alignstack=16@ inside a group, and
+-- rejects each spelling in the other's position.  Everything else reads and
+-- writes the same either way.
+data AttributeContext
+  = InGroup
+  | OnFunction
+  deriving (Eq, Show)
+
+-- | Attributes on a function, whether written into an attribute group or
+-- spelled out on the function itself.
+--
+-- The string form is open by design: @"target-features"="+cmov,+sse2"@ and
+-- its neighbours are how the front end passes target configuration through,
+-- and no enumeration could close that set.  So it is the one attribute kind
+-- carried as a name and an optional value rather than a constructor.
+data FunctionAttribute
+  = -- Flags.
+    FAAlwaysInline
+  | FABuiltin
+  | FACold
+  | FAConvergent
+  | FADisableSanitizerInstrumentation
+  | FAFnRetThunkExtern
+  | FAHot
+  | FAInlineHint
+  | FAJumpTable
+  | FAMinSize
+  | FAMustProgress
+  | FANaked
+  | FANoBuiltin
+  | FANoCallback
+  | FANoCfCheck
+  | FANoDuplicate
+  | FANoFree
+  | FANoImplicitFloat
+  | FANoInline
+  | FANoMerge
+  | FANonLazyBind
+  | FANoProfile
+  | FANoRecurse
+  | FANoRedZone
+  | FANoReturn
+  | FANoSanitizeBounds
+  | FANoSanitizeCoverage
+  | FANoSync
+  | FANoUnwind
+  | FANullPointerIsValid
+  | FAOptDebug
+  | FAOptForFuzzing
+  | FAOptNone
+  | FAOptSize
+  | FAPreSplitCoroutine
+  | FAReturnsTwice
+  | FASafeStack
+  | FASanitizeAddress
+  | FASanitizeHwAddress
+  | FASanitizeMemTag
+  | FASanitizeMemory
+  | FASanitizeRealtime
+  | FASanitizeThread
+  | FASanitizeType
+  | FAShadowCallStack
+  | FASpeculatable
+  | FASpeculativeLoadHardening
+  | FAStrictFP
+  | FASsp
+  | FASspReq
+  | FASspStrong
+  | FAWillReturn
+  | -- Attributes taking arguments.
+    FAAlignStack Natural
+  | FAAllocKind Text
+  | FAAllocSize Natural (Maybe Natural)
+  | FAVScaleRange Natural (Maybe Natural)
+  | -- | @uwtable@, or @uwtable(sync)@ and the like.
+    FAUwTable (Maybe Text)
+  | -- | @memory(argmem: read)@ and its relatives, carried as the text
+    -- between the parentheses for the same reason as 'PACaptures'.
+    FAMemory Text
+  | -- | @"key"@ or @"key"="value"@.
+    FAString Text (Maybe Text)
   deriving (Eq, Show)
