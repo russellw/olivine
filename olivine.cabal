@@ -13,11 +13,13 @@ maintainer:         russell.wallace@gmail.com
 build-type:         Simple
 extra-doc-files:    CLAUDE.md
 
-common warnings
-    ghc-options: -Wall -Wcompat -Wredundant-constraints -Wunused-packages
+common defaults
+    ghc-options:        -Wall -Wcompat -Wredundant-constraints -Wunused-packages
+    -- Text is the string type throughout; literals should be Text too.
+    default-extensions: OverloadedStrings
 
 library
-    import:           warnings
+    import:           defaults
     hs-source-dirs:   src
     exposed-modules:  Olivine.Syntax.Ast
                       Olivine.Syntax.Parser
@@ -29,7 +31,7 @@ library
     default-language: GHC2021
 
 executable olivine
-    import:           warnings
+    import:           defaults
     hs-source-dirs:   app
     main-is:          Main.hs
     ghc-options:      -rtsopts
@@ -40,11 +42,13 @@ executable olivine
     default-language: GHC2021
 
 test-suite olivine-test
-    import:           warnings
+    import:           defaults
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test
     main-is:          Main.hs
-    other-modules:    RoundTrip
+    other-modules:    Corpus
+                      RoundTrip
+                      Structure
     build-depends:    base,
                       filepath,
                       olivine,

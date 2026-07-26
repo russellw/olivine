@@ -17,4 +17,9 @@ renderModule :: Module -> Text
 renderModule = T.unlines . map renderEntry . moduleEntries
 
 renderEntry :: Entry -> Text
+renderEntry (ETargetDataLayout spec) = "target datalayout = " <> quoted spec
+renderEntry (ETargetTriple spec) = "target triple = " <> quoted spec
 renderEntry (EOpaque t) = t
+
+quoted :: Text -> Text
+quoted t = "\"" <> t <> "\""

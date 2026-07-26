@@ -28,6 +28,13 @@ newtype Module = Module
 
 -- | A single top-level construct.
 data Entry
-  = -- | Source text not yet modelled, retained exactly as written.
+  = -- | @target datalayout = "..."@.  The specification is held as its
+    -- literal text: nothing needs to interpret it until a pass asks about
+    -- pointer widths or alignment, and holding it verbatim keeps the round
+    -- trip exact until then.
+    ETargetDataLayout Text
+  | -- | @target triple = "..."@.
+    ETargetTriple Text
+  | -- | Source text not yet modelled, retained exactly as written.
     EOpaque Text
   deriving (Eq, Show)
