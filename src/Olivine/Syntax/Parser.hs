@@ -32,7 +32,35 @@ pModule = Module <$> many pEntry <* eof
 -- rather than failing the parse.  That is what keeps the round trip total
 -- while the grammar is incomplete.
 pEntry :: Parser Entry
-pEntry = try pTarget <|> pOpaqueLine
+pEntry =
+  choice
+    [ try pModuleId
+    , try pSourceFilename
+    , try pTarget
+    , pOpaqueLine
+    ]
+
+-- | @; ModuleID = '...'@.
+--
+-- This is a comment as far as LLVM is concerned, so an identifier containing
+-- a quote would not be escaped and could not be read back unambiguously.  In
+-- that case the trailing 'endOfLine' fails, the enclosing 'try' backtracks,
+-- and the line stays opaque — which is the right outcome for something no
+-- reader consumes anyway.
+pModuleId :: Parser Entry
+pModuleId = do
+  hspace
+  _ <- char ';'
+  hspace
+  _ <- string "ModuleID"
+  EModuleId <$> pAssigned pSingleQuoted
+
+-- | @source_filename = "..."@.
+pSourceFilename :: Parser Entry
+pSourceFilename = do
+  hspace
+  _ <- string "source_filename"
+  ESourceFilename <$> pAssigned pQuoted
 
 -- | @target datalayout = "..."@ and @target triple = "..."@.
 pTarget :: Parser Entry
@@ -43,12 +71,12 @@ pTarget = do
   con <-
     (ETargetDataLayout <$ string "datalayout")
       <|> (ETargetTriple <$ string "triple")
-  hspace
-  _ <- char '='
-  hspace
-  spec <- pQuoted
-  endOfLine
-  pure (con spec)
+  con <$> pAssigned pQuoted
+
+-- | The @= <value>@ tail shared by the top-level definitions, through to the
+-- end of the line.
+pAssigned :: Parser a -> Parser a
+pAssigned value = hspace *> char '=' *> hspace *> value <* endOfLine
 
 -- | The contents of an LLVM quoted string, held exactly as written.
 --
@@ -57,6 +85,10 @@ pTarget = do
 -- can be carried around without being decoded.
 pQuoted :: Parser Text
 pQuoted = char '"' *> takeWhileP (Just "string character") (/= '"') <* char '"'
+
+pSingleQuoted :: Parser Text
+pSingleQuoted =
+  char '\'' *> takeWhileP (Just "identifier character") (/= '\'') <* char '\''
 
 -- Until the grammar grows, anything unrecognized is one line, one entry.
 -- Both alternatives consume input, so 'many' above cannot spin.

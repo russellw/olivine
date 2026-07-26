@@ -28,7 +28,15 @@ newtype Module = Module
 
 -- | A single top-level construct.
 data Entry
-  = -- | @target datalayout = "..."@.  The specification is held as its
+  = -- | @; ModuleID = '...'@.  LLVM writes the module's identifier as a
+    -- comment, so no reader ever recovers it and nothing depends on its
+    -- value.  It is modelled anyway: it is the first line of every file, and
+    -- leaving it opaque would mean the one construct guaranteed to be present
+    -- is the one construct never checked.
+    EModuleId Text
+  | -- | @source_filename = "..."@.
+    ESourceFilename Text
+  | -- | @target datalayout = "..."@.  The specification is held as its
     -- literal text: nothing needs to interpret it until a pass asks about
     -- pointer widths or alignment, and holding it verbatim keeps the round
     -- trip exact until then.
