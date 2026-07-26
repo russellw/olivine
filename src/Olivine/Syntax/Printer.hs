@@ -21,8 +21,11 @@ import Data.Text (Text)
 import Data.Text qualified as T
 
 import Olivine.Syntax.Ast
+import Olivine.Syntax.Attribute
 import Olivine.Syntax.Constant
+import Olivine.Syntax.Function
 import Olivine.Syntax.Global
+import Olivine.Syntax.Linkage
 import Olivine.Syntax.Name
 import Olivine.Syntax.Type
 
@@ -37,7 +40,94 @@ renderEntry (ETargetTriple spec) = "target triple = " <> quoted spec
 renderEntry (ETypeDefinition name t) =
   "%" <> renderName name <> " = type " <> renderType t
 renderEntry (EGlobal g) = renderGlobal g
+renderEntry (EDeclare s) = "declare " <> renderSignature s
 renderEntry (EOpaque t) = t
+
+renderSignature :: Signature -> Text
+renderSignature s =
+  T.unwords $
+    modifiers
+      <> map renderParamAttribute (signatureReturnAttributes s)
+      <> [renderType (signatureReturnType s)]
+      <> ["@" <> renderName (signatureName s) <> "(" <> parameters <> ")"]
+      <> trailing
+  where
+    modifiers =
+      catMaybes
+        [ renderLinkage <$> signatureLinkage s
+        , renderPreemption <$> signaturePreemption s
+        , renderVisibility <$> signatureVisibility s
+        , renderDLLStorage <$> signatureDLLStorage s
+        , renderCallingConvention <$> signatureCallingConvention s
+        ]
+    parameters =
+      T.intercalate ", " $
+        map renderParameter (signatureParameters s)
+          <> ["..." | signatureArity s == VariadicArity]
+    trailing =
+      catMaybes
+        [ renderUnnamedAddr <$> signatureUnnamedAddr s
+        , (\n -> "addrspace(" <> showText n <> ")") <$> signatureAddrSpace s
+        ]
+        <> ["#" <> showText n | n <- signatureAttributeGroups s]
+
+renderParameter :: Parameter -> Text
+renderParameter p =
+  T.unwords $
+    renderType (parameterType p)
+      : map renderParamAttribute (parameterAttributes p)
+      <> foldMap (\n -> ["%" <> renderName n]) (parameterName p)
+
+renderCallingConvention :: CallingConvention -> Text
+renderCallingConvention CCC = "ccc"
+renderCallingConvention FastCC = "fastcc"
+renderCallingConvention ColdCC = "coldcc"
+renderCallingConvention GHCCC = "ghccc"
+renderCallingConvention TailCC = "tailcc"
+renderCallingConvention SwiftCC = "swiftcc"
+renderCallingConvention (NumberedCC n) = "cc" <> showText n
+
+renderParamAttribute :: ParamAttribute -> Text
+renderParamAttribute PAZeroExt = "zeroext"
+renderParamAttribute PASignExt = "signext"
+renderParamAttribute PANoExt = "noext"
+renderParamAttribute PAInReg = "inreg"
+renderParamAttribute PANoAlias = "noalias"
+renderParamAttribute PANoCapture = "nocapture"
+renderParamAttribute PANoFree = "nofree"
+renderParamAttribute PANest = "nest"
+renderParamAttribute PAReturned = "returned"
+renderParamAttribute PANonNull = "nonnull"
+renderParamAttribute PANoUndef = "noundef"
+renderParamAttribute PASwiftSelf = "swiftself"
+renderParamAttribute PASwiftAsync = "swiftasync"
+renderParamAttribute PASwiftError = "swifterror"
+renderParamAttribute PAImmArg = "immarg"
+renderParamAttribute PAAllocAlign = "allocalign"
+renderParamAttribute PAAllocPtr = "allocptr"
+renderParamAttribute PAReadNone = "readnone"
+renderParamAttribute PAReadOnly = "readonly"
+renderParamAttribute PAWriteOnly = "writeonly"
+renderParamAttribute PAWritable = "writable"
+renderParamAttribute PADeadOnUnwind = "dead_on_unwind"
+renderParamAttribute PADeadOnReturn = "dead_on_return"
+renderParamAttribute (PAAlign n) = "align " <> showText n
+renderParamAttribute (PAAlignStack n) = "alignstack(" <> showText n <> ")"
+renderParamAttribute (PADereferenceable n) =
+  "dereferenceable(" <> showText n <> ")"
+renderParamAttribute (PADereferenceableOrNull n) =
+  "dereferenceable_or_null(" <> showText n <> ")"
+renderParamAttribute (PAByVal t) = "byval(" <> renderType t <> ")"
+renderParamAttribute (PAByRef t) = "byref(" <> renderType t <> ")"
+renderParamAttribute (PAPreallocated t) =
+  "preallocated(" <> renderType t <> ")"
+renderParamAttribute (PAInAlloca t) = "inalloca(" <> renderType t <> ")"
+renderParamAttribute (PASRet t) = "sret(" <> renderType t <> ")"
+renderParamAttribute (PAElementType t) = "elementtype(" <> renderType t <> ")"
+renderParamAttribute (PACaptures raw) = "captures(" <> raw <> ")"
+renderParamAttribute (PARange raw) = "range(" <> raw <> ")"
+renderParamAttribute (PANoFPClass raw) = "nofpclass(" <> raw <> ")"
+renderParamAttribute (PAInitializes raw) = "initializes(" <> raw <> ")"
 
 renderGlobal :: Global -> Text
 renderGlobal g =

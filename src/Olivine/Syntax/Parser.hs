@@ -20,8 +20,11 @@ import Text.Megaparsec hiding (ParseError)
 import Text.Megaparsec.Char (char, digitChar, eol, hspace, string)
 
 import Olivine.Syntax.Ast
+import Olivine.Syntax.Attribute
 import Olivine.Syntax.Constant
+import Olivine.Syntax.Function
 import Olivine.Syntax.Global
+import Olivine.Syntax.Linkage
 import Olivine.Syntax.Name
 import Olivine.Syntax.Type
 
@@ -51,6 +54,7 @@ pEntry =
     , try pTarget
     , try pTypeDefinition
     , try pGlobal
+    , try pDeclare
     , pOpaqueLine
     ]
 
@@ -202,6 +206,147 @@ pGlobalAttribute =
             )
     , GAAlign <$> (keyword "align" *> pNatural)
     ]
+
+-- * Functions
+
+-- | @declare <signature>@.
+pDeclare :: Parser Entry
+pDeclare = do
+  hspace
+  keyword "declare"
+  EDeclare <$> pSignature <* endOfLine
+
+-- | Everything from the linkage to the attribute groups: the whole of a
+-- declaration, and the header of a definition once those arrive.
+pSignature :: Parser Signature
+pSignature = do
+  linkage <- optional pLinkage
+  preemption <- optional pPreemption
+  visibility <- optional pVisibility
+  dllStorage <- optional pDLLStorage
+  callingConvention <- optional pCallingConvention
+  returnAttributes <- many pParamAttribute
+  returnType <- pType
+  name <- pGlobalName
+  (parameters, arity) <- symbol "(" *> pParameters' <* symbol ")"
+  unnamedAddr <- optional pUnnamedAddr
+  addrSpace <- optional pAddrSpace
+  attributeGroups <- many (char '#' *> pNatural)
+  pure
+    Signature
+      { signatureLinkage = linkage
+      , signaturePreemption = preemption
+      , signatureVisibility = visibility
+      , signatureDLLStorage = dllStorage
+      , signatureCallingConvention = callingConvention
+      , signatureReturnAttributes = returnAttributes
+      , signatureReturnType = returnType
+      , signatureName = name
+      , signatureParameters = parameters
+      , signatureArity = arity
+      , signatureUnnamedAddr = unnamedAddr
+      , signatureAddrSpace = addrSpace
+      , signatureAttributeGroups = attributeGroups
+      }
+
+-- As with a function type's parameters, @...@ may stand alone or close the
+-- list, so the recursion carries the arity back out rather than trying to
+-- separate the two cases up front.
+pParameters' :: Parser ([Parameter], Arity)
+pParameters' =
+  (([], VariadicArity) <$ symbol "...")
+    <|> ( do
+            p <- pParameter
+            (ps, arity) <- (symbol "," *> pParameters') <|> pure ([], FixedArity)
+            pure (p : ps, arity)
+        )
+    <|> pure ([], FixedArity)
+
+pParameter :: Parser Parameter
+pParameter =
+  Parameter <$> pType <*> many pParamAttribute <*> optional pLocalName
+
+pCallingConvention :: Parser CallingConvention
+pCallingConvention =
+  choice
+    [ CCC <$ keyword "ccc"
+    , FastCC <$ keyword "fastcc"
+    , ColdCC <$ keyword "coldcc"
+    , GHCCC <$ keyword "ghccc"
+    , TailCC <$ keyword "tailcc"
+    , SwiftCC <$ keyword "swiftcc"
+    , -- LLVM writes the numbered conventions closed up, as @cc42@, so this
+      -- one cannot go through 'keyword': the digit is an identifier
+      -- character and the boundary check would reject it.
+      NumberedCC <$> try (string "cc" *> pNatural)
+    ]
+
+pParamAttribute :: Parser ParamAttribute
+pParamAttribute =
+  choice
+    [ PAZeroExt <$ keyword "zeroext"
+    , PASignExt <$ keyword "signext"
+    , PANoExt <$ keyword "noext"
+    , PAInReg <$ keyword "inreg"
+    , PANoAlias <$ keyword "noalias"
+    , PANoCapture <$ keyword "nocapture"
+    , PANoFree <$ keyword "nofree"
+    , PANest <$ keyword "nest"
+    , PAReturned <$ keyword "returned"
+    , PANonNull <$ keyword "nonnull"
+    , PANoUndef <$ keyword "noundef"
+    , PASwiftSelf <$ keyword "swiftself"
+    , PASwiftAsync <$ keyword "swiftasync"
+    , PASwiftError <$ keyword "swifterror"
+    , PAImmArg <$ keyword "immarg"
+    , PAAllocAlign <$ keyword "allocalign"
+    , PAAllocPtr <$ keyword "allocptr"
+    , PAReadNone <$ keyword "readnone"
+    , PAReadOnly <$ keyword "readonly"
+    , PAWriteOnly <$ keyword "writeonly"
+    , PAWritable <$ keyword "writable"
+    , PADeadOnUnwind <$ keyword "dead_on_unwind"
+    , PADeadOnReturn <$ keyword "dead_on_return"
+    , PAAlignStack <$> (keyword "alignstack" *> pParenthesized pNatural)
+    , -- Alignment is written without parentheses when it applies to a
+      -- parameter, but LLVM accepts both spellings.
+      PAAlign <$> (keyword "align" *> (pParenthesized pNatural <|> pNatural))
+    , PADereferenceable <$> (keyword "dereferenceable" *> pParenthesized pNatural)
+    , PADereferenceableOrNull
+        <$> (keyword "dereferenceable_or_null" *> pParenthesized pNatural)
+    , PAByVal <$> (keyword "byval" *> pParenthesized pType)
+    , PAByRef <$> (keyword "byref" *> pParenthesized pType)
+    , PAPreallocated <$> (keyword "preallocated" *> pParenthesized pType)
+    , PAInAlloca <$> (keyword "inalloca" *> pParenthesized pType)
+    , PASRet <$> (keyword "sret" *> pParenthesized pType)
+    , PAElementType <$> (keyword "elementtype" *> pParenthesized pType)
+    , PACaptures <$> (keyword "captures" *> pRawParenthesized)
+    , PARange <$> (keyword "range" *> pRawParenthesized)
+    , PANoFPClass <$> (keyword "nofpclass" *> pRawParenthesized)
+    , PAInitializes <$> (keyword "initializes" *> pRawParenthesized)
+    ]
+
+pParenthesized :: Parser a -> Parser a
+pParenthesized p = symbol "(" *> p <* symbol ")"
+
+-- | The text between a matched pair of parentheses, kept as written.
+pRawParenthesized :: Parser Text
+pRawParenthesized = do
+  _ <- char '('
+  raw <- go 0
+  hspace
+  pure raw
+  where
+    -- Newlines are excluded so that an unbalanced parenthesis fails at the
+    -- end of the line rather than swallowing the rest of the file.
+    go :: Int -> Parser Text
+    go depth = do
+      text <- takeWhileP (Just "attribute argument") (`notElem` ("()\n" :: String))
+      c <- oneOf ("()" :: String)
+      case c of
+        ')' | depth == 0 -> pure text
+        ')' -> (\rest -> text <> ")" <> rest) <$> go (depth - 1)
+        _ -> (\rest -> text <> "(" <> rest) <$> go (depth + 1)
 
 -- | The @= <value>@ tail shared by the top-level definitions, through to the
 -- end of the line.

@@ -18,6 +18,7 @@ module Olivine.Syntax.Ast
 
 import Data.Text (Text)
 
+import Olivine.Syntax.Function (Signature)
 import Olivine.Syntax.Global (Global)
 import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Type (Type)
@@ -51,6 +52,8 @@ data Entry
     ETypeDefinition Name Type
   | -- | @\@name = [modifiers] global|constant <T> [initializer] [, ...]@.
     EGlobal Global
+  | -- | @declare <signature>@.
+    EDeclare Signature
   | -- | Source text not yet modelled, retained exactly as written.
     EOpaque Text
   deriving (Eq, Show)

@@ -8,12 +8,7 @@
 -- reach.
 module Olivine.Syntax.Global
   ( Global (..)
-  , Linkage (..)
-  , Preemption (..)
-  , Visibility (..)
-  , DLLStorage (..)
   , ThreadLocality (..)
-  , UnnamedAddr (..)
   , Mutability (..)
   , GlobalAttribute (..)
   ) where
@@ -22,6 +17,7 @@ import Data.Text (Text)
 import Numeric.Natural (Natural)
 
 import Olivine.Syntax.Constant (Constant)
+import Olivine.Syntax.Linkage
 import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Type (Type)
 
@@ -43,46 +39,11 @@ data Global = Global
   }
   deriving (Eq, Show)
 
-data Linkage
-  = LinkPrivate
-  | LinkInternal
-  | LinkAvailableExternally
-  | LinkLinkOnce
-  | LinkWeak
-  | LinkCommon
-  | LinkAppending
-  | LinkExternWeak
-  | LinkLinkOnceODR
-  | LinkWeakODR
-  | LinkExternal
-  deriving (Eq, Show)
-
-data Preemption
-  = DsoPreemptable
-  | DsoLocal
-  deriving (Eq, Show)
-
-data Visibility
-  = VisibilityDefault
-  | VisibilityHidden
-  | VisibilityProtected
-  deriving (Eq, Show)
-
-data DLLStorage
-  = DLLImport
-  | DLLExport
-  deriving (Eq, Show)
-
 data ThreadLocality
   = GeneralDynamic
   | LocalDynamic
   | InitialExec
   | LocalExec
-  deriving (Eq, Show)
-
-data UnnamedAddr
-  = UnnamedAddr
-  | LocalUnnamedAddr
   deriving (Eq, Show)
 
 -- | Whether the global was written @global@ or @constant@.

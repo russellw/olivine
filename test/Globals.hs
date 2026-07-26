@@ -16,6 +16,7 @@ import Corpus (expectParse)
 import Olivine.Syntax.Ast
 import Olivine.Syntax.Constant
 import Olivine.Syntax.Global
+import Olivine.Syntax.Linkage
 import Olivine.Syntax.Name
 import Olivine.Syntax.Printer (renderModule)
 import Olivine.Syntax.Type

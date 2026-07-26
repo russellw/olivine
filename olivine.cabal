@@ -23,7 +23,10 @@ library
     hs-source-dirs:   src
     exposed-modules:  Olivine.Syntax.Ast
                       Olivine.Syntax.Name
+                      Olivine.Syntax.Linkage
+                      Olivine.Syntax.Attribute
                       Olivine.Syntax.Constant
+                      Olivine.Syntax.Function
                       Olivine.Syntax.Global
                       Olivine.Syntax.Type
                       Olivine.Syntax.Parser
@@ -55,6 +58,7 @@ test-suite olivine-test
                       Structure
                       Types
                       Globals
+                      Declares
     build-depends:    base,
                       filepath,
                       olivine,

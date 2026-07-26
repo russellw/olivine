@@ -2,8 +2,9 @@ module Main (main) where
 
 import Test.Tasty
 
-import RoundTrip (roundTripTests)
+import Declares (declareTests)
 import Globals (globalTests)
+import RoundTrip (roundTripTests)
 import Structure (headerSyntaxTests, structureTests)
 import Types (typeTests)
 
@@ -13,4 +14,4 @@ main = do
   defaultMain $
     testGroup
       "olivine"
-      ([typeTests, globalTests, headerSyntaxTests] <> discovered)
+      ([typeTests, globalTests, declareTests, headerSyntaxTests] <> discovered)
