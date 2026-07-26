@@ -10,6 +10,8 @@ module Olivine.Syntax.Parser
   , renderParseError
   ) where
 
+import Data.Char (isDigit, isHexDigit)
+import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Void (Void)
@@ -18,6 +20,8 @@ import Text.Megaparsec hiding (ParseError)
 import Text.Megaparsec.Char (char, digitChar, eol, hspace, string)
 
 import Olivine.Syntax.Ast
+import Olivine.Syntax.Constant
+import Olivine.Syntax.Global
 import Olivine.Syntax.Name
 import Olivine.Syntax.Type
 
@@ -46,6 +50,7 @@ pEntry =
     , try pSourceFilename
     , try pTarget
     , try pTypeDefinition
+    , try pGlobal
     , pOpaqueLine
     ]
 
@@ -87,6 +92,116 @@ pTypeDefinition = do
   hspace
   name <- pLocalName
   ETypeDefinition name <$> pAssigned (keyword "type" *> pType)
+
+-- | @\@name = [modifiers] global|constant <T> [initializer] [, ...]@.
+pGlobal :: Parser Entry
+pGlobal = do
+  hspace
+  name <- pGlobalName
+  symbol "="
+  linkage <- optional pLinkage
+  preemption <- optional pPreemption
+  visibility <- optional pVisibility
+  dllStorage <- optional pDLLStorage
+  threadLocality <- optional pThreadLocality
+  unnamedAddr <- optional pUnnamedAddr
+  addrSpace <- optional pAddrSpace
+  externallyInitialized <- option False (True <$ keyword "externally_initialized")
+  mutability <- pMutability
+  t <- pType
+  initializer <- optional pConstant
+  attributes <- many (symbol "," *> pGlobalAttribute)
+  endOfLine
+  pure $
+    EGlobal
+      Global
+        { globalName = name
+        , globalLinkage = linkage
+        , globalPreemption = preemption
+        , globalVisibility = visibility
+        , globalDLLStorage = dllStorage
+        , globalThreadLocality = threadLocality
+        , globalUnnamedAddr = unnamedAddr
+        , globalAddrSpace = addrSpace
+        , globalExternallyInitialized = externallyInitialized
+        , globalMutability = mutability
+        , globalType = t
+        , globalInitializer = initializer
+        , globalAttributes = attributes
+        }
+
+-- The longer spellings need no special ordering here: 'keyword' refuses to
+-- match a prefix of a longer identifier, so @linkonce@ cannot swallow the
+-- front of @linkonce_odr@.
+pLinkage :: Parser Linkage
+pLinkage =
+  choice
+    [ LinkPrivate <$ keyword "private"
+    , LinkInternal <$ keyword "internal"
+    , LinkAvailableExternally <$ keyword "available_externally"
+    , LinkLinkOnce <$ keyword "linkonce"
+    , LinkLinkOnceODR <$ keyword "linkonce_odr"
+    , LinkWeak <$ keyword "weak"
+    , LinkWeakODR <$ keyword "weak_odr"
+    , LinkCommon <$ keyword "common"
+    , LinkAppending <$ keyword "appending"
+    , LinkExternWeak <$ keyword "extern_weak"
+    , LinkExternal <$ keyword "external"
+    ]
+
+pPreemption :: Parser Preemption
+pPreemption =
+  (DsoLocal <$ keyword "dso_local")
+    <|> (DsoPreemptable <$ keyword "dso_preemptable")
+
+pVisibility :: Parser Visibility
+pVisibility =
+  choice
+    [ VisibilityDefault <$ keyword "default"
+    , VisibilityHidden <$ keyword "hidden"
+    , VisibilityProtected <$ keyword "protected"
+    ]
+
+pDLLStorage :: Parser DLLStorage
+pDLLStorage =
+  (DLLImport <$ keyword "dllimport") <|> (DLLExport <$ keyword "dllexport")
+
+pThreadLocality :: Parser ThreadLocality
+pThreadLocality = do
+  keyword "thread_local"
+  option GeneralDynamic (symbol "(" *> pMode <* symbol ")")
+  where
+    pMode =
+      choice
+        [ LocalDynamic <$ keyword "localdynamic"
+        , InitialExec <$ keyword "initialexec"
+        , LocalExec <$ keyword "localexec"
+        ]
+
+pUnnamedAddr :: Parser UnnamedAddr
+pUnnamedAddr =
+  (UnnamedAddr <$ keyword "unnamed_addr")
+    <|> (LocalUnnamedAddr <$ keyword "local_unnamed_addr")
+
+pAddrSpace :: Parser Natural
+pAddrSpace = keyword "addrspace" *> symbol "(" *> pNatural <* symbol ")"
+
+pMutability :: Parser Mutability
+pMutability =
+  (Mutable <$ keyword "global") <|> (Immutable <$ keyword "constant")
+
+pGlobalAttribute :: Parser GlobalAttribute
+pGlobalAttribute =
+  choice
+    [ GASection <$> (keyword "section" *> pQuoted <* hspace)
+    , GAPartition <$> (keyword "partition" *> pQuoted <* hspace)
+    , -- Comdats have their own sigil rather than sharing the global one.
+      GAComdat
+        <$> ( keyword "comdat"
+                *> optional (symbol "(" *> (char '$' *> pName) <* symbol ")")
+            )
+    , GAAlign <$> (keyword "align" *> pNatural)
+    ]
 
 -- | The @= <value>@ tail shared by the top-level definitions, through to the
 -- end of the line.
@@ -203,10 +318,137 @@ pStructType packedness = do
   symbol "}"
   pure (TStruct packedness fields)
 
+-- * Constants
+
+pConstant :: Parser Constant
+pConstant =
+  choice
+    [ CZeroInitializer <$ keyword "zeroinitializer"
+    , CNull <$ keyword "null"
+    , CNone <$ keyword "none"
+    , CUndef <$ keyword "undef"
+    , CPoison <$ keyword "poison"
+    , CBoolean True <$ keyword "true"
+    , CBoolean False <$ keyword "false"
+    , pStringConstant
+    , pGetElementPtrConstant
+    , pCastConstant
+    , CGlobal <$> pGlobalName
+    , pArrayConstant
+    , pAngleConstant
+    , pStructConstant Unpacked
+    , pNumericConstant
+    ]
+
+-- | A constant written with its type, as in the elements of an aggregate.
+pTypedConstant :: Parser TypedConstant
+pTypedConstant = TypedConstant <$> pType <*> pConstant
+
+pStringConstant :: Parser Constant
+pStringConstant = CString <$> try (char 'c' *> pQuoted) <* hspace
+
+pArrayConstant :: Parser Constant
+pArrayConstant =
+  CArray <$> (symbol "[" *> pTypedConstant `sepBy` symbol "," <* symbol "]")
+
+-- As in the type grammar, an opening angle bracket starts either a vector or
+-- a packed struct.
+pAngleConstant :: Parser Constant
+pAngleConstant = do
+  symbol "<"
+  c <- pStructConstant Packed <|> (CVector <$> pTypedConstant `sepBy` symbol ",")
+  symbol ">"
+  pure c
+
+pStructConstant :: Packedness -> Parser Constant
+pStructConstant packedness =
+  CStruct packedness
+    <$> (symbol "{" *> pTypedConstant `sepBy` symbol "," <* symbol "}")
+
+pCastConstant :: Parser Constant
+pCastConstant = do
+  op <-
+    choice
+      [ CastTrunc <$ keyword "trunc"
+      , CastPtrToInt <$ keyword "ptrtoint"
+      , CastIntToPtr <$ keyword "inttoptr"
+      , CastBitcast <$ keyword "bitcast"
+      , CastAddrSpaceCast <$ keyword "addrspacecast"
+      ]
+  symbol "("
+  value <- pTypedConstant
+  keyword "to"
+  target <- pType
+  symbol ")"
+  pure (CCast op value target)
+
+-- | @getelementptr inbounds nuw (i8, ptr \@g, i64 8)@.  The first item inside
+-- the parentheses is the source element type, not an operand.
+pGetElementPtrConstant :: Parser Constant
+pGetElementPtrConstant = do
+  keyword "getelementptr"
+  flags <-
+    many $
+      choice
+        [ GepInbounds <$ keyword "inbounds"
+        , GepNusw <$ keyword "nusw"
+        , GepNuw <$ keyword "nuw"
+        ]
+  symbol "("
+  element <- pType
+  symbol ","
+  operands <- pTypedConstant `sepBy1` symbol ","
+  symbol ")"
+  pure (CGetElementPtr flags element operands)
+
+-- | An integer or a floating point literal.
+--
+-- LLVM writes integers only in decimal, so a @0x@ prefix is unambiguously a
+-- float; otherwise a decimal point or an exponent is what distinguishes the
+-- two.  Floats are kept as text — see 'CFloat'.
+pNumericConstant :: Parser Constant
+pNumericConstant = try (CFloat <$> pHexFloat) <|> try pDecimalNumber
+
+pHexFloat :: Parser Text
+pHexFloat = do
+  prefix <- string "0x"
+  -- The letter selects the format: half, bfloat, x86_fp80, fp128, ppc_fp128.
+  kind <- option "" (T.singleton <$> oneOf ("KLMHR" :: String))
+  digits <- takeWhile1P (Just "hexadecimal digit") isHexDigit
+  hspace
+  pure (prefix <> kind <> digits)
+
+pDecimalNumber :: Parser Constant
+pDecimalNumber = do
+  sign <- option "" (T.singleton <$> char '-')
+  whole <- takeWhile1P (Just "digit") isDigit
+  fractional <- optional (T.cons <$> char '.' <*> takeWhileP (Just "digit") isDigit)
+  exponent' <- optional pExponent
+  notFollowedBy (satisfy isIdentifierChar)
+  hspace
+  pure $ case (fractional, exponent') of
+    (Nothing, Nothing) -> CInteger (read (T.unpack (sign <> whole)))
+    _ ->
+      CFloat
+        ( sign
+            <> whole
+            <> fromMaybe T.empty fractional
+            <> fromMaybe T.empty exponent'
+        )
+  where
+    pExponent = do
+      e <- oneOf ("eE" :: String)
+      s <- option "" (T.singleton <$> oneOf ("+-" :: String))
+      digits <- takeWhile1P (Just "digit") isDigit
+      pure (T.cons e (s <> digits))
+
 -- * Identifiers and literals
 
 pLocalName :: Parser Name
 pLocalName = char '%' *> pName
+
+pGlobalName :: Parser Name
+pGlobalName = char '@' *> pName
 
 pName :: Parser Name
 pName =

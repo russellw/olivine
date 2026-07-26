@@ -18,6 +18,7 @@ module Olivine.Syntax.Ast
 
 import Data.Text (Text)
 
+import Olivine.Syntax.Global (Global)
 import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Type (Type)
 
@@ -48,6 +49,8 @@ data Entry
     ETargetTriple Text
   | -- | @%name = type <T>@.  Usually a struct, but LLVM permits any type.
     ETypeDefinition Name Type
+  | -- | @\@name = [modifiers] global|constant <T> [initializer] [, ...]@.
+    EGlobal Global
   | -- | Source text not yet modelled, retained exactly as written.
     EOpaque Text
   deriving (Eq, Show)

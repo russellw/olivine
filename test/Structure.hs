@@ -34,6 +34,7 @@ constructs =
   , ("data layout", isDataLayout, T.isPrefixOf "target datalayout")
   , ("target triple", isTriple, T.isPrefixOf "target triple")
   , ("type definition", isTypeDefinition, looksLikeTypeDefinition)
+  , ("global variable", isGlobal, looksLikeGlobal)
   ]
   where
     isModuleId (EModuleId _) = True
@@ -46,9 +47,12 @@ constructs =
     isTriple _ = False
     isTypeDefinition (ETypeDefinition _ _) = True
     isTypeDefinition _ = False
+    isGlobal (EGlobal _) = True
+    isGlobal _ = False
     -- Narrow enough not to match the instructions that also start with %.
     looksLikeTypeDefinition line =
       "%" `T.isPrefixOf` line && " = type " `T.isInfixOf` line
+    looksLikeGlobal line = "@" `T.isPrefixOf` line && " = " `T.isInfixOf` line
 
 structureTests :: IO TestTree
 structureTests = do

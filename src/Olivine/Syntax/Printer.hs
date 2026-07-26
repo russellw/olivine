@@ -10,14 +10,19 @@
 module Olivine.Syntax.Printer
   ( renderModule
   , renderEntry
+  , renderGlobal
+  , renderConstant
   , renderType
   , renderName
   ) where
 
+import Data.Maybe (catMaybes)
 import Data.Text (Text)
 import Data.Text qualified as T
 
 import Olivine.Syntax.Ast
+import Olivine.Syntax.Constant
+import Olivine.Syntax.Global
 import Olivine.Syntax.Name
 import Olivine.Syntax.Type
 
@@ -31,7 +36,135 @@ renderEntry (ETargetDataLayout spec) = "target datalayout = " <> quoted spec
 renderEntry (ETargetTriple spec) = "target triple = " <> quoted spec
 renderEntry (ETypeDefinition name t) =
   "%" <> renderName name <> " = type " <> renderType t
+renderEntry (EGlobal g) = renderGlobal g
 renderEntry (EOpaque t) = t
+
+renderGlobal :: Global -> Text
+renderGlobal g =
+  T.unwords (["@" <> renderName (globalName g), "="] <> modifiers <> body)
+    <> T.concat [", " <> renderGlobalAttribute a | a <- globalAttributes g]
+  where
+    modifiers =
+      catMaybes
+        [ renderLinkage <$> globalLinkage g
+        , renderPreemption <$> globalPreemption g
+        , renderVisibility <$> globalVisibility g
+        , renderDLLStorage <$> globalDLLStorage g
+        , renderThreadLocality <$> globalThreadLocality g
+        , renderUnnamedAddr <$> globalUnnamedAddr g
+        , (\n -> "addrspace(" <> showText n <> ")") <$> globalAddrSpace g
+        , "externally_initialized" <$ guarded (globalExternallyInitialized g)
+        ]
+    body =
+      [renderMutability (globalMutability g), renderType (globalType g)]
+        <> foldMap (pure . renderConstant) (globalInitializer g)
+    guarded b = if b then Just () else Nothing
+
+renderLinkage :: Linkage -> Text
+renderLinkage LinkPrivate = "private"
+renderLinkage LinkInternal = "internal"
+renderLinkage LinkAvailableExternally = "available_externally"
+renderLinkage LinkLinkOnce = "linkonce"
+renderLinkage LinkWeak = "weak"
+renderLinkage LinkCommon = "common"
+renderLinkage LinkAppending = "appending"
+renderLinkage LinkExternWeak = "extern_weak"
+renderLinkage LinkLinkOnceODR = "linkonce_odr"
+renderLinkage LinkWeakODR = "weak_odr"
+renderLinkage LinkExternal = "external"
+
+renderPreemption :: Preemption -> Text
+renderPreemption DsoPreemptable = "dso_preemptable"
+renderPreemption DsoLocal = "dso_local"
+
+renderVisibility :: Visibility -> Text
+renderVisibility VisibilityDefault = "default"
+renderVisibility VisibilityHidden = "hidden"
+renderVisibility VisibilityProtected = "protected"
+
+renderDLLStorage :: DLLStorage -> Text
+renderDLLStorage DLLImport = "dllimport"
+renderDLLStorage DLLExport = "dllexport"
+
+renderThreadLocality :: ThreadLocality -> Text
+renderThreadLocality GeneralDynamic = "thread_local"
+renderThreadLocality LocalDynamic = "thread_local(localdynamic)"
+renderThreadLocality InitialExec = "thread_local(initialexec)"
+renderThreadLocality LocalExec = "thread_local(localexec)"
+
+renderUnnamedAddr :: UnnamedAddr -> Text
+renderUnnamedAddr UnnamedAddr = "unnamed_addr"
+renderUnnamedAddr LocalUnnamedAddr = "local_unnamed_addr"
+
+renderMutability :: Mutability -> Text
+renderMutability Mutable = "global"
+renderMutability Immutable = "constant"
+
+renderGlobalAttribute :: GlobalAttribute -> Text
+renderGlobalAttribute (GASection name) = "section " <> quoted name
+renderGlobalAttribute (GAPartition name) = "partition " <> quoted name
+renderGlobalAttribute (GAComdat Nothing) = "comdat"
+renderGlobalAttribute (GAComdat (Just name)) =
+  "comdat($" <> renderName name <> ")"
+renderGlobalAttribute (GAAlign n) = "align " <> showText n
+
+renderConstant :: Constant -> Text
+renderConstant (CInteger n) = showText n
+renderConstant (CBoolean True) = "true"
+renderConstant (CBoolean False) = "false"
+renderConstant (CFloat raw) = raw
+renderConstant CNull = "null"
+renderConstant CNone = "none"
+renderConstant CUndef = "undef"
+renderConstant CPoison = "poison"
+renderConstant CZeroInitializer = "zeroinitializer"
+renderConstant (CString s) = "c" <> quoted s
+renderConstant (CArray elements) = "[" <> renderElements elements <> "]"
+renderConstant (CVector elements) = "<" <> renderElements elements <> ">"
+renderConstant (CStruct Unpacked fields) = renderStructFields fields
+renderConstant (CStruct Packed fields) =
+  "<" <> renderStructFields fields <> ">"
+renderConstant (CGlobal name) = "@" <> renderName name
+renderConstant (CCast op value target) =
+  renderCastOp op
+    <> " ("
+    <> renderTypedConstant value
+    <> " to "
+    <> renderType target
+    <> ")"
+renderConstant (CGetElementPtr flags element operands) =
+  T.concat
+    [ "getelementptr"
+    , T.concat [" " <> renderGepFlag f | f <- flags]
+    , " ("
+    , T.intercalate ", " (renderType element : map renderTypedConstant operands)
+    , ")"
+    ]
+
+renderTypedConstant :: TypedConstant -> Text
+renderTypedConstant (TypedConstant t c) =
+  renderType t <> " " <> renderConstant c
+
+-- LLVM writes array and vector constants without spaces inside the brackets,
+-- but struct constants with them, matching how it writes the types.
+renderElements :: [TypedConstant] -> Text
+renderElements = T.intercalate ", " . map renderTypedConstant
+
+renderStructFields :: [TypedConstant] -> Text
+renderStructFields [] = "{}"
+renderStructFields fields = "{ " <> renderElements fields <> " }"
+
+renderCastOp :: CastOp -> Text
+renderCastOp CastTrunc = "trunc"
+renderCastOp CastPtrToInt = "ptrtoint"
+renderCastOp CastIntToPtr = "inttoptr"
+renderCastOp CastBitcast = "bitcast"
+renderCastOp CastAddrSpaceCast = "addrspacecast"
+
+renderGepFlag :: GepFlag -> Text
+renderGepFlag GepInbounds = "inbounds"
+renderGepFlag GepNusw = "nusw"
+renderGepFlag GepNuw = "nuw"
 
 renderType :: Type -> Text
 renderType TVoid = "void"
