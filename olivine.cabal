@@ -27,6 +27,7 @@ library
                       Olivine.Syntax.Attribute
                       Olivine.Syntax.Constant
                       Olivine.Syntax.Function
+                      Olivine.Syntax.Metadata
                       Olivine.Syntax.Global
                       Olivine.Syntax.Type
                       Olivine.Syntax.Parser
@@ -60,6 +61,7 @@ test-suite olivine-test
                       Globals
                       Declares
                       Attributes
+                      Metadata
     build-depends:    base,
                       filepath,
                       olivine,

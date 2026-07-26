@@ -28,6 +28,7 @@ import Olivine.Syntax.Constant
 import Olivine.Syntax.Function
 import Olivine.Syntax.Global
 import Olivine.Syntax.Linkage
+import Olivine.Syntax.Metadata
 import Olivine.Syntax.Name
 import Olivine.Syntax.Type
 
@@ -45,7 +46,30 @@ renderEntry (EGlobal g) = renderGlobal g
 renderEntry (EDeclare s) = "declare " <> renderSignature s
 renderEntry (EAttributeGroup n attributes) =
   "attributes #" <> showText n <> " = " <> renderAttributeGroupBody attributes
+renderEntry (EMetadata number distinctness operands) =
+  "!"
+    <> showText number
+    <> " = "
+    <> (case distinctness of Uniqued -> ""; Distinct -> "distinct ")
+    <> renderMetadataTuple operands
+renderEntry (ENamedMetadata name operands) =
+  "!"
+    <> renderName name
+    <> " = !{"
+    <> T.intercalate ", " ["!" <> showText n | n <- operands]
+    <> "}"
 renderEntry (EOpaque t) = t
+
+renderMetadataTuple :: [MetadataOperand] -> Text
+renderMetadataTuple operands =
+  "!{" <> T.intercalate ", " (map renderMetadataOperand operands) <> "}"
+
+renderMetadataOperand :: MetadataOperand -> Text
+renderMetadataOperand (MDRef n) = "!" <> showText n
+renderMetadataOperand (MDString s) = "!" <> quoted s
+renderMetadataOperand (MDValue v) = renderTypedConstant v
+renderMetadataOperand MDNull = "null"
+renderMetadataOperand (MDTuple operands) = renderMetadataTuple operands
 
 -- LLVM spaces the braces off from the attributes.
 renderAttributeGroupBody :: NE.NonEmpty FunctionAttribute -> Text

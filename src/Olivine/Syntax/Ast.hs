@@ -23,6 +23,7 @@ import Numeric.Natural (Natural)
 import Olivine.Syntax.Attribute (FunctionAttribute)
 import Olivine.Syntax.Function (Signature)
 import Olivine.Syntax.Global (Global)
+import Olivine.Syntax.Metadata (Distinctness, MetadataOperand)
 import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Type (Type)
 
@@ -60,6 +61,11 @@ data Entry
   | -- | @attributes #N = { ... }@.  LLVM rejects a group with no attributes
     -- in it, so the list cannot be empty here either.
     EAttributeGroup Natural (NonEmpty FunctionAttribute)
+  | -- | @!0 = !{...}@, optionally @distinct@.
+    EMetadata Natural Distinctness [MetadataOperand]
+  | -- | @!llvm.module.flags = !{!0, !1}@.  A named node's operands are
+    -- always references to other nodes, never values.
+    ENamedMetadata Name [Natural]
   | -- | Source text not yet modelled, retained exactly as written.
     EOpaque Text
   deriving (Eq, Show)

@@ -37,6 +37,7 @@ constructs =
   , ("global variable", isGlobal, looksLikeGlobal)
   , ("declaration", isDeclare, T.isPrefixOf "declare")
   , ("attribute group", isAttributeGroup, T.isPrefixOf "attributes #")
+  , ("metadata", isMetadata, T.isPrefixOf "!")
   ]
   where
     isModuleId (EModuleId _) = True
@@ -55,6 +56,9 @@ constructs =
     isDeclare _ = False
     isAttributeGroup (EAttributeGroup _ _) = True
     isAttributeGroup _ = False
+    isMetadata (EMetadata _ _ _) = True
+    isMetadata (ENamedMetadata _ _) = True
+    isMetadata _ = False
     -- Narrow enough not to match the instructions that also start with %.
     looksLikeTypeDefinition line =
       "%" `T.isPrefixOf` line && " = type " `T.isInfixOf` line

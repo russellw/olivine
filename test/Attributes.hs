@@ -99,8 +99,8 @@ attributeTests =
         [testCase (T.unpack line) (roundTrips line) | line <- emitted <> accepted]
     , testGroup
         "renormalized"
-        [ testCase (T.unpack before) (printsAs before after)
-        | (before, after) <- renormalized
+        [ testCase (T.unpack written) (printsAs written canonical)
+        | (written, canonical) <- renormalized
         ]
     , testGroup
         "rejected"
@@ -116,10 +116,10 @@ roundTrips line = do
     entries -> assertFailure ("expected one attribute group, got " <> show entries)
 
 printsAs :: Text -> Text -> Assertion
-printsAs before after = do
-  parsed <- expectParse "<inline>" (before <> "\n")
+printsAs written canonical = do
+  parsed <- expectParse "<inline>" (written <> "\n")
   case moduleEntries parsed of
-    [EAttributeGroup _ _] -> renderModule parsed @?= after <> "\n"
+    [EAttributeGroup _ _] -> renderModule parsed @?= canonical <> "\n"
     entries -> assertFailure ("expected one attribute group, got " <> show entries)
 
 staysOpaque :: Text -> Assertion

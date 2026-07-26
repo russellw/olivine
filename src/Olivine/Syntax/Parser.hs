@@ -26,6 +26,7 @@ import Olivine.Syntax.Constant
 import Olivine.Syntax.Function
 import Olivine.Syntax.Global
 import Olivine.Syntax.Linkage
+import Olivine.Syntax.Metadata
 import Olivine.Syntax.Name
 import Olivine.Syntax.Type
 
@@ -57,6 +58,8 @@ pEntry =
     , try pGlobal
     , try pDeclare
     , try pAttributeGroup
+    , try pMetadata
+    , try pNamedMetadata
     , pOpaqueLine
     ]
 
@@ -452,6 +455,58 @@ pRawParenthesized = do
         ')' | depth == 0 -> pure text
         ')' -> (\rest -> text <> ")" <> rest) <$> go (depth - 1)
         _ -> (\rest -> text <> "(" <> rest) <$> go (depth + 1)
+
+-- * Metadata
+
+-- | @!0 = !{...}@, optionally @distinct@.
+pMetadata :: Parser Entry
+pMetadata = do
+  hspace
+  _ <- char '!'
+  number <- pNatural
+  symbol "="
+  distinctness <- option Uniqued (Distinct <$ keyword "distinct")
+  operands <- pMetadataTuple
+  endOfLine
+  pure (EMetadata number distinctness operands)
+
+-- | @!llvm.module.flags = !{!0, !1}@.
+--
+-- The name may not begin with a digit, which is what keeps this rule off the
+-- numbered nodes: digits are identifier characters, so without the check a
+-- name would happily match @0@.
+pNamedMetadata :: Parser Entry
+pNamedMetadata = do
+  hspace
+  _ <- char '!'
+  notFollowedBy digitChar
+  name <- pName
+  symbol "="
+  _ <- char '!'
+  symbol "{"
+  operands <- pMetadataRef `sepBy` symbol ","
+  symbol "}"
+  endOfLine
+  pure (ENamedMetadata name operands)
+
+pMetadataTuple :: Parser [MetadataOperand]
+pMetadataTuple =
+  char '!' *> symbol "{" *> (pMetadataOperand `sepBy` symbol ",") <* symbol "}"
+
+pMetadataRef :: Parser Natural
+pMetadataRef = char '!' *> pNatural
+
+-- Each alternative beginning with @!@ has to be tried, since they are told
+-- apart only by what follows it.
+pMetadataOperand :: Parser MetadataOperand
+pMetadataOperand =
+  choice
+    [ MDNull <$ keyword "null"
+    , try (MDString <$> (char '!' *> pQuoted <* hspace))
+    , try (MDRef <$> pMetadataRef)
+    , MDTuple <$> pMetadataTuple
+    , MDValue <$> pTypedConstant
+    ]
 
 -- | The @= <value>@ tail shared by the top-level definitions, through to the
 -- end of the line.
