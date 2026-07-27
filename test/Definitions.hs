@@ -1,8 +1,10 @@
 -- | Function definitions: the header, and the basic blocks inside it.
 --
--- Instructions are still opaque lines, so what is under test here is the
--- structure around them — where a block begins, which block owns which lines,
--- and the blank line and padded comment LLVM writes around a label.
+-- What is under test here is the structure around the instructions — where a
+-- block begins, which block owns which lines, and the blank line and padded
+-- comment LLVM writes around a label.  The instructions themselves are tested
+-- in "Terminators" and, while they remain unmodelled, only for being carried
+-- through unchanged.
 module Definitions (definitionTests) where
 
 import Data.Text (Text)
@@ -62,8 +64,7 @@ emitted =
       , "  ret i32 1"
       , "}"
       ]
-  , -- A switch, which spans several lines and so is several opaque
-    -- instructions until terminators are modelled.
+  , -- A switch, the one terminator spanning several lines.
     T.unlines
       [ "define void @f(i32 %0) {"
       , "  switch i32 %0, label %2 ["
@@ -181,25 +182,22 @@ fieldTests =
         map (blockLabel >=> blockLabelComment) (definitionBlocks d)
           @?= [Nothing, Just "; preds = %1"]
     , -- Indentation travels with the text, since an opaque instruction has no
-      -- structure from which it could be regenerated.
-      testCase "instructions keep their text and indentation" $ do
+      -- structure from which it could be regenerated.  A modelled terminator
+      -- in the same block has its indentation generated instead.
+      testCase "opaque instructions keep their text and indentation" $ do
         d <-
           definition $
             T.unlines
-              [ "define void @f(i32 %0) {"
-              , "  switch i32 %0, label %2 ["
-              , "    i32 0, label %2"
-              , "  ]"
-              , ""
-              , "2:                                                ; preds = %1, %1"
+              [ "define void @f() {"
+              , "  %1 = alloca i32, align 4"
+              , "  store i32 0, ptr %1, align 4"
               , "  ret void"
               , "}"
               ]
         concatMap blockBody (definitionBlocks d)
-          @?= [ IOpaque "  switch i32 %0, label %2 ["
-              , IOpaque "    i32 0, label %2"
-              , IOpaque "  ]"
-              , IOpaque "  ret void"
+          @?= [ IOpaque "  %1 = alloca i32, align 4"
+              , IOpaque "  store i32 0, ptr %1, align 4"
+              , ITerminator (TRet Nothing) []
               ]
     ]
   where
@@ -223,10 +221,17 @@ corpusStructure name = do
     "labelled blocks"
     (length (filter isLabelLine sourceLines))
     (length (filter (/= Nothing) (map blockLabel blocks)))
+  -- A switch absorbs several lines, so body lines and instructions no longer
+  -- correspond one to one.  What must hold is that every line beginning with
+  -- a terminator keyword became one, and that none was left behind.
   assertEqual
-    "instruction lines"
-    (length (bodyLines sourceLines))
-    (length (concatMap blockBody blocks))
+    "terminators parsed"
+    (length (filter startsWithTerminator (bodyLines sourceLines)))
+    (length [t | ITerminator t _ <- concatMap blockBody blocks])
+  assertEqual
+    "terminators left opaque"
+    []
+    [raw | IOpaque raw <- concatMap blockBody blocks, startsWithTerminator raw]
 
 -- A label line is one starting in the first column and running to a colon,
 -- which no instruction does.
@@ -234,6 +239,10 @@ isLabelLine :: Text -> Bool
 isLabelLine line = case T.uncons line of
   Just (c, _) -> isIdentifierChar c && T.isInfixOf ":" (T.takeWhile (/= ' ') line)
   Nothing -> False
+
+startsWithTerminator :: Text -> Bool
+startsWithTerminator line =
+  any (`T.isPrefixOf` T.stripStart line) ["ret ", "ret\n", "br ", "switch ", "indirectbr ", "unreachable"]
 
 -- The lines between a header and its closing brace that are neither blank nor
 -- a label.

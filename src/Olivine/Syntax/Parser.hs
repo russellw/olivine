@@ -10,6 +10,7 @@ module Olivine.Syntax.Parser
   , renderParseError
   ) where
 
+import Control.Monad (void)
 import Data.Char (isDigit, isHexDigit)
 import Data.List.NonEmpty (NonEmpty ((:|)))
 import Data.Maybe (fromMaybe)
@@ -30,6 +31,7 @@ import Olivine.Syntax.Linkage
 import Olivine.Syntax.Metadata
 import Olivine.Syntax.Name
 import Olivine.Syntax.Type
+import Olivine.Syntax.Value
 
 type Parser = Parsec Void Text
 
@@ -510,15 +512,108 @@ pComment = T.cons <$> char ';' <*> takeWhileP (Just "comment") (/= '\n')
 pBlankLine :: Parser ()
 pBlankLine = hspace *> (() <$ eol)
 
+pInstruction :: Parser Instruction
+pInstruction = try pTerminatorInstruction <|> pOpaqueInstruction
+
+pTerminatorInstruction :: Parser Instruction
+pTerminatorInstruction = try $ do
+  hspace
+  terminator <- pTerminator
+  attachments <- many (symbol "," *> pMetadataAttachment)
+  endOfLine
+  pure (ITerminator terminator attachments)
+
 -- Anything in a body that is not the closing brace, a blank line or a label.
 -- The text is kept with its indentation: only a modelled instruction could
--- have its indentation regenerated, and these are not modelled yet.
-pInstruction :: Parser Instruction
-pInstruction = try $ do
+-- have its indentation regenerated.
+pOpaqueInstruction :: Parser Instruction
+pOpaqueInstruction = try $ do
   notFollowedBy (hspace *> char '}')
   notFollowedBy pBlankLine
   notFollowedBy pBlockLabel
   IOpaque <$> takeWhile1P (Just "instruction") (/= '\n') <* optional eol
+
+pTerminator :: Parser Terminator
+pTerminator =
+  choice
+    [ pRet
+    , pBr
+    , pSwitch
+    , pIndirectBr
+    , TUnreachable <$ keyword "unreachable"
+    ]
+
+pRet :: Parser Terminator
+pRet = do
+  keyword "ret"
+  TRet <$> ((Nothing <$ keyword "void") <|> (Just <$> pTypedValue))
+
+-- The unconditional form starts with the label keyword and the conditional
+-- with a type, so one look is enough to tell them apart.
+pBr :: Parser Terminator
+pBr = do
+  keyword "br"
+  (TBr <$> pLabelOperand) <|> pConditional
+  where
+    pConditional = do
+      condition <- pTypedValue
+      symbol ","
+      ifTrue <- pLabelOperand
+      symbol ","
+      TCondBr condition ifTrue <$> pLabelOperand
+
+-- The one terminator written across several lines.  Its cases sit between a
+-- bracket pair that spans line breaks, so this is the only place the parser
+-- steps over a newline within a construct.
+pSwitch :: Parser Terminator
+pSwitch = do
+  keyword "switch"
+  scrutinee <- pTypedValue
+  symbol ","
+  defaultDestination <- pLabelOperand
+  symbol "["
+  cases <- many (try (verticalSpace *> pSwitchCase))
+  verticalSpace
+  _ <- char ']'
+  hspace
+  pure (TSwitch scrutinee defaultDestination cases)
+  where
+    pSwitchCase = do
+      value <- pTypedConstant
+      symbol ","
+      (,) value <$> pLabelOperand
+
+pIndirectBr :: Parser Terminator
+pIndirectBr = do
+  keyword "indirectbr"
+  address <- pTypedValue
+  symbol ","
+  symbol "["
+  destinations <- pLabelOperand `sepBy` symbol ","
+  symbol "]"
+  pure (TIndirectBr address destinations)
+
+pLabelOperand :: Parser Name
+pLabelOperand = keyword "label" *> pLocalName
+
+-- | @!llvm.loop !6@, following an instruction.
+pMetadataAttachment :: Parser MetadataAttachment
+pMetadataAttachment = do
+  _ <- char '!'
+  name <- pName
+  MetadataAttachment name <$> pMetadataRef
+
+pTypedValue :: Parser TypedValue
+pTypedValue = TypedValue <$> pType <*> pValue
+
+pValue :: Parser Value
+pValue = (VLocal <$> pLocalName) <|> (VConstant <$> pConstant)
+
+-- Horizontal space and line breaks together, for the inside of a switch.
+verticalSpace :: Parser ()
+verticalSpace = skipMany (void (satisfy horizontal) <|> void eol)
+  where
+    horizontal c = c == ' ' || c == '\t'
 
 -- * Metadata
 

@@ -32,6 +32,7 @@ import Olivine.Syntax.Linkage
 import Olivine.Syntax.Metadata
 import Olivine.Syntax.Name
 import Olivine.Syntax.Type
+import Olivine.Syntax.Value
 
 renderModule :: Module -> Text
 renderModule = T.unlines . map renderEntry . moduleEntries
@@ -74,7 +75,65 @@ renderBasicBlock index block =
   -- Every label but the first in a function is preceded by a blank line.
   ["" | index > 0]
     <> foldMap (pure . renderBlockLabel) (blockLabel block)
-    <> [raw | IOpaque raw <- blockBody block]
+    <> concatMap renderInstruction (blockBody block)
+
+-- | An instruction may occupy more than one line, so this yields lines
+-- rather than text.  A modelled instruction gets its indentation generated;
+-- an opaque one carries its own, having nothing to generate it from.
+renderInstruction :: Instruction -> [Text]
+renderInstruction (IOpaque raw) = [raw]
+renderInstruction (ITerminator terminator attachments) =
+  appendToLast suffix (renderTerminator terminator)
+  where
+    suffix =
+      T.concat
+        [ ", !" <> renderName name <> " !" <> showText node
+        | MetadataAttachment name node <- attachments
+        ]
+
+-- Metadata follows the whole instruction, which for a switch means after its
+-- closing bracket rather than on the line the switch begins on.
+appendToLast :: Text -> [Text] -> [Text]
+appendToLast suffix ls = case reverse ls of
+  [] -> []
+  final : earlier -> reverse ((final <> suffix) : earlier)
+
+renderTerminator :: Terminator -> [Text]
+renderTerminator (TRet Nothing) = ["  ret void"]
+renderTerminator (TRet (Just v)) = ["  ret " <> renderTypedValue v]
+renderTerminator (TBr destination) = ["  br " <> renderLabel destination]
+renderTerminator (TCondBr condition ifTrue ifFalse) =
+  [ "  br "
+      <> renderTypedValue condition
+      <> ", "
+      <> renderLabel ifTrue
+      <> ", "
+      <> renderLabel ifFalse
+  ]
+renderTerminator (TSwitch scrutinee defaultDestination cases) =
+  ["  switch " <> renderTypedValue scrutinee <> ", " <> renderLabel defaultDestination <> " ["]
+    <> [ "    " <> renderTypedConstant value <> ", " <> renderLabel destination
+       | (value, destination) <- cases
+       ]
+    <> ["  ]"]
+renderTerminator (TIndirectBr address destinations) =
+  [ "  indirectbr "
+      <> renderTypedValue address
+      <> ", ["
+      <> T.intercalate ", " (map renderLabel destinations)
+      <> "]"
+  ]
+renderTerminator TUnreachable = ["  unreachable"]
+
+renderLabel :: Name -> Text
+renderLabel name = "label %" <> renderName name
+
+renderTypedValue :: TypedValue -> Text
+renderTypedValue (TypedValue t v) = renderType t <> " " <> renderValue v
+
+renderValue :: Value -> Text
+renderValue (VLocal name) = "%" <> renderName name
+renderValue (VConstant c) = renderConstant c
 
 -- LLVM pads the label out to 49 columns and then writes a single space, so a
 -- comment lands in column 51 unless the label is too wide to allow it.
