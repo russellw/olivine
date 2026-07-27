@@ -38,6 +38,7 @@ constructs =
   , ("declaration", isDeclare, T.isPrefixOf "declare")
   , ("attribute group", isAttributeGroup, T.isPrefixOf "attributes #")
   , ("metadata", isMetadata, T.isPrefixOf "!")
+  , ("definition", isDefine, T.isPrefixOf "define")
   ]
   where
     isModuleId (EModuleId _) = True
@@ -56,6 +57,8 @@ constructs =
     isDeclare _ = False
     isAttributeGroup (EAttributeGroup _ _) = True
     isAttributeGroup _ = False
+    isDefine (EDefine _) = True
+    isDefine _ = False
     isMetadata (EMetadata _ _ _) = True
     isMetadata (ENamedMetadata _ _) = True
     isMetadata _ = False

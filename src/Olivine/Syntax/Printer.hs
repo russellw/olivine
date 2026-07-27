@@ -27,6 +27,7 @@ import Olivine.Syntax.Attribute
 import Olivine.Syntax.Constant
 import Olivine.Syntax.Function
 import Olivine.Syntax.Global
+import Olivine.Syntax.Instruction
 import Olivine.Syntax.Linkage
 import Olivine.Syntax.Metadata
 import Olivine.Syntax.Name
@@ -44,6 +45,7 @@ renderEntry (ETypeDefinition name t) =
   "%" <> renderName name <> " = type " <> renderType t
 renderEntry (EGlobal g) = renderGlobal g
 renderEntry (EDeclare s) = "declare " <> renderSignature s
+renderEntry (EDefine d) = renderDefinition d
 renderEntry (EAttributeGroup n attributes) =
   "attributes #" <> showText n <> " = " <> renderAttributeGroupBody attributes
 renderEntry (EMetadata number distinctness operands) =
@@ -59,6 +61,27 @@ renderEntry (ENamedMetadata name operands) =
     <> T.intercalate ", " ["!" <> showText n | n <- operands]
     <> "}"
 renderEntry (EOpaque t) = t
+
+renderDefinition :: Definition -> Text
+renderDefinition d =
+  T.intercalate "\n" $
+    ("define " <> renderSignature (definitionSignature d) <> " {")
+      : concat (zipWith renderBasicBlock [0 :: Int ..] (definitionBlocks d))
+      <> ["}"]
+
+renderBasicBlock :: Int -> BasicBlock -> [Text]
+renderBasicBlock index block =
+  -- Every label but the first in a function is preceded by a blank line.
+  ["" | index > 0]
+    <> foldMap (pure . renderBlockLabel) (blockLabel block)
+    <> [raw | IOpaque raw <- blockBody block]
+
+-- LLVM pads the label out to 49 columns and then writes a single space, so a
+-- comment lands in column 51 unless the label is too wide to allow it.
+renderBlockLabel :: BlockLabel -> Text
+renderBlockLabel (BlockLabel name Nothing) = renderName name <> ":"
+renderBlockLabel (BlockLabel name (Just comment)) =
+  T.justifyLeft 49 ' ' (renderName name <> ":") <> " " <> comment
 
 renderMetadataTuple :: [MetadataOperand] -> Text
 renderMetadataTuple operands =

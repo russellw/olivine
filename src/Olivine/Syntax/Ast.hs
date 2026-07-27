@@ -21,7 +21,7 @@ import Data.Text (Text)
 import Numeric.Natural (Natural)
 
 import Olivine.Syntax.Attribute (FunctionAttribute)
-import Olivine.Syntax.Function (Signature)
+import Olivine.Syntax.Function (Definition, Signature)
 import Olivine.Syntax.Global (Global)
 import Olivine.Syntax.Metadata (Distinctness, MetadataOperand)
 import Olivine.Syntax.Name (Name)
@@ -58,6 +58,9 @@ data Entry
     EGlobal Global
   | -- | @declare <signature>@.
     EDeclare Signature
+  | -- | @define <signature> { ... }@, the one construct spanning more than
+    -- one line.
+    EDefine Definition
   | -- | @attributes #N = { ... }@.  LLVM rejects a group with no attributes
     -- in it, so the list cannot be empty here either.
     EAttributeGroup Natural (NonEmpty FunctionAttribute)

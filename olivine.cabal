@@ -26,6 +26,7 @@ library
                       Olivine.Syntax.Linkage
                       Olivine.Syntax.Attribute
                       Olivine.Syntax.Constant
+                      Olivine.Syntax.Instruction
                       Olivine.Syntax.Function
                       Olivine.Syntax.Metadata
                       Olivine.Syntax.Global
@@ -62,6 +63,7 @@ test-suite olivine-test
                       Declares
                       Attributes
                       Metadata
+                      Definitions
     build-depends:    base,
                       filepath,
                       olivine,

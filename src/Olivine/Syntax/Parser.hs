@@ -25,6 +25,7 @@ import Olivine.Syntax.Attribute
 import Olivine.Syntax.Constant
 import Olivine.Syntax.Function
 import Olivine.Syntax.Global
+import Olivine.Syntax.Instruction
 import Olivine.Syntax.Linkage
 import Olivine.Syntax.Metadata
 import Olivine.Syntax.Name
@@ -57,6 +58,7 @@ pEntry =
     , try pTypeDefinition
     , try pGlobal
     , try pDeclare
+    , try pDefine
     , try pAttributeGroup
     , try pMetadata
     , try pNamedMetadata
@@ -455,6 +457,68 @@ pRawParenthesized = do
         ')' | depth == 0 -> pure text
         ')' -> (\rest -> text <> ")" <> rest) <$> go (depth - 1)
         _ -> (\rest -> text <> "(" <> rest) <$> go (depth + 1)
+
+-- | @define <signature> { ... }@.
+--
+-- The only construct that spans more than one line.  If any of it fails to
+-- parse the enclosing 'try' backtracks and the header becomes an opaque line
+-- like any other, leaving the body lines to be picked up individually — so a
+-- definition Olivine cannot read still survives the round trip intact.
+pDefine :: Parser Entry
+pDefine = do
+  hspace
+  keyword "define"
+  signature <- pSignature
+  symbol "{"
+  endOfLine
+  blocks <- pBasicBlocks
+  hspace
+  _ <- char '}'
+  endOfLine
+  pure (EDefine (Definition signature blocks))
+
+-- An entry block written without a label has nothing to introduce it, so it
+-- is whatever instructions precede the first label.  A function whose entry
+-- block is named has none, and contributes no empty block here.
+pBasicBlocks :: Parser [BasicBlock]
+pBasicBlocks = do
+  entry <- many pInstruction
+  labelled <- many (try pLabelledBlock)
+  pure ([BasicBlock Nothing entry | not (null entry)] <> labelled)
+
+pLabelledBlock :: Parser BasicBlock
+pLabelledBlock = do
+  -- LLVM writes a blank line before every label but the first in a function.
+  _ <- optional (try pBlankLine)
+  header <- pBlockLabel
+  BasicBlock (Just header) <$> many pInstruction
+
+pBlockLabel :: Parser BlockLabel
+pBlockLabel = do
+  hspace
+  name <- pName
+  _ <- char ':'
+  hspace
+  comment <- optional pComment
+  endOfLine
+  pure (BlockLabel name comment)
+
+-- | A comment, from its semicolon to the end of the line.
+pComment :: Parser Text
+pComment = T.cons <$> char ';' <*> takeWhileP (Just "comment") (/= '\n')
+
+pBlankLine :: Parser ()
+pBlankLine = hspace *> (() <$ eol)
+
+-- Anything in a body that is not the closing brace, a blank line or a label.
+-- The text is kept with its indentation: only a modelled instruction could
+-- have its indentation regenerated, and these are not modelled yet.
+pInstruction :: Parser Instruction
+pInstruction = try $ do
+  notFollowedBy (hspace *> char '}')
+  notFollowedBy pBlankLine
+  notFollowedBy pBlockLabel
+  IOpaque <$> takeWhile1P (Just "instruction") (/= '\n') <* optional eol
 
 -- * Metadata
 
