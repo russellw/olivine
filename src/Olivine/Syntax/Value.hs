@@ -18,6 +18,7 @@ module Olivine.Syntax.Value
   , CastOp (..)
   , GepFlag (..)
   , isConstant
+  , globalsIn
   ) where
 
 import Data.Text (Text)
@@ -113,3 +114,28 @@ isConstant (VCast _ operand _) = isConstant (typedValue operand)
 isConstant (VGetElementPtr _ _ operands) =
   all (isConstant . typedValue) operands
 isConstant _ = True
+
+-- | Every global a value names, however deeply.
+--
+-- This recurses where reading locals off an operand does not need to.  A
+-- local is a name a function gave something and can only appear as an operand
+-- in its own right; a global is a symbol, and a symbol can sit inside an
+-- initializer's aggregate or inside a constant expression computing an
+-- address from it.  A pass asking which functions the program can still reach
+-- has to look in both places, since @[1 x ptr] [ptr \@f]@ is how a call
+-- through a table names what it calls.
+--
+-- Names repeat as often as they are written: whether that matters is the
+-- caller's to decide, and a caller counting references would be wrong to be
+-- handed a set.
+globalsIn :: Value -> [Name]
+globalsIn value = case value of
+  VGlobal name -> [name]
+  VArray elements -> concatMap inside elements
+  VVector elements -> concatMap inside elements
+  VStruct _ fields -> concatMap inside fields
+  VCast _ operand _ -> inside operand
+  VGetElementPtr _ _ operands -> concatMap inside operands
+  _ -> []
+  where
+    inside = globalsIn . typedValue

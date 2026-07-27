@@ -13,6 +13,7 @@ module Olivine.Syntax.Operands
   , mapOperands
   , operandsOf
   , localsUsedBy
+  , globalsUsedBy
   ) where
 
 import Data.Functor.Const (Const (..))
@@ -105,3 +106,10 @@ operandsOf = getConst . traverseOperands (\x -> Const [x])
 -- | The locals an operation reads.
 localsUsedBy :: Operation -> [Name]
 localsUsedBy operation = [n | VLocal n <- map typedValue (operandsOf operation)]
+
+-- | The globals an operation names, including from inside its constants.
+--
+-- The callee of a call is an operand like any other, so a call names what it
+-- calls here without this having to know what a call is.
+globalsUsedBy :: Operation -> [Name]
+globalsUsedBy = concatMap (globalsIn . typedValue) . operandsOf
