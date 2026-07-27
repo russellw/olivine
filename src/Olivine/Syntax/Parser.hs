@@ -543,6 +543,7 @@ pOperation =
     , OUnreachable <$ keyword "unreachable"
     , pBinary
     , pUnary
+    , pConvert
     , pICmp
     , pFCmp
     , pAlloca
@@ -585,6 +586,42 @@ pUnary = do
         , unaryType = t
         , unaryOperand = operand
         }
+
+-- The constant expression of the same shape accepts only the opcodes LLVM
+-- still allows there, which is why 'pCastValue' has its own shorter list.
+pConvert :: Parser Operation
+pConvert = do
+  op <- pCastOp
+  flags <- many pInstructionFlag
+  operand <- pTypedValue
+  keyword "to"
+  target <- pType
+  pure $
+    OConvert
+      Convert
+        { convertOp = op
+        , convertFlags = flags
+        , convertOperand = operand
+        , convertTarget = target
+        }
+
+pCastOp :: Parser CastOp
+pCastOp =
+  choice
+    [ CastTrunc <$ keyword "trunc"
+    , CastZExt <$ keyword "zext"
+    , CastSExt <$ keyword "sext"
+    , CastFPTrunc <$ keyword "fptrunc"
+    , CastFPExt <$ keyword "fpext"
+    , CastFPToUI <$ keyword "fptoui"
+    , CastFPToSI <$ keyword "fptosi"
+    , CastUIToFP <$ keyword "uitofp"
+    , CastSIToFP <$ keyword "sitofp"
+    , CastPtrToInt <$ keyword "ptrtoint"
+    , CastIntToPtr <$ keyword "inttoptr"
+    , CastBitcast <$ keyword "bitcast"
+    , CastAddrSpaceCast <$ keyword "addrspacecast"
+    ]
 
 pICmp :: Parser Operation
 pICmp = keyword "icmp" *> (OICmp <$> pCompare pIntPredicate)
@@ -677,6 +714,7 @@ pInstructionFlag =
     , FlagExact <$ keyword "exact"
     , FlagDisjoint <$ keyword "disjoint"
     , FlagSameSign <$ keyword "samesign"
+    , FlagNNeg <$ keyword "nneg"
     , FlagNNaN <$ keyword "nnan"
     , FlagNInf <$ keyword "ninf"
     , FlagNSZ <$ keyword "nsz"

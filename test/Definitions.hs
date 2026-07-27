@@ -266,6 +266,7 @@ isArithmetic (OBinary _) = True
 isArithmetic (OUnary _) = True
 isArithmetic (OICmp _) = True
 isArithmetic (OFCmp _) = True
+isArithmetic (OConvert _) = True
 isArithmetic _ = False
 
 isArithmeticLine :: Text -> Bool
@@ -276,6 +277,9 @@ isArithmeticLine = operationKeyword `startsWithAny` keywords
       , "shl ", "lshr ", "ashr ", "and ", "or ", "xor "
       , "fadd ", "fsub ", "fmul ", "fdiv ", "frem ", "fneg "
       , "icmp ", "fcmp "
+      , "trunc ", "zext ", "sext ", "fptrunc ", "fpext ", "fptoui "
+      , "fptosi ", "uitofp ", "sitofp ", "ptrtoint ", "inttoptr "
+      , "bitcast ", "addrspacecast "
       ]
 
 isMemory :: Operation -> Bool

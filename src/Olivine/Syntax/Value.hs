@@ -70,8 +70,23 @@ data TypedValue = TypedValue
   }
   deriving (Eq, Show)
 
+-- | The conversion opcodes, shared by the @\<op\> \<ty\> \<v\> to \<ty\>@
+-- instruction and by the constant expression of the same shape.
+--
+-- Not every one of them survives as a constant expression — LLVM removed
+-- @zext@ and others from that position — but that is a fact about where an
+-- operation may appear, which the parser follows, rather than a reason for
+-- two enumerations that would have to be converted between.
 data CastOp
   = CastTrunc
+  | CastZExt
+  | CastSExt
+  | CastFPTrunc
+  | CastFPExt
+  | CastFPToUI
+  | CastFPToSI
+  | CastUIToFP
+  | CastSIToFP
   | CastPtrToInt
   | CastIntToPtr
   | CastBitcast

@@ -18,6 +18,7 @@ module Olivine.Syntax.Instruction
   , BinaryOp (..)
   , Unary (..)
   , UnaryOp (..)
+  , Convert (..)
   , Compare (..)
   , IntPredicate (..)
   , FloatPredicate (..)
@@ -34,7 +35,7 @@ import Numeric.Natural (Natural)
 
 import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Type (Type)
-import Olivine.Syntax.Value (GepFlag, TypedValue, Value)
+import Olivine.Syntax.Value (CastOp, GepFlag, TypedValue, Value)
 
 data Instruction
   = -- | An operation, the name it assigns to its result if it has one, and
@@ -76,6 +77,8 @@ data Operation
     OICmp (Compare IntPredicate)
   | -- | @fcmp olt double %a, %b@.
     OFCmp (Compare FloatPredicate)
+  | -- | @zext nneg i32 %a to i64@ and the other conversions.
+    OConvert Convert
   | OAlloca Alloca
   | OLoad Load
   | OStore Store
@@ -98,6 +101,7 @@ isTerminator (OBinary _) = False
 isTerminator (OUnary _) = False
 isTerminator (OICmp _) = False
 isTerminator (OFCmp _) = False
+isTerminator (OConvert _) = False
 isTerminator (OAlloca _) = False
 isTerminator (OLoad _) = False
 isTerminator (OStore _) = False
@@ -145,6 +149,15 @@ data Unary = Unary
 
 data UnaryOp
   = OpFNeg
+  deriving (Eq, Show)
+
+-- | @\<op\> [flags] \<ty\> \<value\> to \<ty\>@.
+data Convert = Convert
+  { convertOp :: CastOp
+  , convertFlags :: [InstructionFlag]
+  , convertOperand :: TypedValue
+  , convertTarget :: Type
+  }
   deriving (Eq, Show)
 
 -- | A comparison, parameterized by which set of predicates it draws on.
@@ -205,6 +218,7 @@ data InstructionFlag
   | FlagExact
   | FlagDisjoint
   | FlagSameSign
+  | FlagNNeg
   | FlagNNaN
   | FlagNInf
   | FlagNSZ

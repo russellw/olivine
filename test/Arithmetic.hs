@@ -1,8 +1,7 @@
--- | The arithmetic and comparison instructions.
+-- | The arithmetic, comparison and conversion instructions.
 --
 -- LangRef's binary, bitwise binary and floating point operations, plus
--- @fneg@, @icmp@ and @fcmp@.  The conversions are a family of their own and
--- are not here.
+-- @fneg@, @icmp@, @fcmp@, and the conversions.
 --
 -- As in "Memory", values are named rather than numbered: LLVM numbers unnamed
 -- values densely and counts the entry block among them, so a numbered line is
@@ -133,6 +132,30 @@ emitted =
   , ("  %r = fcmp uno double %d, %e", fcmp [] FUno)
   , ("  %r = fcmp true double %d, %e", fcmp [] FTrue)
   , ("  %r = fcmp fast olt double %d, %e", fcmp [FlagFast] FOlt)
+  , -- The conversions, every opcode LLVM 21 has.  There is no ptrtoaddr:
+    -- it does not exist in this release.
+    ("  %r = trunc i64 %w to i32", convert CastTrunc [] (TInteger 64) "w" (TInteger 32))
+  , ("  %r = trunc nuw i64 %w to i32", convert CastTrunc [FlagNUW] (TInteger 64) "w" (TInteger 32))
+  , ( "  %r = trunc nuw nsw i64 %w to i32"
+    , convert CastTrunc [FlagNUW, FlagNSW] (TInteger 64) "w" (TInteger 32)
+    )
+  , ("  %r = zext i32 %a to i64", convert CastZExt [] (TInteger 32) "a" (TInteger 64))
+  , -- The flag the corpus already carries.
+    ("  %r = zext nneg i32 %a to i64", convert CastZExt [FlagNNeg] (TInteger 32) "a" (TInteger 64))
+  , ("  %r = sext i32 %a to i64", convert CastSExt [] (TInteger 32) "a" (TInteger 64))
+  , ("  %r = fptrunc double %d to float", convert CastFPTrunc [] (TFloat FDouble) "d" (TFloat FFloat))
+  , ("  %r = fpext float %s to double", convert CastFPExt [] (TFloat FFloat) "s" (TFloat FDouble))
+  , ("  %r = fptoui double %d to i32", convert CastFPToUI [] (TFloat FDouble) "d" (TInteger 32))
+  , ("  %r = fptosi double %d to i32", convert CastFPToSI [] (TFloat FDouble) "d" (TInteger 32))
+  , ("  %r = uitofp i32 %a to double", convert CastUIToFP [] (TInteger 32) "a" (TFloat FDouble))
+  , ("  %r = uitofp nneg i32 %a to double", convert CastUIToFP [FlagNNeg] (TInteger 32) "a" (TFloat FDouble))
+  , ("  %r = sitofp i32 %a to double", convert CastSIToFP [] (TInteger 32) "a" (TFloat FDouble))
+  , ("  %r = ptrtoint ptr %p to i64", convert CastPtrToInt [] (TPointer Nothing) "p" (TInteger 64))
+  , ("  %r = inttoptr i64 %w to ptr", convert CastIntToPtr [] (TInteger 64) "w" (TPointer Nothing))
+  , ("  %r = bitcast i64 %w to double", convert CastBitcast [] (TInteger 64) "w" (TFloat FDouble))
+  , ( "  %r = addrspacecast ptr %p to ptr addrspace(1)"
+    , convert CastAddrSpaceCast [] (TPointer Nothing) "p" (TPointer (Just 1))
+    )
   , -- A literal operand rather than a local.
     ( "  %r = add nsw i32 %a, 1"
     , OBinary
@@ -173,6 +196,14 @@ emitted =
           , compareLeft = VLocal (Name Bare "d")
           , compareRight = VLocal (Name Bare "e")
           }
+    convert op flags sourceType operand target =
+      OConvert
+        Convert
+          { convertOp = op
+          , convertFlags = flags
+          , convertOperand = TypedValue sourceType (VLocal (Name Bare operand))
+          , convertTarget = target
+          }
     isFloat (TFloat _) = True
     isFloat _ = False
 
@@ -187,6 +218,10 @@ rejected =
   , "  %r = icmp zzz i32 %a, %b"
   , "  %r = fcmp oeq %d, %e"
   , "  %r = fneg double"
+  , -- Conversions, malformed or absent from this release of LLVM.
+    "  %r = zext i32 %a"
+  , "  %r = zext i32 %a to"
+  , "  %r = ptrtoaddr ptr %p to i64"
   ]
 
 arithmeticTests :: TestTree

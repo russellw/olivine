@@ -149,6 +149,16 @@ renderOperation (OUnary u) =
       , renderValue (unaryOperand u)
       ]
   ]
+renderOperation (OConvert c) =
+  [ T.concat
+      [ renderCastOp (convertOp c)
+      , " "
+      , renderFlags (convertFlags c)
+      , renderTypedValue (convertOperand c)
+      , " to "
+      , renderType (convertTarget c)
+      ]
+  ]
 renderOperation (OICmp c) = [renderCompare "icmp" renderIntPredicate c]
 renderOperation (OFCmp c) = [renderCompare "fcmp" renderFloatPredicate c]
 renderOperation (OAlloca a) =
@@ -270,6 +280,7 @@ renderInstructionFlag FlagNSW = "nsw"
 renderInstructionFlag FlagExact = "exact"
 renderInstructionFlag FlagDisjoint = "disjoint"
 renderInstructionFlag FlagSameSign = "samesign"
+renderInstructionFlag FlagNNeg = "nneg"
 renderInstructionFlag FlagNNaN = "nnan"
 renderInstructionFlag FlagNInf = "ninf"
 renderInstructionFlag FlagNSZ = "nsz"
@@ -518,6 +529,14 @@ renderStructFields fields = "{ " <> renderElements fields <> " }"
 
 renderCastOp :: CastOp -> Text
 renderCastOp CastTrunc = "trunc"
+renderCastOp CastZExt = "zext"
+renderCastOp CastSExt = "sext"
+renderCastOp CastFPTrunc = "fptrunc"
+renderCastOp CastFPExt = "fpext"
+renderCastOp CastFPToUI = "fptoui"
+renderCastOp CastFPToSI = "fptosi"
+renderCastOp CastUIToFP = "uitofp"
+renderCastOp CastSIToFP = "sitofp"
 renderCastOp CastPtrToInt = "ptrtoint"
 renderCastOp CastIntToPtr = "inttoptr"
 renderCastOp CastBitcast = "bitcast"
