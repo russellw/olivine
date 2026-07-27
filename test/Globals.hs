@@ -14,7 +14,7 @@ import Test.Tasty.HUnit
 
 import Corpus (expectParse)
 import Olivine.Syntax.Ast
-import Olivine.Syntax.Constant
+import Olivine.Syntax.Value
 import Olivine.Syntax.Global
 import Olivine.Syntax.Linkage
 import Olivine.Syntax.Name
@@ -118,6 +118,53 @@ globalTests =
         "rejected"
         [testCase (T.unpack line) (staysOpaque line) | line <- rejected]
     , fieldTests
+    , constantTests
+    ]
+
+-- | The predicate that replaced the type distinction between constants and
+-- operands.  Nothing enforces it yet — a verifier will — so it is tested
+-- here rather than left to be discovered wrong later.
+constantTests :: TestTree
+constantTests =
+  testGroup
+    "isConstant"
+    [ testCase "a literal" $ isConstant (VInteger 1) @?= True
+    , testCase "a reference to a global" $
+        isConstant (VGlobal (Name Bare "g")) @?= True
+    , testCase "a local" $ isConstant (VLocal (Name Bare "x")) @?= False
+    , testCase "an aggregate of literals" $
+        isConstant (VArray [TypedValue (TInteger 32) (VInteger 1)]) @?= True
+    , -- The recursion is the point: a local anywhere inside makes the whole
+      -- operand non-constant.
+      testCase "an aggregate holding a local" $
+        isConstant (VArray [TypedValue (TInteger 32) (VLocal (Name Bare "x"))])
+          @?= False
+    , testCase "a nested aggregate holding a local" $
+        isConstant
+          ( VStruct
+              Unpacked
+              [ TypedValue
+                  (TArray 1 (TInteger 32))
+                  (VArray [TypedValue (TInteger 32) (VLocal (Name Bare "x"))])
+              ]
+          )
+          @?= False
+    , testCase "a constant expression over globals" $
+        isConstant
+          ( VGetElementPtr
+              [GepInbounds]
+              (TInteger 8)
+              [TypedValue (TPointer Nothing) (VGlobal (Name Bare "t"))]
+          )
+          @?= True
+    , testCase "a constant expression over a local" $
+        isConstant
+          ( VGetElementPtr
+              []
+              (TInteger 8)
+              [TypedValue (TPointer Nothing) (VLocal (Name Bare "p"))]
+          )
+          @?= False
     ]
 
 -- | The line must parse to exactly one global and print back unchanged.
@@ -159,7 +206,7 @@ fieldTests =
     , testCase "type" $
         field globalType "@g = global [8 x i8] zeroinitializer" (TArray 8 (TInteger 8))
     , testCase "initializer" $
-        field globalInitializer "@g = global i32 7" (Just (CInteger 7))
+        field globalInitializer "@g = global i32 7" (Just (VInteger 7))
     , testCase "a declaration has none" $
         field globalInitializer "@g = external global i32" Nothing
     , testCase "alignment" $
@@ -170,22 +217,22 @@ fieldTests =
         field
           globalInitializer
           "@g = global [8 x i8] c\"olivine\\00\""
-          (Just (CString "olivine\\00"))
+          (Just (VString "olivine\\00"))
     , testCase "global reference" $
         field
           globalInitializer
           "@g = global ptr @counter"
-          (Just (CGlobal (Name Bare "counter")))
+          (Just (VGlobal (Name Bare "counter")))
     , testCase "getelementptr flags" $
         field
           globalInitializer
           "@g = global ptr getelementptr inbounds nuw (i8, ptr @t, i64 8)"
           ( Just
-              ( CGetElementPtr
+              ( VGetElementPtr
                   [GepInbounds, GepNuw]
                   (TInteger 8)
-                  [ TypedConstant (TPointer Nothing) (CGlobal (Name Bare "t"))
-                  , TypedConstant (TInteger 64) (CInteger 8)
+                  [ TypedValue (TPointer Nothing) (VGlobal (Name Bare "t"))
+                  , TypedValue (TInteger 64) (VInteger 8)
                   ]
               )
           )

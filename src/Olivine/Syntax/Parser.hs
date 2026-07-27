@@ -23,7 +23,7 @@ import Text.Megaparsec.Char (char, digitChar, eol, hspace, string)
 
 import Olivine.Syntax.Ast
 import Olivine.Syntax.Attribute
-import Olivine.Syntax.Constant
+import Olivine.Syntax.Value
 import Olivine.Syntax.Function
 import Olivine.Syntax.Global
 import Olivine.Syntax.Instruction
@@ -31,7 +31,6 @@ import Olivine.Syntax.Linkage
 import Olivine.Syntax.Metadata
 import Olivine.Syntax.Name
 import Olivine.Syntax.Type
-import Olivine.Syntax.Value
 
 type Parser = Parsec Void Text
 
@@ -122,7 +121,7 @@ pGlobal = do
   externallyInitialized <- option False (True <$ keyword "externally_initialized")
   mutability <- pMutability
   t <- pType
-  initializer <- optional pConstant
+  initializer <- optional pValue
   attributes <- many (symbol "," *> pGlobalAttribute)
   endOfLine
   pure $
@@ -579,7 +578,7 @@ pSwitch = do
   pure (TSwitch scrutinee defaultDestination cases)
   where
     pSwitchCase = do
-      value <- pTypedConstant
+      value <- pTypedValue
       symbol ","
       (,) value <$> pLabelOperand
 
@@ -602,12 +601,6 @@ pMetadataAttachment = do
   _ <- char '!'
   name <- pName
   MetadataAttachment name <$> pMetadataRef
-
-pTypedValue :: Parser TypedValue
-pTypedValue = TypedValue <$> pType <*> pValue
-
-pValue :: Parser Value
-pValue = (VLocal <$> pLocalName) <|> (VConstant <$> pConstant)
 
 -- Horizontal space and line breaks together, for the inside of a switch.
 verticalSpace :: Parser ()
@@ -664,7 +657,7 @@ pMetadataOperand =
     , try (MDString <$> (char '!' *> pQuoted <* hspace))
     , try (MDRef <$> pMetadataRef)
     , MDTuple <$> pMetadataTuple
-    , MDValue <$> pTypedConstant
+    , MDValue <$> pTypedValue
     ]
 
 -- | The @= <value>@ tail shared by the top-level definitions, through to the
@@ -782,55 +775,56 @@ pStructType packedness = do
   symbol "}"
   pure (TStruct packedness fields)
 
--- * Constants
+-- * Operands
 
-pConstant :: Parser Constant
-pConstant =
+pValue :: Parser Value
+pValue =
   choice
-    [ CZeroInitializer <$ keyword "zeroinitializer"
-    , CNull <$ keyword "null"
-    , CNone <$ keyword "none"
-    , CUndef <$ keyword "undef"
-    , CPoison <$ keyword "poison"
-    , CBoolean True <$ keyword "true"
-    , CBoolean False <$ keyword "false"
-    , pStringConstant
-    , pGetElementPtrConstant
-    , pCastConstant
-    , CGlobal <$> pGlobalName
-    , pArrayConstant
-    , pAngleConstant
-    , pStructConstant Unpacked
-    , pNumericConstant
+    [ VLocal <$> pLocalName
+    , VZeroInitializer <$ keyword "zeroinitializer"
+    , VNull <$ keyword "null"
+    , VNone <$ keyword "none"
+    , VUndef <$ keyword "undef"
+    , VPoison <$ keyword "poison"
+    , VBoolean True <$ keyword "true"
+    , VBoolean False <$ keyword "false"
+    , pStringValue
+    , pGetElementPtrValue
+    , pCastValue
+    , VGlobal <$> pGlobalName
+    , pArrayValue
+    , pAngleValue
+    , pStructValue Unpacked
+    , pNumericValue
     ]
 
--- | A constant written with its type, as in the elements of an aggregate.
-pTypedConstant :: Parser TypedConstant
-pTypedConstant = TypedConstant <$> pType <*> pConstant
+-- | An operand written with its type, as in the elements of an aggregate.
+pTypedValue :: Parser TypedValue
+pTypedValue = TypedValue <$> pType <*> pValue
 
-pStringConstant :: Parser Constant
-pStringConstant = CString <$> try (char 'c' *> pQuoted) <* hspace
+pStringValue :: Parser Value
+pStringValue = VString <$> try (char 'c' *> pQuoted) <* hspace
 
-pArrayConstant :: Parser Constant
-pArrayConstant =
-  CArray <$> (symbol "[" *> pTypedConstant `sepBy` symbol "," <* symbol "]")
+pArrayValue :: Parser Value
+pArrayValue =
+  VArray <$> (symbol "[" *> pTypedValue `sepBy` symbol "," <* symbol "]")
 
 -- As in the type grammar, an opening angle bracket starts either a vector or
 -- a packed struct.
-pAngleConstant :: Parser Constant
-pAngleConstant = do
+pAngleValue :: Parser Value
+pAngleValue = do
   symbol "<"
-  c <- pStructConstant Packed <|> (CVector <$> pTypedConstant `sepBy` symbol ",")
+  c <- pStructValue Packed <|> (VVector <$> pTypedValue `sepBy` symbol ",")
   symbol ">"
   pure c
 
-pStructConstant :: Packedness -> Parser Constant
-pStructConstant packedness =
-  CStruct packedness
-    <$> (symbol "{" *> pTypedConstant `sepBy` symbol "," <* symbol "}")
+pStructValue :: Packedness -> Parser Value
+pStructValue packedness =
+  VStruct packedness
+    <$> (symbol "{" *> pTypedValue `sepBy` symbol "," <* symbol "}")
 
-pCastConstant :: Parser Constant
-pCastConstant = do
+pCastValue :: Parser Value
+pCastValue = do
   op <-
     choice
       [ CastTrunc <$ keyword "trunc"
@@ -840,16 +834,16 @@ pCastConstant = do
       , CastAddrSpaceCast <$ keyword "addrspacecast"
       ]
   symbol "("
-  value <- pTypedConstant
+  value <- pTypedValue
   keyword "to"
   target <- pType
   symbol ")"
-  pure (CCast op value target)
+  pure (VCast op value target)
 
 -- | @getelementptr inbounds nuw (i8, ptr \@g, i64 8)@.  The first item inside
 -- the parentheses is the source element type, not an operand.
-pGetElementPtrConstant :: Parser Constant
-pGetElementPtrConstant = do
+pGetElementPtrValue :: Parser Value
+pGetElementPtrValue = do
   keyword "getelementptr"
   flags <-
     many $
@@ -861,17 +855,17 @@ pGetElementPtrConstant = do
   symbol "("
   element <- pType
   symbol ","
-  operands <- pTypedConstant `sepBy1` symbol ","
+  operands <- pTypedValue `sepBy1` symbol ","
   symbol ")"
-  pure (CGetElementPtr flags element operands)
+  pure (VGetElementPtr flags element operands)
 
 -- | An integer or a floating point literal.
 --
 -- LLVM writes integers only in decimal, so a @0x@ prefix is unambiguously a
 -- float; otherwise a decimal point or an exponent is what distinguishes the
--- two.  Floats are kept as text — see 'CFloat'.
-pNumericConstant :: Parser Constant
-pNumericConstant = try (CFloat <$> pHexFloat) <|> try pDecimalNumber
+-- two.  Floats are kept as text — see 'VFloat'.
+pNumericValue :: Parser Value
+pNumericValue = try (VFloat <$> pHexFloat) <|> try pDecimalNumber
 
 pHexFloat :: Parser Text
 pHexFloat = do
@@ -882,7 +876,7 @@ pHexFloat = do
   hspace
   pure (prefix <> kind <> digits)
 
-pDecimalNumber :: Parser Constant
+pDecimalNumber :: Parser Value
 pDecimalNumber = do
   sign <- option "" (T.singleton <$> char '-')
   whole <- takeWhile1P (Just "digit") isDigit
@@ -891,9 +885,9 @@ pDecimalNumber = do
   notFollowedBy (satisfy isIdentifierChar)
   hspace
   pure $ case (fractional, exponent') of
-    (Nothing, Nothing) -> CInteger (read (T.unpack (sign <> whole)))
+    (Nothing, Nothing) -> VInteger (read (T.unpack (sign <> whole)))
     _ ->
-      CFloat
+      VFloat
         ( sign
             <> whole
             <> fromMaybe T.empty fractional

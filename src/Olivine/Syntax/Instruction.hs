@@ -13,7 +13,6 @@ module Olivine.Syntax.Instruction
 import Data.Text (Text)
 import Numeric.Natural (Natural)
 
-import Olivine.Syntax.Constant (TypedConstant)
 import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Value (TypedValue)
 
@@ -37,10 +36,10 @@ data Terminator
     TBr Name
   | -- | @br i1 \<cond\>, label %then, label %else@.
     TCondBr TypedValue Name Name
-  | -- | @switch \<ty\> \<value\>, label %default [ ... ]@.  The case values
-    -- are constants rather than operands: LLVM requires it, so the syntax
-    -- can say so.
-    TSwitch TypedValue Name [(TypedConstant, Name)]
+  | -- | @switch \<ty\> \<value\>, label %default [ ... ]@.  LLVM requires the
+    -- case values to be constants; that is a verifier's business rather than
+    -- the syntax's, and 'Olivine.Syntax.Value.isConstant' is what asks.
+    TSwitch TypedValue Name [(TypedValue, Name)]
   | -- | @indirectbr \<ty\> \<address\>, [label %a, label %b]@.
     TIndirectBr TypedValue [Name]
   | TUnreachable

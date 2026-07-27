@@ -11,7 +11,7 @@ module Olivine.Syntax.Printer
   ( renderModule
   , renderEntry
   , renderGlobal
-  , renderConstant
+  , renderValue
   , renderType
   , renderName
   ) where
@@ -24,7 +24,7 @@ import Numeric.Natural (Natural)
 
 import Olivine.Syntax.Ast
 import Olivine.Syntax.Attribute
-import Olivine.Syntax.Constant
+import Olivine.Syntax.Value
 import Olivine.Syntax.Function
 import Olivine.Syntax.Global
 import Olivine.Syntax.Instruction
@@ -32,7 +32,6 @@ import Olivine.Syntax.Linkage
 import Olivine.Syntax.Metadata
 import Olivine.Syntax.Name
 import Olivine.Syntax.Type
-import Olivine.Syntax.Value
 
 renderModule :: Module -> Text
 renderModule = T.unlines . map renderEntry . moduleEntries
@@ -112,7 +111,7 @@ renderTerminator (TCondBr condition ifTrue ifFalse) =
   ]
 renderTerminator (TSwitch scrutinee defaultDestination cases) =
   ["  switch " <> renderTypedValue scrutinee <> ", " <> renderLabel defaultDestination <> " ["]
-    <> [ "    " <> renderTypedConstant value <> ", " <> renderLabel destination
+    <> [ "    " <> renderTypedValue value <> ", " <> renderLabel destination
        | (value, destination) <- cases
        ]
     <> ["  ]"]
@@ -128,13 +127,6 @@ renderTerminator TUnreachable = ["  unreachable"]
 renderLabel :: Name -> Text
 renderLabel name = "label %" <> renderName name
 
-renderTypedValue :: TypedValue -> Text
-renderTypedValue (TypedValue t v) = renderType t <> " " <> renderValue v
-
-renderValue :: Value -> Text
-renderValue (VLocal name) = "%" <> renderName name
-renderValue (VConstant c) = renderConstant c
-
 -- LLVM pads the label out to 49 columns and then writes a single space, so a
 -- comment lands in column 51 unless the label is too wide to allow it.
 renderBlockLabel :: BlockLabel -> Text
@@ -149,7 +141,7 @@ renderMetadataTuple operands =
 renderMetadataOperand :: MetadataOperand -> Text
 renderMetadataOperand (MDRef n) = "!" <> showText n
 renderMetadataOperand (MDString s) = "!" <> quoted s
-renderMetadataOperand (MDValue v) = renderTypedConstant v
+renderMetadataOperand (MDValue v) = renderTypedValue v
 renderMetadataOperand MDNull = "null"
 renderMetadataOperand (MDTuple operands) = renderMetadataTuple operands
 
@@ -268,7 +260,7 @@ renderGlobal g =
         ]
     body =
       [renderMutability (globalMutability g), renderType (globalType g)]
-        <> foldMap (pure . renderConstant) (globalInitializer g)
+        <> foldMap (pure . renderValue) (globalInitializer g)
     guarded b = if b then Just () else Nothing
 
 renderLinkage :: Linkage -> Text
@@ -319,49 +311,50 @@ renderGlobalAttribute (GAComdat (Just name)) =
   "comdat($" <> renderName name <> ")"
 renderGlobalAttribute (GAAlign n) = "align " <> showText n
 
-renderConstant :: Constant -> Text
-renderConstant (CInteger n) = showText n
-renderConstant (CBoolean True) = "true"
-renderConstant (CBoolean False) = "false"
-renderConstant (CFloat raw) = raw
-renderConstant CNull = "null"
-renderConstant CNone = "none"
-renderConstant CUndef = "undef"
-renderConstant CPoison = "poison"
-renderConstant CZeroInitializer = "zeroinitializer"
-renderConstant (CString s) = "c" <> quoted s
-renderConstant (CArray elements) = "[" <> renderElements elements <> "]"
-renderConstant (CVector elements) = "<" <> renderElements elements <> ">"
-renderConstant (CStruct Unpacked fields) = renderStructFields fields
-renderConstant (CStruct Packed fields) =
+renderValue :: Value -> Text
+renderValue (VLocal name) = "%" <> renderName name
+renderValue (VInteger n) = showText n
+renderValue (VBoolean True) = "true"
+renderValue (VBoolean False) = "false"
+renderValue (VFloat raw) = raw
+renderValue VNull = "null"
+renderValue VNone = "none"
+renderValue VUndef = "undef"
+renderValue VPoison = "poison"
+renderValue VZeroInitializer = "zeroinitializer"
+renderValue (VString s) = "c" <> quoted s
+renderValue (VArray elements) = "[" <> renderElements elements <> "]"
+renderValue (VVector elements) = "<" <> renderElements elements <> ">"
+renderValue (VStruct Unpacked fields) = renderStructFields fields
+renderValue (VStruct Packed fields) =
   "<" <> renderStructFields fields <> ">"
-renderConstant (CGlobal name) = "@" <> renderName name
-renderConstant (CCast op value target) =
+renderValue (VGlobal name) = "@" <> renderName name
+renderValue (VCast op value target) =
   renderCastOp op
     <> " ("
-    <> renderTypedConstant value
+    <> renderTypedValue value
     <> " to "
     <> renderType target
     <> ")"
-renderConstant (CGetElementPtr flags element operands) =
+renderValue (VGetElementPtr flags element operands) =
   T.concat
     [ "getelementptr"
     , T.concat [" " <> renderGepFlag f | f <- flags]
     , " ("
-    , T.intercalate ", " (renderType element : map renderTypedConstant operands)
+    , T.intercalate ", " (renderType element : map renderTypedValue operands)
     , ")"
     ]
 
-renderTypedConstant :: TypedConstant -> Text
-renderTypedConstant (TypedConstant t c) =
-  renderType t <> " " <> renderConstant c
+renderTypedValue :: TypedValue -> Text
+renderTypedValue (TypedValue t c) =
+  renderType t <> " " <> renderValue c
 
 -- LLVM writes array and vector constants without spaces inside the brackets,
 -- but struct constants with them, matching how it writes the types.
-renderElements :: [TypedConstant] -> Text
-renderElements = T.intercalate ", " . map renderTypedConstant
+renderElements :: [TypedValue] -> Text
+renderElements = T.intercalate ", " . map renderTypedValue
 
-renderStructFields :: [TypedConstant] -> Text
+renderStructFields :: [TypedValue] -> Text
 renderStructFields [] = "{}"
 renderStructFields fields = "{ " <> renderElements fields <> " }"
 

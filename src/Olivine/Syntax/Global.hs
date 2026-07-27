@@ -16,9 +16,9 @@ module Olivine.Syntax.Global
 import Data.Text (Text)
 import Numeric.Natural (Natural)
 
-import Olivine.Syntax.Constant (Constant)
 import Olivine.Syntax.Linkage
 import Olivine.Syntax.Name (Name)
+import Olivine.Syntax.Value (Value)
 import Olivine.Syntax.Type (Type)
 
 data Global = Global
@@ -34,7 +34,7 @@ data Global = Global
   , globalMutability :: Mutability
   , globalType :: Type
   , -- | Absent for a declaration, as in @\@g = external global i32@.
-    globalInitializer :: Maybe Constant
+    globalInitializer :: Maybe Value
   , globalAttributes :: [GlobalAttribute]
   }
   deriving (Eq, Show)

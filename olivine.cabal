@@ -25,7 +25,6 @@ library
                       Olivine.Syntax.Name
                       Olivine.Syntax.Linkage
                       Olivine.Syntax.Attribute
-                      Olivine.Syntax.Constant
                       Olivine.Syntax.Value
                       Olivine.Syntax.Instruction
                       Olivine.Syntax.Function

@@ -8,7 +8,7 @@ import Test.Tasty.HUnit
 
 import Corpus (expectParse)
 import Olivine.Syntax.Ast
-import Olivine.Syntax.Constant
+import Olivine.Syntax.Value
 import Olivine.Syntax.Metadata
 import Olivine.Syntax.Name
 import Olivine.Syntax.Printer (renderModule)
@@ -112,7 +112,7 @@ fieldTests =
     , testCase "a value" $
         entry
           "!0 = !{i32 1}"
-          (EMetadata 0 Uniqued [MDValue (TypedConstant (TInteger 32) (CInteger 1))])
+          (EMetadata 0 Uniqued [MDValue (TypedValue (TInteger 32) (VInteger 1))])
     , testCase "null" $ entry "!0 = !{null}" (EMetadata 0 Uniqued [MDNull])
     , testCase "an inline tuple" $
         entry "!0 = !{!{!1}}" (EMetadata 0 Uniqued [MDTuple [MDRef 1]])
@@ -122,9 +122,9 @@ fieldTests =
           ( EMetadata
               0
               Uniqued
-              [ MDValue (TypedConstant (TInteger 32) (CInteger 1))
+              [ MDValue (TypedValue (TInteger 32) (VInteger 1))
               , MDString "wchar_size"
-              , MDValue (TypedConstant (TInteger 32) (CInteger 4))
+              , MDValue (TypedValue (TInteger 32) (VInteger 4))
               ]
           )
     , testCase "a named node" $

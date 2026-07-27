@@ -14,7 +14,7 @@ module Olivine.Syntax.Metadata
 import Data.Text (Text)
 import Numeric.Natural (Natural)
 
-import Olivine.Syntax.Constant (TypedConstant)
+import Olivine.Syntax.Value (TypedValue)
 
 data MetadataOperand
   = -- | @!0@, a reference to another node.
@@ -22,7 +22,7 @@ data MetadataOperand
   | -- | @!"..."@, with escapes left undecoded as elsewhere.
     MDString Text
   | -- | An ordinary value, as in the @i32 1@ of @!{i32 1, !"wchar_size"}@.
-    MDValue TypedConstant
+    MDValue TypedValue
   | -- | A null operand, which is written bare and carries no type.
     MDNull
   | -- | A tuple written inline rather than referenced.

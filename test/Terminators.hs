@@ -12,13 +12,12 @@ import Test.Tasty.HUnit
 
 import Corpus (expectParse)
 import Olivine.Syntax.Ast
-import Olivine.Syntax.Constant
+import Olivine.Syntax.Value
 import Olivine.Syntax.Function
 import Olivine.Syntax.Instruction
 import Olivine.Syntax.Name
 import Olivine.Syntax.Printer (renderModule)
 import Olivine.Syntax.Type
-import Olivine.Syntax.Value
 
 -- | Functions in the spelling LLVM emits, with the terminators each should
 -- parse to, in order.
@@ -30,7 +29,7 @@ emitted =
     )
   , ( "ret a constant"
     , T.unlines ["define i32 @f() {", "  ret i32 0", "}"]
-    , [TRet (Just (TypedValue (TInteger 32) (VConstant (CInteger 0))))]
+    , [TRet (Just (TypedValue (TInteger 32) (VInteger 0)))]
     )
   , ( "ret a local"
     , T.unlines ["define i32 @f(i32 %0) {", "  ret i32 %0", "}"]
@@ -38,7 +37,7 @@ emitted =
     )
   , ( "ret a global"
     , T.unlines ["define ptr @f() {", "  ret ptr @g", "}"]
-    , [TRet (Just (TypedValue (TPointer Nothing) (VConstant (CGlobal (Name Bare "g")))))]
+    , [TRet (Just (TypedValue (TPointer Nothing) (VGlobal (Name Bare "g"))))]
     )
   , ( "unconditional branch"
     , T.unlines
@@ -86,8 +85,8 @@ emitted =
     , [ TSwitch
           (TypedValue (TInteger 32) (VLocal (Name Bare "0")))
           (Name Bare "2")
-          [ (TypedConstant (TInteger 32) (CInteger 0), Name Bare "2")
-          , (TypedConstant (TInteger 32) (CInteger 7), Name Bare "2")
+          [ (TypedValue (TInteger 32) (VInteger 0), Name Bare "2")
+          , (TypedValue (TInteger 32) (VInteger 7), Name Bare "2")
           ]
       , TRet Nothing
       ]

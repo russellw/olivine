@@ -11,4 +11,6 @@ In general, it greatly resembles LLVM intermediate representation in things like
 One important difference is that it does not use SSA. Instead, local variables can have addresses and can be reassigned. Part of the reason for this is that we want to bite the bullet and carry out deep analysis on values stored in memory, not just local variables. It also simplifies the semantics: no phi nodes. It makes certain analyses take longer. This is an acceptable trade.
 The dreaded getelementptr instruction is replaced by a form that only calculates one pointer offset at a time.
 
+Where one construct is a subset of another — constants among operands, terminators among instructions — the intermediate form uses a single type together with a predicate, not two parallel types. LLVM expresses these relations as subtyping, which costs it nothing; Haskell has no subtyping, so encoding them costs a conversion at every boundary and a second copy of every function over the form. Validity belongs in a verifier pass rather than in the shape of the data, and unnecessary differences between the LLVM-facing syntax and the optimizer's own representation should be minimized, since every one of them is a translation somebody has to keep correct.
+
 All commits are made directly to the main branch.
