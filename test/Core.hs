@@ -37,6 +37,9 @@ coreTests = do
       , testGroup
           "raising gives back something that lowers again"
           [testCase name (stable name) | name <- names]
+      , testGroup
+          "the scaffolding does not escape"
+          [testCase name (noScaffolding name) | name <- names]
       , phiTests
       ]
 
@@ -102,6 +105,22 @@ stable name = do
   reparsed <- expectParse name once
   let twice = renderModule (raise (lower reparsed))
   assertEqual "a second trip changes nothing" once twice
+
+-- | Nothing Olivine invented on the way through may appear in what it writes.
+--
+-- Phi elimination puts a block on each split edge and names it; reconstructing
+-- single assignment fills those blocks' assignments into phis, leaving nothing
+-- but a branch; removing the forwarding blocks then takes them out again.  If
+-- any survives, one of those three steps has not done its part, and the module
+-- would carry a block that was never in the program.
+noScaffolding :: FilePath -> Assertion
+noScaffolding name = do
+  (_, parsed) <- readCorpusFile name
+  let written = renderModule (raise (lower parsed))
+  assertEqual
+    "blocks put on split edges"
+    []
+    [line | line <- T.lines written, "olivine.edge" `T.isInfixOf` line]
 
 -- | Phi elimination, on the shapes the corpus does not have.
 phiTests :: TestTree

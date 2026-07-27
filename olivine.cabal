@@ -37,6 +37,7 @@ library
                       Olivine.Core.Program
                       Olivine.Core.Lower
                       Olivine.Core.Ssa
+                      Olivine.Core.Blocks
                       Olivine.Core.Raise
                       Olivine.Pipeline
     build-depends:    base >=4.17 && <5,

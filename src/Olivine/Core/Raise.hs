@@ -13,6 +13,7 @@ import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.Text qualified as T
 
+import Olivine.Core.Blocks (removeForwarding)
 import Olivine.Core.Program
 import Olivine.Core.Ssa (reconstruct)
 import Olivine.Syntax.Ast qualified as Syntax
@@ -34,7 +35,12 @@ raiseEntry (EFunction f) =
       , Syntax.definitionBlocks = map (raiseBlock single) (functionBlocks single)
       }
   where
-    single = reconstruct (entryName f) f
+    -- Reconstruction is what empties the blocks put on split edges: the
+    -- assignments in them become phi operands, leaving a branch and nothing
+    -- else.  Taking them out again is what makes the trip through the core
+    -- leave the control flow graph as it found it.
+    single = simplify (reconstruct (entryName f) f)
+    simplify g = g {functionBlocks = removeForwarding (entryName f) (functionBlocks g)}
 
 raiseBlock :: Function -> Block -> Syntax.BasicBlock
 raiseBlock f block =
