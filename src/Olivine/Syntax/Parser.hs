@@ -11,7 +11,7 @@ module Olivine.Syntax.Parser
   ) where
 
 import Control.Monad (void)
-import Data.Char (isDigit, isHexDigit)
+import Data.Char (isDigit, isHexDigit, isSpace)
 import Data.List.NonEmpty (NonEmpty ((:|)))
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
@@ -43,8 +43,19 @@ parseModule = runParser pModule
 renderParseError :: ParseError -> String
 renderParseError = errorBundlePretty
 
+-- | A module is its constructs.  A blank line is not one of them.
+--
+-- Vertical whitespace is layout, and layout is the printer's, which already
+-- regenerates the blank line before every label in a function rather than
+-- carrying it.  Keeping module-level blank lines as entries would mean every
+-- pass stepping around them — and a pass that removed a function from between
+-- two of them would leave both behind, so the gap where it stood would widen
+-- with each one.
 pModule :: Parser Module
-pModule = Module <$> many pEntry <* eof
+pModule = Module . filter (not . isBlank) <$> many pEntry <* eof
+  where
+    isBlank (EOpaque text) = T.all isSpace text
+    isBlank _ = False
 
 -- Modelled constructs are tried first, and each is wrapped in 'try' so that
 -- anything it does not fully recognize falls through to the opaque line rule

@@ -14,10 +14,12 @@ import Olivine.Core.Pass.DeadFunctions
   , removableWhenUnreached
   )
 import Olivine.Core.Program
+import Olivine.Core.Raise (raise)
 import Olivine.Syntax.Ast qualified as Syntax
 import Olivine.Syntax.Function
 import Olivine.Syntax.Linkage
 import Olivine.Syntax.Name
+import Olivine.Syntax.Printer (renderModule)
 import Olivine.Syntax.Type
 
 deadFunctionTests :: TestTree
@@ -70,6 +72,22 @@ deadFunctionTests =
         , testCase "and one named by none of them still goes" $ do
             kept <- survivorsOf referenced
             assertBool ("expected no forgotten in " <> show kept) ("forgotten" `notElem` kept)
+        ]
+    , -- Clang writes "; Function Attrs: ..." above every function, so a
+      -- comment left where a function was would say of the next function what
+      -- was true of the one removed.
+      testGroup
+        "the comment introducing a function"
+        [ testCase "goes when the function goes" $ do
+            lines' <- renderedFrom commented
+            assertBool
+              ("expected no noinline comment in " <> show lines')
+              ("; Function Attrs: noinline nounwind" `notElem` lines')
+        , testCase "stays when the function stays" $ do
+            lines' <- renderedFrom commented
+            assertBool
+              ("expected the alwaysinline comment in " <> show lines')
+              ("; Function Attrs: alwaysinline" `elem` lines')
         ]
     , testGroup
         "declarations"
@@ -184,6 +202,19 @@ deadFunctionTests =
         , "  ret i32 %b"
         , "}"
         ]
+    -- What clang actually writes: an attribute comment above each function.
+    commented =
+      T.unlines
+        [ "; Function Attrs: noinline nounwind"
+        , "define internal i32 @dead(i32 %x) {"
+        , "  ret i32 %x"
+        , "}"
+        , ""
+        , "; Function Attrs: alwaysinline"
+        , "define i32 @live(i32 %x) {"
+        , "  ret i32 %x"
+        , "}"
+        ]
     -- The ways a function can be named that are not a call.
     referenced =
       T.unlines
@@ -239,3 +270,7 @@ declaredIn source = do
 
 sifted :: Text -> IO Program
 sifted source = eliminateDeadFunctions . lower <$> expectParse "<inline>" source
+
+-- | What the pass leaves, as written out.
+renderedFrom :: Text -> IO [Text]
+renderedFrom source = T.lines . renderModule . raise <$> sifted source

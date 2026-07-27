@@ -33,8 +33,67 @@ import Olivine.Syntax.Metadata
 import Olivine.Syntax.Name
 import Olivine.Syntax.Type
 
+-- | A module, laid out the way LLVM lays one out.
+--
+-- Blank lines are not carried through the syntax tree, so they are put back
+-- here.  LLVM separates one kind of top-level construct from the next with a
+-- blank line — the header from the globals, the globals from the functions,
+-- the attribute groups from the metadata — and writes one before every
+-- function whatever precedes it, which is why two @declare@s have a gap
+-- between them and two globals do not.
+--
+-- A comment introduces what follows it rather than standing alone, so nothing
+-- is separated from the comment above it and the comment takes the place of
+-- what it introduces.  That is what puts the blank line before
+-- @; Function Attrs:@ and not between it and its @define@.
 renderModule :: Module -> Text
-renderModule = T.unlines . map renderEntry . moduleEntries
+renderModule (Module entries) = T.unlines (go Nothing (zip entries (groupsOf entries)))
+  where
+    go _ [] = []
+    go previous ((entry, group) : rest) =
+      [T.empty | separated previous group]
+        <> (renderEntry entry : go (Just (entry, group)) rest)
+    separated Nothing _ = False
+    separated (Just (previous, before)) group =
+      not (isComment previous) && (before /= group || group == Functions)
+
+-- | The kinds of top-level construct a blank line goes between.
+data Group
+  = Header
+  | Types
+  | Globals
+  | Functions
+  | Attributes
+  | NamedNodes
+  | Nodes
+  | -- | A construct not modelled, and a comment that introduces nothing.
+    Unread
+  deriving (Eq)
+
+-- | What each entry belongs to, a comment belonging to whatever it introduces.
+groupsOf :: [Entry] -> [Group]
+groupsOf = foldr step []
+  where
+    step entry rest
+      | isComment entry = introduced rest : rest
+      | otherwise = groupOf entry : rest
+    introduced (group : _) = group
+    introduced [] = Unread
+
+groupOf :: Entry -> Group
+groupOf entry = case entry of
+  EModuleId _ -> Header
+  ESourceFilename _ -> Header
+  ETargetDataLayout _ -> Header
+  ETargetTriple _ -> Header
+  ETypeDefinition _ _ -> Types
+  EGlobal _ -> Globals
+  EDeclare _ -> Functions
+  EDefine _ -> Functions
+  EAttributeGroup _ _ -> Attributes
+  ENamedMetadata _ _ -> NamedNodes
+  EMetadata{} -> Nodes
+  EOpaque _ -> Unread
 
 renderEntry :: Entry -> Text
 renderEntry (EModuleId name) = "; ModuleID = " <> singleQuoted name

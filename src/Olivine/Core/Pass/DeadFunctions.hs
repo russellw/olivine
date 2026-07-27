@@ -25,7 +25,6 @@ module Olivine.Core.Pass.DeadFunctions
   , mentionedIn
   ) where
 
-import Data.Char (isSpace)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Set (Set)
@@ -59,18 +58,19 @@ eliminateDeadFunctions program =
   where
     live = reachableIn program
 
-    -- A blank line is an entry like any other, this being a layer that keeps
-    -- what it was given, so a function taken from between two of them would
-    -- leave both behind and the gap where it stood would grow with every
-    -- pass.  The one after a removed entry goes with it.
-    prune [] = []
-    prune (entry : rest)
-      | reached entry = entry : prune rest
-      | otherwise = prune (withoutBlank rest)
-    withoutBlank (entry : rest) | blank entry = rest
-    withoutBlank entries = entries
-    blank (ERetained (Syntax.EOpaque text)) = T.all isSpace text
-    blank _ = False
+    -- A comment introduces the construct after it, so it goes when that goes.
+    -- Clang writes @; Function Attrs:@ above every function it emits, and a
+    -- comment left behind would say of the next function what was true of the
+    -- one removed.
+    prune entries = [e | (e, keep) <- zip entries (kept entries), keep]
+    kept = foldr step []
+    step entry rest
+      | comment entry = introduced rest : rest
+      | otherwise = reached entry : rest
+    comment (ERetained entry) = Syntax.isComment entry
+    comment _ = False
+    introduced (keep : _) = keep
+    introduced [] = True
 
     reached entry = case entry of
       EFunction f

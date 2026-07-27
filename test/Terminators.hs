@@ -146,6 +146,7 @@ attached =
         , "1:                                                ; preds = %1, %0"
         , "  br label %1, !llvm.loop !0"
         , "}"
+        , ""
         , "!0 = distinct !{!0}"
         ]
     , [MetadataAttachment (Name Bare "llvm.loop") 0]
@@ -159,6 +160,7 @@ attached =
         [ "define void @f() {"
         , "  ret void, !olivine.a !0, !olivine.b !1"
         , "}"
+        , ""
         , "!0 = !{i32 0}"
         , "!1 = !{i32 1}"
         ]
