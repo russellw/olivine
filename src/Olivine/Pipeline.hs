@@ -12,6 +12,7 @@ module Olivine.Pipeline
   ) where
 
 import Olivine.Core.Lower (lower)
+import Olivine.Core.Pass.ConstantFold (foldConstants)
 import Olivine.Core.Pass.DeadCode (eliminateDeadCode)
 import Olivine.Core.Program (Program)
 import Olivine.Core.Raise (raise)
@@ -24,8 +25,11 @@ data Pass = Pass
 
 -- | The pipeline.
 passes :: [Pass]
+-- Folding first, since it leaves the instructions it replaced assigning to
+-- nothing anyone reads, which is exactly what the dead code pass takes away.
 passes =
-  [ Pass "dead code" eliminateDeadCode
+  [ Pass "constant folding" foldConstants
+  , Pass "dead code" eliminateDeadCode
   ]
 
 -- | Read a module, lower it to the core representation, run the passes, and
