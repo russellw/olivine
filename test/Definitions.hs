@@ -17,6 +17,8 @@ import Olivine.Syntax.Ast
 import Olivine.Syntax.Function
 import Olivine.Syntax.Instruction
 import Olivine.Syntax.Name
+import Olivine.Syntax.Type
+import Olivine.Syntax.Value
 import Olivine.Syntax.Printer (renderModule)
 
 -- | Definitions in the spelling LLVM itself emits.  The label padding and the
@@ -188,16 +190,19 @@ fieldTests =
         d <-
           definition $
             T.unlines
-              [ "define void @f() {"
-              , "  %1 = alloca i32, align 4"
-              , "  store i32 0, ptr %1, align 4"
-              , "  ret void"
+              [ "define i32 @f(i32 %0) {"
+              , "  %2 = add nsw i32 %0, 1"
+              , "  call void @g()"
+              , "  ret i32 %2"
               , "}"
               ]
         concatMap blockBody (definitionBlocks d)
-          @?= [ IOpaque "  %1 = alloca i32, align 4"
-              , IOpaque "  store i32 0, ptr %1, align 4"
-              , ITerminator (TRet Nothing) []
+          @?= [ IOpaque "  %2 = add nsw i32 %0, 1"
+              , IOpaque "  call void @g()"
+              , IOperation
+                  Nothing
+                  (ORet (Just (TypedValue (TInteger 32) (VLocal (Name Bare "2")))))
+                  []
               ]
     ]
   where
@@ -227,11 +232,19 @@ corpusStructure name = do
   assertEqual
     "terminators parsed"
     (length (filter startsWithTerminator (bodyLines sourceLines)))
-    (length [t | ITerminator t _ <- concatMap blockBody blocks])
+    (length [op | IOperation _ op _ <- concatMap blockBody blocks, isTerminator op])
   assertEqual
     "terminators left opaque"
     []
     [raw | IOpaque raw <- concatMap blockBody blocks, startsWithTerminator raw]
+  assertEqual
+    "memory operations parsed"
+    (length (filter isMemoryLine (bodyLines sourceLines)))
+    (length [op | IOperation _ op _ <- concatMap blockBody blocks, isMemory op])
+  assertEqual
+    "memory operations left opaque"
+    []
+    [raw | IOpaque raw <- concatMap blockBody blocks, isMemoryLine raw]
 
 -- A label line is one starting in the first column and running to a colon,
 -- which no instruction does.
@@ -239,6 +252,25 @@ isLabelLine :: Text -> Bool
 isLabelLine line = case T.uncons line of
   Just (c, _) -> isIdentifierChar c && T.isInfixOf ":" (T.takeWhile (/= ' ') line)
   Nothing -> False
+
+isMemory :: Operation -> Bool
+isMemory (OAlloca _) = True
+isMemory (OLoad _) = True
+isMemory (OStore _) = True
+isMemory (OGetElementPtr _) = True
+isMemory _ = False
+
+-- A memory operation either starts the line, as store does, or follows the
+-- name it assigns to.
+isMemoryLine :: Text -> Bool
+isMemoryLine line = any (`T.isPrefixOf` afterAssignment) keywords
+  where
+    stripped = T.stripStart line
+    afterAssignment
+      | "%" `T.isPrefixOf` stripped, (_, rest) <- T.breakOn " = " stripped, not (T.null rest) =
+          T.drop 3 rest
+      | otherwise = stripped
+    keywords = ["alloca", "load ", "store ", "getelementptr "]
 
 startsWithTerminator :: Text -> Bool
 startsWithTerminator line =

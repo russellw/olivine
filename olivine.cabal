@@ -65,6 +65,7 @@ test-suite olivine-test
                       Metadata
                       Definitions
                       Terminators
+                      Memory
     build-depends:    base,
                       filepath,
                       olivine,

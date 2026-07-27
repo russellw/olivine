@@ -21,23 +21,23 @@ import Olivine.Syntax.Type
 
 -- | Functions in the spelling LLVM emits, with the terminators each should
 -- parse to, in order.
-emitted :: [(String, Text, [Terminator])]
+emitted :: [(String, Text, [Operation])]
 emitted =
   [ ( "ret void"
     , T.unlines ["define void @f() {", "  ret void", "}"]
-    , [TRet Nothing]
+    , [ORet Nothing]
     )
   , ( "ret a constant"
     , T.unlines ["define i32 @f() {", "  ret i32 0", "}"]
-    , [TRet (Just (TypedValue (TInteger 32) (VInteger 0)))]
+    , [ORet (Just (TypedValue (TInteger 32) (VInteger 0)))]
     )
   , ( "ret a local"
     , T.unlines ["define i32 @f(i32 %0) {", "  ret i32 %0", "}"]
-    , [TRet (Just (TypedValue (TInteger 32) (VLocal (Name Bare "0"))))]
+    , [ORet (Just (TypedValue (TInteger 32) (VLocal (Name Bare "0"))))]
     )
   , ( "ret a global"
     , T.unlines ["define ptr @f() {", "  ret ptr @g", "}"]
-    , [TRet (Just (TypedValue (TPointer Nothing) (VGlobal (Name Bare "g"))))]
+    , [ORet (Just (TypedValue (TPointer Nothing) (VGlobal (Name Bare "g"))))]
     )
   , ( "unconditional branch"
     , T.unlines
@@ -48,7 +48,7 @@ emitted =
         , "  ret void"
         , "}"
         ]
-    , [TBr (Name Bare "a"), TRet Nothing]
+    , [OBr (Name Bare "a"), ORet Nothing]
     )
   , ( "conditional branch"
     , T.unlines
@@ -62,12 +62,12 @@ emitted =
         , "  ret void"
         , "}"
         ]
-    , [ TCondBr
+    , [ OCondBr
           (TypedValue (TInteger 1) (VLocal (Name Bare "0")))
           (Name Bare "2")
           (Name Bare "3")
-      , TRet Nothing
-      , TRet Nothing
+      , ORet Nothing
+      , ORet Nothing
       ]
     )
   , ( "switch"
@@ -82,13 +82,13 @@ emitted =
         , "  ret void"
         , "}"
         ]
-    , [ TSwitch
+    , [ OSwitch
           (TypedValue (TInteger 32) (VLocal (Name Bare "0")))
           (Name Bare "2")
           [ (TypedValue (TInteger 32) (VInteger 0), Name Bare "2")
           , (TypedValue (TInteger 32) (VInteger 7), Name Bare "2")
           ]
-      , TRet Nothing
+      , ORet Nothing
       ]
     )
   , -- The brackets stay on their own lines even with nothing between them.
@@ -102,11 +102,11 @@ emitted =
         , "  ret void"
         , "}"
         ]
-    , [ TSwitch
+    , [ OSwitch
           (TypedValue (TInteger 32) (VLocal (Name Bare "0")))
           (Name Bare "2")
           []
-      , TRet Nothing
+      , ORet Nothing
       ]
     )
   , ( "indirectbr"
@@ -121,16 +121,16 @@ emitted =
         , "  ret void"
         , "}"
         ]
-    , [ TIndirectBr
+    , [ OIndirectBr
           (TypedValue (TPointer Nothing) (VLocal (Name Bare "0")))
           [Name Bare "2", Name Bare "3"]
-      , TRet Nothing
-      , TRet Nothing
+      , ORet Nothing
+      , ORet Nothing
       ]
     )
   , ( "unreachable"
     , T.unlines ["define void @f() {", "  unreachable", "}"]
-    , [TUnreachable]
+    , [OUnreachable]
     )
   ]
 
@@ -214,15 +214,15 @@ roundTrips source = do
   parsed <- expectParse "<inline>" source
   renderModule parsed @?= source
 
-terminatorsOf :: Text -> [Terminator] -> Assertion
+terminatorsOf :: Text -> [Operation] -> Assertion
 terminatorsOf source expected = do
   instructions <- instructionsIn source
-  [t | ITerminator t _ <- instructions] @?= expected
+  [op | IOperation _ op _ <- instructions, isTerminator op] @?= expected
 
 attachmentsOf :: Text -> [MetadataAttachment] -> Assertion
 attachmentsOf source expected = do
   instructions <- instructionsIn source
-  concat [as | ITerminator _ as <- instructions] @?= expected
+  concat [as | IOperation _ _ as <- instructions] @?= expected
 
 -- | The line must survive as an opaque instruction inside a definition that
 -- was still recognized as one.

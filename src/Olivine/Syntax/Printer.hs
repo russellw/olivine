@@ -81,9 +81,13 @@ renderBasicBlock index block =
 -- an opaque one carries its own, having nothing to generate it from.
 renderInstruction :: Instruction -> [Text]
 renderInstruction (IOpaque raw) = [raw]
-renderInstruction (ITerminator terminator attachments) =
-  appendToLast suffix (renderTerminator terminator)
+renderInstruction (IOperation result operation attachments) =
+  case renderOperation operation of
+    [] -> []
+    first : rest ->
+      appendToLast suffix (("  " <> assignment <> first) : map ("  " <>) rest)
   where
+    assignment = foldMap (\name -> "%" <> renderName name <> " = ") result
     suffix =
       T.concat
         [ ", !" <> renderName name <> " !" <> showText node
@@ -97,32 +101,75 @@ appendToLast suffix ls = case reverse ls of
   [] -> []
   final : earlier -> reverse ((final <> suffix) : earlier)
 
-renderTerminator :: Terminator -> [Text]
-renderTerminator (TRet Nothing) = ["  ret void"]
-renderTerminator (TRet (Just v)) = ["  ret " <> renderTypedValue v]
-renderTerminator (TBr destination) = ["  br " <> renderLabel destination]
-renderTerminator (TCondBr condition ifTrue ifFalse) =
-  [ "  br "
+renderOperation :: Operation -> [Text]
+renderOperation (ORet Nothing) = ["ret void"]
+renderOperation (ORet (Just v)) = ["ret " <> renderTypedValue v]
+renderOperation (OBr destination) = ["br " <> renderLabel destination]
+renderOperation (OCondBr condition ifTrue ifFalse) =
+  [ "br "
       <> renderTypedValue condition
       <> ", "
       <> renderLabel ifTrue
       <> ", "
       <> renderLabel ifFalse
   ]
-renderTerminator (TSwitch scrutinee defaultDestination cases) =
-  ["  switch " <> renderTypedValue scrutinee <> ", " <> renderLabel defaultDestination <> " ["]
-    <> [ "    " <> renderTypedValue value <> ", " <> renderLabel destination
+renderOperation (OSwitch scrutinee defaultDestination cases) =
+  ["switch " <> renderTypedValue scrutinee <> ", " <> renderLabel defaultDestination <> " ["]
+    <> [ "  " <> renderTypedValue value <> ", " <> renderLabel destination
        | (value, destination) <- cases
        ]
-    <> ["  ]"]
-renderTerminator (TIndirectBr address destinations) =
-  [ "  indirectbr "
+    <> ["]"]
+renderOperation (OIndirectBr address destinations) =
+  [ "indirectbr "
       <> renderTypedValue address
       <> ", ["
       <> T.intercalate ", " (map renderLabel destinations)
       <> "]"
   ]
-renderTerminator TUnreachable = ["  unreachable"]
+renderOperation OUnreachable = ["unreachable"]
+renderOperation (OAlloca a) =
+  [ T.concat
+      [ "alloca "
+      , if allocaInalloca a then "inalloca " else ""
+      , renderType (allocaType a)
+      , foldMap ((", " <>) . renderTypedValue) (allocaElementCount a)
+      , renderAlignment (allocaAlignment a)
+      , foldMap (\n -> ", addrspace(" <> showText n <> ")") (allocaAddrSpace a)
+      ]
+  ]
+renderOperation (OLoad l) =
+  [ T.concat
+      [ "load "
+      , if loadVolatile l then "volatile " else ""
+      , renderType (loadType l)
+      , ", "
+      , renderTypedValue (loadPointer l)
+      , renderAlignment (loadAlignment l)
+      ]
+  ]
+renderOperation (OStore s) =
+  [ T.concat
+      [ "store "
+      , if storeVolatile s then "volatile " else ""
+      , renderTypedValue (storeValue s)
+      , ", "
+      , renderTypedValue (storePointer s)
+      , renderAlignment (storeAlignment s)
+      ]
+  ]
+renderOperation (OGetElementPtr g) =
+  [ T.concat
+      [ "getelementptr "
+      , T.concat [renderGepFlag f <> " " | f <- gepFlags g]
+      , renderType (gepSourceType g)
+      , ", "
+      , renderTypedValue (gepPointer g)
+      , T.concat [", " <> renderTypedValue i | i <- gepIndices g]
+      ]
+  ]
+
+renderAlignment :: Maybe Natural -> Text
+renderAlignment = foldMap (\n -> ", align " <> showText n)
 
 renderLabel :: Name -> Text
 renderLabel name = "label %" <> renderName name

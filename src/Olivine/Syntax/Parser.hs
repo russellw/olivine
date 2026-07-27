@@ -512,15 +512,16 @@ pBlankLine :: Parser ()
 pBlankLine = hspace *> (() <$ eol)
 
 pInstruction :: Parser Instruction
-pInstruction = try pTerminatorInstruction <|> pOpaqueInstruction
+pInstruction = try pOperationInstruction <|> pOpaqueInstruction
 
-pTerminatorInstruction :: Parser Instruction
-pTerminatorInstruction = try $ do
+pOperationInstruction :: Parser Instruction
+pOperationInstruction = try $ do
   hspace
-  terminator <- pTerminator
-  attachments <- many (symbol "," *> pMetadataAttachment)
+  result <- optional (try (pLocalName <* symbol "="))
+  operation <- pOperation
+  attachments <- many (try (symbol "," *> pMetadataAttachment))
   endOfLine
-  pure (ITerminator terminator attachments)
+  pure (IOperation result operation attachments)
 
 -- Anything in a body that is not the closing brace, a blank line or a label.
 -- The text is kept with its indentation: only a modelled instruction could
@@ -532,39 +533,120 @@ pOpaqueInstruction = try $ do
   notFollowedBy pBlockLabel
   IOpaque <$> takeWhile1P (Just "instruction") (/= '\n') <* optional eol
 
-pTerminator :: Parser Terminator
-pTerminator =
+pOperation :: Parser Operation
+pOperation =
   choice
     [ pRet
     , pBr
     , pSwitch
     , pIndirectBr
-    , TUnreachable <$ keyword "unreachable"
+    , OUnreachable <$ keyword "unreachable"
+    , pAlloca
+    , pLoad
+    , pStore
+    , pGetElementPtr
     ]
 
-pRet :: Parser Terminator
+-- * Memory
+
+pAlloca :: Parser Operation
+pAlloca = do
+  keyword "alloca"
+  inalloca <- option False (True <$ keyword "inalloca")
+  t <- pType
+  count <- optional (try (symbol "," *> pTypedValue))
+  alignment <- optional (try pAlignmentClause)
+  addrSpace <- optional (try (symbol "," *> pAddrSpace))
+  pure $
+    OAlloca
+      Alloca
+        { allocaInalloca = inalloca
+        , allocaType = t
+        , allocaElementCount = count
+        , allocaAlignment = alignment
+        , allocaAddrSpace = addrSpace
+        }
+
+-- The atomic form is not modelled, and fails here at its ordering keyword
+-- rather than being half-read.
+pLoad :: Parser Operation
+pLoad = do
+  keyword "load"
+  volatile <- option False (True <$ keyword "volatile")
+  t <- pType
+  symbol ","
+  pointer <- pTypedValue
+  alignment <- optional (try pAlignmentClause)
+  pure $
+    OLoad
+      Load
+        { loadVolatile = volatile
+        , loadType = t
+        , loadPointer = pointer
+        , loadAlignment = alignment
+        }
+
+pStore :: Parser Operation
+pStore = do
+  keyword "store"
+  volatile <- option False (True <$ keyword "volatile")
+  value <- pTypedValue
+  symbol ","
+  pointer <- pTypedValue
+  alignment <- optional (try pAlignmentClause)
+  pure $
+    OStore
+      Store
+        { storeVolatile = volatile
+        , storeValue = value
+        , storePointer = pointer
+        , storeAlignment = alignment
+        }
+
+pGetElementPtr :: Parser Operation
+pGetElementPtr = do
+  keyword "getelementptr"
+  flags <- many pGepFlag
+  sourceType <- pType
+  symbol ","
+  pointer <- pTypedValue
+  indices <- many (try (symbol "," *> pTypedValue))
+  pure $
+    OGetElementPtr
+      GetElementPtr
+        { gepFlags = flags
+        , gepSourceType = sourceType
+        , gepPointer = pointer
+        , gepIndices = indices
+        }
+
+-- | @, align N@, which every memory operation may end with.
+pAlignmentClause :: Parser Natural
+pAlignmentClause = symbol "," *> keyword "align" *> pNatural
+
+pRet :: Parser Operation
 pRet = do
   keyword "ret"
-  TRet <$> ((Nothing <$ keyword "void") <|> (Just <$> pTypedValue))
+  ORet <$> ((Nothing <$ keyword "void") <|> (Just <$> pTypedValue))
 
 -- The unconditional form starts with the label keyword and the conditional
 -- with a type, so one look is enough to tell them apart.
-pBr :: Parser Terminator
+pBr :: Parser Operation
 pBr = do
   keyword "br"
-  (TBr <$> pLabelOperand) <|> pConditional
+  (OBr <$> pLabelOperand) <|> pConditional
   where
     pConditional = do
       condition <- pTypedValue
       symbol ","
       ifTrue <- pLabelOperand
       symbol ","
-      TCondBr condition ifTrue <$> pLabelOperand
+      OCondBr condition ifTrue <$> pLabelOperand
 
 -- The one terminator written across several lines.  Its cases sit between a
 -- bracket pair that spans line breaks, so this is the only place the parser
 -- steps over a newline within a construct.
-pSwitch :: Parser Terminator
+pSwitch :: Parser Operation
 pSwitch = do
   keyword "switch"
   scrutinee <- pTypedValue
@@ -575,14 +657,14 @@ pSwitch = do
   verticalSpace
   _ <- char ']'
   hspace
-  pure (TSwitch scrutinee defaultDestination cases)
+  pure (OSwitch scrutinee defaultDestination cases)
   where
     pSwitchCase = do
       value <- pTypedValue
       symbol ","
       (,) value <$> pLabelOperand
 
-pIndirectBr :: Parser Terminator
+pIndirectBr :: Parser Operation
 pIndirectBr = do
   keyword "indirectbr"
   address <- pTypedValue
@@ -590,7 +672,15 @@ pIndirectBr = do
   symbol "["
   destinations <- pLabelOperand `sepBy` symbol ","
   symbol "]"
-  pure (TIndirectBr address destinations)
+  pure (OIndirectBr address destinations)
+
+pGepFlag :: Parser GepFlag
+pGepFlag =
+  choice
+    [ GepInbounds <$ keyword "inbounds"
+    , GepNusw <$ keyword "nusw"
+    , GepNuw <$ keyword "nuw"
+    ]
 
 pLabelOperand :: Parser Name
 pLabelOperand = keyword "label" *> pLocalName
@@ -845,13 +935,7 @@ pCastValue = do
 pGetElementPtrValue :: Parser Value
 pGetElementPtrValue = do
   keyword "getelementptr"
-  flags <-
-    many $
-      choice
-        [ GepInbounds <$ keyword "inbounds"
-        , GepNusw <$ keyword "nusw"
-        , GepNuw <$ keyword "nuw"
-        ]
+  flags <- many pGepFlag
   symbol "("
   element <- pType
   symbol ","
