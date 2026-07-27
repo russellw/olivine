@@ -149,6 +149,39 @@ renderOperation (OUnary u) =
       , renderValue (unaryOperand u)
       ]
   ]
+renderOperation (OSelect s) =
+  [ T.concat
+      [ "select "
+      , renderFlags (selectFlags s)
+      , T.intercalate
+          ", "
+          (map renderTypedValue [selectCondition s, selectTrue s, selectFalse s])
+      ]
+  ]
+renderOperation (OExtractElement e) =
+  [ "extractelement "
+      <> T.intercalate
+        ", "
+        (map renderTypedValue [extractElementVector e, extractElementIndex e])
+  ]
+renderOperation (OInsertElement i) =
+  [ "insertelement "
+      <> T.intercalate
+        ", "
+        ( map
+            renderTypedValue
+            [insertElementVector i, insertElementValue i, insertElementIndex i]
+        )
+  ]
+renderOperation (OShuffleVector v) =
+  [ "shufflevector "
+      <> T.intercalate
+        ", "
+        ( map
+            renderTypedValue
+            [shuffleVectorLeft v, shuffleVectorRight v, shuffleVectorMask v]
+        )
+  ]
 renderOperation (OPhi p) =
   [ T.concat
       [ "phi "

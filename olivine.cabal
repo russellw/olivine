@@ -69,6 +69,7 @@ test-suite olivine-test
                       Arithmetic
                       Calls
                       Phis
+                      Vectors
     build-depends:    base,
                       filepath,
                       olivine,

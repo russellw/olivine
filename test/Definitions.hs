@@ -234,25 +234,19 @@ corpusStructure name = do
     (length (filter startsWithTerminator (bodyLines sourceLines)))
     (length [op | IOperation _ op _ <- concatMap blockBody blocks, isTerminator op])
   assertEqual
-    "terminators left opaque"
-    []
-    [raw | IOpaque raw <- concatMap blockBody blocks, startsWithTerminator raw]
-  assertEqual
     "memory operations parsed"
     (length (filter isMemoryLine (bodyLines sourceLines)))
     (length [op | IOperation _ op _ <- concatMap blockBody blocks, isMemory op])
   assertEqual
-    "memory operations left opaque"
-    []
-    [raw | IOpaque raw <- concatMap blockBody blocks, isMemoryLine raw]
-  assertEqual
     "arithmetic and comparisons parsed"
     (length (filter isArithmeticLine (bodyLines sourceLines)))
     (length [op | IOperation _ op _ <- concatMap blockBody blocks, isArithmetic op])
+  -- Every instruction in the corpus is now modelled, which is a stronger
+  -- statement than any of the checks above and subsumes their opaque halves.
   assertEqual
-    "arithmetic and comparisons left opaque"
+    "instructions left opaque"
     []
-    [raw | IOpaque raw <- concatMap blockBody blocks, isArithmeticLine raw]
+    [raw | IOpaque raw <- concatMap blockBody blocks]
 
 -- A label line is one starting in the first column and running to a colon,
 -- which no instruction does.
@@ -269,6 +263,10 @@ isArithmetic (OFCmp _) = True
 isArithmetic (OConvert _) = True
 isArithmetic (OCall _) = True
 isArithmetic (OPhi _) = True
+isArithmetic (OSelect _) = True
+isArithmetic (OExtractElement _) = True
+isArithmetic (OInsertElement _) = True
+isArithmetic (OShuffleVector _) = True
 isArithmetic _ = False
 
 isArithmeticLine :: Text -> Bool
@@ -283,7 +281,8 @@ isArithmeticLine = operationKeyword `startsWithAny` keywords
       , "fptosi ", "uitofp ", "sitofp ", "ptrtoint ", "inttoptr "
       , "bitcast ", "addrspacecast "
       , "call ", "tail call ", "musttail call ", "notail call "
-      , "phi "
+      , "phi ", "select ", "extractelement ", "insertelement "
+      , "shufflevector "
       ]
 
 isMemory :: Operation -> Bool

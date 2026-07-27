@@ -543,6 +543,10 @@ pOperation =
     , OUnreachable <$ keyword "unreachable"
     , pBinary
     , pUnary
+    , pSelect
+    , pExtractElement
+    , pInsertElement
+    , pShuffleVector
     , pPhi
     , pCall
     , pConvert
@@ -726,6 +730,69 @@ pInstructionFlag =
     , FlagReassoc <$ keyword "reassoc"
     , FlagFast <$ keyword "fast"
     ]
+
+pSelect :: Parser Operation
+pSelect = do
+  keyword "select"
+  flags <- many pInstructionFlag
+  condition <- pTypedValue
+  symbol ","
+  ifTrue <- pTypedValue
+  symbol ","
+  ifFalse <- pTypedValue
+  pure $
+    OSelect
+      Select
+        { selectFlags = flags
+        , selectCondition = condition
+        , selectTrue = ifTrue
+        , selectFalse = ifFalse
+        }
+
+pExtractElement :: Parser Operation
+pExtractElement = do
+  keyword "extractelement"
+  vector <- pTypedValue
+  symbol ","
+  index <- pTypedValue
+  pure $
+    OExtractElement
+      ExtractElement
+        { extractElementVector = vector
+        , extractElementIndex = index
+        }
+
+pInsertElement :: Parser Operation
+pInsertElement = do
+  keyword "insertelement"
+  vector <- pTypedValue
+  symbol ","
+  value <- pTypedValue
+  symbol ","
+  index <- pTypedValue
+  pure $
+    OInsertElement
+      InsertElement
+        { insertElementVector = vector
+        , insertElementValue = value
+        , insertElementIndex = index
+        }
+
+pShuffleVector :: Parser Operation
+pShuffleVector = do
+  keyword "shufflevector"
+  left <- pTypedValue
+  symbol ","
+  right <- pTypedValue
+  symbol ","
+  mask <- pTypedValue
+  pure $
+    OShuffleVector
+      ShuffleVector
+        { shuffleVectorLeft = left
+        , shuffleVectorRight = right
+        , shuffleVectorMask = mask
+        }
 
 -- | @phi [flags] \<ty\> [ \<value\>, %pred ], ...@.
 pPhi :: Parser Operation

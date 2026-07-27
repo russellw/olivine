@@ -19,6 +19,10 @@ module Olivine.Syntax.Instruction
   , Unary (..)
   , UnaryOp (..)
   , Convert (..)
+  , Select (..)
+  , ExtractElement (..)
+  , InsertElement (..)
+  , ShuffleVector (..)
   , Phi (..)
   , Call (..)
   , TailKind (..)
@@ -85,6 +89,14 @@ data Operation
     OFCmp (Compare FloatPredicate)
   | -- | @zext nneg i32 %a to i64@ and the other conversions.
     OConvert Convert
+  | -- | @select [flags] \<selty\> \<cond\>, \<ty\> \<a\>, \<ty\> \<b\>@.
+    OSelect Select
+  | -- | @extractelement \<n x ty\> \<vector\>, \<ty\> \<index\>@.
+    OExtractElement ExtractElement
+  | -- | @insertelement \<n x ty\> \<vector\>, \<ty\> \<value\>, \<ty\> \<index\>@.
+    OInsertElement InsertElement
+  | -- | @shufflevector \<n x ty\> \<a\>, \<n x ty\> \<b\>, \<m x i32\> \<mask\>@.
+    OShuffleVector ShuffleVector
   | -- | @phi \<ty\> [ \<value\>, %pred ], ...@.
     OPhi Phi
   | -- | @call@, direct or indirect, with or without a result.
@@ -112,6 +124,10 @@ isTerminator (OUnary _) = False
 isTerminator (OICmp _) = False
 isTerminator (OFCmp _) = False
 isTerminator (OConvert _) = False
+isTerminator (OSelect _) = False
+isTerminator (OExtractElement _) = False
+isTerminator (OInsertElement _) = False
+isTerminator (OShuffleVector _) = False
 isTerminator (OPhi _) = False
 isTerminator (OCall _) = False
 isTerminator (OAlloca _) = False
@@ -239,6 +255,41 @@ data InstructionFlag
   | FlagAFn
   | FlagReassoc
   | FlagFast
+  deriving (Eq, Show)
+
+-- | @select [flags] \<selty\> \<cond\>, \<ty\> \<a\>, \<ty\> \<b\>@.
+--
+-- The condition is @i1@ for a scalar select and a vector of @i1@ for an
+-- elementwise one, so it carries its own type like the other operands.
+data Select = Select
+  { selectFlags :: [InstructionFlag]
+  , selectCondition :: TypedValue
+  , selectTrue :: TypedValue
+  , selectFalse :: TypedValue
+  }
+  deriving (Eq, Show)
+
+data ExtractElement = ExtractElement
+  { extractElementVector :: TypedValue
+  , extractElementIndex :: TypedValue
+  }
+  deriving (Eq, Show)
+
+data InsertElement = InsertElement
+  { insertElementVector :: TypedValue
+  , insertElementValue :: TypedValue
+  , insertElementIndex :: TypedValue
+  }
+  deriving (Eq, Show)
+
+-- | The mask is an ordinary operand rather than a list of indices: LLVM
+-- writes it as a vector constant, and @zeroinitializer@ is a common spelling
+-- of one, which a list of numbers could not hold.
+data ShuffleVector = ShuffleVector
+  { shuffleVectorLeft :: TypedValue
+  , shuffleVectorRight :: TypedValue
+  , shuffleVectorMask :: TypedValue
+  }
   deriving (Eq, Show)
 
 -- | @phi [flags] \<ty\> [ \<value\>, %pred ], [ \<value\>, %pred ]@.
