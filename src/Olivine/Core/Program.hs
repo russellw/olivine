@@ -14,12 +14,13 @@
 --
 -- __There is no phi.__  A value that depends on which edge was taken is an
 -- assignment on each edge, which is possible because locals can be
--- reassigned.  Eliminating and reconstructing phi nodes is the conversion
--- this representation exists for, and it is not done yet: a function
--- containing one is retained as syntax rather than lowered.
+-- reassigned.  That is the one operation the core has and LLVM does not:
+-- LLVM has no copy instruction, because in single assignment form it would
+-- have nothing to do.
 module Olivine.Core.Program
   ( Program (..)
   , Entry (..)
+  , Operation (..)
   , Function (..)
   , Block (..)
   , Instruction (..)
@@ -29,7 +30,9 @@ module Olivine.Core.Program
 
 import Olivine.Syntax.Ast qualified as Syntax
 import Olivine.Syntax.Function (Signature)
-import Olivine.Syntax.Instruction (MetadataAttachment, Operation)
+import Olivine.Syntax.Instruction (MetadataAttachment)
+import Olivine.Syntax.Instruction qualified as Syntax
+import Olivine.Syntax.Value qualified as Syntax
 import Olivine.Syntax.Name (Name)
 
 -- | A whole program.  Olivine optimizes across all of it at once, so this is
@@ -80,10 +83,24 @@ data Instruction = Instruction
   }
   deriving (Eq, Show)
 
+-- | What an instruction does.
+--
+-- Everything LLVM's instruction set has, and one thing it does not.
+data Operation
+  = -- | @r := value@.
+    --
+    -- A local may be assigned more than once, so this needs no counterpart in
+    -- LLVM and has none.  It is what a phi becomes: an assignment on each
+    -- edge that reaches the block the phi was at the head of.
+    Assign Syntax.TypedValue
+  | -- | An operation of LLVM's own, which is most of them.
+    Perform Syntax.Operation
+  deriving (Eq, Show)
+
 -- | The operation ending a block.  A terminator assigns to nothing, so unlike
 -- 'Instruction' it carries no result name.
 data Terminator = Terminator
-  { terminatorOperation :: Operation
+  { terminatorOperation :: Syntax.Operation
   , terminatorMetadata :: [MetadataAttachment]
   }
   deriving (Eq, Show)
