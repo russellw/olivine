@@ -5,6 +5,7 @@ import Test.Tasty
 import Arithmetic (arithmeticTests)
 import Attributes (attributeTests)
 import Calls (callTests)
+import Core (coreTests)
 import Declares (declareTests)
 import Definitions (definitionTests)
 import Globals (globalTests)
@@ -19,7 +20,7 @@ import Vectors (vectorTests)
 
 main :: IO ()
 main = do
-  discovered <- sequence [roundTripTests, structureTests, definitionTests]
+  discovered <- sequence [roundTripTests, structureTests, definitionTests, coreTests]
   defaultMain $
     testGroup
       "olivine"

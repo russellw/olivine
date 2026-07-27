@@ -11,24 +11,28 @@ module Olivine.Pipeline
   , fixpoint
   ) where
 
+import Olivine.Core.Lower (lower)
+import Olivine.Core.Program (Program)
+import Olivine.Core.Raise (raise)
 import Olivine.Syntax.Ast (Module)
 
 data Pass = Pass
   { passName :: String
-  , runPass :: Module -> Module
+  , runPass :: Program -> Program
   }
 
--- | The pipeline.  Empty for now: the first milestone is a faithful round
--- trip, and an empty pipeline is what makes @olivine in.ll -o out.ll@ testable
--- as the identity.
---
--- Passes will operate on the non-SSA core representation rather than on the
--- syntax layer; this signature moves once that core exists.
+-- | The pipeline.  Still empty: what exists so far is the road the program
+-- travels, not anything done to it along the way.
 passes :: [Pass]
 passes = []
 
+-- | Read a module, lower it to the core representation, run the passes, and
+-- put it back.
+--
+-- Lowering and raising happen either side of the passes rather than being
+-- each pass's business, so a pass never sees the syntax layer.
 optimize :: Module -> Module
-optimize m = foldl' (flip runPass) m passes
+optimize = raise . flip (foldl' (flip runPass)) passes . lower
 
 -- | Apply a transformation until it stops changing the program.
 fixpoint :: Eq a => (a -> a) -> a -> a

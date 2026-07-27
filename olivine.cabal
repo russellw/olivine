@@ -33,6 +33,9 @@ library
                       Olivine.Syntax.Type
                       Olivine.Syntax.Parser
                       Olivine.Syntax.Printer
+                      Olivine.Core.Program
+                      Olivine.Core.Lower
+                      Olivine.Core.Raise
                       Olivine.Pipeline
     build-depends:    base >=4.17 && <5,
                       megaparsec >=9.0 && <10,
@@ -70,6 +73,7 @@ test-suite olivine-test
                       Calls
                       Phis
                       Vectors
+                      Core
     build-depends:    base,
                       filepath,
                       olivine,
