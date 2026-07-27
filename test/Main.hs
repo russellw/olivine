@@ -10,6 +10,7 @@ import Definitions (definitionTests)
 import Globals (globalTests)
 import Memory (memoryTests)
 import Metadata (metadataTests)
+import Phis (phiTests)
 import RoundTrip (roundTripTests)
 import Structure (headerSyntaxTests, structureTests)
 import Terminators (terminatorTests)
@@ -21,4 +22,4 @@ main = do
   defaultMain $
     testGroup
       "olivine"
-      ([typeTests, globalTests, declareTests, attributeTests, metadataTests, terminatorTests, memoryTests, arithmeticTests, callTests, headerSyntaxTests] <> discovered)
+      ([typeTests, globalTests, declareTests, attributeTests, metadataTests, terminatorTests, memoryTests, arithmeticTests, callTests, phiTests, headerSyntaxTests] <> discovered)

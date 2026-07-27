@@ -268,6 +268,7 @@ isArithmetic (OICmp _) = True
 isArithmetic (OFCmp _) = True
 isArithmetic (OConvert _) = True
 isArithmetic (OCall _) = True
+isArithmetic (OPhi _) = True
 isArithmetic _ = False
 
 isArithmeticLine :: Text -> Bool
@@ -282,6 +283,7 @@ isArithmeticLine = operationKeyword `startsWithAny` keywords
       , "fptosi ", "uitofp ", "sitofp ", "ptrtoint ", "inttoptr "
       , "bitcast ", "addrspacecast "
       , "call ", "tail call ", "musttail call ", "notail call "
+      , "phi "
       ]
 
 isMemory :: Operation -> Bool

@@ -543,6 +543,7 @@ pOperation =
     , OUnreachable <$ keyword "unreachable"
     , pBinary
     , pUnary
+    , pPhi
     , pCall
     , pConvert
     , pICmp
@@ -725,6 +726,25 @@ pInstructionFlag =
     , FlagReassoc <$ keyword "reassoc"
     , FlagFast <$ keyword "fast"
     ]
+
+-- | @phi [flags] \<ty\> [ \<value\>, %pred ], ...@.
+pPhi :: Parser Operation
+pPhi = do
+  keyword "phi"
+  flags <- many pInstructionFlag
+  t <- pType
+  incoming <- pIncoming `sepBy1` symbol ","
+  pure (OPhi Phi {phiFlags = flags, phiType = t, phiIncoming = incoming})
+  where
+    -- The predecessor is written as a plain local name, without the label
+    -- keyword a branch target carries.
+    pIncoming = do
+      symbol "["
+      value <- pValue
+      symbol ","
+      predecessor <- pLocalName
+      symbol "]"
+      pure (value, predecessor)
 
 -- * Calls
 

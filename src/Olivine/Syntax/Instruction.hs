@@ -19,6 +19,7 @@ module Olivine.Syntax.Instruction
   , Unary (..)
   , UnaryOp (..)
   , Convert (..)
+  , Phi (..)
   , Call (..)
   , TailKind (..)
   , Argument (..)
@@ -84,6 +85,8 @@ data Operation
     OFCmp (Compare FloatPredicate)
   | -- | @zext nneg i32 %a to i64@ and the other conversions.
     OConvert Convert
+  | -- | @phi \<ty\> [ \<value\>, %pred ], ...@.
+    OPhi Phi
   | -- | @call@, direct or indirect, with or without a result.
     OCall Call
   | OAlloca Alloca
@@ -109,6 +112,7 @@ isTerminator (OUnary _) = False
 isTerminator (OICmp _) = False
 isTerminator (OFCmp _) = False
 isTerminator (OConvert _) = False
+isTerminator (OPhi _) = False
 isTerminator (OCall _) = False
 isTerminator (OAlloca _) = False
 isTerminator (OLoad _) = False
@@ -235,6 +239,26 @@ data InstructionFlag
   | FlagAFn
   | FlagReassoc
   | FlagFast
+  deriving (Eq, Show)
+
+-- | @phi [flags] \<ty\> [ \<value\>, %pred ], [ \<value\>, %pred ]@.
+--
+-- This is the construct the core representation exists to do without.  There,
+-- locals have addresses and can be reassigned, so a value that depends on
+-- which edge was taken is a store on each edge and a load after the join,
+-- with no need to name the predecessors.
+--
+-- None of that belongs here.  Reading LLVM faithfully and representing a
+-- program the way Olivine wants to are separate problems, and mixing them
+-- would mean the round trip could no longer be checked by comparing the
+-- output with the input.  The conversion is a lowering step between the two
+-- representations, and this type is what it will consume.
+data Phi = Phi
+  { phiFlags :: [InstructionFlag]
+  , phiType :: Type
+  , -- | The value arriving along each edge, and the block it comes from.
+    phiIncoming :: [(Value, Name)]
+  }
   deriving (Eq, Show)
 
 -- | @[tail] call [flags] [cconv] [ret attrs] \<ty\> \<callee\>(\<args\>) [attrs]@.

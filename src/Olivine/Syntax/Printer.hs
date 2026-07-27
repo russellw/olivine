@@ -149,6 +149,19 @@ renderOperation (OUnary u) =
       , renderValue (unaryOperand u)
       ]
   ]
+renderOperation (OPhi p) =
+  [ T.concat
+      [ "phi "
+      , renderFlags (phiFlags p)
+      , renderType (phiType p)
+      , " "
+      , T.intercalate
+          ", "
+          [ "[ " <> renderValue value <> ", %" <> renderName predecessor <> " ]"
+          | (value, predecessor) <- phiIncoming p
+          ]
+      ]
+  ]
 renderOperation (OCall c) =
   [ T.concat
       [ foldMap ((<> " ") . renderTailKind) (callTail c)
