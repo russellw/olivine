@@ -32,12 +32,15 @@ library
                       Olivine.Syntax.Global
                       Olivine.Syntax.Type
                       Olivine.Syntax.Parser
+                      Olivine.Syntax.Operands
                       Olivine.Syntax.Printer
                       Olivine.Core.Program
                       Olivine.Core.Lower
+                      Olivine.Core.Ssa
                       Olivine.Core.Raise
                       Olivine.Pipeline
     build-depends:    base >=4.17 && <5,
+                      containers,
                       megaparsec >=9.0 && <10,
                       text >=2.0 && <3
     default-language: GHC2021
