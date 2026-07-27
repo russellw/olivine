@@ -12,6 +12,7 @@ module Olivine.Pipeline
   ) where
 
 import Olivine.Core.Lower (lower)
+import Olivine.Core.Pass.DeadCode (eliminateDeadCode)
 import Olivine.Core.Program (Program)
 import Olivine.Core.Raise (raise)
 import Olivine.Syntax.Ast (Module)
@@ -21,10 +22,11 @@ data Pass = Pass
   , runPass :: Program -> Program
   }
 
--- | The pipeline.  Still empty: what exists so far is the road the program
--- travels, not anything done to it along the way.
+-- | The pipeline.
 passes :: [Pass]
-passes = []
+passes =
+  [ Pass "dead code" eliminateDeadCode
+  ]
 
 -- | Read a module, lower it to the core representation, run the passes, and
 -- put it back.

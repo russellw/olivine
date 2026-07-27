@@ -38,6 +38,7 @@ library
                       Olivine.Core.Lower
                       Olivine.Core.Ssa
                       Olivine.Core.Blocks
+                      Olivine.Core.Pass.DeadCode
                       Olivine.Core.Raise
                       Olivine.Pipeline
     build-depends:    base >=4.17 && <5,
@@ -78,6 +79,7 @@ test-suite olivine-test
                       Phis
                       Vectors
                       Core
+                      DeadCode
     build-depends:    base,
                       filepath,
                       olivine,
