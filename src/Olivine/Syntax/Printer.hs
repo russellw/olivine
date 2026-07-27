@@ -127,6 +127,30 @@ renderOperation (OIndirectBr address destinations) =
       <> "]"
   ]
 renderOperation OUnreachable = ["unreachable"]
+renderOperation (OBinary b) =
+  [ T.concat
+      [ renderBinaryOp (binaryOp b)
+      , " "
+      , renderFlags (binaryFlags b)
+      , renderType (binaryType b)
+      , " "
+      , renderValue (binaryLeft b)
+      , ", "
+      , renderValue (binaryRight b)
+      ]
+  ]
+renderOperation (OUnary u) =
+  [ T.concat
+      [ renderUnaryOp (unaryOp u)
+      , " "
+      , renderFlags (unaryFlags u)
+      , renderType (unaryType u)
+      , " "
+      , renderValue (unaryOperand u)
+      ]
+  ]
+renderOperation (OICmp c) = [renderCompare "icmp" renderIntPredicate c]
+renderOperation (OFCmp c) = [renderCompare "fcmp" renderFloatPredicate c]
 renderOperation (OAlloca a) =
   [ T.concat
       [ "alloca "
@@ -167,6 +191,93 @@ renderOperation (OGetElementPtr g) =
       , T.concat [", " <> renderTypedValue i | i <- gepIndices g]
       ]
   ]
+
+renderCompare :: Text -> (predicate -> Text) -> Compare predicate -> Text
+renderCompare name renderPredicate c =
+  T.concat
+    [ name
+    , " "
+    , renderFlags (compareFlags c)
+    , renderPredicate (comparePredicate c)
+    , " "
+    , renderType (compareType c)
+    , " "
+    , renderValue (compareLeft c)
+    , ", "
+    , renderValue (compareRight c)
+    ]
+
+-- Each flag is followed by a space, so an empty list contributes nothing.
+renderFlags :: [InstructionFlag] -> Text
+renderFlags flags = T.concat [renderInstructionFlag f <> " " | f <- flags]
+
+renderBinaryOp :: BinaryOp -> Text
+renderBinaryOp OpAdd = "add"
+renderBinaryOp OpSub = "sub"
+renderBinaryOp OpMul = "mul"
+renderBinaryOp OpUDiv = "udiv"
+renderBinaryOp OpSDiv = "sdiv"
+renderBinaryOp OpURem = "urem"
+renderBinaryOp OpSRem = "srem"
+renderBinaryOp OpShl = "shl"
+renderBinaryOp OpLShr = "lshr"
+renderBinaryOp OpAShr = "ashr"
+renderBinaryOp OpAnd = "and"
+renderBinaryOp OpOr = "or"
+renderBinaryOp OpXor = "xor"
+renderBinaryOp OpFAdd = "fadd"
+renderBinaryOp OpFSub = "fsub"
+renderBinaryOp OpFMul = "fmul"
+renderBinaryOp OpFDiv = "fdiv"
+renderBinaryOp OpFRem = "frem"
+
+renderUnaryOp :: UnaryOp -> Text
+renderUnaryOp OpFNeg = "fneg"
+
+renderIntPredicate :: IntPredicate -> Text
+renderIntPredicate IEq = "eq"
+renderIntPredicate INe = "ne"
+renderIntPredicate IUgt = "ugt"
+renderIntPredicate IUge = "uge"
+renderIntPredicate IUlt = "ult"
+renderIntPredicate IUle = "ule"
+renderIntPredicate ISgt = "sgt"
+renderIntPredicate ISge = "sge"
+renderIntPredicate ISlt = "slt"
+renderIntPredicate ISle = "sle"
+
+renderFloatPredicate :: FloatPredicate -> Text
+renderFloatPredicate FFalse = "false"
+renderFloatPredicate FOeq = "oeq"
+renderFloatPredicate FOgt = "ogt"
+renderFloatPredicate FOge = "oge"
+renderFloatPredicate FOlt = "olt"
+renderFloatPredicate FOle = "ole"
+renderFloatPredicate FOne = "one"
+renderFloatPredicate FOrd = "ord"
+renderFloatPredicate FUeq = "ueq"
+renderFloatPredicate FUgt = "ugt"
+renderFloatPredicate FUge = "uge"
+renderFloatPredicate FUlt = "ult"
+renderFloatPredicate FUle = "ule"
+renderFloatPredicate FUne = "une"
+renderFloatPredicate FUno = "uno"
+renderFloatPredicate FTrue = "true"
+
+renderInstructionFlag :: InstructionFlag -> Text
+renderInstructionFlag FlagNUW = "nuw"
+renderInstructionFlag FlagNSW = "nsw"
+renderInstructionFlag FlagExact = "exact"
+renderInstructionFlag FlagDisjoint = "disjoint"
+renderInstructionFlag FlagSameSign = "samesign"
+renderInstructionFlag FlagNNaN = "nnan"
+renderInstructionFlag FlagNInf = "ninf"
+renderInstructionFlag FlagNSZ = "nsz"
+renderInstructionFlag FlagARcp = "arcp"
+renderInstructionFlag FlagContract = "contract"
+renderInstructionFlag FlagAFn = "afn"
+renderInstructionFlag FlagReassoc = "reassoc"
+renderInstructionFlag FlagFast = "fast"
 
 renderAlignment :: Maybe Natural -> Text
 renderAlignment = foldMap (\n -> ", align " <> showText n)

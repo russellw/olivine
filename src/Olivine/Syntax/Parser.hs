@@ -541,10 +541,150 @@ pOperation =
     , pSwitch
     , pIndirectBr
     , OUnreachable <$ keyword "unreachable"
+    , pBinary
+    , pUnary
+    , pICmp
+    , pFCmp
     , pAlloca
     , pLoad
     , pStore
     , pGetElementPtr
+    ]
+
+-- * Arithmetic and comparisons
+
+pBinary :: Parser Operation
+pBinary = do
+  op <- pBinaryOp
+  flags <- many pInstructionFlag
+  t <- pType
+  left <- pValue
+  symbol ","
+  right <- pValue
+  pure $
+    OBinary
+      Binary
+        { binaryOp = op
+        , binaryFlags = flags
+        , binaryType = t
+        , binaryLeft = left
+        , binaryRight = right
+        }
+
+pUnary :: Parser Operation
+pUnary = do
+  op <- OpFNeg <$ keyword "fneg"
+  flags <- many pInstructionFlag
+  t <- pType
+  operand <- pValue
+  pure $
+    OUnary
+      Unary
+        { unaryOp = op
+        , unaryFlags = flags
+        , unaryType = t
+        , unaryOperand = operand
+        }
+
+pICmp :: Parser Operation
+pICmp = keyword "icmp" *> (OICmp <$> pCompare pIntPredicate)
+
+pFCmp :: Parser Operation
+pFCmp = keyword "fcmp" *> (OFCmp <$> pCompare pFloatPredicate)
+
+-- The flags come before the predicate, as in @icmp samesign ugt i32 %a, %b@.
+pCompare :: Parser predicate -> Parser (Compare predicate)
+pCompare pPredicate = do
+  flags <- many pInstructionFlag
+  predicate <- pPredicate
+  t <- pType
+  left <- pValue
+  symbol ","
+  right <- pValue
+  pure
+    Compare
+      { compareFlags = flags
+      , comparePredicate = predicate
+      , compareType = t
+      , compareLeft = left
+      , compareRight = right
+      }
+
+pBinaryOp :: Parser BinaryOp
+pBinaryOp =
+  choice
+    [ OpAdd <$ keyword "add"
+    , OpSub <$ keyword "sub"
+    , OpMul <$ keyword "mul"
+    , OpUDiv <$ keyword "udiv"
+    , OpSDiv <$ keyword "sdiv"
+    , OpURem <$ keyword "urem"
+    , OpSRem <$ keyword "srem"
+    , OpShl <$ keyword "shl"
+    , OpLShr <$ keyword "lshr"
+    , OpAShr <$ keyword "ashr"
+    , OpAnd <$ keyword "and"
+    , OpOr <$ keyword "or"
+    , OpXor <$ keyword "xor"
+    , OpFAdd <$ keyword "fadd"
+    , OpFSub <$ keyword "fsub"
+    , OpFMul <$ keyword "fmul"
+    , OpFDiv <$ keyword "fdiv"
+    , OpFRem <$ keyword "frem"
+    ]
+
+pIntPredicate :: Parser IntPredicate
+pIntPredicate =
+  choice
+    [ IEq <$ keyword "eq"
+    , INe <$ keyword "ne"
+    , IUgt <$ keyword "ugt"
+    , IUge <$ keyword "uge"
+    , IUlt <$ keyword "ult"
+    , IUle <$ keyword "ule"
+    , ISgt <$ keyword "sgt"
+    , ISge <$ keyword "sge"
+    , ISlt <$ keyword "slt"
+    , ISle <$ keyword "sle"
+    ]
+
+pFloatPredicate :: Parser FloatPredicate
+pFloatPredicate =
+  choice
+    [ FFalse <$ keyword "false"
+    , FOeq <$ keyword "oeq"
+    , FOgt <$ keyword "ogt"
+    , FOge <$ keyword "oge"
+    , FOlt <$ keyword "olt"
+    , FOle <$ keyword "ole"
+    , FOne <$ keyword "one"
+    , FOrd <$ keyword "ord"
+    , FUeq <$ keyword "ueq"
+    , FUgt <$ keyword "ugt"
+    , FUge <$ keyword "uge"
+    , FUlt <$ keyword "ult"
+    , FUle <$ keyword "ule"
+    , FUne <$ keyword "une"
+    , FUno <$ keyword "uno"
+    , FTrue <$ keyword "true"
+    ]
+
+pInstructionFlag :: Parser InstructionFlag
+pInstructionFlag =
+  choice
+    [ FlagNUW <$ keyword "nuw"
+    , FlagNSW <$ keyword "nsw"
+    , FlagExact <$ keyword "exact"
+    , FlagDisjoint <$ keyword "disjoint"
+    , FlagSameSign <$ keyword "samesign"
+    , FlagNNaN <$ keyword "nnan"
+    , FlagNInf <$ keyword "ninf"
+    , FlagNSZ <$ keyword "nsz"
+    , FlagARcp <$ keyword "arcp"
+    , FlagContract <$ keyword "contract"
+    , FlagAFn <$ keyword "afn"
+    , FlagReassoc <$ keyword "reassoc"
+    , FlagFast <$ keyword "fast"
     ]
 
 -- * Memory
@@ -554,7 +694,7 @@ pAlloca = do
   keyword "alloca"
   inalloca <- option False (True <$ keyword "inalloca")
   t <- pType
-  count <- optional (try (symbol "," *> pTypedValue))
+  elementCount <- optional (try (symbol "," *> pTypedValue))
   alignment <- optional (try pAlignmentClause)
   addrSpace <- optional (try (symbol "," *> pAddrSpace))
   pure $
@@ -562,7 +702,7 @@ pAlloca = do
       Alloca
         { allocaInalloca = inalloca
         , allocaType = t
-        , allocaElementCount = count
+        , allocaElementCount = elementCount
         , allocaAlignment = alignment
         , allocaAddrSpace = addrSpace
         }

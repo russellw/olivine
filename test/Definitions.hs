@@ -17,8 +17,6 @@ import Olivine.Syntax.Ast
 import Olivine.Syntax.Function
 import Olivine.Syntax.Instruction
 import Olivine.Syntax.Name
-import Olivine.Syntax.Type
-import Olivine.Syntax.Value
 import Olivine.Syntax.Printer (renderModule)
 
 -- | Definitions in the spelling LLVM itself emits.  The label padding and the
@@ -186,23 +184,25 @@ fieldTests =
     , -- Indentation travels with the text, since an opaque instruction has no
       -- structure from which it could be regenerated.  A modelled terminator
       -- in the same block has its indentation generated instead.
+      --
+      -- The opaque lines here are deliberately not LLVM.  Naming a real
+      -- instruction would make this test fail every time that family is
+      -- modelled, which has already happened twice and says nothing about
+      -- what is being checked.
       testCase "opaque instructions keep their text and indentation" $ do
         d <-
           definition $
             T.unlines
-              [ "define i32 @f(i32 %0) {"
-              , "  %2 = add nsw i32 %0, 1"
-              , "  call void @g()"
-              , "  ret i32 %2"
+              [ "define void @f() {"
+              , "    not.an.instruction i32 %0, 1"
+              , "  neither.is.this"
+              , "  ret void"
               , "}"
               ]
         concatMap blockBody (definitionBlocks d)
-          @?= [ IOpaque "  %2 = add nsw i32 %0, 1"
-              , IOpaque "  call void @g()"
-              , IOperation
-                  Nothing
-                  (ORet (Just (TypedValue (TInteger 32) (VLocal (Name Bare "2")))))
-                  []
+          @?= [ IOpaque "    not.an.instruction i32 %0, 1"
+              , IOpaque "  neither.is.this"
+              , IOperation Nothing (ORet Nothing) []
               ]
     ]
   where
@@ -245,6 +245,14 @@ corpusStructure name = do
     "memory operations left opaque"
     []
     [raw | IOpaque raw <- concatMap blockBody blocks, isMemoryLine raw]
+  assertEqual
+    "arithmetic and comparisons parsed"
+    (length (filter isArithmeticLine (bodyLines sourceLines)))
+    (length [op | IOperation _ op _ <- concatMap blockBody blocks, isArithmetic op])
+  assertEqual
+    "arithmetic and comparisons left opaque"
+    []
+    [raw | IOpaque raw <- concatMap blockBody blocks, isArithmeticLine raw]
 
 -- A label line is one starting in the first column and running to a colon,
 -- which no instruction does.
@@ -253,6 +261,23 @@ isLabelLine line = case T.uncons line of
   Just (c, _) -> isIdentifierChar c && T.isInfixOf ":" (T.takeWhile (/= ' ') line)
   Nothing -> False
 
+isArithmetic :: Operation -> Bool
+isArithmetic (OBinary _) = True
+isArithmetic (OUnary _) = True
+isArithmetic (OICmp _) = True
+isArithmetic (OFCmp _) = True
+isArithmetic _ = False
+
+isArithmeticLine :: Text -> Bool
+isArithmeticLine = operationKeyword `startsWithAny` keywords
+  where
+    keywords =
+      [ "add ", "sub ", "mul ", "udiv ", "sdiv ", "urem ", "srem "
+      , "shl ", "lshr ", "ashr ", "and ", "or ", "xor "
+      , "fadd ", "fsub ", "fmul ", "fdiv ", "frem ", "fneg "
+      , "icmp ", "fcmp "
+      ]
+
 isMemory :: Operation -> Bool
 isMemory (OAlloca _) = True
 isMemory (OLoad _) = True
@@ -260,17 +285,22 @@ isMemory (OStore _) = True
 isMemory (OGetElementPtr _) = True
 isMemory _ = False
 
--- A memory operation either starts the line, as store does, or follows the
--- name it assigns to.
-isMemoryLine :: Text -> Bool
-isMemoryLine line = any (`T.isPrefixOf` afterAssignment) keywords
+-- An operation either starts the line, as store does, or follows the name it
+-- assigns to.
+operationKeyword :: Text -> Text
+operationKeyword line
+  | "%" `T.isPrefixOf` stripped, (_, rest) <- T.breakOn " = " stripped, not (T.null rest) =
+      T.drop 3 rest
+  | otherwise = stripped
   where
     stripped = T.stripStart line
-    afterAssignment
-      | "%" `T.isPrefixOf` stripped, (_, rest) <- T.breakOn " = " stripped, not (T.null rest) =
-          T.drop 3 rest
-      | otherwise = stripped
-    keywords = ["alloca", "load ", "store ", "getelementptr "]
+
+startsWithAny :: (Text -> Text) -> [Text] -> Text -> Bool
+startsWithAny extract keywords line =
+  any (`T.isPrefixOf` extract line) keywords
+
+isMemoryLine :: Text -> Bool
+isMemoryLine = operationKeyword `startsWithAny` ["alloca", "load ", "store ", "getelementptr "]
 
 startsWithTerminator :: Text -> Bool
 startsWithTerminator line =

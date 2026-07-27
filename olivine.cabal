@@ -66,6 +66,7 @@ test-suite olivine-test
                       Definitions
                       Terminators
                       Memory
+                      Arithmetic
     build-depends:    base,
                       filepath,
                       olivine,

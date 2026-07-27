@@ -14,6 +14,14 @@ module Olivine.Syntax.Instruction
   ( Instruction (..)
   , Operation (..)
   , isTerminator
+  , Binary (..)
+  , BinaryOp (..)
+  , Unary (..)
+  , UnaryOp (..)
+  , Compare (..)
+  , IntPredicate (..)
+  , FloatPredicate (..)
+  , InstructionFlag (..)
   , Alloca (..)
   , Load (..)
   , Store (..)
@@ -26,7 +34,7 @@ import Numeric.Natural (Natural)
 
 import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Type (Type)
-import Olivine.Syntax.Value (GepFlag, TypedValue)
+import Olivine.Syntax.Value (GepFlag, TypedValue, Value)
 
 data Instruction
   = -- | An operation, the name it assigns to its result if it has one, and
@@ -59,6 +67,15 @@ data Operation
   | -- | @indirectbr \<ty\> \<address\>, [label %a, label %b]@.
     OIndirectBr TypedValue [Name]
   | OUnreachable
+  | -- | @add nsw i32 %a, %b@ and its relatives, integer, bitwise and
+    -- floating point alike.
+    OBinary Binary
+  | -- | @fneg double %a@, the only unary arithmetic operation.
+    OUnary Unary
+  | -- | @icmp slt i32 %a, %b@.
+    OICmp (Compare IntPredicate)
+  | -- | @fcmp olt double %a, %b@.
+    OFCmp (Compare FloatPredicate)
   | OAlloca Alloca
   | OLoad Load
   | OStore Store
@@ -77,10 +94,126 @@ isTerminator (OCondBr _ _ _) = True
 isTerminator (OSwitch _ _ _) = True
 isTerminator (OIndirectBr _ _) = True
 isTerminator OUnreachable = True
+isTerminator (OBinary _) = False
+isTerminator (OUnary _) = False
+isTerminator (OICmp _) = False
+isTerminator (OFCmp _) = False
 isTerminator (OAlloca _) = False
 isTerminator (OLoad _) = False
 isTerminator (OStore _) = False
 isTerminator (OGetElementPtr _) = False
+
+-- | A binary operation: an opcode, its flags, the type both operands share,
+-- and the operands.
+data Binary = Binary
+  { binaryOp :: BinaryOp
+  , binaryFlags :: [InstructionFlag]
+  , binaryType :: Type
+  , binaryLeft :: Value
+  , binaryRight :: Value
+  }
+  deriving (Eq, Show)
+
+data BinaryOp
+  = OpAdd
+  | OpSub
+  | OpMul
+  | OpUDiv
+  | OpSDiv
+  | OpURem
+  | OpSRem
+  | OpShl
+  | OpLShr
+  | OpAShr
+  | OpAnd
+  | OpOr
+  | OpXor
+  | OpFAdd
+  | OpFSub
+  | OpFMul
+  | OpFDiv
+  | OpFRem
+  deriving (Eq, Show)
+
+data Unary = Unary
+  { unaryOp :: UnaryOp
+  , unaryFlags :: [InstructionFlag]
+  , unaryType :: Type
+  , unaryOperand :: Value
+  }
+  deriving (Eq, Show)
+
+data UnaryOp
+  = OpFNeg
+  deriving (Eq, Show)
+
+-- | A comparison, parameterized by which set of predicates it draws on.
+--
+-- @icmp@ and @fcmp@ share their shape and differ only in that, so one record
+-- serves both without letting an integer comparison take a floating point
+-- predicate.
+data Compare predicate = Compare
+  { compareFlags :: [InstructionFlag]
+  , comparePredicate :: predicate
+  , compareType :: Type
+  , compareLeft :: Value
+  , compareRight :: Value
+  }
+  deriving (Eq, Show)
+
+data IntPredicate
+  = IEq
+  | INe
+  | IUgt
+  | IUge
+  | IUlt
+  | IUle
+  | ISgt
+  | ISge
+  | ISlt
+  | ISle
+  deriving (Eq, Show)
+
+data FloatPredicate
+  = FFalse
+  | FOeq
+  | FOgt
+  | FOge
+  | FOlt
+  | FOle
+  | FOne
+  | FOrd
+  | FUeq
+  | FUgt
+  | FUge
+  | FUlt
+  | FUle
+  | FUne
+  | FUno
+  | FTrue
+  deriving (Eq, Show)
+
+-- | The keywords that qualify an operation: the integer wrapping flags, the
+-- exactness and disjointness flags, @samesign@, and the fast-math set.
+--
+-- Which of them an operation may carry is a verifier's business.  Splitting
+-- them by operation would mean a type per group and a conversion wherever
+-- flags are handled generically, for a check a verifier makes anyway.
+data InstructionFlag
+  = FlagNUW
+  | FlagNSW
+  | FlagExact
+  | FlagDisjoint
+  | FlagSameSign
+  | FlagNNaN
+  | FlagNInf
+  | FlagNSZ
+  | FlagARcp
+  | FlagContract
+  | FlagAFn
+  | FlagReassoc
+  | FlagFast
+  deriving (Eq, Show)
 
 -- | @alloca [inalloca] \<ty\> [, \<ty\> \<count\>] [, align N] [, addrspace(N)]@.
 data Alloca = Alloca
