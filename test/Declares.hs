@@ -174,7 +174,7 @@ fieldTests =
           "declare void @f() local_unnamed_addr"
           (Just LocalUnnamedAddr)
     , testCase "attribute groups" $
-        field signatureAttributes "declare void @f() #3" [SAGroup 3]
+        field signatureAttributes "declare void @f() #3" [AIGroup 3]
     , testCase "no attributes" $
         field signatureAttributes "declare void @f()" []
     , -- Group references and attributes written out share one slot, so both
@@ -183,7 +183,7 @@ fieldTests =
         field
           signatureAttributes
           "declare void @f() nounwind #3 cold"
-          [SAAttribute FANoUnwind, SAGroup 3, SAAttribute FACold]
+          [AIAttribute FANoUnwind, AIGroup 3, AIAttribute FACold]
     , -- The interior of an attribute whose argument is its own small
       -- language is carried as written.
       testCase "a nested attribute argument" $

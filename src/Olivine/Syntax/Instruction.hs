@@ -19,6 +19,9 @@ module Olivine.Syntax.Instruction
   , Unary (..)
   , UnaryOp (..)
   , Convert (..)
+  , Call (..)
+  , TailKind (..)
+  , Argument (..)
   , Compare (..)
   , IntPredicate (..)
   , FloatPredicate (..)
@@ -33,6 +36,8 @@ module Olivine.Syntax.Instruction
 import Data.Text (Text)
 import Numeric.Natural (Natural)
 
+import Olivine.Syntax.Attribute (AttributeItem, ParamAttribute)
+import Olivine.Syntax.Linkage (CallingConvention)
 import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Type (Type)
 import Olivine.Syntax.Value (CastOp, GepFlag, TypedValue, Value)
@@ -79,6 +84,8 @@ data Operation
     OFCmp (Compare FloatPredicate)
   | -- | @zext nneg i32 %a to i64@ and the other conversions.
     OConvert Convert
+  | -- | @call@, direct or indirect, with or without a result.
+    OCall Call
   | OAlloca Alloca
   | OLoad Load
   | OStore Store
@@ -102,6 +109,7 @@ isTerminator (OUnary _) = False
 isTerminator (OICmp _) = False
 isTerminator (OFCmp _) = False
 isTerminator (OConvert _) = False
+isTerminator (OCall _) = False
 isTerminator (OAlloca _) = False
 isTerminator (OLoad _) = False
 isTerminator (OStore _) = False
@@ -227,6 +235,46 @@ data InstructionFlag
   | FlagAFn
   | FlagReassoc
   | FlagFast
+  deriving (Eq, Show)
+
+-- | @[tail] call [flags] [cconv] [ret attrs] \<ty\> \<callee\>(\<args\>) [attrs]@.
+--
+-- Inline assembly and operand bundles are not modelled; a call carrying
+-- either stays opaque.  @invoke@ and @callbr@, which are calls that also
+-- branch, are still to come.
+data Call = Call
+  { callTail :: Maybe TailKind
+  , callFlags :: [InstructionFlag]
+  , callCallingConvention :: Maybe CallingConvention
+  , callReturnAttributes :: [ParamAttribute]
+  , callAddrSpace :: Maybe Natural
+  , -- | The return type, or the whole function type when LLVM writes it out.
+    --
+    -- It writes the function type for a variadic callee, as in
+    -- @call i32 (ptr, ...) \@printf@, and the return type alone otherwise.
+    -- Both are types, so one field holds either.
+    callType :: Type
+  , -- | A global for a direct call, a local for an indirect one.
+    callCallee :: Value
+  , callArguments :: [Argument]
+  , callAttributes :: [AttributeItem]
+  }
+  deriving (Eq, Show)
+
+data TailKind
+  = Tail
+  | MustTail
+  | NoTail
+  deriving (Eq, Show)
+
+-- | An argument at a call site: a type, any attributes, and the value.
+--
+-- Not the same as a 'Parameter', which names its value instead of giving one.
+data Argument = Argument
+  { argumentType :: Type
+  , argumentAttributes :: [ParamAttribute]
+  , argumentValue :: Value
+  }
   deriving (Eq, Show)
 
 -- | @alloca [inalloca] \<ty\> [, \<ty\> \<count\>] [, align N] [, addrspace(N)]@.

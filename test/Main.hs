@@ -4,6 +4,7 @@ import Test.Tasty
 
 import Arithmetic (arithmeticTests)
 import Attributes (attributeTests)
+import Calls (callTests)
 import Declares (declareTests)
 import Definitions (definitionTests)
 import Globals (globalTests)
@@ -20,4 +21,4 @@ main = do
   defaultMain $
     testGroup
       "olivine"
-      ([typeTests, globalTests, declareTests, attributeTests, metadataTests, terminatorTests, memoryTests, arithmeticTests, headerSyntaxTests] <> discovered)
+      ([typeTests, globalTests, declareTests, attributeTests, metadataTests, terminatorTests, memoryTests, arithmeticTests, callTests, headerSyntaxTests] <> discovered)

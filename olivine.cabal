@@ -67,6 +67,7 @@ test-suite olivine-test
                       Terminators
                       Memory
                       Arithmetic
+                      Calls
     build-depends:    base,
                       filepath,
                       olivine,

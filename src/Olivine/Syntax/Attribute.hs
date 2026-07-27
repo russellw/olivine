@@ -14,6 +14,7 @@ module Olivine.Syntax.Attribute
   ( ParamAttribute (..)
   , FunctionAttribute (..)
   , AttributeContext (..)
+  , AttributeItem (..)
   ) where
 
 import Data.Text (Text)
@@ -149,4 +150,17 @@ data FunctionAttribute
     FAMemory Text
   | -- | @"key"@ or @"key"="value"@.
     FAString Text (Maybe Text)
+  deriving (Eq, Show)
+
+-- | One item of the attribute slot a function signature or a call site
+-- carries: either a reference to a group, or an attribute written out.
+--
+-- They share one list because LLVM's grammar puts them in one slot and
+-- either may come first.
+data AttributeItem
+  = -- | A reference to an attribute group, as in the @#1@ of
+    -- @declare void \@free(ptr) #1@.
+    AIGroup Natural
+  | -- | An attribute written out rather than referenced.
+    AIAttribute FunctionAttribute
   deriving (Eq, Show)

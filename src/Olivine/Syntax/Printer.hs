@@ -149,6 +149,23 @@ renderOperation (OUnary u) =
       , renderValue (unaryOperand u)
       ]
   ]
+renderOperation (OCall c) =
+  [ T.concat
+      [ foldMap ((<> " ") . renderTailKind) (callTail c)
+      , "call "
+      , renderFlags (callFlags c)
+      , foldMap ((<> " ") . renderCallingConvention) (callCallingConvention c)
+      , T.concat [renderParamAttribute a <> " " | a <- callReturnAttributes c]
+      , foldMap (\n -> "addrspace(" <> showText n <> ") ") (callAddrSpace c)
+      , renderType (callType c)
+      , " "
+      , renderValue (callCallee c)
+      , "("
+      , T.intercalate ", " (map renderArgument (callArguments c))
+      , ")"
+      , T.concat [" " <> renderAttributeItem a | a <- callAttributes c]
+      ]
+  ]
 renderOperation (OConvert c) =
   [ T.concat
       [ renderCastOp (convertOp c)
@@ -201,6 +218,20 @@ renderOperation (OGetElementPtr g) =
       , T.concat [", " <> renderTypedValue i | i <- gepIndices g]
       ]
   ]
+
+renderTailKind :: TailKind -> Text
+renderTailKind Tail = "tail"
+renderTailKind MustTail = "musttail"
+renderTailKind NoTail = "notail"
+
+renderArgument :: Argument -> Text
+renderArgument a =
+  T.concat
+    [ renderType (argumentType a)
+    , " "
+    , T.concat [renderParamAttribute x <> " " | x <- argumentAttributes a]
+    , renderValue (argumentValue a)
+    ]
 
 renderCompare :: Text -> (predicate -> Text) -> Compare predicate -> Text
 renderCompare name renderPredicate c =
@@ -321,9 +352,9 @@ renderAttributeGroupBody attributes =
     <> T.unwords (map (renderFunctionAttribute InGroup) (NE.toList attributes))
     <> " }"
 
-renderSignatureAttribute :: SignatureAttribute -> Text
-renderSignatureAttribute (SAGroup n) = "#" <> showText n
-renderSignatureAttribute (SAAttribute a) = renderFunctionAttribute OnFunction a
+renderAttributeItem :: AttributeItem -> Text
+renderAttributeItem (AIGroup n) = "#" <> showText n
+renderAttributeItem (AIAttribute a) = renderFunctionAttribute OnFunction a
 
 renderSignature :: Signature -> Text
 renderSignature s =
@@ -351,7 +382,7 @@ renderSignature s =
         [ renderUnnamedAddr <$> signatureUnnamedAddr s
         , (\n -> "addrspace(" <> showText n <> ")") <$> signatureAddrSpace s
         ]
-        <> map renderSignatureAttribute (signatureAttributes s)
+        <> map renderAttributeItem (signatureAttributes s)
 
 renderParameter :: Parameter -> Text
 renderParameter p =

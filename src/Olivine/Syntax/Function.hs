@@ -5,7 +5,6 @@
 module Olivine.Syntax.Function
   ( Signature (..)
   , Parameter (..)
-  , SignatureAttribute (..)
   , Definition (..)
   , BasicBlock (..)
   , BlockLabel (..)
@@ -15,7 +14,7 @@ import Numeric.Natural (Natural)
 
 import Data.Text (Text)
 
-import Olivine.Syntax.Attribute (FunctionAttribute, ParamAttribute)
+import Olivine.Syntax.Attribute (AttributeItem, ParamAttribute)
 import Olivine.Syntax.Instruction (Instruction)
 import Olivine.Syntax.Linkage
 import Olivine.Syntax.Name (Name)
@@ -35,20 +34,10 @@ data Signature = Signature
     signatureArity :: Arity
   , signatureUnnamedAddr :: Maybe UnnamedAddr
   , signatureAddrSpace :: Maybe Natural
-  , -- | Attribute group references and attributes written out in full,
-    -- kept in one list because LLVM's grammar puts them in one slot and
-    -- either may come first.
-    signatureAttributes :: [SignatureAttribute]
+  , -- | The attribute slot: group references and attributes written out,
+    -- in the order they appear.
+    signatureAttributes :: [AttributeItem]
   }
-  deriving (Eq, Show)
-
--- | One item of a signature's attribute slot.
-data SignatureAttribute
-  = -- | A reference to an attribute group, as in the @#1@ of
-    -- @declare void \@free(ptr) #1@.
-    SAGroup Natural
-  | -- | An attribute written out on the function itself.
-    SAAttribute FunctionAttribute
   deriving (Eq, Show)
 
 data Parameter = Parameter

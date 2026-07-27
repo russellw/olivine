@@ -239,7 +239,7 @@ pSignature = do
   (parameters, arity) <- symbol "(" *> pParameters' <* symbol ")"
   unnamedAddr <- optional pUnnamedAddr
   addrSpace <- optional pAddrSpace
-  attributes <- many pSignatureAttribute
+  attributes <- many pAttributeItem
   pure
     Signature
       { signatureLinkage = linkage
@@ -257,10 +257,10 @@ pSignature = do
       , signatureAttributes = attributes
       }
 
-pSignatureAttribute :: Parser SignatureAttribute
-pSignatureAttribute =
-  (SAGroup <$> (char '#' *> pNatural))
-    <|> (SAAttribute <$> pFunctionAttribute OnFunction)
+pAttributeItem :: Parser AttributeItem
+pAttributeItem =
+  (AIGroup <$> (char '#' *> pNatural))
+    <|> (AIAttribute <$> pFunctionAttribute OnFunction)
 
 -- | @attributes #N = { ... }@.
 pAttributeGroup :: Parser Entry
@@ -543,6 +543,7 @@ pOperation =
     , OUnreachable <$ keyword "unreachable"
     , pBinary
     , pUnary
+    , pCall
     , pConvert
     , pICmp
     , pFCmp
@@ -724,6 +725,45 @@ pInstructionFlag =
     , FlagReassoc <$ keyword "reassoc"
     , FlagFast <$ keyword "fast"
     ]
+
+-- * Calls
+
+pCall :: Parser Operation
+pCall = do
+  tailKind <- optional pTailKind
+  keyword "call"
+  flags <- many pInstructionFlag
+  callingConvention <- optional pCallingConvention
+  returnAttributes <- many pParamAttribute
+  addrSpace <- optional pAddrSpace
+  t <- pType
+  callee <- pValue
+  arguments <- symbol "(" *> (pArgument `sepBy` symbol ",") <* symbol ")"
+  attributes <- many pAttributeItem
+  pure $
+    OCall
+      Call
+        { callTail = tailKind
+        , callFlags = flags
+        , callCallingConvention = callingConvention
+        , callReturnAttributes = returnAttributes
+        , callAddrSpace = addrSpace
+        , callType = t
+        , callCallee = callee
+        , callArguments = arguments
+        , callAttributes = attributes
+        }
+
+pTailKind :: Parser TailKind
+pTailKind =
+  choice
+    [ Tail <$ keyword "tail"
+    , MustTail <$ keyword "musttail"
+    , NoTail <$ keyword "notail"
+    ]
+
+pArgument :: Parser Argument
+pArgument = Argument <$> pType <*> many pParamAttribute <*> pValue
 
 -- * Memory
 
