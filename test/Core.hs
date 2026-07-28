@@ -41,6 +41,7 @@ coreTests = do
           "the scaffolding does not escape"
           [testCase name (noScaffolding name) | name <- names]
       , phiTests
+      , numberingTests
       ]
 
 -- | Nothing is retained as syntax any more, so a definition failing to lower
@@ -123,6 +124,81 @@ noScaffolding name = do
     [line | line <- T.lines written, "olivine.edge" `T.isInfixOf` line]
 
 -- | Phi elimination, on the shapes the corpus does not have.
+-- | The numbering written on the way out.
+--
+-- Nothing that arrives is kept: LLVM's numbers stop being true as soon as a
+-- pass removes an instruction or moves code, so the sequence is issued afresh
+-- by LLVM's own rule.  What that rule has to get right is that one counter
+-- serves parameters, blocks and values alike.
+numberingTests :: TestTree
+numberingTests =
+  testGroup
+    "numbering"
+    [ -- The point of issuing it rather than carrying it.  LLVM accepts a gap,
+      -- so this is not about what it will read back; it is that a number
+      -- surviving from the input means nothing after a pass has run.
+      testCase "a gap in what arrived is closed" $
+        numbered
+          ["define i32 @f(i32 %a) {", "  %9 = add i32 %a, 1", "  ret i32 %9", "}"]
+          ["define i32 @f(i32 %a) {", "  %1 = add i32 %a, 1", "  ret i32 %1", "}"]
+    , -- One counter, so a block and a value can never both be %2.  The entry
+      -- block spends a number without printing a label, which is why the
+      -- first instruction here is %3 and not %2.
+      testCase "blocks and values come from one sequence" $
+        numbered
+          [ "define i32 @f(i1 %c, i32 %n) {"
+          , "start:"
+          , "  br i1 %c, label %yes, label %no"
+          , "yes:"
+          , "  %sum = add i32 %n, 1"
+          , "  ret i32 %sum"
+          , "no:"
+          , "  ret i32 0"
+          , "}"
+          ]
+          [ "define i32 @f(i1 %c, i32 %n) {"
+          , "  br i1 %c, label %1, label %2"
+          , ""
+          , "1:                                                ; preds = %0"
+          , "  %sum = add i32 %n, 1"
+          , "  ret i32 %sum"
+          , ""
+          , "2:                                                ; preds = %0"
+          , "  ret i32 0"
+          , "}"
+          ]
+    , -- A name somebody chose is not a number somebody issued, and survives.
+      -- Whether it was quoted is what tells the two apart, which is why %"3"
+      -- is a name and %3 is not.
+      testCase "a name is left where it is" $
+        numbered
+          ["define i32 @f(i32 %a) {", "  %\"3\" = add i32 %a, 1", "  ret i32 %\"3\"", "}"]
+          ["define i32 @f(i32 %a) {", "  %\"3\" = add i32 %a, 1", "  ret i32 %\"3\"", "}"]
+    , -- The rule being LLVM's own is what makes the trip invisible: what
+      -- clang numbered comes back numbered the same, parameters included.
+      testCase "what LLVM numbered comes back as it was" $
+        let text =
+              [ "define i32 @f(i1 %0, i32 %1) {"
+              , "  br i1 %0, label %3, label %4"
+              , ""
+              , "3:                                                ; preds = %2"
+              , "  %x = add i32 %1, 1"
+              , "  ret i32 %x"
+              , ""
+              , "4:                                                ; preds = %2"
+              , "  ret i32 0"
+              , "}"
+              ]
+         in numbered text text
+    ]
+  where
+    numbered source expected = do
+      parsed <- expectParse "<inline>" (T.unlines source)
+      assertEqual
+        "the sequence written out"
+        (T.unlines expected)
+        (renderModule (raise (lower parsed)))
+
 phiTests :: TestTree
 phiTests =
   testGroup
@@ -131,18 +207,18 @@ phiTests =
       -- their values, so writing them out in order would leave both holding
       -- what the second one had.  A temporary has to break the cycle.
       testCase "an exchange is not written out in order" $ do
-        assignments <- assignmentsIn swap
+        assignments <- assignmentsIn 3 swap
         assertBool
           ("expected a temporary among " <> show assignments)
           (length assignments > 2)
     , testCase "an exchange still assigns both locals" $ do
-        assignments <- assignmentsIn swap
+        assignments <- assignmentsIn 3 swap
         assertBool
           ("expected x and y assigned in " <> show assignments)
           (all (`elem` map fst assignments) [Name Bare "x", Name Bare "y"])
     , -- An ordinary pair of phis needs no temporary.
       testCase "independent phis are written out as they are" $ do
-        assignments <- assignmentsIn independent
+        assignments <- assignmentsIn 3 independent
         assertEqual "no temporary" 2 (length assignments)
     , testCase "the invariants hold for these too" $ do
         parsed <- expectParse "<inline>" swap
@@ -182,14 +258,20 @@ phiTests =
 
 -- | The assignments made on the edge that loops back, which is where the
 -- interesting copies are.
-assignmentsIn :: Text -> IO [(Name, TypedValue)]
-assignmentsIn source = do
+--
+-- Those are the ones in a block the lowering added rather than one the source
+-- wrote, and added blocks are told apart by their label: labels are issued in
+-- the order blocks were written, so anything numbered past the last written
+-- one is a block put on an edge.  The copies on the way in are not these —
+-- the entry block has one successor, so they go at the end of it.
+assignmentsIn :: Int -> Text -> IO [(Name, TypedValue)]
+assignmentsIn written source = do
   parsed <- expectParse "<inline>" source
   let blocks = concatMap functionBlocks (functionsIn (lower parsed))
   pure
     [ (name, value)
     | b <- blocks
-    , Just label <- [blockLabel b]
-    , "olivine.edge.loop." `T.isPrefixOf` nameText label
+    , Label n <- [blockLabel b]
+    , n >= written
     , Instruction (Just name) (Assign value) _ <- blockInstructions b
     ]

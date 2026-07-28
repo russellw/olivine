@@ -71,7 +71,7 @@ controlFlowTests =
           -- branch, so the arm that was taken is merged into the block above.
           testCase "the arm not taken goes" $ do
             blocks <- blocksOf decided
-            assertEqual "one block is left" [Just (label "entry")] blocks
+            assertEqual "one block is left" [Label 0] blocks
         , testCase "and the taken arm keeps its instructions" $ do
             terminators <- terminatorsOf decided
             assertEqual
@@ -88,13 +88,13 @@ controlFlowTests =
           -- counting predecessors.
           testCase "a loop nothing enters goes" $ do
             blocks <- blocksOf orphaned
-            assertEqual "the loop is not kept alive by itself" [Just (label "entry")] blocks
+            assertEqual "the loop is not kept alive by itself" [Label 0] blocks
         , -- The entry block is where the function starts, so it stays even
           -- when it does nothing but branch.  LLVM forbids an entry block
           -- predecessors, and the block this one forwards to has one.
           testCase "an entry block that only forwards stays" $ do
             blocks <- blocksOf forwarding
-            assertEqual "the entry block survives" [Just (label "entry"), Just (label "body")] blocks
+            assertEqual "the entry block survives" [Label 0, Label 1] blocks
         , testCase "a function whose branches decide nothing is left alone" $ do
             parsed <- expectParse "<inline>" undecided
             let lowered = lower parsed
@@ -106,7 +106,7 @@ controlFlowTests =
           -- goes nowhere else, is one block written as several.
           testCase "a chain becomes one block" $ do
             blocks <- blocksOf chain
-            assertEqual "all of it merged into the entry" [Just (label "entry")] blocks
+            assertEqual "all of it merged into the entry" [Label 0] blocks
         , testCase "in the order the chain ran" $ do
             results <- resultsOf chain
             assertEqual
@@ -118,20 +118,14 @@ controlFlowTests =
           -- above, whatever either of them does.
           testCase "a block reached from two places stays" $ do
             blocks <- blocksOf rejoining
-            assertEqual
-              "the join survives"
-              [Just (label "entry"), Just (label "yes"), Just (label "join")]
-              blocks
+            assertEqual "the join survives" [Label 0, Label 1, Label 2] blocks
         , -- And nor is it, when the block above can go elsewhere instead.
           testCase "a block below a real branch stays" $ do
             blocks <- blocksOf undecided
-            assertEqual
-              "both arms survive"
-              [Just (label "entry"), Just (label "yes"), Just (label "no")]
-              blocks
+            assertEqual "both arms survive" [Label 0, Label 1, Label 2] blocks
         , testCase "a block that branches to itself is not merged into itself" $ do
             blocks <- blocksOf forwarding
-            assertEqual "the loop survives" [Just (label "entry"), Just (label "body")] blocks
+            assertEqual "the loop survives" [Label 0, Label 1] blocks
         ]
     ]
   where
@@ -239,7 +233,7 @@ undecided =
     , "}"
     ]
 
-blocksOf :: Text -> IO [Maybe Name]
+blocksOf :: Text -> IO [Label]
 blocksOf source = do
   simplified <- simplify source
   pure [blockLabel b | f <- functionsIn simplified, b <- functionBlocks f]
@@ -255,7 +249,7 @@ resultsOf source = do
     , i <- blockInstructions b
     ]
 
-terminatorsOf :: Text -> IO [Syntax.Operation Name]
+terminatorsOf :: Text -> IO [Syntax.Operation Label]
 terminatorsOf source = do
   simplified <- simplify source
   pure

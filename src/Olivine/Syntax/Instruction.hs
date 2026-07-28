@@ -114,7 +114,7 @@ data Operation label
   | OLoad Load
   | OStore Store
   | OGetElementPtr GetElementPtr
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- | Whether an operation ends its basic block.
 --
@@ -319,7 +319,7 @@ data Phi label = Phi
   , -- | The value arriving along each edge, and the block it comes from.
     phiIncoming :: [(Value, label)]
   }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- | @[tail] call [flags] [cconv] [ret attrs] \<ty\> \<callee\>(\<args\>) [attrs]@.
 --

@@ -12,6 +12,13 @@
 -- other side of the rule in CLAUDE.md: a predicate is right where invalid
 -- input must survive, and structure is right where it cannot arise.
 --
+-- __A block is identified by a number, not a name.__  Nothing in the core
+-- reads a block's spelling, and passes move code between blocks freely, so
+-- what a block was called in the source is not information the optimizer can
+-- keep true.  Labels are issued by the lowering and reissued by the raising,
+-- which numbers everything unnamed the way LLVM does; between the two, a
+-- label is an integer that means nothing except which block it is.
+--
 -- __There is no phi.__  A value that depends on which edge was taken is an
 -- assignment on each edge, which is possible because locals can be
 -- reassigned.  That is the one operation the core has and LLVM does not:
@@ -20,6 +27,7 @@
 module Olivine.Core.Program
   ( Program (..)
   , Entry (..)
+  , Label (..)
   , Operation (..)
   , Function (..)
   , Block (..)
@@ -27,21 +35,17 @@ module Olivine.Core.Program
   , Terminator (..)
   , functionsIn
   , targetsOf
-  , entryName
   , entryLabel
-  , blockName
   ) where
 
-import Data.Char (isDigit)
-import Data.Maybe (fromMaybe)
-import Data.Text qualified as T
+import Data.Foldable (toList)
 
 import Olivine.Syntax.Ast qualified as Syntax
-import Olivine.Syntax.Function (Signature, parameterName, signatureParameters)
+import Olivine.Syntax.Function (Signature)
 import Olivine.Syntax.Instruction (MetadataAttachment)
 import Olivine.Syntax.Instruction qualified as Syntax
 import Olivine.Syntax.Value qualified as Syntax
-import Olivine.Syntax.Name (Name (..), Quoting (Bare), nameText)
+import Olivine.Syntax.Name (Name)
 
 -- | A whole program.  Olivine optimizes across all of it at once, so this is
 -- the unit a pass is a function of.
@@ -70,9 +74,19 @@ data Function = Function
   }
   deriving (Eq, Show)
 
+-- | What a branch names when it names a block.
+--
+-- An integer rather than a 'Olivine.Syntax.Name.Name' because that is all the
+-- identity a block has here: two blocks are the same block when their labels
+-- are equal, and nothing else about a label means anything.  It also puts
+-- minting one out of reach of collision — a pass needing a new block asks for
+-- the next number, where a pass inventing a name has to hope nothing else
+-- chose it.
+newtype Label = Label Int
+  deriving (Eq, Ord, Show)
+
 data Block = Block
-  { -- | Absent for an entry block written without one.
-    blockLabel :: Maybe Name
+  { blockLabel :: Label
   , blockInstructions :: [Instruction]
   , -- | Exactly one, and last, by construction.
     blockTerminator :: Terminator
@@ -102,13 +116,13 @@ data Operation
     -- edge that reaches the block the phi was at the head of.
     Assign Syntax.TypedValue
   | -- | An operation of LLVM's own, which is most of them.
-    Perform (Syntax.Operation Name)
+    Perform (Syntax.Operation Label)
   deriving (Eq, Show)
 
 -- | The operation ending a block.  A terminator assigns to nothing, so unlike
 -- 'Instruction' it carries no result name.
 data Terminator = Terminator
-  { terminatorOperation :: Syntax.Operation Name
+  { terminatorOperation :: Syntax.Operation Label
   , terminatorMetadata :: [MetadataAttachment]
   }
   deriving (Eq, Show)
@@ -118,50 +132,20 @@ functionsIn program = [f | EFunction f <- programEntries program]
 
 -- | The blocks a terminator can branch to, in the order written.
 --
--- This is the control flow graph, and every pass that walks it asks the same
--- question, so it is asked in one place.
-targetsOf :: Terminator -> [Name]
-targetsOf t = case terminatorOperation t of
-  Syntax.OBr target -> [target]
-  Syntax.OCondBr _ a b -> [a, b]
-  Syntax.OSwitch _ d cases -> d : map snd cases
-  Syntax.OIndirectBr _ ds -> ds
-  _ -> []
+-- The label positions of an operation are the only thing its 'Foldable'
+-- instance visits, and in a terminator those are its destinations, so this is
+-- the control flow graph.  Deriving it rather than writing out the cases
+-- means a terminator added later cannot be left out of the graph.
+targetsOf :: Terminator -> [Label]
+targetsOf = toList . terminatorOperation
 
--- | The number LLVM gives an unlabelled entry block.
+-- | The block a function starts at, which is the first one written.
 --
--- LLVM numbers unnamed values in order, and a block takes a number like
--- anything else, so the entry block gets the one after the parameters.  A
--- parameter written @%0@ is an unnamed value whose number has been written
--- down rather than a parameter named zero, so it counts; one written @%x@ is
--- named and does not.
-entryName :: Signature -> Name
-entryName signature = Name Bare (T.pack (show (length numbered)))
-  where
-    numbered =
-      [ ()
-      | p <- signatureParameters signature
-      , maybe True (T.all isDigit . nameText) (parameterName p)
-      ]
-
--- | The name of the block a function starts at.
---
--- Not the same question as 'entryName', though the two agree when the entry
--- block is unlabelled.  A labelled entry block is named by its label, and
--- confusing the two is how a pass comes to treat the entry block as an
--- ordinary one — which it is not, since LLVM forbids it predecessors.
-entryLabel :: Function -> Name
+-- Absent only for a function with no blocks at all.  There is no rule to
+-- apply beyond the order, now that the entry block has a label like any
+-- other: what made this delicate before was the entry block being the one
+-- block allowed to go unnamed.
+entryLabel :: Function -> Maybe Label
 entryLabel f = case functionBlocks f of
-  block : _ -> fromMaybe unnamed (blockLabel block)
-  [] -> unnamed
-  where
-    unnamed = entryName (functionSignature f)
-
--- | What a block is called, which is what it was labelled unless it is the
--- entry block written without a label.
---
--- Only the entry block may go unlabelled, so the fallback is not a general
--- one: it is 'entryName', and this is where a block that has no name of its
--- own acquires the one LLVM would have given it.
-blockName :: Function -> Block -> Name
-blockName f block = fromMaybe (entryName (functionSignature f)) (blockLabel block)
+  block : _ -> Just (blockLabel block)
+  [] -> Nothing

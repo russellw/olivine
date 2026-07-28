@@ -19,7 +19,6 @@ module Olivine.Core.Pass.ControlFlow
   ) where
 
 import Data.Map.Strict qualified as Map
-import Data.Maybe (fromMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 
@@ -27,7 +26,6 @@ import Olivine.Core.Blocks (mergeBlocks, removeForwarding)
 import Olivine.Core.Program
 import Olivine.Syntax.Instruction (Operation (..))
 import Olivine.Syntax.Instruction qualified as Syntax
-import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Type (Type (..))
 import Olivine.Syntax.Value (TypedValue (..), Value (..))
 
@@ -76,19 +74,18 @@ sweep f = mergeBlocks (removeForwarding (prune (decide f)))
 -- the address of a block is a way of reaching it that no terminator mentions,
 -- and @indirectbr@ listing every destination is what stands in for that now.
 reachableIn :: Function -> [Block]
-reachableIn f = [b | b <- blocks, nameOf b `Set.member` reached]
+reachableIn f = [b | b <- blocks, blockLabel b `Set.member` reached]
   where
     blocks = functionBlocks f
-    nameOf b = fromMaybe (entryName (functionSignature f)) (blockLabel b)
-    successors = Map.fromList [(nameOf b, targetsOf (blockTerminator b)) | b <- blocks]
-    reached = walk Set.empty [entryLabel f]
+    successors = Map.fromList [(blockLabel b, targetsOf (blockTerminator b)) | b <- blocks]
+    reached = maybe Set.empty (walk Set.empty . pure) (entryLabel f)
 
-    walk :: Set Name -> [Name] -> Set Name
+    walk :: Set Label -> [Label] -> Set Label
     walk seen [] = seen
-    walk seen (name : rest)
-      | name `Set.member` seen = walk seen rest
+    walk seen (label : rest)
+      | label `Set.member` seen = walk seen rest
       | otherwise =
-          walk (Set.insert name seen) (Map.findWithDefault [] name successors <> rest)
+          walk (Set.insert label seen) (Map.findWithDefault [] label successors <> rest)
 
 -- | What a branch comes to when only one of its destinations is possible.
 --

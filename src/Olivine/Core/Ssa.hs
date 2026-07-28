@@ -20,7 +20,8 @@ module Olivine.Core.Ssa
 import Data.List (nub)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (fromMaybe, mapMaybe)
+import Data.Maybe (mapMaybe)
+import Data.Text qualified as T
 
 import Olivine.Core.Program
 import Olivine.Syntax.Instruction
@@ -32,16 +33,15 @@ import Olivine.Syntax.Value
 -- | What a local holds at a point in the program.
 type Values = Map Name Value
 
-reconstruct :: Name -> Function -> Function
-reconstruct entry f = f {functionBlocks = rebuild}
+reconstruct :: Function -> Function
+reconstruct f = f {functionBlocks = rebuild}
   where
     blocks = functionBlocks f
-    nameOf b = fromMaybe entry (blockLabel b)
-    order = map nameOf blocks -- already reverse postorder as written
-    byName = Map.fromList [(nameOf b, b) | b <- blocks]
+    order = map blockLabel blocks -- already reverse postorder as written
+    byLabel = Map.fromList [(blockLabel b, b) | b <- blocks]
 
     predecessors target =
-      [nameOf b | b <- blocks, target `elem` targetsOf (blockTerminator b)]
+      [blockLabel b | b <- blocks, target `elem` targetsOf (blockTerminator b)]
 
     -- Every local the core assigns, and the type it was assigned at.
     mutable :: [(Name, Type)]
@@ -53,22 +53,22 @@ reconstruct entry f = f {functionBlocks = rebuild}
         ]
 
     -- A phi for every such local at every join, to be thinned out after.
-    placed :: Map Name [(Name, Name, Type)]
+    placed :: Map Label [(Name, Name, Type)]
     placed =
       Map.fromList
-        [ (nameOf b, [(phiName v (nameOf b), v, t) | (v, t) <- mutable])
+        [ (blockLabel b, [(phiName v (blockLabel b), v, t) | (v, t) <- mutable])
         | b <- blocks
-        , length (predecessors (nameOf b)) > 1
+        , length (predecessors (blockLabel b)) > 1
         ]
 
     phisAt name = Map.findWithDefault [] name placed
 
     -- Walking the blocks in order, what each local holds on the way out.
-    exits :: Map Name Values
+    exits :: Map Label Values
     exits = foldl step Map.empty order
       where
         step acc name =
-          let block = byName Map.! name
+          let block = byLabel Map.! name
               incoming
                 | not (null (phisAt name)) =
                     Map.fromList [(v, VLocal p) | (p, v, _) <- phisAt name]
@@ -88,7 +88,7 @@ reconstruct entry f = f {functionBlocks = rebuild}
     exitOf name = Map.findWithDefault Map.empty name exits
 
     -- The operands each placed phi ends up with.
-    operands :: Map Name [(Value, Name)]
+    operands :: Map Name [(Value, Label)]
     operands =
       Map.fromList
         [ (p, [(arriving q v, q) | q <- predecessors name])
@@ -154,10 +154,10 @@ reconstruct entry f = f {functionBlocks = rebuild}
     readByRewritten b =
       concat
         [ localsUsedBy operation
-        | i <- mapMaybe (rewrite (nameOf b)) (blockInstructions b)
+        | i <- mapMaybe (rewrite (blockLabel b)) (blockInstructions b)
         , Perform operation <- [instructionOperation i]
         ]
-        <> localsUsedBy (terminatorOperation (rewriteTerminator (nameOf b) (blockTerminator b)))
+        <> localsUsedBy (terminatorOperation (rewriteTerminator (blockLabel b) (blockTerminator b)))
 
     -- A phi standing for a local, where it is the only one that local needs,
     -- takes that local's own name.  Otherwise a module put through Olivine
@@ -168,7 +168,7 @@ reconstruct entry f = f {functionBlocks = rebuild}
       Map.fromList
         [ (p, v)
         | (v, _) <- mutable
-        , [(p, _, _)] <- [[ph | b <- blocks, ph@(_, u, _) <- surviving (nameOf b), u == v]]
+        , [(p, _, _)] <- [[ph | b <- blocks, ph@(_, u, _) <- surviving (blockLabel b), u == v]]
         ]
 
     finalName n = Map.findWithDefault n n finalNames
@@ -200,10 +200,10 @@ reconstruct entry f = f {functionBlocks = rebuild}
       [ b
         { blockInstructions =
             [ Instruction (Just p) (Perform (OPhi (phi t p))) []
-            | (p, _, t) <- surviving (nameOf b)
+            | (p, _, t) <- surviving (blockLabel b)
             ]
-              <> mapMaybe (rewrite (nameOf b)) (blockInstructions b)
-        , blockTerminator = rewriteTerminator (nameOf b) (blockTerminator b)
+              <> mapMaybe (rewrite (blockLabel b)) (blockInstructions b)
+        , blockTerminator = rewriteTerminator (blockLabel b) (blockTerminator b)
         }
       | b <- blocks
       ]
@@ -247,7 +247,7 @@ reconstruct entry f = f {functionBlocks = rebuild}
       substitute collapsed (resolve (before name instruction) value)
 
     before name instruction =
-      let block = byName Map.! name
+      let block = byLabel Map.! name
           incoming
             | not (null (phisAt name)) =
                 Map.fromList [(v, VLocal p) | (p, v, _) <- phisAt name]
@@ -261,5 +261,10 @@ reconstruct entry f = f {functionBlocks = rebuild}
       _ -> value
 
 
-phiName :: Name -> Name -> Name
-phiName v b = Name Bare ("olivine.phi." <> nameText v <> "." <> nameText b)
+-- | The name of the phi standing for a local at a block.
+--
+-- The block is a number, so this cannot collide with a name the source chose
+-- for a block; it could still collide with one it chose for a local, which is
+-- a hazard of the same kind waiting for locals to be numbered too.
+phiName :: Name -> Label -> Name
+phiName v (Label n) = Name Bare ("olivine.phi." <> nameText v <> "." <> T.pack (show n))

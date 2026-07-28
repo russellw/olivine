@@ -25,7 +25,6 @@ module Olivine.Core.Blocks
 
 import Olivine.Core.Program
 import Olivine.Syntax.Instruction (Operation (..), Phi (..))
-import Olivine.Syntax.Name (Name)
 
 -- | Remove blocks that do nothing but branch elsewhere.
 --
@@ -40,8 +39,7 @@ removeForwarding :: Function -> Function
 removeForwarding f = f {functionBlocks = settle (functionBlocks f)}
   where
     entry = entryLabel f
-    nameOf = blockName f
-    predecessorsIn = predecessorsOf f
+    predecessorsIn = predecessorsOf
 
     settle blocks = case candidates blocks of
       [] -> blocks
@@ -50,12 +48,12 @@ removeForwarding f = f {functionBlocks = settle (functionBlocks f)}
     candidates blocks =
       [ (b, target)
       | b <- blocks
-      , nameOf b /= entry
+      , Just (blockLabel b) /= entry
       , null (blockInstructions b)
       , OBr target <- [terminatorOperation (blockTerminator b)]
       , -- A block branching to itself is a loop, not a detour.
-        target /= nameOf b
-      , relabellable blocks (nameOf b) target
+        target /= blockLabel b
+      , relabellable blocks (blockLabel b) target
       ]
 
     -- A phi in the target names the block a value arrives from.  Removing the
@@ -64,7 +62,7 @@ removeForwarding f = f {functionBlocks = settle (functionBlocks f)}
     -- two entries for one predecessor would have to agree, and nothing here
     -- knows that they would.
     relabellable blocks name target =
-      all fits [p | b <- blocks, nameOf b == target, p <- phisIn b]
+      all fits [p | b <- blocks, blockLabel b == target, p <- phisIn b]
       where
         fits p = case (name `elem` map snd (phiIncoming p), predecessorsIn blocks name) of
           (False, _) -> True
@@ -74,10 +72,10 @@ removeForwarding f = f {functionBlocks = settle (functionBlocks f)}
     remove blocks block target =
       [ redirect b
       | b <- blocks
-      , nameOf b /= nameOf block
+      , blockLabel b /= blockLabel block
       ]
       where
-        gone = nameOf block
+        gone = blockLabel block
         before = case predecessorsIn blocks gone of
           [only] -> only
           _ -> gone
@@ -117,7 +115,6 @@ mergeBlocks :: Function -> Function
 mergeBlocks f = f {functionBlocks = settle (functionBlocks f)}
   where
     entry = entryLabel f
-    nameOf = blockName f
 
     settle blocks = case candidates blocks of
       [] -> blocks
@@ -130,20 +127,20 @@ mergeBlocks f = f {functionBlocks = settle (functionBlocks f)}
         -- terminator, so this block has the one successor.
         OBr target <- [terminatorOperation (blockTerminator b)]
       , -- A block branching to itself goes somewhere else as well as here.
-        target /= nameOf b
+        target /= blockLabel b
       , -- Nowhere else it is reached from.  The entry block is reached
         -- without being branched to, which no count of predecessors can see.
-        target /= entry
-      , [_] <- [predecessorsOf f blocks target]
-      , below <- [c | c <- blocks, nameOf c == target]
+        Just target /= entry
+      , [_] <- [predecessorsOf blocks target]
+      , below <- [c | c <- blocks, blockLabel c == target]
       ]
 
     merge blocks above below =
-      [absorb b | b <- blocks, nameOf b /= nameOf below]
+      [absorb b | b <- blocks, blockLabel b /= blockLabel below]
       where
-        into = nameOf above
+        into = blockLabel above
         absorb b
-          | nameOf b == into =
+          | blockLabel b == into =
               b
                 { blockInstructions = blockInstructions b <> blockInstructions below
                 , blockTerminator = blockTerminator below
@@ -152,14 +149,14 @@ mergeBlocks f = f {functionBlocks = settle (functionBlocks f)}
 
 -- | The blocks that branch to a given one, once each however many edges they
 -- carry there.
-predecessorsOf :: Function -> [Block] -> Name -> [Name]
-predecessorsOf f blocks target =
-  [blockName f b | b <- blocks, target `elem` targetsOf (blockTerminator b)]
+predecessorsOf :: [Block] -> Label -> [Label]
+predecessorsOf blocks target =
+  [blockLabel b | b <- blocks, target `elem` targetsOf (blockTerminator b)]
 
-phisIn :: Block -> [Phi Name]
+phisIn :: Block -> [Phi Label]
 phisIn b = [p | i <- blockInstructions b, Perform (OPhi p) <- [instructionOperation i]]
 
-mapPhis :: (Phi Name -> Phi Name) -> Instruction -> Instruction
+mapPhis :: (Phi Label -> Phi Label) -> Instruction -> Instruction
 mapPhis f i = case instructionOperation i of
   Perform (OPhi p) -> i {instructionOperation = Perform (OPhi (f p))}
   _ -> i
