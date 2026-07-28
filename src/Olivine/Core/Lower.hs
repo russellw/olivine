@@ -195,25 +195,5 @@ sequenceCopies here = go (0 :: Int)
       | other == name = (dst, TypedValue t (VLocal temporary))
     substitute _ _ copy = copy
 
--- | The blocks a terminator can branch to, in the order written.
-targetsOf :: Terminator -> [Name]
-targetsOf t = case terminatorOperation t of
-  OBr target -> [target]
-  OCondBr _ a b -> [a, b]
-  OSwitch _ d cases -> d : map snd cases
-  OIndirectBr _ ds -> ds
-  _ -> []
-
 distinct :: Eq a => [a] -> [a]
 distinct = foldr (\x xs -> x : filter (/= x) xs) []
-
--- | The number LLVM gives an unlabelled entry block: the one after the
--- parameters, counting those whose names are numbers written down.
-entryName :: Syntax.Signature -> Name
-entryName signature = Name Bare (T.pack (show (length numbered)))
-  where
-    numbered =
-      [ ()
-      | p <- Syntax.signatureParameters signature
-      , maybe True (T.all (`elem` ("0123456789" :: String)) . nameText) (Syntax.parameterName p)
-      ]

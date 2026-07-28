@@ -26,14 +26,21 @@ module Olivine.Core.Program
   , Instruction (..)
   , Terminator (..)
   , functionsIn
+  , targetsOf
+  , entryName
+  , entryLabel
   ) where
 
+import Data.Char (isDigit)
+import Data.Maybe (fromMaybe)
+import Data.Text qualified as T
+
 import Olivine.Syntax.Ast qualified as Syntax
-import Olivine.Syntax.Function (Signature)
+import Olivine.Syntax.Function (Signature, parameterName, signatureParameters)
 import Olivine.Syntax.Instruction (MetadataAttachment)
 import Olivine.Syntax.Instruction qualified as Syntax
 import Olivine.Syntax.Value qualified as Syntax
-import Olivine.Syntax.Name (Name)
+import Olivine.Syntax.Name (Name (..), Quoting (Bare), nameText)
 
 -- | A whole program.  Olivine optimizes across all of it at once, so this is
 -- the unit a pass is a function of.
@@ -107,3 +114,44 @@ data Terminator = Terminator
 
 functionsIn :: Program -> [Function]
 functionsIn program = [f | EFunction f <- programEntries program]
+
+-- | The blocks a terminator can branch to, in the order written.
+--
+-- This is the control flow graph, and every pass that walks it asks the same
+-- question, so it is asked in one place.
+targetsOf :: Terminator -> [Name]
+targetsOf t = case terminatorOperation t of
+  Syntax.OBr target -> [target]
+  Syntax.OCondBr _ a b -> [a, b]
+  Syntax.OSwitch _ d cases -> d : map snd cases
+  Syntax.OIndirectBr _ ds -> ds
+  _ -> []
+
+-- | The number LLVM gives an unlabelled entry block.
+--
+-- LLVM numbers unnamed values in order, and a block takes a number like
+-- anything else, so the entry block gets the one after the parameters.  A
+-- parameter written @%0@ is an unnamed value whose number has been written
+-- down rather than a parameter named zero, so it counts; one written @%x@ is
+-- named and does not.
+entryName :: Signature -> Name
+entryName signature = Name Bare (T.pack (show (length numbered)))
+  where
+    numbered =
+      [ ()
+      | p <- signatureParameters signature
+      , maybe True (T.all isDigit . nameText) (parameterName p)
+      ]
+
+-- | The name of the block a function starts at.
+--
+-- Not the same question as 'entryName', though the two agree when the entry
+-- block is unlabelled.  A labelled entry block is named by its label, and
+-- confusing the two is how a pass comes to treat the entry block as an
+-- ordinary one — which it is not, since LLVM forbids it predecessors.
+entryLabel :: Function -> Name
+entryLabel f = case functionBlocks f of
+  block : _ -> fromMaybe unnamed (blockLabel block)
+  [] -> unnamed
+  where
+    unnamed = entryName (functionSignature f)

@@ -8,7 +8,6 @@ module Olivine.Core.Raise
   ( raise
   ) where
 
-import Data.Char (isDigit)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -18,7 +17,6 @@ import Olivine.Core.Program
 import Olivine.Core.Ssa (reconstruct)
 import Olivine.Syntax.Ast qualified as Syntax
 import Olivine.Syntax.Function qualified as Syntax
-import Olivine.Syntax.Instruction (Operation (..))
 import Olivine.Syntax.Instruction qualified as Syntax
 import Olivine.Syntax.Name
 import Olivine.Syntax.Printer (renderName)
@@ -39,8 +37,7 @@ raiseEntry (EFunction f) =
     -- assignments in them become phi operands, leaving a branch and nothing
     -- else.  Taking them out again is what makes the trip through the core
     -- leave the control flow graph as it found it.
-    single = simplify (reconstruct (entryName f) f)
-    simplify g = g {functionBlocks = removeForwarding (entryName f) (functionBlocks g)}
+    single = removeForwarding (reconstruct (entryName (functionSignature f)) f)
 
 raiseBlock :: Function -> Block -> Syntax.BasicBlock
 raiseBlock f block =
@@ -96,28 +93,4 @@ predecessorComment f name
     reference n = "%" <> renderName n
 
 blockName :: Function -> Block -> Name
-blockName f block = fromMaybe (entryName f) (blockLabel block)
-
--- | The number LLVM gives an unlabelled entry block.
---
--- LLVM numbers unnamed values in order, and a block takes a number like
--- anything else, so the entry block gets the one after the parameters.  A
--- parameter written @%0@ is an unnamed value whose number has been written
--- down rather than a parameter named zero, so it counts; one written @%x@ is
--- named and does not.
-entryName :: Function -> Name
-entryName f = Name Bare (T.pack (show (length numbered)))
-  where
-    numbered =
-      [ ()
-      | p <- Syntax.signatureParameters (functionSignature f)
-      , maybe True (T.all isDigit . nameText) (Syntax.parameterName p)
-      ]
-
-targetsOf :: Terminator -> [Name]
-targetsOf t = case terminatorOperation t of
-  OBr target -> [target]
-  OCondBr _ a b -> [a, b]
-  OSwitch _ d cases -> d : map snd cases
-  OIndirectBr _ ds -> ds
-  _ -> []
+blockName f block = fromMaybe (entryName (functionSignature f)) (blockLabel block)

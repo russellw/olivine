@@ -13,6 +13,7 @@ module Olivine.Pipeline
 
 import Olivine.Core.Lower (lower)
 import Olivine.Core.Pass.ConstantFold (foldConstants)
+import Olivine.Core.Pass.ControlFlow (simplifyControlFlow)
 import Olivine.Core.Pass.DeadCode (eliminateDeadCode)
 import Olivine.Core.Pass.DeadSymbols (eliminateDeadSymbols)
 import Olivine.Core.Program (Program)
@@ -29,13 +30,19 @@ passes :: [Pass]
 -- Folding first, since it leaves the instructions it replaced assigning to
 -- nothing anyone reads, which is exactly what the dead code pass takes away.
 --
+-- Control flow next, because what folding settles about a condition is of no
+-- use until the branch on it is rewritten, and folding will not do that: a
+-- branch is the shape of the function rather than a value in it.
+--
 -- Dead symbols last, since it is the one pass that reads what the others
 -- leave: folding a @select@ between two function pointers settles which of
--- them the program can still reach, and dead code removing the last load of a
+-- them the program can still reach, a block that control flow removed makes
+-- the calls in it no longer calls, and dead code removing the last load of a
 -- global settles whether the global is read at all.  Nothing that runs before
--- it can know either.
+-- it can know any of them.
 passes =
   [ Pass "constant folding" foldConstants
+  , Pass "control flow" simplifyControlFlow
   , Pass "dead code" eliminateDeadCode
   , Pass "dead symbols" eliminateDeadSymbols
   ]

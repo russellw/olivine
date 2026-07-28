@@ -41,7 +41,7 @@ reconstruct entry f = f {functionBlocks = rebuild}
     byName = Map.fromList [(nameOf b, b) | b <- blocks]
 
     predecessors target =
-      [nameOf b | b <- blocks, target `elem` targetsOf b]
+      [nameOf b | b <- blocks, target `elem` targetsOf (blockTerminator b)]
 
     -- Every local the core assigns, and the type it was assigned at.
     mutable :: [(Name, Type)]
@@ -263,11 +263,3 @@ reconstruct entry f = f {functionBlocks = rebuild}
 
 phiName :: Name -> Name -> Name
 phiName v b = Name Bare ("olivine.phi." <> nameText v <> "." <> nameText b)
-
-targetsOf :: Block -> [Name]
-targetsOf b = case terminatorOperation (blockTerminator b) of
-  OBr t -> [t]
-  OCondBr _ a c -> [a, c]
-  OSwitch _ d cases -> d : map snd cases
-  OIndirectBr _ ds -> ds
-  _ -> []
