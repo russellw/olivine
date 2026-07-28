@@ -53,7 +53,7 @@ data Instruction
     --
     -- Whether an operation may name a result is a verifier's business: a
     -- @store@ must not and a @load@ must, and neither is said here.
-    IOperation (Maybe Name) Operation [MetadataAttachment]
+    IOperation (Maybe Name) (Operation Name) [MetadataAttachment]
   | -- | A line not yet modelled, kept as written.
     IOpaque Text
   deriving (Eq, Show)
@@ -64,19 +64,28 @@ data Instruction
 -- and @callbr@ are calls that happen to branch, and belong with @call@;
 -- @resume@ and the @catch@ and @cleanup@ family belong with exception
 -- handling.  Both wait for those, and a block ending in one stays opaque.
-data Operation
+--
+-- __What a branch names its destination by is a parameter.__  In the syntax
+-- this is a 'Name', because that is what was written; in the core it is a
+-- number the optimizer issued, because a block's identity there is not its
+-- spelling.  The alternative was a second copy of the terminator grammar for
+-- the core to use, which is the thing CLAUDE.md says not to do — every
+-- function over operations would need writing twice.  With a parameter there
+-- is still one grammar, and every function that does not look at a
+-- destination is written once and works for both.
+data Operation label
   = -- | @ret void@, or @ret \<ty\> \<value\>@.
     ORet (Maybe TypedValue)
   | -- | @br label %dest@.
-    OBr Name
+    OBr label
   | -- | @br i1 \<cond\>, label %then, label %else@.
-    OCondBr TypedValue Name Name
+    OCondBr TypedValue label label
   | -- | @switch \<ty\> \<value\>, label %default [ ... ]@.  LLVM requires the
     -- case values to be constants; 'Olivine.Syntax.Value.isConstant' is what
     -- asks, rather than the shape of the data.
-    OSwitch TypedValue Name [(TypedValue, Name)]
+    OSwitch TypedValue label [(TypedValue, label)]
   | -- | @indirectbr \<ty\> \<address\>, [label %a, label %b]@.
-    OIndirectBr TypedValue [Name]
+    OIndirectBr TypedValue [label]
   | OUnreachable
   | -- | @add nsw i32 %a, %b@ and its relatives, integer, bitwise and
     -- floating point alike.
@@ -98,7 +107,7 @@ data Operation
   | -- | @shufflevector \<n x ty\> \<a\>, \<n x ty\> \<b\>, \<m x i32\> \<mask\>@.
     OShuffleVector ShuffleVector
   | -- | @phi \<ty\> [ \<value\>, %pred ], ...@.
-    OPhi Phi
+    OPhi (Phi label)
   | -- | @call@, direct or indirect, with or without a result.
     OCall Call
   | OAlloca Alloca
@@ -112,7 +121,7 @@ data Operation
 -- That a block holds exactly one of these, last, is an invariant for a
 -- verifier rather than something the syntax enforces: this layer has to be
 -- able to read back a module that gets it wrong.
-isTerminator :: Operation -> Bool
+isTerminator :: Operation label -> Bool
 isTerminator (ORet _) = True
 isTerminator (OBr _) = True
 isTerminator (OCondBr _ _ _) = True
@@ -304,11 +313,11 @@ data ShuffleVector = ShuffleVector
 -- would mean the round trip could no longer be checked by comparing the
 -- output with the input.  The conversion is a lowering step between the two
 -- representations, and this type is what it will consume.
-data Phi = Phi
+data Phi label = Phi
   { phiFlags :: [InstructionFlag]
   , phiType :: Type
   , -- | The value arriving along each edge, and the block it comes from.
-    phiIncoming :: [(Value, Name)]
+    phiIncoming :: [(Value, label)]
   }
   deriving (Eq, Show)
 

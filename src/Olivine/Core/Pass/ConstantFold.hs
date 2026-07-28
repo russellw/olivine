@@ -91,7 +91,7 @@ knownValues f =
       ]
 
 -- | What an operation comes to, when it comes to anything.
-foldOperation :: Syntax.Operation -> Maybe TypedValue
+foldOperation :: Syntax.Operation label -> Maybe TypedValue
 foldOperation operation = case operation of
   OBinary b -> do
     let t = binaryType b

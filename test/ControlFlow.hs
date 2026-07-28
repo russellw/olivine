@@ -63,7 +63,7 @@ controlFlowTests =
             foldTerminator (switch (VLocal (Name Bare "x"))) @?= Nothing
         , testCase "an indirect branch with a choice to make" $
             foldTerminator (OIndirectBr pointer [label "a", label "b"]) @?= Nothing
-        , testCase "a return" $ foldTerminator (ORet Nothing) @?= Nothing
+        , testCase "a return" $ foldTerminator (ORet Nothing :: Syntax.Operation Name) @?= Nothing
         ]
     , testGroup
         "what the blocks come to"
@@ -255,7 +255,7 @@ resultsOf source = do
     , i <- blockInstructions b
     ]
 
-terminatorsOf :: Text -> IO [Syntax.Operation]
+terminatorsOf :: Text -> IO [Syntax.Operation Name]
 terminatorsOf source = do
   simplified <- simplify source
   pure

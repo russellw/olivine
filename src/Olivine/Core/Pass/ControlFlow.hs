@@ -96,7 +96,7 @@ reachableIn f = [b | b <- blocks, nameOf b `Set.member` reached]
 -- and destinations that agree.  The second needs no constant at all — a
 -- branch to the same block either way goes there whatever it was branching
 -- on, and a @switch@ whose cases all name the default is a @switch@ in name.
-foldTerminator :: Syntax.Operation -> Maybe Syntax.Operation
+foldTerminator :: Eq label => Syntax.Operation label -> Maybe (Syntax.Operation label)
 foldTerminator operation = case operation of
   OCondBr condition true false
     | true == false -> Just (OBr true)
@@ -125,7 +125,7 @@ conditionOf _ = Nothing
 -- The default is where it goes when no case matches, which is what makes this
 -- total once the value is in hand.  LLVM requires the cases to be distinct, so
 -- at most one matches; taking the first does not rely on that being true.
-caseTaken :: TypedValue -> Name -> [(TypedValue, Name)] -> Maybe Name
+caseTaken :: TypedValue -> label -> [(TypedValue, label)] -> Maybe label
 caseTaken value target cases = do
   n <- bitsOf value
   pure $ case [label | (c, label) <- cases, bitsOf c == Just n] of

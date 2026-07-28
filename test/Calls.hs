@@ -22,7 +22,7 @@ import Olivine.Syntax.Type
 import Olivine.Syntax.Value
 
 -- | Lines in the spelling LLVM emits, with what each should parse to.
-emitted :: [(Text, Maybe Name, Operation)]
+emitted :: [(Text, Maybe Name, Operation Name)]
 emitted =
   [ ( "  call void @g()"
     , Nothing
@@ -186,7 +186,7 @@ roundTrips line = do
   parsed <- expectParse "<inline>" source
   renderModule parsed @?= source
 
-parsesTo :: Text -> Maybe Name -> Operation -> Assertion
+parsesTo :: Text -> Maybe Name -> Operation Name -> Assertion
 parsesTo line result operation = do
   instructions <- instructionsIn (inFunction line)
   take 1 instructions @?= [IOperation result operation []]

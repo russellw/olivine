@@ -102,13 +102,13 @@ data Operation
     -- edge that reaches the block the phi was at the head of.
     Assign Syntax.TypedValue
   | -- | An operation of LLVM's own, which is most of them.
-    Perform Syntax.Operation
+    Perform (Syntax.Operation Name)
   deriving (Eq, Show)
 
 -- | The operation ending a block.  A terminator assigns to nothing, so unlike
 -- 'Instruction' it carries no result name.
 data Terminator = Terminator
-  { terminatorOperation :: Syntax.Operation
+  { terminatorOperation :: Syntax.Operation Name
   , terminatorMetadata :: [MetadataAttachment]
   }
   deriving (Eq, Show)

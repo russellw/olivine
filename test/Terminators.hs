@@ -21,7 +21,7 @@ import Olivine.Syntax.Type
 
 -- | Functions in the spelling LLVM emits, with the terminators each should
 -- parse to, in order.
-emitted :: [(String, Text, [Operation])]
+emitted :: [(String, Text, [Operation Name])]
 emitted =
   [ ( "ret void"
     , T.unlines ["define void @f() {", "  ret void", "}"]
@@ -216,7 +216,7 @@ roundTrips source = do
   parsed <- expectParse "<inline>" source
   renderModule parsed @?= source
 
-terminatorsOf :: Text -> [Operation] -> Assertion
+terminatorsOf :: Text -> [Operation Name] -> Assertion
 terminatorsOf source expected = do
   instructions <- instructionsIn source
   [op | IOperation _ op _ <- instructions, isTerminator op] @?= expected

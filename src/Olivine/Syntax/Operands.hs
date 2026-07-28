@@ -31,7 +31,7 @@ import Olivine.Syntax.Value
 -- those are handed over with that type supplied, and it is dropped again
 -- after, so that a caller sees one shape everywhere.
 traverseOperands ::
-  Applicative f => (TypedValue -> f TypedValue) -> Operation -> f Operation
+  Applicative f => (TypedValue -> f TypedValue) -> Operation label -> f (Operation label)
 traverseOperands f = go
   where
     bare t x = typedValue <$> f (TypedValue t x)
@@ -97,19 +97,19 @@ traverseOperands f = go
     argument a =
       (\x -> a {argumentValue = x}) <$> bare (argumentType a) (argumentValue a)
 
-mapOperands :: (TypedValue -> TypedValue) -> Operation -> Operation
+mapOperands :: (TypedValue -> TypedValue) -> Operation label -> Operation label
 mapOperands f = runIdentity . traverseOperands (Identity . f)
 
-operandsOf :: Operation -> [TypedValue]
+operandsOf :: Operation label -> [TypedValue]
 operandsOf = getConst . traverseOperands (\x -> Const [x])
 
 -- | The locals an operation reads.
-localsUsedBy :: Operation -> [Name]
+localsUsedBy :: Operation label -> [Name]
 localsUsedBy operation = [n | VLocal n <- map typedValue (operandsOf operation)]
 
 -- | The globals an operation names, including from inside its constants.
 --
 -- The callee of a call is an operand like any other, so a call names what it
 -- calls here without this having to know what a call is.
-globalsUsedBy :: Operation -> [Name]
+globalsUsedBy :: Operation label -> [Name]
 globalsUsedBy = concatMap (globalsIn . typedValue) . operandsOf

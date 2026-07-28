@@ -83,7 +83,7 @@ usedIn f =
 -- reading through a pointer that cannot be read is undefined in the same way,
 -- but only when it is not volatile: a volatile load is a side effect that
 -- happens to return something.
-removableWhenUnused :: Syntax.Operation -> Bool
+removableWhenUnused :: Syntax.Operation label -> Bool
 removableWhenUnused operation
   | isTerminator operation = False
   | otherwise = case operation of

@@ -156,10 +156,10 @@ predecessorsOf :: Function -> [Block] -> Name -> [Name]
 predecessorsOf f blocks target =
   [blockName f b | b <- blocks, target `elem` targetsOf (blockTerminator b)]
 
-phisIn :: Block -> [Phi]
+phisIn :: Block -> [Phi Name]
 phisIn b = [p | i <- blockInstructions b, Perform (OPhi p) <- [instructionOperation i]]
 
-mapPhis :: (Phi -> Phi) -> Instruction -> Instruction
+mapPhis :: (Phi Name -> Phi Name) -> Instruction -> Instruction
 mapPhis f i = case instructionOperation i of
   Perform (OPhi p) -> i {instructionOperation = Perform (OPhi (f p))}
   _ -> i
