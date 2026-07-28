@@ -10,6 +10,15 @@
 -- Whatever is not modelled is still the line it was written on, held verbatim
 -- with its indentation, since only a modelled instruction can have its
 -- indentation and its result name regenerated.
+--
+-- __Every record holding operands traverses what a local is called.__  Each of
+-- them is parameterized by that and by nothing else, so the derived instances
+-- reach exactly the locals: reading them off is 'Data.Foldable.toList' and
+-- renaming them is 'fmap', at whichever end of the pipeline is asking.  These
+-- records are the part of the instruction set that syntax and core genuinely
+-- share — an @add@ is an @add@ whether its operands are called @%x@ or @%3@ —
+-- so writing the walk once, and having the compiler write it, is what keeps
+-- the two grammars above them from costing a second copy of it.
 module Olivine.Syntax.Instruction
   ( Instruction (..)
   , Operation (..)
@@ -153,7 +162,7 @@ data Binary local = Binary
   , binaryLeft :: Value local
   , binaryRight :: Value local
   }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data BinaryOp
   = OpAdd
@@ -182,7 +191,7 @@ data Unary local = Unary
   , unaryType :: Type
   , unaryOperand :: Value local
   }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data UnaryOp
   = OpFNeg
@@ -195,7 +204,7 @@ data Convert local = Convert
   , convertOperand :: TypedValue local
   , convertTarget :: Type
   }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- | A comparison, parameterized by which set of predicates it draws on.
 --
@@ -209,7 +218,7 @@ data Compare predicate local = Compare
   , compareLeft :: Value local
   , compareRight :: Value local
   }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data IntPredicate
   = IEq
@@ -276,20 +285,20 @@ data Select local = Select
   , selectTrue :: TypedValue local
   , selectFalse :: TypedValue local
   }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data ExtractElement local = ExtractElement
   { extractElementVector :: TypedValue local
   , extractElementIndex :: TypedValue local
   }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data InsertElement local = InsertElement
   { insertElementVector :: TypedValue local
   , insertElementValue :: TypedValue local
   , insertElementIndex :: TypedValue local
   }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- | The mask is an ordinary operand rather than a list of indices: LLVM
 -- writes it as a vector constant, and @zeroinitializer@ is a common spelling
@@ -299,7 +308,7 @@ data ShuffleVector local = ShuffleVector
   , shuffleVectorRight :: TypedValue local
   , shuffleVectorMask :: TypedValue local
   }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- | @phi [flags] \<ty\> [ \<value\>, %pred ], [ \<value\>, %pred ]@.
 --
@@ -343,7 +352,7 @@ data Call local = Call
   , callArguments :: [Argument local]
   , callAttributes :: [AttributeItem]
   }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data TailKind
   = Tail
@@ -359,7 +368,7 @@ data Argument local = Argument
   , argumentAttributes :: [ParamAttribute]
   , argumentValue :: Value local
   }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- | @alloca [inalloca] \<ty\> [, \<ty\> \<count\>] [, align N] [, addrspace(N)]@.
 data Alloca local = Alloca
@@ -370,7 +379,7 @@ data Alloca local = Alloca
   , allocaAlignment :: Maybe Natural
   , allocaAddrSpace :: Maybe Natural
   }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- | @load [volatile] \<ty\>, ptr \<pointer\> [, align N]@.
 --
@@ -384,7 +393,7 @@ data Load local = Load
   , loadPointer :: TypedValue local
   , loadAlignment :: Maybe Natural
   }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- | @store [volatile] \<ty\> \<value\>, ptr \<pointer\> [, align N]@.
 data Store local = Store
@@ -393,7 +402,7 @@ data Store local = Store
   , storePointer :: TypedValue local
   , storeAlignment :: Maybe Natural
   }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- | @getelementptr [flags] \<ty\>, ptr \<pointer\>, \<ty\> \<index\>, ...@.
 --
@@ -407,7 +416,7 @@ data GetElementPtr local = GetElementPtr
   , gepPointer :: TypedValue local
   , gepIndices :: [TypedValue local]
   }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- | @!dbg !5@, @!llvm.loop !6@ and the like, following an instruction.
 --
