@@ -37,6 +37,14 @@ data Signature = Signature
   , -- | The attribute slot: group references and attributes written out,
     -- in the order they appear.
     signatureAttributes :: [AttributeItem]
+  , -- | @section@, @partition@, @comdat@ and @align@, the clauses a function
+    -- shares with a global variable, both being global objects.
+    --
+    -- LLVM rejects a comdat on a @declare@ — a declaration defines nothing to
+    -- put in a group — but a declaration and the header of a definition are
+    -- one production, read here by one rule, so what that rule reads is the
+    -- union and the verifier's is the judgement.
+    signatureClauses :: [GlobalAttribute]
   }
   deriving (Eq, Show)
 

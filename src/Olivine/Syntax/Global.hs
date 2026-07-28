@@ -16,7 +16,6 @@ module Olivine.Syntax.Global
   , IndirectKind (..)
   , ThreadLocality (..)
   , Mutability (..)
-  , GlobalAttribute (..)
   ) where
 
 import Data.Text (Text)
@@ -41,7 +40,9 @@ data Global = Global
   , globalType :: Type
   , -- | Absent for a declaration, as in @\@g = external global i32@.
     globalInitializer :: Maybe Value
-  , globalAttributes :: [GlobalAttribute]
+  , -- | The clauses following the initializer, written with commas between
+    -- them.
+    globalAttributes :: [GlobalAttribute]
   }
   deriving (Eq, Show)
 
@@ -117,12 +118,4 @@ data ThreadLocality
 data Mutability
   = Mutable
   | Immutable
-  deriving (Eq, Show)
-
--- | The comma-separated clauses that follow the initializer.
-data GlobalAttribute
-  = GASection Text
-  | GAPartition Text
-  | GAComdat (Maybe Name)
-  | GAAlign Natural
   deriving (Eq, Show)

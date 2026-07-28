@@ -23,6 +23,7 @@ import Text.Megaparsec.Char (char, digitChar, eol, hspace, string)
 
 import Olivine.Syntax.Ast
 import Olivine.Syntax.Attribute
+import Olivine.Syntax.Comdat
 import Olivine.Syntax.Value
 import Olivine.Syntax.Function
 import Olivine.Syntax.Global
@@ -79,6 +80,7 @@ pEntry =
     , try pSourceFilename
     , try pTarget
     , try pTypeDefinition
+    , try pComdat
     , try pGlobal
     , try pIndirect
     , try pDeclare
@@ -127,6 +129,27 @@ pTypeDefinition = do
   hspace
   name <- pLocalName
   ETypeDefinition name <$> pAssigned (keyword "type" *> pType)
+
+-- | @$name = comdat any@.
+--
+-- The sigil is the comdat namespace's own, so this cannot be confused with a
+-- global however the name is spelled.
+pComdat :: Parser Entry
+pComdat = do
+  hspace
+  _ <- char '$'
+  name <- pName
+  EComdat name <$> pAssigned (keyword "comdat" *> pSelection)
+
+pSelection :: Parser Selection
+pSelection =
+  choice
+    [ SelectAny <$ keyword "any"
+    , SelectExactMatch <$ keyword "exactmatch"
+    , SelectLargest <$ keyword "largest"
+    , SelectNoDeduplicate <$ keyword "nodeduplicate"
+    , SelectSameSize <$ keyword "samesize"
+    ]
 
 -- | @\@name = [modifiers] global|constant <T> [initializer] [, ...]@.
 pGlobal :: Parser Entry
@@ -310,6 +333,7 @@ pSignature = do
   unnamedAddr <- optional pUnnamedAddr
   addrSpace <- optional pAddrSpace
   attributes <- many pAttributeItem
+  clauses <- many pGlobalAttribute
   pure
     Signature
       { signatureLinkage = linkage
@@ -325,6 +349,7 @@ pSignature = do
       , signatureUnnamedAddr = unnamedAddr
       , signatureAddrSpace = addrSpace
       , signatureAttributes = attributes
+      , signatureClauses = clauses
       }
 
 pAttributeItem :: Parser AttributeItem

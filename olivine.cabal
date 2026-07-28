@@ -24,6 +24,7 @@ library
     exposed-modules:  Olivine.Syntax.Ast
                       Olivine.Syntax.Name
                       Olivine.Syntax.Linkage
+                      Olivine.Syntax.Comdat
                       Olivine.Syntax.Attribute
                       Olivine.Syntax.Value
                       Olivine.Syntax.Instruction
@@ -70,6 +71,7 @@ test-suite olivine-test
                       Structure
                       Types
                       Globals
+                      Comdats
                       Indirects
                       Declares
                       Attributes

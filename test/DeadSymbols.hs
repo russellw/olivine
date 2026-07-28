@@ -9,7 +9,8 @@ import Test.Tasty.HUnit
 import Corpus (expectParse)
 import Olivine.Core.Lower (lower)
 import Olivine.Core.Pass.DeadSymbols
-  ( eliminateDeadSymbols
+  ( Reference (..)
+  , eliminateDeadSymbols
   , mentionedIn
   , removableWhenUnreached
   )
@@ -146,17 +147,10 @@ deadSymbolTests =
             ]
         , testGroup
             "what keeps one that its linkage does not say"
-            [ -- A comdat is kept or discarded as a group, and the rest of the
-              -- group cannot be seen from here.  LLVM's own globaldce, which
-              -- does track membership, removes this one: the difference is the
-              -- modelling and not a disagreement about what is dead.
-              testCase "being in a comdat" $ do
-                kept <- globalsOf pinned
-                assertBool ("expected kept in " <> show kept) ("kept" `elem` kept)
-            , -- externally_initialized says the value at startup is not the
+            [ -- externally_initialized says the value at startup is not the
               -- initializer, which is a fact about the value rather than about
               -- who can reach the symbol.
-              testCase "but not externally_initialized, on its own" $ do
+              testCase "not externally_initialized, on its own" $ do
                 kept <- globalsOf pinned
                 assertBool ("expected no configured in " <> show kept) ("configured" `notElem` kept)
             , -- Which is how a module says it means an unreferenced global to
@@ -217,6 +211,45 @@ deadSymbolTests =
             assertEqual "the live globals" ["target", "deep_target"] globals
             assertEqual "the live functions" ["chooser", "run"] functions
         ]
+    , -- Every expectation here is what LLVM's own globaldce leaves, comdats
+      -- included.
+      testGroup
+        "comdats"
+        [ testCase "a group with a live member stays" $ do
+            kept <- comdatsOf grouped
+            assertBool ("expected live in " <> show kept) ("live" `elem` kept)
+        , -- The whole point of a group: the linker keeps or discards all of it
+          -- at once, so a member nothing names is live once any other member
+          -- is, whatever its own linkage says.
+          testCase "and keeps the members nothing names" $ do
+            kept <- globalsOf grouped
+            assertBool ("expected paired in " <> show kept) ("paired" `elem` kept)
+        , testCase "across the kinds, as a group spans them" $ do
+            kept <- survivorsOf grouped
+            assertBool ("expected live_fn in " <> show kept) ("live_fn" `elem` kept)
+        , testCase "a group nothing reaches goes" $ do
+            kept <- comdatsOf grouped
+            assertBool ("expected no dead in " <> show kept) ("dead" `notElem` kept)
+        , -- Which is the removal the old pinning cost: every member of a dead
+          -- group is dead, and the definition of the group with them.
+          testCase "taking its members with it" $ do
+            variables <- globalsOf grouped
+            functions <- survivorsOf grouped
+            assertEqual "no dead globals" [] (filter (`elem` ["lonely", "partner"]) variables)
+            assertBool ("expected no dead_fn in " <> show functions) ("dead_fn" `notElem` functions)
+        , -- A header Olivine cannot read yet is kept whatever happens, so the
+          -- group it puts itself in has to be kept under it — and the rest of
+          -- that group with it, since the linker would discard them together.
+          testCase "a group an unread line names stays" $ do
+            kept <- comdatsOf grouped
+            assertBool ("expected assumed in " <> show kept) ("assumed" `elem` kept)
+        , testCase "with the members it can see" $ do
+            kept <- globalsOf grouped
+            assertBool ("expected presumed in " <> show kept) ("presumed" `elem` kept)
+        , testCase "everything reachable survives" $ do
+            kept <- comdatsOf grouped
+            assertEqual "the live groups, in the order written" ["live", "assumed"] kept
+        ]
     , -- A function's body names globals and a global's initializer names
       -- functions, so the two kinds are one graph and a dead chain can cross
       -- between them as often as it likes.  Two passes would each have to run
@@ -258,11 +291,11 @@ deadSymbolTests =
           testCase "none written" $ removableWhenUnreached Nothing @?= False
         ]
     , testGroup
-        "the globals a line of text mentions"
+        "the names a line of text mentions"
         [ testCase "an alias names its target" $
-            mentionedIn "@a = alias void (), ptr @f" @?= ["a", "f"]
+            mentionedIn "@a = alias void (), ptr @f" @?= [RSymbol "a", RSymbol "f"]
         , testCase "a quoted name" $
-            mentionedIn "@\"a b\" = alias void (), ptr @f" @?= ["a b", "f"]
+            mentionedIn "@\"a b\" = alias void (), ptr @f" @?= [RSymbol "a b", RSymbol "f"]
         , testCase "the sigil for a local is not this one" $
             mentionedIn "  %x = add i32 %a, %b" @?= []
         , testCase "nothing at all" $ mentionedIn "target triple = \"x\"" @?= []
@@ -271,12 +304,30 @@ deadSymbolTests =
           testCase "a comment names nothing" $
             mentionedIn "; @f is what @g calls" @?= []
         , testCase "a comment after a mention ends it" $
-            mentionedIn "@a = alias void (), ptr @f ; not @g" @?= ["a", "f"]
+            mentionedIn "@a = alias void (), ptr @f ; not @g" @?= [RSymbol "a", RSymbol "f"]
         , testCase "a string is data, not a mention" $
-            mentionedIn "@s = constant [3 x i8] c\"@f\\00\"" @?= ["s"]
+            mentionedIn "@s = constant [3 x i8] c\"@f\\00\"" @?= [RSymbol "s"]
         , -- Which of the two comes first is the whole difference.
           testCase "a semicolon inside a string does not start a comment" $
-            mentionedIn "@s = alias void (), ptr @f, section \";\", ptr @g" @?= ["s", "f", "g"]
+            mentionedIn "@s = alias void (), ptr @f, section \";\", ptr @g"
+              @?= [RSymbol "s", RSymbol "f", RSymbol "g"]
+        , -- A comdat group is written with a sigil of its own, and the line
+          -- an unread header holds is where one gets named.
+          testGroup
+            "a comdat group"
+            [ testCase "named by a header not yet read" $
+                mentionedIn "define void @f() gc \"x\" comdat($c) {"
+                  @?= [RSymbol "f", RComdat "c"]
+            , -- The same text on either side of the sigil is two names, which
+              -- is why the sigil is kept rather than the text alone.
+              testCase "is not the symbol of the same name" $
+                mentionedIn "define void @g() gc \"x\" comdat($g) {"
+                  @?= [RSymbol "g", RComdat "g"]
+            , -- $ is one of the characters LLVM allows in an identifier, so a
+              -- name containing one does not mention a group.
+              testCase "a $ inside a name is part of it" $
+                mentionedIn "  %a$b = load i32, ptr @g$h" @?= [RSymbol "g$h"]
+            ]
         ]
     ]
   where
@@ -398,10 +449,7 @@ deadSymbolTests =
     -- Globals nothing reads, each with some further claim on being kept.
     pinned =
       T.unlines
-        [ "$kept = comdat any"
-        , ""
-        , "@kept = linkonce_odr global i32 0, comdat"
-        , "@configured = internal externally_initialized global i32 0"
+        [ "@configured = internal externally_initialized global i32 0"
         , "@wired = internal global i32 0"
         , "@llvm.used = appending global [1 x ptr] [ptr @wired], section \"llvm.metadata\""
         , ""
@@ -437,6 +485,41 @@ deadSymbolTests =
         , "}"
         , ""
         , "define void @run() {"
+        , "  ret void"
+        , "}"
+        ]
+    -- Three comdat groups: one a live path arrives at, one nothing reaches,
+    -- and one named only by a header Olivine cannot read — the @gc@ clause is
+    -- not modelled, so that definition comes through as text.  Each group has
+    -- a member that nothing but the group could keep.
+    grouped =
+      T.unlines
+        [ "$live = comdat any"
+        , ""
+        , "$dead = comdat any"
+        , ""
+        , "$assumed = comdat any"
+        , ""
+        , "@shared = linkonce_odr global i32 0, comdat($live)"
+        , "@paired = internal global i32 0, comdat($live)"
+        , "@lonely = linkonce_odr global i32 0, comdat($dead)"
+        , "@partner = internal global i32 0, comdat($dead)"
+        , "@presumed = internal global i32 0, comdat($assumed)"
+        , ""
+        , "define linkonce_odr void @live_fn() comdat($live) {"
+        , "  ret void"
+        , "}"
+        , ""
+        , "define linkonce_odr void @dead_fn() comdat($dead) {"
+        , "  ret void"
+        , "}"
+        , ""
+        , "define void @unread() comdat($assumed) gc \"shadow-stack\" {"
+        , "  ret void"
+        , "}"
+        , ""
+        , "define void @run() {"
+        , "  %v = load i32, ptr @shared"
         , "  ret void"
         , "}"
         ]
@@ -495,6 +578,15 @@ globalsOf source = do
   pure
     [ nameText (globalName g)
     | ERetained (Syntax.EGlobal g) <- programEntries program
+    ]
+
+-- | The comdat groups still defined, in the order they were written.
+comdatsOf :: Text -> IO [Text]
+comdatsOf source = do
+  program <- sifted source
+  pure
+    [ nameText name
+    | ERetained (Syntax.EComdat name _) <- programEntries program
     ]
 
 -- | The aliases and ifuncs still there, in the order they were written.

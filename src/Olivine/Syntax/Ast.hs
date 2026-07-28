@@ -21,6 +21,7 @@ import Data.Text (Text)
 import Numeric.Natural (Natural)
 
 import Olivine.Syntax.Attribute (FunctionAttribute)
+import Olivine.Syntax.Comdat (Selection)
 import Olivine.Syntax.Function (Definition, Signature)
 import Olivine.Syntax.Global (Global, IndirectSymbol)
 import Olivine.Syntax.Metadata (Distinctness, MetadataOperand)
@@ -54,6 +55,10 @@ data Entry
     ETargetTriple Text
   | -- | @%name = type <T>@.  Usually a struct, but LLVM permits any type.
     ETypeDefinition Name Type
+  | -- | @$name = comdat any@.  The name is a comdat's, in its own namespace,
+    -- and so may be a symbol's too without the two having anything to do with
+    -- each other.
+    EComdat Name Selection
   | -- | @\@name = [modifiers] global|constant <T> [initializer] [, ...]@.
     EGlobal Global
   | -- | @\@name = [modifiers] alias|ifunc <T>, <target>@.

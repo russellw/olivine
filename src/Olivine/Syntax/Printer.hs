@@ -26,6 +26,7 @@ import Numeric.Natural (Natural)
 
 import Olivine.Syntax.Ast
 import Olivine.Syntax.Attribute
+import Olivine.Syntax.Comdat
 import Olivine.Syntax.Value
 import Olivine.Syntax.Function
 import Olivine.Syntax.Global
@@ -41,8 +42,8 @@ import Olivine.Syntax.Type
 -- here.  LLVM separates one kind of top-level construct from the next with a
 -- blank line — the header from the globals, the globals from the functions,
 -- the attribute groups from the metadata — and writes one before every
--- function whatever precedes it, which is why two @declare@s have a gap
--- between them and two globals do not.
+-- function and every comdat whatever precedes it, which is why two @declare@s
+-- have a gap between them and two globals do not.
 --
 -- The @; Function Attrs:@ line above a function is written here rather than by
 -- 'renderEntry', because it is not a fact about the entry: it names attributes
@@ -58,7 +59,8 @@ renderModule (Module entries) = T.unlines (go Nothing (zip entries (map groupOf 
         <> functionAttributes groups entry
         <> (renderEntry entry : go (Just group) rest)
     separated Nothing _ = False
-    separated (Just before) group = before /= group || group == Functions
+    separated (Just before) group =
+      before /= group || group == Functions || group == Comdats
     groups = attributeGroupsOf entries
 
 -- | The attributes of each group the module defines.
@@ -100,6 +102,8 @@ functionAttributes groups entry = case entry of
 data Group
   = Header
   | Types
+  | -- | Written one to a paragraph, as functions are.
+    Comdats
   | Globals
   | -- | LLVM writes the aliases after the globals and blank-line separated
     -- from them, rather than in among them, and the ifuncs after those again.
@@ -120,6 +124,7 @@ groupOf entry = case entry of
   ETargetDataLayout _ -> Header
   ETargetTriple _ -> Header
   ETypeDefinition _ _ -> Types
+  EComdat _ _ -> Comdats
   EGlobal _ -> Globals
   EIndirect s -> case indirectKind s of
     IndirectAlias -> Aliases
@@ -138,6 +143,8 @@ renderEntry (ETargetDataLayout spec) = "target datalayout = " <> quoted spec
 renderEntry (ETargetTriple spec) = "target triple = " <> quoted spec
 renderEntry (ETypeDefinition name t) =
   "%" <> renderName name <> " = type " <> renderType t
+renderEntry (EComdat name selection) =
+  "$" <> renderName name <> " = comdat " <> renderSelection selection
 renderEntry (EGlobal g) = renderGlobal g
 renderEntry (EIndirect s) = renderIndirect s
 renderEntry (EDeclare s) = "declare " <> renderSignature s
@@ -525,6 +532,8 @@ renderSignature s =
         , (\n -> "addrspace(" <> showText n <> ")") <$> signatureAddrSpace s
         ]
         <> map renderAttributeItem (signatureAttributes s)
+        -- The clauses a global writes commas between, a function does not.
+        <> map renderGlobalAttribute (signatureClauses s)
 
 renderParameter :: Parameter -> Text
 renderParameter p =
@@ -676,6 +685,13 @@ renderUnnamedAddr LocalUnnamedAddr = "local_unnamed_addr"
 renderMutability :: Mutability -> Text
 renderMutability Mutable = "global"
 renderMutability Immutable = "constant"
+
+renderSelection :: Selection -> Text
+renderSelection SelectAny = "any"
+renderSelection SelectExactMatch = "exactmatch"
+renderSelection SelectLargest = "largest"
+renderSelection SelectNoDeduplicate = "nodeduplicate"
+renderSelection SelectSameSize = "samesize"
 
 renderGlobalAttribute :: GlobalAttribute -> Text
 renderGlobalAttribute (GASection name) = "section " <> quoted name

@@ -64,6 +64,12 @@ emitted =
       , "  ret i32 1"
       , "}"
       ]
+  , -- The header's trailing clauses, which a function shares with a global.
+    T.unlines
+      [ "define void @f() section \"x\" align 16 {"
+      , "  ret void"
+      , "}"
+      ]
   , -- A switch, the one terminator spanning several lines.
     T.unlines
       [ "define void @f(i32 %0) {"
@@ -87,9 +93,8 @@ emitted =
 rejected :: [Text]
 rejected =
   [ T.unlines ["define void @f() personality ptr @g {", "  ret void", "}"]
-  , T.unlines ["define void @f() section \"x\" {", "  ret void", "}"]
   , T.unlines ["define void @f() !dbg !0 {", "  ret void", "}"]
-  , T.unlines ["define void @f() align 16 {", "  ret void", "}"]
+  , T.unlines ["define void @f() gc \"shadow-stack\" {", "  ret void", "}"]
   , -- No closing brace at all.
     T.unlines ["define void @f() {", "  ret void"]
   ]

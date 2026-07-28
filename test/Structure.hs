@@ -34,6 +34,7 @@ constructs =
   , ("data layout", isDataLayout, T.isPrefixOf "target datalayout")
   , ("target triple", isTriple, T.isPrefixOf "target triple")
   , ("type definition", isTypeDefinition, looksLikeTypeDefinition)
+  , ("comdat", isComdat, T.isPrefixOf "$")
   , ("global variable", isGlobal, looksLikeGlobal)
   , ("alias or ifunc", isIndirect, looksLikeIndirect)
   , ("declaration", isDeclare, T.isPrefixOf "declare")
@@ -52,6 +53,8 @@ constructs =
     isTriple _ = False
     isTypeDefinition (ETypeDefinition _ _) = True
     isTypeDefinition _ = False
+    isComdat (EComdat _ _) = True
+    isComdat _ = False
     isGlobal (EGlobal _) = True
     isGlobal _ = False
     isIndirect (EIndirect _) = True

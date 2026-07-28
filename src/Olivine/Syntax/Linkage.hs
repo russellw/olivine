@@ -9,9 +9,13 @@ module Olivine.Syntax.Linkage
   , DLLStorage (..)
   , UnnamedAddr (..)
   , CallingConvention (..)
+  , GlobalAttribute (..)
   ) where
 
+import Data.Text (Text)
 import Numeric.Natural (Natural)
+
+import Olivine.Syntax.Name (Name)
 
 data Linkage
   = LinkPrivate
@@ -46,6 +50,21 @@ data DLLStorage
 data UnnamedAddr
   = UnnamedAddr
   | LocalUnnamedAddr
+  deriving (Eq, Show)
+
+-- | The clauses written after a definition rather than before it: @section@,
+-- @partition@, @comdat@ and @align@.
+--
+-- LLVM gives these to every global object, and a function is one as much as a
+-- global variable is — the same four clauses in the same order, differing
+-- only in that a global writes commas between them and a function does not.
+-- A comdat clause with no group named means the group the symbol's own name
+-- spells, which is why it is a @Maybe@ and not simply absent.
+data GlobalAttribute
+  = GASection Text
+  | GAPartition Text
+  | GAComdat (Maybe Name)
+  | GAAlign Natural
   deriving (Eq, Show)
 
 -- | The named conventions, plus @cc N@ for the rest.  LLVM has a long tail of
