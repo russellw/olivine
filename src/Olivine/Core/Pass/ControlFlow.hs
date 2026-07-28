@@ -23,7 +23,7 @@ import Data.Maybe (fromMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 
-import Olivine.Core.Blocks (removeForwarding)
+import Olivine.Core.Blocks (mergeBlocks, removeForwarding)
 import Olivine.Core.Program
 import Olivine.Syntax.Instruction (Operation (..))
 import Olivine.Syntax.Instruction qualified as Syntax
@@ -47,8 +47,14 @@ settle f
   where
     swept = sweep f
 
+-- | Fold what can be folded, drop what that leaves unreachable, and put back
+-- together the blocks the CFG no longer has a reason to keep apart.
+--
+-- Merging comes last because the other three make work for it and it makes
+-- none for them: a block stops having a second predecessor when the branch
+-- that was the other one folds away, or when the block it was in is dropped.
 sweep :: Function -> Function
-sweep f = removeForwarding (prune (decide f))
+sweep f = mergeBlocks (removeForwarding (prune (decide f)))
   where
     decide g = g {functionBlocks = map fold (functionBlocks g)}
     prune g = g {functionBlocks = reachableIn g}

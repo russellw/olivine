@@ -29,6 +29,7 @@ module Olivine.Core.Program
   , targetsOf
   , entryName
   , entryLabel
+  , blockName
   ) where
 
 import Data.Char (isDigit)
@@ -155,3 +156,12 @@ entryLabel f = case functionBlocks f of
   [] -> unnamed
   where
     unnamed = entryName (functionSignature f)
+
+-- | What a block is called, which is what it was labelled unless it is the
+-- entry block written without a label.
+--
+-- Only the entry block may go unlabelled, so the fallback is not a general
+-- one: it is 'entryName', and this is where a block that has no name of its
+-- own acquires the one LLVM would have given it.
+blockName :: Function -> Block -> Name
+blockName f block = fromMaybe (entryName (functionSignature f)) (blockLabel block)

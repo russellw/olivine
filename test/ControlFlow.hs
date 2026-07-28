@@ -15,6 +15,7 @@ import Olivine.Core.Lower (lower)
 import Olivine.Core.Pass.ControlFlow (foldTerminator, simplifyControlFlow)
 import Olivine.Core.Program
 import Olivine.Syntax.Instruction
+import Olivine.Syntax.Instruction qualified as Syntax
 import Olivine.Syntax.Name
 import Olivine.Syntax.Type
 import Olivine.Syntax.Value
@@ -66,9 +67,17 @@ controlFlowTests =
         ]
     , testGroup
         "what the blocks come to"
-        [ testCase "the arm not taken goes" $ do
+        [ -- The arm not taken goes, and what is left of the branch is not a
+          -- branch, so the arm that was taken is merged into the block above.
+          testCase "the arm not taken goes" $ do
             blocks <- blocksOf decided
-            assertEqual "only the taken arm survives" [Just (label "entry"), Just (label "no")] blocks
+            assertEqual "one block is left" [Just (label "entry")] blocks
+        , testCase "and the taken arm keeps its instructions" $ do
+            terminators <- terminatorsOf decided
+            assertEqual
+              "ending in what the taken arm ended in"
+              [ORet (Just (TypedValue (TInteger 32) (VInteger 0)))]
+              terminators
         , -- The point of the pass: unreachable blocks take their calls with
           -- them, which is what lets a later pass see the callee is dead.
           testCase "and takes what it called with it" $ do
@@ -90,6 +99,39 @@ controlFlowTests =
             parsed <- expectParse "<inline>" undecided
             let lowered = lower parsed
             assertEqual "unchanged" lowered (simplifyControlFlow lowered)
+        ]
+    , testGroup
+        "what is merged"
+        [ -- A chain of blocks each reached from one place, by a block that
+          -- goes nowhere else, is one block written as several.
+          testCase "a chain becomes one block" $ do
+            blocks <- blocksOf chain
+            assertEqual "all of it merged into the entry" [Just (label "entry")] blocks
+        , testCase "in the order the chain ran" $ do
+            results <- resultsOf chain
+            assertEqual
+              "each block's instructions after the ones above it"
+              [Just (Name Bare "a"), Just (Name Bare "b"), Just (Name Bare "c")]
+              results
+        , -- Merging is about the edge, not about how little a block holds:
+          -- two ways in means the block below is not the rest of the one
+          -- above, whatever either of them does.
+          testCase "a block reached from two places stays" $ do
+            blocks <- blocksOf rejoining
+            assertEqual
+              "the join survives"
+              [Just (label "entry"), Just (label "yes"), Just (label "join")]
+              blocks
+        , -- And nor is it, when the block above can go elsewhere instead.
+          testCase "a block below a real branch stays" $ do
+            blocks <- blocksOf undecided
+            assertEqual
+              "both arms survive"
+              [Just (label "entry"), Just (label "yes"), Just (label "no")]
+              blocks
+        , testCase "a block that branches to itself is not merged into itself" $ do
+            blocks <- blocksOf forwarding
+            assertEqual "the loop survives" [Just (label "entry"), Just (label "body")] blocks
         ]
     ]
   where
@@ -148,6 +190,42 @@ forwarding =
     , "}"
     ]
 
+-- | Blocks in a row, each reached only from the one before it.
+chain :: Text
+chain =
+  T.unlines
+    [ "define i32 @f(i32 %n) {"
+    , "entry:"
+    , "  %a = add i32 %n, 1"
+    , "  br label %middle"
+    , "middle:"
+    , "  %b = mul i32 %a, 2"
+    , "  br label %last"
+    , "last:"
+    , "  %c = sub i32 %b, 3"
+    , "  ret i32 %c"
+    , "}"
+    ]
+
+-- | A block both arms of a branch reach.
+--
+-- The arm has to do something, or it would be a detour and the branch would
+-- go both ways to one place — which really does collapse to a single block,
+-- and would be testing the opposite of what this is for.
+rejoining :: Text
+rejoining =
+  T.unlines
+    [ "define i32 @f(i1 %c, i32 %n) {"
+    , "entry:"
+    , "  br i1 %c, label %yes, label %join"
+    , "yes:"
+    , "  %d = add i32 %n, 1"
+    , "  br label %join"
+    , "join:"
+    , "  ret i32 0"
+    , "}"
+    ]
+
 undecided :: Text
 undecided =
   T.unlines
@@ -165,6 +243,26 @@ blocksOf :: Text -> IO [Maybe Name]
 blocksOf source = do
   simplified <- simplify source
   pure [blockLabel b | f <- functionsIn simplified, b <- functionBlocks f]
+
+-- | What each surviving instruction assigns to, in order.
+resultsOf :: Text -> IO [Maybe Name]
+resultsOf source = do
+  simplified <- simplify source
+  pure
+    [ instructionResult i
+    | f <- functionsIn simplified
+    , b <- functionBlocks f
+    , i <- blockInstructions b
+    ]
+
+terminatorsOf :: Text -> IO [Syntax.Operation]
+terminatorsOf source = do
+  simplified <- simplify source
+  pure
+    [ terminatorOperation (blockTerminator b)
+    | f <- functionsIn simplified
+    , b <- functionBlocks f
+    ]
 
 -- | Every function still called, by name.
 calledIn :: Text -> IO [Name]

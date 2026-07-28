@@ -8,7 +8,6 @@ module Olivine.Core.Raise
   ( raise
   ) where
 
-import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.Text qualified as T
 
@@ -92,5 +91,3 @@ predecessorComment f name
         ]
     reference n = "%" <> renderName n
 
-blockName :: Function -> Block -> Name
-blockName f block = fromMaybe (entryName (functionSignature f)) (blockLabel block)
