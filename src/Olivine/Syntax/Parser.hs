@@ -80,6 +80,7 @@ pEntry =
     , try pTarget
     , try pTypeDefinition
     , try pGlobal
+    , try pAlias
     , try pDeclare
     , try pDefine
     , try pAttributeGroup
@@ -162,6 +163,49 @@ pGlobal = do
         , globalType = t
         , globalInitializer = initializer
         , globalAttributes = attributes
+        }
+
+-- | @\@name = [modifiers] alias \<T\>, \<aliasee\>@.
+--
+-- The modifier sequence up to the keyword is a global's, which is why this
+-- can be a separate rule rather than a branch inside 'pGlobal': whichever of
+-- @global@, @constant@ and @alias@ turns up, everything before it has been
+-- read the same way, and 'pEntry' tries each rule in turn until one reaches
+-- its keyword.
+pAlias :: Parser Entry
+pAlias = do
+  hspace
+  name <- pGlobalName
+  symbol "="
+  linkage <- optional pLinkage
+  preemption <- optional pPreemption
+  visibility <- optional pVisibility
+  dllStorage <- optional pDLLStorage
+  threadLocality <- optional pThreadLocality
+  unnamedAddr <- optional pUnnamedAddr
+  keyword "alias"
+  t <- pType
+  symbol ","
+  -- Written for a symbol and omitted for a constant expression, so whether
+  -- one is there is what says which this is.
+  aliaseeType <- optional (try pType)
+  aliasee <- pValue
+  partition <- optional (symbol "," *> keyword "partition" *> pQuoted <* hspace)
+  endOfLine
+  pure $
+    EAlias
+      Alias
+        { aliasName = name
+        , aliasLinkage = linkage
+        , aliasPreemption = preemption
+        , aliasVisibility = visibility
+        , aliasDLLStorage = dllStorage
+        , aliasThreadLocality = threadLocality
+        , aliasUnnamedAddr = unnamedAddr
+        , aliasType = t
+        , aliasAliaseeType = aliaseeType
+        , aliasAliasee = aliasee
+        , aliasPartition = partition
         }
 
 -- The longer spellings need no special ordering here: 'keyword' refuses to

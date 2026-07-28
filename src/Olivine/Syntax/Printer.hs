@@ -101,6 +101,9 @@ data Group
   = Header
   | Types
   | Globals
+  | -- | LLVM writes the aliases after the globals and blank-line separated
+    -- from them, rather than in among them.
+    Aliases
   | Functions
   | Attributes
   | NamedNodes
@@ -117,6 +120,7 @@ groupOf entry = case entry of
   ETargetTriple _ -> Header
   ETypeDefinition _ _ -> Types
   EGlobal _ -> Globals
+  EAlias _ -> Aliases
   EDeclare _ -> Functions
   EDefine _ -> Functions
   EAttributeGroup _ _ -> Attributes
@@ -132,6 +136,7 @@ renderEntry (ETargetTriple spec) = "target triple = " <> quoted spec
 renderEntry (ETypeDefinition name t) =
   "%" <> renderName name <> " = type " <> renderType t
 renderEntry (EGlobal g) = renderGlobal g
+renderEntry (EAlias a) = renderAlias a
 renderEntry (EDeclare s) = "declare " <> renderSignature s
 renderEntry (EDefine d) = renderDefinition d
 renderEntry (EAttributeGroup n attributes) =
@@ -596,6 +601,28 @@ renderGlobal g =
       [renderMutability (globalMutability g), renderType (globalType g)]
         <> foldMap (pure . renderValue) (globalInitializer g)
     guarded b = if b then Just () else Nothing
+
+-- | The aliasee's type is written when it was: LLVM omits it exactly where
+-- the aliasee is a constant expression, and 'aliasAliaseeType' is absent
+-- exactly there, so the rule needs stating in neither place twice.
+renderAlias :: Alias -> Text
+renderAlias a =
+  T.unwords (["@" <> renderName (aliasName a), "="] <> modifiers <> body)
+    <> foldMap (\p -> ", partition " <> quoted p) (aliasPartition a)
+  where
+    modifiers =
+      catMaybes
+        [ renderLinkage <$> aliasLinkage a
+        , renderPreemption <$> aliasPreemption a
+        , renderVisibility <$> aliasVisibility a
+        , renderDLLStorage <$> aliasDLLStorage a
+        , renderThreadLocality <$> aliasThreadLocality a
+        , renderUnnamedAddr <$> aliasUnnamedAddr a
+        ]
+    body =
+      ["alias", renderType (aliasType a) <> ","]
+        <> foldMap (pure . renderType) (aliasAliaseeType a)
+        <> [renderValue (aliasAliasee a)]
 
 renderLinkage :: Linkage -> Text
 renderLinkage LinkPrivate = "private"

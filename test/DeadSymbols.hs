@@ -17,7 +17,7 @@ import Olivine.Core.Program
 import Olivine.Core.Raise (raise)
 import Olivine.Syntax.Ast qualified as Syntax
 import Olivine.Syntax.Function
-import Olivine.Syntax.Global (globalName)
+import Olivine.Syntax.Global (aliasName, globalName)
 import Olivine.Syntax.Linkage
 import Olivine.Syntax.Name
 import Olivine.Syntax.Printer (renderModule)
@@ -65,12 +65,12 @@ deadSymbolTests =
             , testCase "named by a metadata node" $ do
                 kept <- survivorsOf referenced
                 assertBool ("expected noted in " <> show kept) ("noted" `elem` kept)
-            , -- An alias is not modelled, so the line naming this one comes
+            , -- An ifunc is not modelled, so the line naming this one comes
               -- through as text.  A name in text Olivine cannot read is a name
               -- it has to assume is used.
               testCase "named by a line not yet read" $ do
                 kept <- survivorsOf referenced
-                assertBool ("expected aliased in " <> show kept) ("aliased" `elem` kept)
+                assertBool ("expected resolver in " <> show kept) ("resolver" `elem` kept)
             , testCase "and one named by none of them still goes" $ do
                 kept <- survivorsOf referenced
                 assertBool ("expected no forgotten in " <> show kept) ("forgotten" `notElem` kept)
@@ -163,6 +163,43 @@ deadSymbolTests =
                 kept <- globalsOf pinned
                 assertBool ("expected wired in " <> show kept) ("wired" `elem` kept)
             ]
+        ]
+    , testGroup
+        "aliases"
+        [ testCase "an internal alias nothing names goes" $ do
+            kept <- aliasesOf aliased
+            assertBool ("expected no hidden in " <> show kept) ("hidden" `notElem` kept)
+        , testCase "an external alias stays although nothing names it" $ do
+            kept <- aliasesOf aliased
+            assertBool ("expected shown in " <> show kept) ("shown" `elem` kept)
+        , -- Being aliased is the only thing keeping this one, so the alias
+          -- has to count as a mention or the program loses what it resolves
+          -- to.
+          testCase "a live alias keeps what it names" $ do
+            kept <- globalsOf aliased
+            assertBool ("expected target in " <> show kept) ("target" `elem` kept)
+        , -- And the other half of that: it has to count as a mention only
+          -- while the alias itself is live.
+          testCase "a dead alias does not" $ do
+            kept <- globalsOf aliased
+            assertBool
+              ("expected no hidden_target in " <> show kept)
+              ("hidden_target" `notElem` kept)
+        , testCase "a function only a dead alias names goes" $ do
+            kept <- survivorsOf aliased
+            assertBool ("expected no kept_fn in " <> show kept) ("kept_fn" `notElem` kept)
+        , -- An alias may name another alias, so the walk has to arrive at
+          -- symbols of this kind as well as leave from them.
+          testCase "an alias reached only through another survives" $ do
+            kept <- aliasesOf aliased
+            assertBool ("expected middle in " <> show kept) ("middle" `elem` kept)
+        , testCase "everything reachable survives" $ do
+            aliases <- aliasesOf aliased
+            globals <- globalsOf aliased
+            functions <- survivorsOf aliased
+            assertEqual "the live aliases" ["shown", "chain", "middle"] aliases
+            assertEqual "the live globals" ["target", "deep_target"] globals
+            assertEqual "the live functions" ["run"] functions
         ]
     , -- A function's body names globals and a global's initializer names
       -- functions, so the two kinds are one graph and a dead chain can cross
@@ -293,7 +330,7 @@ deadSymbolTests =
       T.unlines
         [ "@table = constant [1 x ptr] [ptr @tabled]"
         , "@offset = constant i64 ptrtoint (ptr @measured to i64)"
-        , "@aka = alias i32 (i32), ptr @aliased"
+        , "@dispatch = ifunc i32 (i32), ptr @resolver"
         , ""
         , "!named = !{!0}"
         , "!0 = !{ptr @noted}"
@@ -310,7 +347,7 @@ deadSymbolTests =
         , "  ret i32 %x"
         , "}"
         , ""
-        , "define internal i32 @aliased(i32 %x) {"
+        , "define internal i32 @resolver(i32 %x) {"
         , "  ret i32 %x"
         , "}"
         , ""
@@ -351,6 +388,27 @@ deadSymbolTests =
         , "@configured = internal externally_initialized global i32 0"
         , "@wired = internal global i32 0"
         , "@llvm.used = appending global [1 x ptr] [ptr @wired], section \"llvm.metadata\""
+        , ""
+        , "define void @run() {"
+        , "  ret void"
+        , "}"
+        ]
+    -- Aliases live and dead, and the symbols whose only mention is one.  Every
+    -- expectation here is what LLVM's own globaldce leaves.
+    aliased =
+      T.unlines
+        [ "@target = internal global i32 0"
+        , "@shown = alias i32, ptr @target"
+        , "@hidden_target = internal global i32 0"
+        , "@hidden = internal alias i32, ptr @hidden_target"
+        , "@fn_target = internal alias i32 (i32), ptr @kept_fn"
+        , "@chain = alias i32, ptr @middle"
+        , "@middle = internal alias i32, ptr @deep_target"
+        , "@deep_target = internal global i32 0"
+        , ""
+        , "define internal i32 @kept_fn(i32 %x) {"
+        , "  ret i32 %x"
+        , "}"
         , ""
         , "define void @run() {"
         , "  ret void"
@@ -411,6 +469,15 @@ globalsOf source = do
   pure
     [ nameText (globalName g)
     | ERetained (Syntax.EGlobal g) <- programEntries program
+    ]
+
+-- | The aliases still there, in the order they were written.
+aliasesOf :: Text -> IO [Text]
+aliasesOf source = do
+  program <- sifted source
+  pure
+    [ nameText (aliasName a)
+    | ERetained (Syntax.EAlias a) <- programEntries program
     ]
 
 sifted :: Text -> IO Program

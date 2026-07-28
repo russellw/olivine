@@ -2,6 +2,7 @@ module Main (main) where
 
 import Test.Tasty
 
+import Aliases (aliasTests)
 import Arithmetic (arithmeticTests)
 import Attributes (attributeTests)
 import Calls (callTests)
@@ -27,4 +28,4 @@ main = do
   defaultMain $
     testGroup
       "olivine"
-      ([typeTests, globalTests, declareTests, attributeTests, metadataTests, terminatorTests, memoryTests, arithmeticTests, callTests, phiTests, vectorTests, deadCodeTests, deadSymbolTests, foldingTests, headerSyntaxTests] <> discovered)
+      ([typeTests, globalTests, aliasTests, declareTests, attributeTests, metadataTests, terminatorTests, memoryTests, arithmeticTests, callTests, phiTests, vectorTests, deadCodeTests, deadSymbolTests, foldingTests, headerSyntaxTests] <> discovered)

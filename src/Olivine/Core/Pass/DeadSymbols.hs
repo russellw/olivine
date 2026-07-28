@@ -1,4 +1,4 @@
--- | Removing functions and globals no live path reaches.
+-- | Removing functions, globals and aliases no live path reaches.
 --
 -- The first pass whose question cannot be asked inside a function.  Whether an
 -- instruction is dead is settled by looking at the function holding it;
@@ -20,14 +20,15 @@
 -- all mentions, and a pass that counted calls would delete a function the
 -- program then jumps to.  Every one of them is followed here.
 --
--- Functions and globals are one graph, not two.  A function's body names
--- globals and a global's initializer names functions, so a chain of dead
--- symbols can alternate between the two kinds for as long as it likes: a table
--- of function pointers that only a dead function indexes is dead, the
--- functions in the table are dead with it, and whatever /their/ bodies named
--- may be dead in turn.  Separate passes would each have to run again every
--- time the other found something, so both kinds are grown from the same roots
--- in one walk, which reaches the end of such a chain the first time.
+-- The kinds are one graph, not three.  A function's body names globals, a
+-- global's initializer names functions, an alias names whichever of them it
+-- stands for, and so a chain of dead symbols can cross between the kinds for
+-- as long as it likes: a table of function pointers that only a dead function
+-- indexes is dead, the functions in the table are dead with it, and whatever
+-- /their/ bodies named may be dead in turn.  A pass per kind would have to run
+-- again every time any other found something, so all three are grown from the
+-- same roots in one walk, which reaches the end of such a chain the first
+-- time.
 module Olivine.Core.Pass.DeadSymbols
   ( eliminateDeadSymbols
   , removableWhenUnreached
@@ -46,7 +47,7 @@ import Olivine.Core.Program
 import Olivine.Syntax.Ast qualified as Syntax
 import Olivine.Syntax.Function (Signature (..))
 import Olivine.Syntax.Function qualified as Syntax
-import Olivine.Syntax.Global (Global (..), GlobalAttribute (..))
+import Olivine.Syntax.Global (Alias (..), Global (..), GlobalAttribute (..))
 import Olivine.Syntax.Instruction qualified as Syntax
 import Olivine.Syntax.Linkage (Linkage (..))
 import Olivine.Syntax.Metadata (MetadataOperand (..))
@@ -75,6 +76,8 @@ eliminateDeadSymbols program =
       ERetained (Syntax.EDeclare signature) -> isLive (signatureName signature)
       ERetained (Syntax.EGlobal g)
         | removableGlobal g -> isLive (globalName g)
+      ERetained (Syntax.EAlias a)
+        | removableWhenUnreached (aliasLinkage a) -> isLive (aliasName a)
       _ -> True
     isLive name = nameText name `Set.member` live
 
@@ -179,6 +182,10 @@ reachableIn program = grow Set.empty (concatMap roots (programEntries program))
              | ERetained (Syntax.EGlobal g) <- programEntries program
              , removableGlobal g
              ]
+          <> [ (nameText (aliasName a), aliaseeReferences a)
+             | ERetained (Syntax.EAlias a) <- programEntries program
+             , removableWhenUnreached (aliasLinkage a)
+             ]
 
     grow seen [] = seen
     grow seen (name : rest)
@@ -198,6 +205,12 @@ reachableIn program = grow Set.empty (concatMap roots (programEntries program))
       ERetained (Syntax.EGlobal g)
         | removableGlobal g -> []
         | otherwise -> nameText (globalName g) : initializerReferences g
+      -- An alias is judged on its linkage and nothing else.  It has no comdat
+      -- clause to be pinned by, LLVM rejecting one here, and no declaration
+      -- form to be the leftover of, an alias being a definition or nothing.
+      ERetained (Syntax.EAlias a)
+        | removableWhenUnreached (aliasLinkage a) -> []
+        | otherwise -> nameText (aliasName a) : aliaseeReferences a
       ERetained e -> referencesInEntry e
 
 -- | The globals a function names.
@@ -220,6 +233,13 @@ referencesIn f =
 -- | The globals a global's initializer names.
 initializerReferences :: Global -> [Text]
 initializerReferences = map nameText . foldMap globalsIn . globalInitializer
+
+-- | The global an alias resolves to.
+--
+-- One symbol, but reached through 'globalsIn' like any other operand, since
+-- LLVM allows a constant expression here and the symbol is then inside it.
+aliaseeReferences :: Alias -> [Text]
+aliaseeReferences = map nameText . globalsIn . aliasAliasee
 
 -- | The globals a retained entry names.
 --
@@ -249,10 +269,14 @@ referencesInEntry entry = case entry of
 
 -- | Every global a line Olivine has not read mentions.
 --
--- An alias, a comdat, a definition whose header held something unmodelled:
+-- An @ifunc@, a comdat, a definition whose header held something unmodelled:
 -- each comes through as the text it was written as, and any of them can name
 -- a symbol.  A name in text the optimizer cannot read is a name it has to
 -- assume is used, so this looks for the sigil and takes what follows.
+--
+-- An alias used to be read this way and now is not, which is what let it be
+-- removed: a construct is safe here in proportion to how little is known
+-- about it, and worth reading in the same proportion.
 --
 -- Two places a sigil is not one.  A comment runs to the end of its line and
 -- means nothing — a comment on a line of its own is dropped at the parse, but
