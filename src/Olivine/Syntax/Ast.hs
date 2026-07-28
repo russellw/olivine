@@ -22,7 +22,7 @@ import Numeric.Natural (Natural)
 
 import Olivine.Syntax.Attribute (FunctionAttribute)
 import Olivine.Syntax.Function (Definition, Signature)
-import Olivine.Syntax.Global (Alias, Global)
+import Olivine.Syntax.Global (Global, IndirectSymbol)
 import Olivine.Syntax.Metadata (Distinctness, MetadataOperand)
 import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Type (Type)
@@ -56,8 +56,8 @@ data Entry
     ETypeDefinition Name Type
   | -- | @\@name = [modifiers] global|constant <T> [initializer] [, ...]@.
     EGlobal Global
-  | -- | @\@name = [modifiers] alias <T>, <aliasee>@.
-    EAlias Alias
+  | -- | @\@name = [modifiers] alias|ifunc <T>, <target>@.
+    EIndirect IndirectSymbol
   | -- | @declare <signature>@.
     EDeclare Signature
   | -- | @define <signature> { ... }@, the one construct spanning more than

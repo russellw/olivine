@@ -2,7 +2,6 @@ module Main (main) where
 
 import Test.Tasty
 
-import Aliases (aliasTests)
 import Arithmetic (arithmeticTests)
 import Attributes (attributeTests)
 import Calls (callTests)
@@ -13,6 +12,7 @@ import Folding (foldingTests)
 import Declares (declareTests)
 import Definitions (definitionTests)
 import Globals (globalTests)
+import Indirects (indirectTests)
 import Memory (memoryTests)
 import Metadata (metadataTests)
 import Phis (phiTests)
@@ -28,4 +28,4 @@ main = do
   defaultMain $
     testGroup
       "olivine"
-      ([typeTests, globalTests, aliasTests, declareTests, attributeTests, metadataTests, terminatorTests, memoryTests, arithmeticTests, callTests, phiTests, vectorTests, deadCodeTests, deadSymbolTests, foldingTests, headerSyntaxTests] <> discovered)
+      ([typeTests, globalTests, indirectTests, declareTests, attributeTests, metadataTests, terminatorTests, memoryTests, arithmeticTests, callTests, phiTests, vectorTests, deadCodeTests, deadSymbolTests, foldingTests, headerSyntaxTests] <> discovered)

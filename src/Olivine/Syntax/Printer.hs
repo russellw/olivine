@@ -102,8 +102,9 @@ data Group
   | Types
   | Globals
   | -- | LLVM writes the aliases after the globals and blank-line separated
-    -- from them, rather than in among them.
+    -- from them, rather than in among them, and the ifuncs after those again.
     Aliases
+  | IFuncs
   | Functions
   | Attributes
   | NamedNodes
@@ -120,7 +121,9 @@ groupOf entry = case entry of
   ETargetTriple _ -> Header
   ETypeDefinition _ _ -> Types
   EGlobal _ -> Globals
-  EAlias _ -> Aliases
+  EIndirect s -> case indirectKind s of
+    IndirectAlias -> Aliases
+    IndirectIFunc -> IFuncs
   EDeclare _ -> Functions
   EDefine _ -> Functions
   EAttributeGroup _ _ -> Attributes
@@ -136,7 +139,7 @@ renderEntry (ETargetTriple spec) = "target triple = " <> quoted spec
 renderEntry (ETypeDefinition name t) =
   "%" <> renderName name <> " = type " <> renderType t
 renderEntry (EGlobal g) = renderGlobal g
-renderEntry (EAlias a) = renderAlias a
+renderEntry (EIndirect s) = renderIndirect s
 renderEntry (EDeclare s) = "declare " <> renderSignature s
 renderEntry (EDefine d) = renderDefinition d
 renderEntry (EAttributeGroup n attributes) =
@@ -602,27 +605,37 @@ renderGlobal g =
         <> foldMap (pure . renderValue) (globalInitializer g)
     guarded b = if b then Just () else Nothing
 
--- | The aliasee's type is written when it was: LLVM omits it exactly where
--- the aliasee is a constant expression, and 'aliasAliaseeType' is absent
--- exactly there, so the rule needs stating in neither place twice.
-renderAlias :: Alias -> Text
-renderAlias a =
-  T.unwords (["@" <> renderName (aliasName a), "="] <> modifiers <> body)
-    <> foldMap (\p -> ", partition " <> quoted p) (aliasPartition a)
+-- | The target's type is written when it was: LLVM omits it exactly where the
+-- target is a constant expression, and 'indirectTargetType' is absent exactly
+-- there, so the rule needs stating in neither place twice.
+--
+-- The modifiers are written back whichever keyword this is, although LLVM
+-- keeps fewer of them for an ifunc than for an alias: it accepts
+-- @unnamed_addr@, @thread_local@ and @dllexport@ on one and then drops them,
+-- having nowhere in its model of an ifunc to put them.  Olivine writes back
+-- what it read, here as everywhere.
+renderIndirect :: IndirectSymbol -> Text
+renderIndirect s =
+  T.unwords (["@" <> renderName (indirectName s), "="] <> modifiers <> body)
+    <> foldMap (\p -> ", partition " <> quoted p) (indirectPartition s)
   where
     modifiers =
       catMaybes
-        [ renderLinkage <$> aliasLinkage a
-        , renderPreemption <$> aliasPreemption a
-        , renderVisibility <$> aliasVisibility a
-        , renderDLLStorage <$> aliasDLLStorage a
-        , renderThreadLocality <$> aliasThreadLocality a
-        , renderUnnamedAddr <$> aliasUnnamedAddr a
+        [ renderLinkage <$> indirectLinkage s
+        , renderPreemption <$> indirectPreemption s
+        , renderVisibility <$> indirectVisibility s
+        , renderDLLStorage <$> indirectDLLStorage s
+        , renderThreadLocality <$> indirectThreadLocality s
+        , renderUnnamedAddr <$> indirectUnnamedAddr s
         ]
     body =
-      ["alias", renderType (aliasType a) <> ","]
-        <> foldMap (pure . renderType) (aliasAliaseeType a)
-        <> [renderValue (aliasAliasee a)]
+      [renderIndirectKind (indirectKind s), renderType (indirectType s) <> ","]
+        <> foldMap (pure . renderType) (indirectTargetType s)
+        <> [renderValue (indirectTarget s)]
+
+renderIndirectKind :: IndirectKind -> Text
+renderIndirectKind IndirectAlias = "alias"
+renderIndirectKind IndirectIFunc = "ifunc"
 
 renderLinkage :: Linkage -> Text
 renderLinkage LinkPrivate = "private"

@@ -17,7 +17,7 @@ import Olivine.Core.Program
 import Olivine.Core.Raise (raise)
 import Olivine.Syntax.Ast qualified as Syntax
 import Olivine.Syntax.Function
-import Olivine.Syntax.Global (aliasName, globalName)
+import Olivine.Syntax.Global (globalName, indirectName)
 import Olivine.Syntax.Linkage
 import Olivine.Syntax.Name
 import Olivine.Syntax.Printer (renderModule)
@@ -65,12 +65,14 @@ deadSymbolTests =
             , testCase "named by a metadata node" $ do
                 kept <- survivorsOf referenced
                 assertBool ("expected noted in " <> show kept) ("noted" `elem` kept)
-            , -- An ifunc is not modelled, so the line naming this one comes
-              -- through as text.  A name in text Olivine cannot read is a name
-              -- it has to assume is used.
+            , -- An arithmetic constant expression is not modelled, so the
+              -- global whose initializer is one comes through as text.  A name
+              -- in text Olivine cannot read is a name it has to assume is
+              -- used, and this one is internal besides, so nothing but the
+              -- text is keeping it.
               testCase "named by a line not yet read" $ do
                 kept <- survivorsOf referenced
-                assertBool ("expected resolver in " <> show kept) ("resolver" `elem` kept)
+                assertBool ("expected summed in " <> show kept) ("summed" `elem` kept)
             , testCase "and one named by none of them still goes" $ do
                 kept <- survivorsOf referenced
                 assertBool ("expected no forgotten in " <> show kept) ("forgotten" `notElem` kept)
@@ -165,12 +167,12 @@ deadSymbolTests =
             ]
         ]
     , testGroup
-        "aliases"
+        "aliases and ifuncs"
         [ testCase "an internal alias nothing names goes" $ do
-            kept <- aliasesOf aliased
+            kept <- indirectsOf aliased
             assertBool ("expected no hidden in " <> show kept) ("hidden" `notElem` kept)
         , testCase "an external alias stays although nothing names it" $ do
-            kept <- aliasesOf aliased
+            kept <- indirectsOf aliased
             assertBool ("expected shown in " <> show kept) ("shown" `elem` kept)
         , -- Being aliased is the only thing keeping this one, so the alias
           -- has to count as a mention or the program loses what it resolves
@@ -191,15 +193,29 @@ deadSymbolTests =
         , -- An alias may name another alias, so the walk has to arrive at
           -- symbols of this kind as well as leave from them.
           testCase "an alias reached only through another survives" $ do
-            kept <- aliasesOf aliased
+            kept <- indirectsOf aliased
             assertBool ("expected middle in " <> show kept) ("middle" `elem` kept)
+        , -- An ifunc names the function that resolves it, which is the only
+          -- mention this resolver gets.
+          testCase "a live ifunc keeps its resolver" $ do
+            kept <- survivorsOf aliased
+            assertBool ("expected chooser in " <> show kept) ("chooser" `elem` kept)
+        , testCase "an internal ifunc nothing names goes" $ do
+            kept <- indirectsOf aliased
+            assertBool ("expected no quiet in " <> show kept) ("quiet" `notElem` kept)
+        , testCase "taking its resolver with it" $ do
+            kept <- survivorsOf aliased
+            assertBool ("expected no unchosen in " <> show kept) ("unchosen" `notElem` kept)
         , testCase "everything reachable survives" $ do
-            aliases <- aliasesOf aliased
+            indirects <- indirectsOf aliased
             globals <- globalsOf aliased
             functions <- survivorsOf aliased
-            assertEqual "the live aliases" ["shown", "chain", "middle"] aliases
+            assertEqual
+              "the live aliases and ifuncs"
+              ["shown", "chain", "middle", "dispatch"]
+              indirects
             assertEqual "the live globals" ["target", "deep_target"] globals
-            assertEqual "the live functions" ["run"] functions
+            assertEqual "the live functions" ["chooser", "run"] functions
         ]
     , -- A function's body names globals and a global's initializer names
       -- functions, so the two kinds are one graph and a dead chain can cross
@@ -330,7 +346,7 @@ deadSymbolTests =
       T.unlines
         [ "@table = constant [1 x ptr] [ptr @tabled]"
         , "@offset = constant i64 ptrtoint (ptr @measured to i64)"
-        , "@dispatch = ifunc i32 (i32), ptr @resolver"
+        , "@sum_offset = internal global i64 add (i64 ptrtoint (ptr @summed to i64), i64 1)"
         , ""
         , "!named = !{!0}"
         , "!0 = !{ptr @noted}"
@@ -347,7 +363,7 @@ deadSymbolTests =
         , "  ret i32 %x"
         , "}"
         , ""
-        , "define internal i32 @resolver(i32 %x) {"
+        , "define internal i32 @summed(i32 %x) {"
         , "  ret i32 %x"
         , "}"
         , ""
@@ -405,9 +421,19 @@ deadSymbolTests =
         , "@chain = alias i32, ptr @middle"
         , "@middle = internal alias i32, ptr @deep_target"
         , "@deep_target = internal global i32 0"
+        , "@dispatch = ifunc i32 (i32), ptr @chooser"
+        , "@quiet = internal ifunc i32 (i32), ptr @unchosen"
         , ""
         , "define internal i32 @kept_fn(i32 %x) {"
         , "  ret i32 %x"
+        , "}"
+        , ""
+        , "define internal ptr @chooser() {"
+        , "  ret ptr null"
+        , "}"
+        , ""
+        , "define internal ptr @unchosen() {"
+        , "  ret ptr null"
         , "}"
         , ""
         , "define void @run() {"
@@ -471,13 +497,13 @@ globalsOf source = do
     | ERetained (Syntax.EGlobal g) <- programEntries program
     ]
 
--- | The aliases still there, in the order they were written.
-aliasesOf :: Text -> IO [Text]
-aliasesOf source = do
+-- | The aliases and ifuncs still there, in the order they were written.
+indirectsOf :: Text -> IO [Text]
+indirectsOf source = do
   program <- sifted source
   pure
-    [ nameText (aliasName a)
-    | ERetained (Syntax.EAlias a) <- programEntries program
+    [ nameText (indirectName i)
+    | ERetained (Syntax.EIndirect i) <- programEntries program
     ]
 
 sifted :: Text -> IO Program

@@ -80,7 +80,7 @@ pEntry =
     , try pTarget
     , try pTypeDefinition
     , try pGlobal
-    , try pAlias
+    , try pIndirect
     , try pDeclare
     , try pDefine
     , try pAttributeGroup
@@ -165,15 +165,18 @@ pGlobal = do
         , globalAttributes = attributes
         }
 
--- | @\@name = [modifiers] alias \<T\>, \<aliasee\>@.
+-- | @\@name = [modifiers] alias|ifunc \<T\>, \<target\>@.
 --
 -- The modifier sequence up to the keyword is a global's, which is why this
 -- can be a separate rule rather than a branch inside 'pGlobal': whichever of
--- @global@, @constant@ and @alias@ turns up, everything before it has been
--- read the same way, and 'pEntry' tries each rule in turn until one reaches
--- its keyword.
-pAlias :: Parser Entry
-pAlias = do
+-- @global@, @constant@, @alias@ and @ifunc@ turns up, everything before it has
+-- been read the same way, and 'pEntry' tries each rule in turn until one
+-- reaches its keyword.
+--
+-- The two keywords share a rule for the same reason LLVM's own reader gives
+-- them one: past the keyword there is nothing left to tell them apart.
+pIndirect :: Parser Entry
+pIndirect = do
   hspace
   name <- pGlobalName
   symbol "="
@@ -183,29 +186,30 @@ pAlias = do
   dllStorage <- optional pDLLStorage
   threadLocality <- optional pThreadLocality
   unnamedAddr <- optional pUnnamedAddr
-  keyword "alias"
+  kind <- (IndirectAlias <$ keyword "alias") <|> (IndirectIFunc <$ keyword "ifunc")
   t <- pType
   symbol ","
   -- Written for a symbol and omitted for a constant expression, so whether
   -- one is there is what says which this is.
-  aliaseeType <- optional (try pType)
-  aliasee <- pValue
+  targetType <- optional (try pType)
+  target <- pValue
   partition <- optional (symbol "," *> keyword "partition" *> pQuoted <* hspace)
   endOfLine
   pure $
-    EAlias
-      Alias
-        { aliasName = name
-        , aliasLinkage = linkage
-        , aliasPreemption = preemption
-        , aliasVisibility = visibility
-        , aliasDLLStorage = dllStorage
-        , aliasThreadLocality = threadLocality
-        , aliasUnnamedAddr = unnamedAddr
-        , aliasType = t
-        , aliasAliaseeType = aliaseeType
-        , aliasAliasee = aliasee
-        , aliasPartition = partition
+    EIndirect
+      IndirectSymbol
+        { indirectKind = kind
+        , indirectName = name
+        , indirectLinkage = linkage
+        , indirectPreemption = preemption
+        , indirectVisibility = visibility
+        , indirectDLLStorage = dllStorage
+        , indirectThreadLocality = threadLocality
+        , indirectUnnamedAddr = unnamedAddr
+        , indirectType = t
+        , indirectTargetType = targetType
+        , indirectTarget = target
+        , indirectPartition = partition
         }
 
 -- The longer spellings need no special ordering here: 'keyword' refuses to

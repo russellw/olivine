@@ -35,7 +35,7 @@ constructs =
   , ("target triple", isTriple, T.isPrefixOf "target triple")
   , ("type definition", isTypeDefinition, looksLikeTypeDefinition)
   , ("global variable", isGlobal, looksLikeGlobal)
-  , ("alias", isAlias, looksLikeAlias)
+  , ("alias or ifunc", isIndirect, looksLikeIndirect)
   , ("declaration", isDeclare, T.isPrefixOf "declare")
   , ("attribute group", isAttributeGroup, T.isPrefixOf "attributes #")
   , ("metadata", isMetadata, T.isPrefixOf "!")
@@ -54,8 +54,8 @@ constructs =
     isTypeDefinition _ = False
     isGlobal (EGlobal _) = True
     isGlobal _ = False
-    isAlias (EAlias _) = True
-    isAlias _ = False
+    isIndirect (EIndirect _) = True
+    isIndirect _ = False
     isDeclare (EDeclare _) = True
     isDeclare _ = False
     isAttributeGroup (EAttributeGroup _ _) = True
@@ -68,10 +68,13 @@ constructs =
     -- Narrow enough not to match the instructions that also start with %.
     looksLikeTypeDefinition line =
       "%" `T.isPrefixOf` line && " = type " `T.isInfixOf` line
-    -- An alias is written in the same shape and has to be told apart, or the
-    -- global row would demand that an alias line become an EGlobal.
-    looksLikeGlobal line = looksLikeSymbol line && not (looksLikeAlias line)
-    looksLikeAlias line = looksLikeSymbol line && " alias " `T.isInfixOf` line
+    -- An alias or ifunc is written in the same shape and has to be told
+    -- apart, or the global row would demand that such a line become an
+    -- EGlobal.
+    looksLikeGlobal line = looksLikeSymbol line && not (looksLikeIndirect line)
+    looksLikeIndirect line =
+      looksLikeSymbol line
+        && (" alias " `T.isInfixOf` line || " ifunc " `T.isInfixOf` line)
     looksLikeSymbol line = "@" `T.isPrefixOf` line && " = " `T.isInfixOf` line
 
 structureTests :: IO TestTree
