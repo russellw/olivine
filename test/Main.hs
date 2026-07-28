@@ -7,7 +7,7 @@ import Attributes (attributeTests)
 import Calls (callTests)
 import Core (coreTests)
 import DeadCode (deadCodeTests)
-import DeadFunctions (deadFunctionTests)
+import DeadSymbols (deadSymbolTests)
 import Folding (foldingTests)
 import Declares (declareTests)
 import Definitions (definitionTests)
@@ -27,4 +27,4 @@ main = do
   defaultMain $
     testGroup
       "olivine"
-      ([typeTests, globalTests, declareTests, attributeTests, metadataTests, terminatorTests, memoryTests, arithmeticTests, callTests, phiTests, vectorTests, deadCodeTests, deadFunctionTests, foldingTests, headerSyntaxTests] <> discovered)
+      ([typeTests, globalTests, declareTests, attributeTests, metadataTests, terminatorTests, memoryTests, arithmeticTests, callTests, phiTests, vectorTests, deadCodeTests, deadSymbolTests, foldingTests, headerSyntaxTests] <> discovered)

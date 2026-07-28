@@ -40,7 +40,7 @@ library
                       Olivine.Core.Blocks
                       Olivine.Core.Pass.ConstantFold
                       Olivine.Core.Pass.DeadCode
-                      Olivine.Core.Pass.DeadFunctions
+                      Olivine.Core.Pass.DeadSymbols
                       Olivine.Core.Raise
                       Olivine.Pipeline
     build-depends:    base >=4.17 && <5,
@@ -82,7 +82,7 @@ test-suite olivine-test
                       Vectors
                       Core
                       DeadCode
-                      DeadFunctions
+                      DeadSymbols
                       Folding
     build-depends:    base,
                       filepath,

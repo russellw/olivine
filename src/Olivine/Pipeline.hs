@@ -14,7 +14,7 @@ module Olivine.Pipeline
 import Olivine.Core.Lower (lower)
 import Olivine.Core.Pass.ConstantFold (foldConstants)
 import Olivine.Core.Pass.DeadCode (eliminateDeadCode)
-import Olivine.Core.Pass.DeadFunctions (eliminateDeadFunctions)
+import Olivine.Core.Pass.DeadSymbols (eliminateDeadSymbols)
 import Olivine.Core.Program (Program)
 import Olivine.Core.Raise (raise)
 import Olivine.Syntax.Ast (Module)
@@ -29,14 +29,15 @@ passes :: [Pass]
 -- Folding first, since it leaves the instructions it replaced assigning to
 -- nothing anyone reads, which is exactly what the dead code pass takes away.
 --
--- Dead functions last, since it is the one pass that reads what the others
+-- Dead symbols last, since it is the one pass that reads what the others
 -- leave: folding a @select@ between two function pointers settles which of
--- them the program can still reach, and nothing that runs before it can know
--- that.
+-- them the program can still reach, and dead code removing the last load of a
+-- global settles whether the global is read at all.  Nothing that runs before
+-- it can know either.
 passes =
   [ Pass "constant folding" foldConstants
   , Pass "dead code" eliminateDeadCode
-  , Pass "dead functions" eliminateDeadFunctions
+  , Pass "dead symbols" eliminateDeadSymbols
   ]
 
 -- | Read a module, lower it to the core representation, run the passes, and
