@@ -17,6 +17,8 @@ module Olivine.Syntax.Printer
   ) where
 
 import Data.List.NonEmpty qualified as NE
+import Data.Map.Strict (Map)
+import Data.Map.Strict qualified as Map
 import Data.Maybe (catMaybes)
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -42,20 +44,57 @@ import Olivine.Syntax.Type
 -- function whatever precedes it, which is why two @declare@s have a gap
 -- between them and two globals do not.
 --
--- A comment introduces what follows it rather than standing alone, so nothing
--- is separated from the comment above it and the comment takes the place of
--- what it introduces.  That is what puts the blank line before
--- @; Function Attrs:@ and not between it and its @define@.
+-- The @; Function Attrs:@ line above a function is written here rather than by
+-- 'renderEntry', because it is not a fact about the entry: it names attributes
+-- the entry may only reference, and the group holding them is elsewhere in the
+-- module.  It goes below the blank line, being part of what the function
+-- prints as.
 renderModule :: Module -> Text
-renderModule (Module entries) = T.unlines (go Nothing (zip entries (groupsOf entries)))
+renderModule (Module entries) = T.unlines (go Nothing (zip entries (map groupOf entries)))
   where
     go _ [] = []
     go previous ((entry, group) : rest) =
       [T.empty | separated previous group]
-        <> (renderEntry entry : go (Just (entry, group)) rest)
+        <> functionAttributes groups entry
+        <> (renderEntry entry : go (Just group) rest)
     separated Nothing _ = False
-    separated (Just (previous, before)) group =
-      not (isComment previous) && (before /= group || group == Functions)
+    separated (Just before) group = before /= group || group == Functions
+    groups = attributeGroupsOf entries
+
+-- | The attributes of each group the module defines.
+attributeGroupsOf :: [Entry] -> Map Natural [FunctionAttribute]
+attributeGroupsOf entries =
+  Map.fromList [(n, NE.toList as) | EAttributeGroup n as <- entries]
+
+-- | The @; Function Attrs:@ line LLVM writes above a function that has any.
+--
+-- Derived rather than carried, for the same reason as the @; preds =@ comment
+-- on a label: it restates the function's attributes, so a pass that changed
+-- them would leave a copy saying what used to be true.
+--
+-- What it lists is every attribute of the function that is not a string one,
+-- with the group references expanded in place.  The string attributes are how
+-- the front end passes target configuration through — @"target-cpu"="x86-64"@
+-- and its dozen neighbours — and LLVM leaves them out of the summary, which is
+-- what keeps the summary readable.  A function whose attributes are all
+-- strings therefore gets no line at all.
+functionAttributes :: Map Natural [FunctionAttribute] -> Entry -> [Text]
+functionAttributes groups entry = case entry of
+  EDeclare signature -> summary signature
+  EDefine d -> summary (definitionSignature d)
+  _ -> []
+  where
+    summary signature =
+      case concatMap expand (signatureAttributes signature) of
+        [] -> []
+        attributes ->
+          [ "; Function Attrs: "
+              <> T.unwords (map (renderFunctionAttribute OnFunction) attributes)
+          ]
+    expand (AIGroup n) = filter enumerated (Map.findWithDefault [] n groups)
+    expand (AIAttribute a) = [a | enumerated a]
+    enumerated FAString{} = False
+    enumerated _ = True
 
 -- | The kinds of top-level construct a blank line goes between.
 data Group
@@ -66,19 +105,9 @@ data Group
   | Attributes
   | NamedNodes
   | Nodes
-  | -- | A construct not modelled, and a comment that introduces nothing.
+  | -- | A construct not modelled.
     Unread
   deriving (Eq)
-
--- | What each entry belongs to, a comment belonging to whatever it introduces.
-groupsOf :: [Entry] -> [Group]
-groupsOf = foldr step []
-  where
-    step entry rest
-      | isComment entry = introduced rest : rest
-      | otherwise = groupOf entry : rest
-    introduced (group : _) = group
-    introduced [] = Unread
 
 groupOf :: Entry -> Group
 groupOf entry = case entry of

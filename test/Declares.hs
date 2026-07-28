@@ -121,11 +121,19 @@ declareTests =
     , fieldTests
     ]
 
+-- | The declaration itself must come back as written.
+--
+-- A @; Function Attrs:@ line above it is not part of it.  The printer derives
+-- that from the attributes rather than carrying it, which is why it appears
+-- here for a declaration whose attributes were written out — LLVM writes the
+-- same line — and the rule it is derived by is stated in @test/RoundTrip.hs@.
 roundTrips :: Text -> Assertion
 roundTrips line = do
   parsed <- expectParse "<inline>" (line <> "\n")
   case moduleEntries parsed of
-    [EDeclare _] -> renderModule parsed @?= line <> "\n"
+    [EDeclare _] ->
+      filter (not . T.isPrefixOf "; Function Attrs:") (T.lines (renderModule parsed))
+        @?= [line]
     entries -> assertFailure ("expected one declaration, got " <> show entries)
 
 staysOpaque :: Text -> Assertion

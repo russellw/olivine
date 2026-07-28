@@ -124,12 +124,11 @@ headerSyntaxTests =
           [ETargetTriple "aarch64"]
     , testCase "a final line break is not required" $
         parsesTo "target triple = \"aarch64\"" [ETargetTriple "aarch64"]
-    , -- The module identifier rule starts at a semicolon, so it has to leave
-      -- every other comment alone.
-      testCase "other comments stay opaque" $
-        parsesTo
-          "; Function Attrs: nounwind\n"
-          [EOpaque "; Function Attrs: nounwind"]
+    , -- Every comment LLVM writes restates something the tree already holds,
+      -- so none of them is carried.  This one the printer puts back from the
+      -- attributes of the function it describes.
+      testCase "a comment is not an entry" $
+        parsesTo "; Function Attrs: nounwind\n" []
     , testCase "a near miss stays opaque" $
         parsesTo "target other = \"x\"\n" [EOpaque "target other = \"x\""]
     , -- The type definition rule starts at a local name, so it has to leave
@@ -139,9 +138,12 @@ headerSyntaxTests =
           "  %retval = alloca i32, align 4\n"
           [EOpaque "  %retval = alloca i32, align 4"]
     , -- An identifier containing a quote cannot be read back, so it must not
-      -- be silently truncated.
-      testCase "an unreadable module identifier stays opaque" $
-        parsesTo "; ModuleID = 'it's'\n" [EOpaque "; ModuleID = 'it's'"]
+      -- be silently truncated.  The rule declines it, and what it declines is
+      -- a comment, which is dropped like any other: no reader consumes the
+      -- module identifier, so losing an unreadable one costs nothing that
+      -- misreading it would not cost more.
+      testCase "an unreadable module identifier is not read" $
+        parsesTo "; ModuleID = 'it's'\n" []
     , testCase "printing is canonical" $
         renderModule
           (Module [EModuleId "hello.c", ESourceFilename "hello.c"])

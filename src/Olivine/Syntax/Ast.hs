@@ -14,12 +14,10 @@
 module Olivine.Syntax.Ast
   ( Module (..)
   , Entry (..)
-  , isComment
   ) where
 
 import Data.List.NonEmpty (NonEmpty)
 import Data.Text (Text)
-import Data.Text qualified as T
 import Numeric.Natural (Natural)
 
 import Olivine.Syntax.Attribute (FunctionAttribute)
@@ -74,19 +72,3 @@ data Entry
   | -- | Source text not yet modelled, retained exactly as written.
     EOpaque Text
   deriving (Eq, Show)
-
--- | Whether an entry is a comment.
---
--- A comment introduces what follows it rather than standing on its own, which
--- is the one thing anything handling entries has to know about it: the
--- printer puts the blank line above the comment and not between it and what
--- it introduces, and a pass removing a construct has to take the comment
--- introducing it too, or the comment is left saying of the next construct
--- what was true of the one that went.  Clang writes
--- @; Function Attrs: noinline@ above every function, so that is not a corner.
---
--- The module identifier is a comment to LLVM as well, but it is modelled, and
--- nothing follows it that it could be introducing.
-isComment :: Entry -> Bool
-isComment (EOpaque text) = ";" `T.isPrefixOf` T.stripStart text
-isComment _ = False

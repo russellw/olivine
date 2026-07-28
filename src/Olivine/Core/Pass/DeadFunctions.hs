@@ -54,23 +54,9 @@ import Olivine.Syntax.Value (globalsIn, typedValue)
 -- @declare@.
 eliminateDeadFunctions :: Program -> Program
 eliminateDeadFunctions program =
-  program {programEntries = prune (programEntries program)}
+  program {programEntries = filter reached (programEntries program)}
   where
     live = reachableIn program
-
-    -- A comment introduces the construct after it, so it goes when that goes.
-    -- Clang writes @; Function Attrs:@ above every function it emits, and a
-    -- comment left behind would say of the next function what was true of the
-    -- one removed.
-    prune entries = [e | (e, keep) <- zip entries (kept entries), keep]
-    kept = foldr step []
-    step entry rest
-      | comment entry = introduced rest : rest
-      | otherwise = reached entry : rest
-    comment (ERetained entry) = Syntax.isComment entry
-    comment _ = False
-    introduced (keep : _) = keep
-    introduced [] = True
 
     reached entry = case entry of
       EFunction f
@@ -193,8 +179,9 @@ referencesInEntry entry = case entry of
 -- assume is used, so this looks for the sigil and takes what follows.
 --
 -- Two places a sigil is not one.  A comment runs to the end of its line and
--- means nothing, and the comment saying what a function is for is exactly
--- where its name is written; a string literal is data, and @c"\@f"@ is two
+-- means nothing — a comment on a line of its own is dropped at the parse, but
+-- one trailing an unread line arrives here still attached to it; a string
+-- literal is data, and @c"\@f"@ is two
 -- bytes.  Both are skipped, and skipping them is why this scans rather than
 -- searching: which of @;@ and @"@ comes first is the whole difference between
 -- a comment holding a string and a string holding a semicolon.

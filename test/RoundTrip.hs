@@ -20,12 +20,13 @@ roundTripTests = do
           "reparsing gives the same syntax tree"
           [testCase name (roundTrip name) | name <- names]
       , testGroup
-          "no blank line reaches the syntax tree"
-          [testCase name (noBlankEntries name) | name <- names]
+          "no blank line or comment reaches the syntax tree"
+          [testCase name (noLayoutEntries name) | name <- names]
       , testGroup
           "the layout written is LLVM's own"
           [testCase name (layoutMatches name) | name <- names]
       , layoutTests
+      , attributeCommentTests
       ]
 
 -- | The layout rule stated on its own, independent of what the corpus
@@ -55,12 +56,16 @@ layoutTests =
         "every function is preceded by a blank line"
         ["declare void @a()", "declare void @b()"]
         ["declare void @a()", "", "declare void @b()"]
-    , -- A comment introduces what follows it, so the gap goes above the
-      -- comment and not between it and its function.
+    , -- The attribute comment belongs to the function below it, so the gap
+      -- goes above the comment and not between it and its declaration.
       laidOut
-        "a comment keeps the function it introduces"
-        ["@a = global i32 0", "; Function Attrs: nounwind", "declare void @b()"]
-        ["@a = global i32 0", "", "; Function Attrs: nounwind", "declare void @b()"]
+        "the blank line goes above a function's attribute comment"
+        ["@a = global i32 0", "declare void @b() nounwind"]
+        [ "@a = global i32 0"
+        , ""
+        , "; Function Attrs: nounwind"
+        , "declare void @b() nounwind"
+        ]
     , laidOut
         "and nothing is written above the first construct"
         ["declare void @a()"]
@@ -70,6 +75,58 @@ layoutTests =
     laidOut name written expected = testCase name $ do
       parsed <- expectParse "<inline>" (T.unlines written)
       renderModule parsed @?= T.unlines expected
+
+-- | The @; Function Attrs:@ line, stated as the rule that derives it.
+--
+-- Every line expected here was confirmed by feeding the input to @opt -S@ and
+-- reading back what LLVM wrote above the function.  What it lists is the
+-- function's attributes with the string ones left out, group references
+-- expanded where they stand; a function whose attributes are all strings gets
+-- no line, and neither does one with none.
+attributeCommentTests :: TestTree
+attributeCommentTests =
+  testGroup
+    "the attribute comment is derived from the attributes"
+    [ summarized
+        "a group reference is expanded"
+        ["declare void @f() #0", "attributes #0 = { nounwind uwtable }"]
+        ["; Function Attrs: nounwind uwtable"]
+    , summarized
+        "an attribute written out is listed where it stands"
+        ["declare void @f() nounwind"]
+        ["; Function Attrs: nounwind"]
+    , summarized
+        "a definition gets one as well"
+        ["define void @f() #0 {", "  ret void", "}", "attributes #0 = { noinline }"]
+        ["; Function Attrs: noinline"]
+    , -- The string attributes are how the front end passes target
+      -- configuration through, and LLVM leaves them out of the summary.
+      summarized
+        "string attributes are left out"
+        [ "declare void @f() #0"
+        , "attributes #0 = { nounwind \"target-cpu\"=\"x86-64\" }"
+        ]
+        ["; Function Attrs: nounwind"]
+    , summarized
+        "and a function with nothing else gets no line at all"
+        ["declare void @f() #0", "attributes #0 = { \"target-cpu\"=\"x86-64\" }"]
+        []
+    , summarized
+        "nor does one with no attributes"
+        ["declare void @f()"]
+        []
+    , -- LLVM spells stack alignment alignstack=16 inside a group and
+      -- alignstack(16) on a function, and the comment is the second of those.
+      summarized
+        "an attribute spelled one way in a group is spelled the other here"
+        ["declare void @f() #0", "attributes #0 = { alignstack=16 }"]
+        ["; Function Attrs: alignstack(16)"]
+    ]
+  where
+    summarized name written expected = testCase name $ do
+      parsed <- expectParse "<inline>" (T.unlines written)
+      filter ("; Function Attrs:" `T.isPrefixOf`) (T.lines (renderModule parsed))
+        @?= expected
 
 -- | Parsing, printing and reparsing must reach a fixed point.  Byte-exact
 -- output is deliberately not required of an arbitrary input: the printer
@@ -82,18 +139,24 @@ roundTrip name = do
   unless (parsed == reparsed) $
     assertFailure "reparsing the printed module gave a different syntax tree"
 
--- | Vertical whitespace is layout, and the tree holds constructs.
+-- | Vertical whitespace is layout, comments restate what is already held, and
+-- the tree holds constructs.
 --
 -- A blank line surviving as an entry is what would make every pass step
 -- around one, and what would leave a gap behind wherever a pass removed a
--- construct that stood between two of them.
-noBlankEntries :: FilePath -> Assertion
-noBlankEntries name = do
+-- construct that stood between two of them.  A comment surviving is worse: it
+-- would go on saying what was true of the construct it was written above
+-- after a pass had changed it, or after the construct was gone entirely.
+noLayoutEntries :: FilePath -> Assertion
+noLayoutEntries name = do
   parsed <- parseCorpusFile name
   assertEqual
-    "blank lines among the entries"
+    "blank lines and comments among the entries"
     []
-    [t | EOpaque t <- moduleEntries parsed, T.null (T.strip t)]
+    [ t
+    | EOpaque t <- moduleEntries parsed
+    , T.null (T.strip t) || ";" `T.isPrefixOf` T.stripStart t
+    ]
 
 -- | The corpus is LLVM's own output, so printing it back must reproduce it to
 -- the byte — including the blank lines, which are now regenerated rather than

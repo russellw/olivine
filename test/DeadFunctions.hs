@@ -73,11 +73,13 @@ deadFunctionTests =
             kept <- survivorsOf referenced
             assertBool ("expected no forgotten in " <> show kept) ("forgotten" `notElem` kept)
         ]
-    , -- Clang writes "; Function Attrs: ..." above every function, so a
-      -- comment left where a function was would say of the next function what
-      -- was true of the one removed.
+    , -- Clang writes "; Function Attrs: ..." above every function it emits.
+      -- The printer derives that line from the function's attributes, so it
+      -- cannot be left behind saying of the next function what was true of
+      -- the one removed — but only as long as this pass takes the function
+      -- and not the line, which is what these check.
       testGroup
-        "the comment introducing a function"
+        "the attribute comment above a function"
         [ testCase "goes when the function goes" $ do
             lines' <- renderedFrom commented
             assertBool
@@ -202,18 +204,20 @@ deadFunctionTests =
         , "  ret i32 %b"
         , "}"
         ]
-    -- What clang actually writes: an attribute comment above each function.
+    -- What clang actually writes: attributes on each function, and the
+    -- comment above it that the printer puts back from them.
     commented =
       T.unlines
-        [ "; Function Attrs: noinline nounwind"
-        , "define internal i32 @dead(i32 %x) {"
+        [ "define internal i32 @dead(i32 %x) #0 {"
         , "  ret i32 %x"
         , "}"
         , ""
-        , "; Function Attrs: alwaysinline"
-        , "define i32 @live(i32 %x) {"
+        , "define i32 @live(i32 %x) #1 {"
         , "  ret i32 %x"
         , "}"
+        , ""
+        , "attributes #0 = { noinline nounwind }"
+        , "attributes #1 = { alwaysinline }"
         ]
     -- The ways a function can be named that are not a call.
     referenced =

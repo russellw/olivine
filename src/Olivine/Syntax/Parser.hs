@@ -43,7 +43,8 @@ parseModule = runParser pModule
 renderParseError :: ParseError -> String
 renderParseError = errorBundlePretty
 
--- | A module is its constructs.  A blank line is not one of them.
+-- | A module is its constructs.  Neither a blank line nor a comment is one of
+-- them.
 --
 -- Vertical whitespace is layout, and layout is the printer's, which already
 -- regenerates the blank line before every label in a function rather than
@@ -51,11 +52,21 @@ renderParseError = errorBundlePretty
 -- pass stepping around them — and a pass that removed a function from between
 -- two of them would leave both behind, so the gap where it stood would widen
 -- with each one.
+--
+-- A comment goes the same way and for the same reason, with one more of its
+-- own: every comment LLVM writes is derived from something the tree already
+-- holds.  @; preds =@ states the predecessors of a block,
+-- @; Function Attrs:@ the attributes of the function below it, and
+-- @; ModuleID =@ is modelled as the construct it is.  Carried, each would be a
+-- second copy of a fact, going stale the moment a pass changed the first;
+-- regenerated, none of them can disagree with what it describes.  A comment
+-- written by hand says nothing to a reader that consumes none of them.
 pModule :: Parser Module
-pModule = Module . filter (not . isBlank) <$> many pEntry <* eof
+pModule = Module . filter kept <$> many pEntry <* eof
   where
-    isBlank (EOpaque text) = T.all isSpace text
-    isBlank _ = False
+    kept (EOpaque text) = not (T.all isSpace text) && not (isComment text)
+    kept _ = True
+    isComment = T.isPrefixOf ";" . T.stripStart
 
 -- Modelled constructs are tried first, and each is wrapped in 'try' so that
 -- anything it does not fully recognize falls through to the opaque line rule
