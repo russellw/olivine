@@ -12,10 +12,10 @@ import Test.Tasty.HUnit
 
 import Corpus (expectParse)
 import Olivine.Core.Lower (lower)
+import Olivine.Core.Instruction
 import Olivine.Core.Pass.ControlFlow (foldTerminator, simplifyControlFlow)
 import Olivine.Core.Program
-import Olivine.Syntax.Instruction
-import Olivine.Syntax.Instruction qualified as Syntax
+import Olivine.Syntax.Instruction (Call (..))
 import Olivine.Syntax.Name
 import Olivine.Syntax.Type
 import Olivine.Syntax.Value
@@ -27,43 +27,43 @@ controlFlowTests =
     [ testGroup
         "what a branch comes to"
         [ testCase "a branch on true" $
-            folds (condBr (VBoolean True) "a" "b") @?= Just (OBr (label "a"))
+            folds (condBr (VBoolean True) a b) @?= Just (Br a)
         , testCase "a branch on false" $
-            folds (condBr (VBoolean False) "a" "b") @?= Just (OBr (label "b"))
+            folds (condBr (VBoolean False) a b) @?= Just (Br b)
         , -- An i1 written as a number is the same value spelled differently.
           testCase "a branch on a number" $
-            folds (condBr (VInteger 1) "a" "b") @?= Just (OBr (label "a"))
+            folds (condBr (VInteger 1) a b) @?= Just (Br a)
         , -- This one needs no constant: it goes there either way.
           testCase "a branch whose arms agree" $
-            folds (condBr (VLocal (Name Bare "c")) "a" "a") @?= Just (OBr (label "a"))
+            folds (condBr (VLocal (Name Bare "c")) a a) @?= Just (Br a)
         , testCase "a switch on a known value" $
-            folds (switch (VInteger 2)) @?= Just (OBr (label "two"))
+            folds (switch (VInteger 2)) @?= Just (Br two)
         , testCase "a switch on a value no case matches" $
-            folds (switch (VInteger 9)) @?= Just (OBr (label "otherwise"))
+            folds (switch (VInteger 9)) @?= Just (Br fallback)
         , -- The same byte written two ways, which the widths make equal.
           testCase "a switch case spelled as the other sign" $
-            folds (switchOn (TInteger 8) (VInteger (-1)) [(VInteger 255, "hit")])
-              @?= Just (OBr (label "hit"))
+            folds (switchOn (TInteger 8) (VInteger (-1)) [(VInteger 255, hit)])
+              @?= Just (Br hit)
         , testCase "a switch whose cases all name the default" $
-            folds (switchOn (TInteger 8) (VLocal (Name Bare "x")) [(VInteger 1, "otherwise")])
-              @?= Just (OBr (label "otherwise"))
+            folds (switchOn (TInteger 8) (VLocal (Name Bare "x")) [(VInteger 1, fallback)])
+              @?= Just (Br fallback)
         , testCase "an indirect branch with one destination" $
-            folds (OIndirectBr pointer [label "a"]) @?= Just (OBr (label "a"))
+            folds (IndirectBr pointer [a]) @?= Just (Br a)
         ]
     , testGroup
         "where it stops"
         [ testCase "a branch on a local" $
-            folds (condBr (VLocal (Name Bare "c")) "a" "b") @?= Nothing
+            folds (condBr (VLocal (Name Bare "c")) a b) @?= Nothing
         , -- Branching on poison is undefined, and LLVM may treat it as
           -- unreachable.  Collecting on that is a decision this pass does not
           -- make: it folds branches whose value it knows.
           testCase "a branch on poison" $
-            folds (condBr VPoison "a" "b") @?= Nothing
+            folds (condBr VPoison a b) @?= Nothing
         , testCase "a switch on a local" $
             folds (switch (VLocal (Name Bare "x"))) @?= Nothing
         , testCase "an indirect branch with a choice to make" $
-            folds (OIndirectBr pointer [label "a", label "b"]) @?= Nothing
-        , testCase "a return" $ folds (ORet Nothing) @?= Nothing
+            folds (IndirectBr pointer [a, b]) @?= Nothing
+        , testCase "a return" $ folds (Ret Nothing) @?= Nothing
         ]
     , testGroup
         "what the blocks come to"
@@ -76,7 +76,7 @@ controlFlowTests =
             terminators <- terminatorsOf decided
             assertEqual
               "ending in what the taken arm ended in"
-              [ORet (Just (TypedValue (TInteger 32) (VInteger 0)))]
+              [Ret (Just (TypedValue (TInteger 32) (VInteger 0)))]
               terminators
         , -- The point of the pass: unreachable blocks take their calls with
           -- them, which is what lets a later pass see the callee is dead.
@@ -131,17 +131,21 @@ controlFlowTests =
         ]
     ]
   where
-    label = Name Bare
+    -- A destination is a number in the core, so these stand for the blocks
+    -- the cases used to name.  What a local is called is still a name here,
+    -- which is the parameter doing its job: these cases care about neither.
+    a = Label 1
+    b = Label 2
+    fallback = Label 3
+    one = Label 4
+    two = Label 5
+    hit = Label 6
     pointer = TypedValue (TPointer Nothing) (VLocal (Name Bare "p"))
-    condBr condition true false =
-      OCondBr (TypedValue (TInteger 1) condition) (label true) (label false)
+    condBr condition = CondBr (TypedValue (TInteger 1) condition)
     switch value =
-      switchOn (TInteger 32) value [(VInteger 1, "one"), (VInteger 2, "two")]
+      switchOn (TInteger 32) value [(VInteger 1, one), (VInteger 2, two)]
     switchOn t value cases =
-      OSwitch
-        (TypedValue t value)
-        (label "otherwise")
-        [(TypedValue t v, label l) | (v, l) <- cases]
+      Switch (TypedValue t value) fallback [(TypedValue t v, l) | (v, l) <- cases]
 
 -- | A condition folding to @false@, an arm that then goes, and the only call
 -- to a function in it.
@@ -251,11 +255,11 @@ resultsOf source = do
     , i <- blockInstructions b
     ]
 
-terminatorsOf :: Text -> IO [Syntax.Operation Local Label]
+terminatorsOf :: Text -> IO [Transfer Local]
 terminatorsOf source = do
   simplified <- simplify source
   pure
-    [ terminatorOperation (blockTerminator b)
+    [ terminatorTransfer (blockTerminator b)
     | f <- functionsIn simplified
     , b <- functionBlocks f
     ]
@@ -269,7 +273,7 @@ calledIn source = do
     | f <- functionsIn simplified
     , b <- functionBlocks f
     , i <- blockInstructions b
-    , Perform (OCall c) <- [instructionOperation i]
+    , OCall c <- [instructionOperation i]
     , VGlobal name <- [callCallee c]
     ]
 
@@ -278,10 +282,10 @@ simplify source = do
   parsed <- expectParse "<inline>" source
   pure (simplifyControlFlow (lower parsed))
 
--- | 'foldTerminator' at the names the syntax layer uses, which is what these
--- cases build.
+-- | 'foldTerminator' at the locals the core uses, which is what these cases
+-- build.
 --
--- The pass folds branches whatever a local or a block is called, so it is
--- written for any; these cases have to pick one, and a 'Name' is what reads.
-folds :: Syntax.Operation Name Name -> Maybe (Syntax.Operation Name Name)
+-- The pass folds branches whatever a local is called, so it is written for
+-- any; these cases have to pick one, and the core's own is what reads.
+folds :: Transfer Name -> Maybe (Transfer Name)
 folds = foldTerminator

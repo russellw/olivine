@@ -260,7 +260,7 @@ isLabelLine line = case T.uncons line of
   Just (c, _) -> isIdentifierChar c && T.isInfixOf ":" (T.takeWhile (/= ' ') line)
   Nothing -> False
 
-isArithmetic :: Operation Name Name -> Bool
+isArithmetic :: Operation Name -> Bool
 isArithmetic (OBinary _) = True
 isArithmetic (OUnary _) = True
 isArithmetic (OICmp _) = True
@@ -290,7 +290,7 @@ isArithmeticLine = operationKeyword `startsWithAny` keywords
       , "shufflevector "
       ]
 
-isMemory :: Operation Name Name -> Bool
+isMemory :: Operation Name -> Bool
 isMemory (OAlloca _) = True
 isMemory (OLoad _) = True
 isMemory (OStore _) = True

@@ -21,10 +21,17 @@ import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe)
 
+import Olivine.Core.Instruction
 import Olivine.Core.Program
 import Olivine.Syntax.Instruction
-import Olivine.Syntax.Instruction qualified as Syntax
-import Olivine.Syntax.Operands (mapOperands)
+  ( Binary (..)
+  , BinaryOp (..)
+  , Compare (..)
+  , Convert (..)
+  , InstructionFlag (..)
+  , IntPredicate (..)
+  , Select (..)
+  )
 import Olivine.Syntax.Type (Type (..))
 import Olivine.Syntax.Value
 
@@ -48,7 +55,8 @@ sweep :: Function -> Function
 sweep f = f {functionBlocks = map rewrite (functionBlocks f)}
   where
     known = knownValues f
-    substitute = mapOperands (\(TypedValue t x) -> TypedValue t (resolve x))
+    substitute :: Operands g => g Local -> g Local
+    substitute = mapValues resolve
     resolve (VLocal n) = fromMaybe (VLocal n) (Map.lookup n known)
     resolve x = x
     rewrite b =
@@ -56,17 +64,12 @@ sweep f = f {functionBlocks = map rewrite (functionBlocks f)}
         { blockInstructions = map instruction (blockInstructions b)
         , blockTerminator =
             (blockTerminator b)
-              { terminatorOperation = substitute (terminatorOperation (blockTerminator b))
+              { terminatorTransfer = substitute (terminatorTransfer (blockTerminator b))
               }
         }
-    instruction i = case instructionOperation i of
-      Assign (TypedValue t x) -> i {instructionOperation = Assign (TypedValue t (resolve x))}
-      Perform operation ->
-        let folded = substitute operation
-         in i
-              { instructionOperation =
-                  maybe (Perform folded) Assign (foldOperation folded)
-              }
+    instruction i =
+      let folded = substitute (instructionOperation i)
+       in i {instructionOperation = maybe folded OAssign (foldOperation folded)}
 
 -- | The locals whose value is known throughout the function.
 --
@@ -86,11 +89,11 @@ knownValues f =
     assignments =
       [ (name, typedValue value)
       | b <- functionBlocks f
-      , Instruction (Just name) (Assign value) _ <- blockInstructions b
+      , Instruction (Just name) (OAssign value) _ <- blockInstructions b
       ]
 
 -- | What an operation comes to, when it comes to anything.
-foldOperation :: Syntax.Operation local label -> Maybe (TypedValue local)
+foldOperation :: Operation local -> Maybe (TypedValue local)
 foldOperation operation = case operation of
   OBinary b -> do
     let t = binaryType b

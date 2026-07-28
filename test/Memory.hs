@@ -26,7 +26,7 @@ import Olivine.Syntax.Value
 -- densely, counting the entry block among them, so a numbered line is only
 -- valid at one position in one function — which says nothing about the syntax
 -- under test.  The corpus covers the numbered form, in quantity.
-emitted :: [(Text, Maybe Name, Operation Name Name)]
+emitted :: [(Text, Maybe Name, Operation Name)]
 emitted =
   [ ( "  %r = alloca i32, align 4"
     , Just (Name Bare "r")
@@ -155,7 +155,7 @@ emitted =
 --
 -- Olivine keeps what was written; separating these lets 'emitted' honestly
 -- claim to be LLVM's own output.
-accepted :: [(Text, Maybe Name, Operation Name Name)]
+accepted :: [(Text, Maybe Name, Operation Name)]
 accepted =
   [ -- Written without an alignment, LLVM supplies the target's own on the
     -- way out.  Olivine does not invent one.
@@ -243,7 +243,7 @@ roundTrips line = do
   parsed <- expectParse "<inline>" source
   renderModule parsed @?= source
 
-parsesTo :: Text -> Maybe Name -> Operation Name Name -> Assertion
+parsesTo :: Text -> Maybe Name -> Operation Name -> Assertion
 parsesTo line result operation = do
   instructions <- instructionsIn (inFunction line)
   take 1 instructions @?= [IOperation result operation []]

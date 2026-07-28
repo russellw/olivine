@@ -8,9 +8,10 @@ import Test.Tasty.HUnit
 
 import Corpus (expectParse)
 import Olivine.Core.Lower (lower)
+import Olivine.Core.Instruction
 import Olivine.Core.Pass.DeadCode (eliminateDeadCode, removableWhenUnused)
 import Olivine.Core.Program
-import Olivine.Syntax.Instruction
+import Olivine.Syntax.Instruction hiding (Operation (..))
 import Olivine.Syntax.Name
 import Olivine.Syntax.Type
 import Olivine.Syntax.Value
@@ -54,8 +55,10 @@ deadCodeTests =
         , testCase "a store" $ removableWhenUnused store' @?= False
         , -- Nothing here can tell whether a call does anything, so none goes.
           testCase "a call" $ removableWhenUnused call' @?= False
-        , testCase "a terminator" $ removableWhenUnused (ORet Nothing) @?= False
-        , testCase "a branch" $ removableWhenUnused (OBr (Name Bare "b")) @?= False
+          -- There were two more here, asking that a return and a branch are
+          -- never removable.  Neither can be asked now: a terminator is a
+          -- 'Transfer' and this takes an 'Operation', so handing it one does
+          -- not compile.  That is the answer those cases were checking for.
         ]
     ]
   where

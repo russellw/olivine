@@ -17,8 +17,8 @@ module Olivine.Core.Blocks
   , mergeBlocks
   ) where
 
+import Olivine.Core.Instruction
 import Olivine.Core.Program
-import Olivine.Syntax.Instruction (Operation (..))
 
 -- | Remove blocks that do nothing but branch elsewhere.
 --
@@ -43,27 +43,19 @@ removeForwarding f = f {functionBlocks = settle (functionBlocks f)}
       | b <- blocks
       , Just (blockLabel b) /= entry
       , null (blockInstructions b)
-      , OBr target <- [terminatorOperation (blockTerminator b)]
+      , Br target <- [terminatorTransfer (blockTerminator b)]
       , -- A block branching to itself is a loop, not a detour.
         target /= blockLabel b
       ]
 
     remove blocks block target =
-      [ retarget b
+      [ b {blockTerminator = redirect (blockTerminator b)}
       | b <- blocks
       , blockLabel b /= blockLabel block
       ]
       where
         gone = blockLabel block
-        retarget b =
-          b
-            { blockTerminator =
-                (blockTerminator b)
-                  { terminatorOperation =
-                      fmap (\l -> if l == gone then target else l) $
-                        terminatorOperation (blockTerminator b)
-                  }
-            }
+        redirect = retarget (\l -> if l == gone then target else l)
 
 -- | Merge a block into the one block that reaches it.
 --
@@ -95,7 +87,7 @@ mergeBlocks f = f {functionBlocks = settle (functionBlocks f)}
       | b <- blocks
       , -- Nowhere else to go: an unconditional branch is the whole
         -- terminator, so this block has the one successor.
-        OBr target <- [terminatorOperation (blockTerminator b)]
+        Br target <- [terminatorTransfer (blockTerminator b)]
       , -- A block branching to itself goes somewhere else as well as here.
         target /= blockLabel b
       , -- Nowhere else it is reached from.  The entry block is reached

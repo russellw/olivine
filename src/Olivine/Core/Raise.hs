@@ -23,6 +23,7 @@ import Data.Map.Strict qualified as Map
 import Data.Text (Text)
 import Data.Text qualified as T
 
+import Olivine.Core.Instruction
 import Olivine.Core.Phi (Joined (..), PhiNode (..), removeForwarding)
 import Olivine.Core.Program
 import Olivine.Core.Ssa (reconstruct)
@@ -30,7 +31,6 @@ import Olivine.Syntax.Ast qualified as Syntax
 import Olivine.Syntax.Function qualified as Syntax
 import Olivine.Syntax.Instruction qualified as Syntax
 import Olivine.Syntax.Name
-import Olivine.Syntax.Operands (mapOperands)
 import Olivine.Syntax.Printer (renderName)
 
 raise :: Program -> Syntax.Module
@@ -149,7 +149,7 @@ raiseBlock numbering blocks block =
     terminator =
       Syntax.IOperation
         Nothing
-        (raiseOperation numbering (terminatorOperation (joinedTerminator block)))
+        (raiseTransfer numbering (terminatorTransfer (joinedTerminator block)))
         (terminatorMetadata (joinedTerminator block))
 
 -- | The block a function starts at, which is the first one written.
@@ -180,28 +180,51 @@ raisePhi numbering p =
     []
 
 -- | One core instruction.
---
--- No assignment survives reconstruction: each assigned value was carried to
--- where it is read, and a phi put wherever several of them meet.
 raiseInstruction :: Numbering -> Instruction -> Syntax.Instruction
-raiseInstruction numbering i = case instructionOperation i of
-  Perform operation ->
-    Syntax.IOperation
-      (localName numbering <$> instructionResult i)
-      (raiseOperation numbering operation)
-      (instructionMetadata i)
-  Assign _ ->
-    error "Olivine.Core.Raise: an assignment survived reconstruction"
+raiseInstruction numbering i =
+  Syntax.IOperation
+    (localName numbering <$> instructionResult i)
+    (raiseOperation numbering (instructionOperation i))
+    (instructionMetadata i)
 
--- | Give an operation the names the numbering settled on.
+-- | One operation, on the other side of the boundary.
 --
--- Two substitutions that cannot be confused with one another: the labels are
--- what the operation is parameterized by, so 'fmap' reaches exactly those,
--- and the locals are its operands, which is what 'mapOperands' reaches.
-raiseOperation ::
-  Numbering -> Syntax.Operation Local Label -> Syntax.Operation Name Name
-raiseOperation numbering =
-  fmap (blockLabelName numbering) . mapOperands (fmap (localName numbering))
+-- Giving the locals the names the numbering settled on comes first and is the
+-- derived map; what is left is the arm for each operation.  An assignment has
+-- no LLVM spelling and needs none — reconstruction carried each assigned
+-- value to wherever the local is read — so reaching one here is a bug in
+-- reconstruction rather than a program this cannot write.
+raiseOperation :: Numbering -> Operation Local -> Syntax.Operation Name
+raiseOperation numbering written = case localName numbering <$> written of
+  OBinary b -> Syntax.OBinary b
+  OUnary u -> Syntax.OUnary u
+  OICmp c -> Syntax.OICmp c
+  OFCmp c -> Syntax.OFCmp c
+  OConvert c -> Syntax.OConvert c
+  OSelect s -> Syntax.OSelect s
+  OExtractElement e -> Syntax.OExtractElement e
+  OInsertElement i -> Syntax.OInsertElement i
+  OShuffleVector s -> Syntax.OShuffleVector s
+  OCall c -> Syntax.OCall c
+  OAlloca a -> Syntax.OAlloca a
+  OLoad l -> Syntax.OLoad l
+  OStore s -> Syntax.OStore s
+  OGetElementPtr g -> Syntax.OGetElementPtr g
+  OAssign _ -> error "Olivine.Core.Raise: an assignment survived reconstruction"
+
+-- | One terminator, on the other side of the boundary.
+raiseTransfer :: Numbering -> Transfer Local -> Syntax.Operation Name
+raiseTransfer numbering written = case localName numbering <$> written of
+  Ret value -> Syntax.ORet value
+  Br target -> Syntax.OBr (label target)
+  CondBr condition true false ->
+    Syntax.OCondBr condition (label true) (label false)
+  Switch value target cases ->
+    Syntax.OSwitch value (label target) [(x, label l) | (x, l) <- cases]
+  IndirectBr address targets -> Syntax.OIndirectBr address (map label targets)
+  Unreachable -> Syntax.OUnreachable
+  where
+    label = blockLabelName numbering
 
 -- | The @; preds = %a, %b@ comment LLVM writes after a label.
 --

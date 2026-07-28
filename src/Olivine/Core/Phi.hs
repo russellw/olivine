@@ -25,8 +25,8 @@ module Olivine.Core.Phi
 import Data.List (partition)
 import Data.Maybe (fromMaybe)
 
+import Olivine.Core.Instruction
 import Olivine.Core.Program
-import Olivine.Syntax.Instruction (Operation (..))
 import Olivine.Syntax.Type (Type)
 import Olivine.Syntax.Value (TypedValue (..), Value (..))
 
@@ -134,20 +134,15 @@ eliminate firstLabel firstLocal blocks = concatMap build issued
 
     build (b, inline, edges) =
       Block (joinedLabel b) (joinedInstructions b <> map assignment inline) terminator
-        : [ Block label (map assignment copies) (Terminator (OBr target) [])
+        : [ Block label (map assignment copies) (Terminator (Br target) [])
           | (label, (target, copies)) <- edges
           ]
       where
+        renames = [(target, label) | (label, (target, _)) <- edges]
         terminator =
-          retarget [(target, label) | (label, (target, _)) <- edges] (joinedTerminator b)
+          retarget (\l -> fromMaybe l (lookup l renames)) (joinedTerminator b)
 
-    assignment (name, value) = Instruction (Just name) (Assign value) []
-
--- | Send a terminator's branches to the blocks that were put on its edges.
-retarget :: [(Label, Label)] -> Terminator -> Terminator
-retarget renames t = t {terminatorOperation = fmap to (terminatorOperation t)}
-  where
-    to label = fromMaybe label (lookup label renames)
+    assignment (name, value) = Instruction (Just name) (OAssign value) []
 
 -- | Order a set of simultaneous assignments so that running them one after
 -- another has the same effect.
@@ -221,7 +216,7 @@ removeForwarding = settle
       , Just (joinedLabel b) /= entryOf blocks
       , null (joinedInstructions b)
       , null (joinedPhis b)
-      , OBr target <- [terminatorOperation (joinedTerminator b)]
+      , Br target <- [terminatorTransfer (joinedTerminator b)]
       , -- A block branching to itself is a loop, not a detour.
         target /= joinedLabel b
       , relabellable blocks (joinedLabel b) target
@@ -253,7 +248,8 @@ removeForwarding = settle
         redirect b =
           b
             { joinedPhis = map relabel (joinedPhis b)
-            , joinedTerminator = retarget [(gone, target)] (joinedTerminator b)
+            , joinedTerminator =
+                retarget (\l -> if l == gone then target else l) (joinedTerminator b)
             }
         relabel p =
           p {phiIncoming = [(v, if l == gone then before else l) | (v, l) <- phiIncoming p]}

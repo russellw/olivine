@@ -46,6 +46,7 @@ import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as T
 
+import Olivine.Core.Instruction
 import Olivine.Core.Program
 import Olivine.Syntax.Ast qualified as Syntax
 import Olivine.Syntax.Function (Signature (..))
@@ -55,7 +56,7 @@ import Olivine.Syntax.Instruction qualified as Syntax
 import Olivine.Syntax.Linkage (GlobalAttribute (..), Linkage (..))
 import Olivine.Syntax.Metadata (MetadataOperand (..))
 import Olivine.Syntax.Name (Name (..), isIdentifierChar)
-import Olivine.Syntax.Operands (globalsUsedBy)
+import Olivine.Syntax.Operands qualified as Syntax
 import Olivine.Syntax.Value (globalsIn, typedValue)
 
 -- | Something a live path can arrive at.
@@ -288,17 +289,14 @@ referencesIn :: Function -> [Reference]
 referencesIn f =
   map (RSymbol . nameText) $
     concat
-      [ operation (instructionOperation i)
+      [ globalsUsedBy (instructionOperation i)
       | b <- functionBlocks f
       , i <- blockInstructions b
       ]
       <> [ n
          | b <- functionBlocks f
-         , n <- globalsUsedBy (terminatorOperation (blockTerminator b))
+         , n <- globalsUsedBy (terminatorTransfer (blockTerminator b))
          ]
-  where
-    operation (Perform op) = globalsUsedBy op
-    operation (Assign value) = globalsIn (typedValue value)
 
 -- | The names a global reaches: what its initializer mentions, and the group
 -- it is in.
@@ -340,7 +338,7 @@ referencesInEntry entry = case entry of
   _ -> []
   where
     names = map (RSymbol . nameText)
-    instruction (Syntax.IOperation _ operation _) = names (globalsUsedBy operation)
+    instruction (Syntax.IOperation _ operation _) = names (Syntax.globalsUsedBy operation)
     instruction (Syntax.IOpaque text) = mentionedIn text
     metadata (MDValue value) = names (globalsIn (typedValue value))
     metadata (MDTuple operands) = concatMap metadata operands

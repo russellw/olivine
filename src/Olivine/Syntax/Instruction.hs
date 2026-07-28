@@ -1,11 +1,13 @@
--- | Instructions.
+-- | Instructions, spelled the way LLVM spells them.
 --
 -- Terminators are not a type of their own.  They are a subset of the
 -- instructions, and by the rule in CLAUDE.md a subset is one type plus a
 -- predicate — here 'isTerminator', which is what LLVM's own @Instruction@
--- class does.  Keeping them apart would mean every function over instructions
--- carrying two cases forever, and the result name and the metadata living in
--- two places.
+-- class does.  What makes that the right rule here and not in the core is
+-- that this layer has to read back a block ending in the wrong thing, or in
+-- nothing at all: the invalid case has to be representable to be reported.
+-- Nothing constructs a core program but Olivine, so there the terminator is
+-- a type of its own and the predicate is gone.
 --
 -- Whatever is not modelled is still the line it was written on, held verbatim
 -- with its indentation, since only a modelled instruction can have its
@@ -62,7 +64,7 @@ data Instruction
     --
     -- Whether an operation may name a result is a verifier's business: a
     -- @store@ must not and a @load@ must, and neither is said here.
-    IOperation (Maybe Name) (Operation Name Name) [MetadataAttachment]
+    IOperation (Maybe Name) (Operation Name) [MetadataAttachment]
   | -- | A line not yet modelled, kept as written.
     IOpaque Text
   deriving (Eq, Show)
@@ -74,27 +76,25 @@ data Instruction
 -- @resume@ and the @catch@ and @cleanup@ family belong with exception
 -- handling.  Both wait for those, and a block ending in one stays opaque.
 --
--- __What a branch names its destination by is a parameter.__  In the syntax
--- this is a 'Name', because that is what was written; in the core it is a
--- number the optimizer issued, because a block's identity there is not its
--- spelling.  The alternative was a second copy of the terminator grammar for
--- the core to use, which is the thing CLAUDE.md says not to do — every
--- function over operations would need writing twice.  With a parameter there
--- is still one grammar, and every function that does not look at a
--- destination is written once and works for both.
-data Operation local label
+-- __A destination is a 'Name', because that is what was written.__  This
+-- grammar reads LLVM back and writes it out, so everything it says is spelled
+-- the way LLVM spells it.  What the optimizer works on is a grammar of its
+-- own, "Olivine.Core.Instruction", where a destination is a number and there
+-- is no @phi@; the two were one type parameterized by what a destination is
+-- until the differences stopped being expressible that way.
+data Operation local
   = -- | @ret void@, or @ret \<ty\> \<value\>@.
     ORet (Maybe (TypedValue local))
   | -- | @br label %dest@.
-    OBr label
+    OBr Name
   | -- | @br i1 \<cond\>, label %then, label %else@.
-    OCondBr (TypedValue local) label label
+    OCondBr (TypedValue local) Name Name
   | -- | @switch \<ty\> \<value\>, label %default [ ... ]@.  LLVM requires the
     -- case values to be constants; 'Olivine.Syntax.Value.isConstant' is what
     -- asks, rather than the shape of the data.
-    OSwitch (TypedValue local) label [(TypedValue local, label)]
+    OSwitch (TypedValue local) Name [(TypedValue local, Name)]
   | -- | @indirectbr \<ty\> \<address\>, [label %a, label %b]@.
-    OIndirectBr (TypedValue local) [label]
+    OIndirectBr (TypedValue local) [Name]
   | OUnreachable
   | -- | @add nsw i32 %a, %b@ and its relatives, integer, bitwise and
     -- floating point alike.
@@ -116,7 +116,7 @@ data Operation local label
   | -- | @shufflevector \<n x ty\> \<a\>, \<n x ty\> \<b\>, \<m x i32\> \<mask\>@.
     OShuffleVector (ShuffleVector local)
   | -- | @phi \<ty\> [ \<value\>, %pred ], ...@.
-    OPhi (Phi local label)
+    OPhi (Phi local)
   | -- | @call@, direct or indirect, with or without a result.
     OCall (Call local)
   | OAlloca (Alloca local)
@@ -130,7 +130,7 @@ data Operation local label
 -- That a block holds exactly one of these, last, is an invariant for a
 -- verifier rather than something the syntax enforces: this layer has to be
 -- able to read back a module that gets it wrong.
-isTerminator :: Operation local label -> Bool
+isTerminator :: Operation local -> Bool
 isTerminator (ORet _) = True
 isTerminator (OBr _) = True
 isTerminator (OCondBr _ _ _) = True
@@ -322,11 +322,11 @@ data ShuffleVector local = ShuffleVector
 -- would mean the round trip could no longer be checked by comparing the
 -- output with the input.  The conversion is a lowering step between the two
 -- representations, and this type is what it will consume.
-data Phi local label = Phi
+data Phi local = Phi
   { phiFlags :: [InstructionFlag]
   , phiType :: Type
   , -- | The value arriving along each edge, and the block it comes from.
-    phiIncoming :: [(Value local, label)]
+    phiIncoming :: [(Value local, Name)]
   }
   deriving (Eq, Show, Functor, Foldable, Traversable)
 

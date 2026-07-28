@@ -13,14 +13,14 @@ import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 
+import Olivine.Core.Instruction
 import Olivine.Core.Phi (Joined (..), PhiNode (..), eliminate)
 import Olivine.Core.Program
 import Olivine.Syntax.Ast qualified as Syntax
 import Olivine.Syntax.Function qualified as Syntax
-import Olivine.Syntax.Instruction (Operation (..), isTerminator)
+import Olivine.Syntax.Instruction (isTerminator)
 import Olivine.Syntax.Instruction qualified as Syntax
 import Olivine.Syntax.Name
-import Olivine.Syntax.Operands (traverseOperands)
 
 lower :: Syntax.Module -> Program
 lower = Program . map lowerEntry . Syntax.moduleEntries
@@ -86,9 +86,9 @@ readBlock labels locals (label, block) = do
   let (phis, rest) = partition isPhi body
   Joined label <$> traverse phi phis <*> traverse instruction rest <*> pure terminator
   where
-    isPhi (Syntax.IOperation _ (OPhi _) _) = True
+    isPhi (Syntax.IOperation _ (Syntax.OPhi _) _) = True
     isPhi _ = False
-    phi (Syntax.IOperation (Just name) (OPhi p) _) =
+    phi (Syntax.IOperation (Just name) (Syntax.OPhi p) _) =
       PhiNode
         <$> Map.lookup name locals
         <*> pure (Syntax.phiType p)
@@ -99,26 +99,72 @@ readBlock labels locals (label, block) = do
     instruction (Syntax.IOperation result operation metadata) =
       Instruction
         <$> traverse (`Map.lookup` locals) result
-        <*> (Perform <$> rename labels locals operation)
+        <*> lowerOperation locals operation
         <*> pure metadata
     instruction _ = Nothing
     bitraverse f g (x, y) = (,) <$> f x <*> g y
 
--- | An operation as the core refers to what it mentions.
+-- | One operation, on the other side of the boundary.
 --
--- Two traversals that cannot be confused: the destinations are what the
--- operation is parameterized by, and the locals are inside its operands.
--- Either failing fails the whole definition, which is what makes a branch to
--- a block that is not there, or a use of a local nothing defines, something
--- the core cannot be made to hold.
-rename ::
+-- Renaming the locals comes first and is the derived traversal, so every
+-- operand is reached whatever it is written inside; what is left is the arm
+-- for each operation, which is where the two grammars actually differ.  A
+-- terminator is not an operation here and fails, as does a phi, which by this
+-- point 'readBlock' has taken out.
+--
+-- Failing fails the whole definition, which is what makes a use of a local
+-- nothing defines something the core cannot be made to hold.
+lowerOperation ::
+  Map Name Local -> Syntax.Operation Name -> Maybe (Operation Local)
+lowerOperation locals written = do
+  operation <- traverse (`Map.lookup` locals) written
+  case operation of
+    Syntax.OBinary b -> Just (OBinary b)
+    Syntax.OUnary u -> Just (OUnary u)
+    Syntax.OICmp c -> Just (OICmp c)
+    Syntax.OFCmp c -> Just (OFCmp c)
+    Syntax.OConvert c -> Just (OConvert c)
+    Syntax.OSelect s -> Just (OSelect s)
+    Syntax.OExtractElement e -> Just (OExtractElement e)
+    Syntax.OInsertElement i -> Just (OInsertElement i)
+    Syntax.OShuffleVector s -> Just (OShuffleVector s)
+    Syntax.OCall c -> Just (OCall c)
+    Syntax.OAlloca a -> Just (OAlloca a)
+    Syntax.OLoad l -> Just (OLoad l)
+    Syntax.OStore s -> Just (OStore s)
+    Syntax.OGetElementPtr g -> Just (OGetElementPtr g)
+    Syntax.OPhi _ -> Nothing
+    Syntax.ORet _ -> Nothing
+    Syntax.OBr _ -> Nothing
+    Syntax.OCondBr _ _ _ -> Nothing
+    Syntax.OSwitch _ _ _ -> Nothing
+    Syntax.OIndirectBr _ _ -> Nothing
+    Syntax.OUnreachable -> Nothing
+
+-- | One terminator, on the other side of the boundary.
+--
+-- Every destination becomes a 'Label' by looking it up, so a branch to a
+-- block nothing defines has nothing to become and the definition is retained
+-- as written rather than lowered into a graph with an edge to nowhere.
+lowerTransfer ::
   Map Name Label ->
   Map Name Local ->
-  Syntax.Operation Name Name ->
-  Maybe (Syntax.Operation Local Label)
-rename labels locals operation =
-  traverse (`Map.lookup` labels)
-    =<< traverseOperands (traverse (`Map.lookup` locals)) operation
+  Syntax.Operation Name ->
+  Maybe (Transfer Local)
+lowerTransfer labels locals written = do
+  operation <- traverse (`Map.lookup` locals) written
+  let target = (`Map.lookup` labels)
+  case operation of
+    Syntax.ORet value -> Just (Ret value)
+    Syntax.OBr d -> Br <$> target d
+    Syntax.OCondBr c a b -> CondBr c <$> target a <*> target b
+    Syntax.OSwitch value d cases ->
+      Switch value
+        <$> target d
+        <*> traverse (\(x, l) -> (x,) <$> target l) cases
+    Syntax.OIndirectBr address ds -> IndirectBr address <$> traverse target ds
+    Syntax.OUnreachable -> Just Unreachable
+    _ -> Nothing
 
 -- | Take the terminator off the end and the rest as the body.
 --
@@ -135,7 +181,8 @@ split labels locals body = case reverse body of
   Syntax.IOperation Nothing operation metadata : rest
     | isTerminator operation
     , all modelled rest ->
-        (\o -> (reverse rest, Terminator o metadata)) <$> rename labels locals operation
+        (\t -> (reverse rest, Terminator t metadata))
+          <$> lowerTransfer labels locals operation
   _ -> Nothing
   where
     modelled (Syntax.IOperation _ operation _) = not (isTerminator operation)

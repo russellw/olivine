@@ -13,13 +13,12 @@ import Test.Tasty
 import Test.Tasty.HUnit
 
 import Corpus (corpusFiles, expectParse, readCorpusFile)
+import Olivine.Core.Instruction
 import Olivine.Core.Lower (lower)
 import Olivine.Core.Program
 import Olivine.Core.Raise (raise)
 import Olivine.Syntax.Ast qualified as Syntax
 import Olivine.Syntax.Function qualified as Syntax
-import Olivine.Syntax.Instruction
-import Olivine.Syntax.Name
 import Olivine.Syntax.Printer (renderModule)
 import Olivine.Syntax.Value
 
@@ -64,17 +63,15 @@ invariants name = do
   (_, parsed) <- readCorpusFile name
   assertInvariants (functionsIn (lower parsed))
 
+-- | Three of the four this used to check are gone, and their going is the
+-- point.  That the terminator slot holds a terminator, that nothing before it
+-- is one, and that no phi survives lowering were assertions about a type that
+-- could express the opposite.  It cannot now: a 'Terminator' holds a
+-- 'Transfer' and an 'Instruction' holds an 'Operation', and neither type is
+-- the other, so those tests would no longer compile.  A test that cannot be
+-- written is a better guarantee than one that passes.
 assertInvariants :: [Function] -> Assertion
-assertInvariants functions = do
-  assertEqual
-    "the terminator slot holds a terminator"
-    []
-    [t | b <- blocks, let t = terminatorOperation (blockTerminator b), not (isTerminator t)]
-  assertEqual
-    "nothing before the terminator is one"
-    []
-    [op | b <- blocks, i <- blockInstructions b, let op = perform i, any isTerminator op]
-  assertEqual "no phi survives lowering" [] [() | b <- blocks, i <- blockInstructions b, isPhi i]
+assertInvariants functions =
   -- Assignments may only sit in a block with a single successor.  A block
   -- that branches two ways would run them on the way to both, which is what
   -- splitting the edge exists to prevent, so this is the check that the
@@ -84,19 +81,11 @@ assertInvariants functions = do
     []
     [ ()
     | b <- blocks
-    , length (targetsOf b) > 1
-    , Instruction _ (Assign _) _ <- blockInstructions b
+    , length (targetsOf (blockTerminator b)) > 1
+    , Instruction _ (OAssign _) _ <- blockInstructions b
     ]
   where
     blocks = concatMap functionBlocks functions
-    perform i = case instructionOperation i of Perform op -> [op]; Assign _ -> []
-    isPhi i = case instructionOperation i of Perform (OPhi _) -> True; _ -> False
-    targetsOf b = case terminatorOperation (blockTerminator b) of
-      OBr t -> [t]
-      OCondBr _ a c -> [a, c]
-      OSwitch _ d cases -> d : map snd cases
-      OIndirectBr _ ds -> ds
-      _ -> []
 
 -- | What comes back out must be a module Olivine can read again, and lowering
 -- it must reach the same fixed point rather than finding new work each time.
@@ -311,5 +300,5 @@ assignmentsIn written source = do
     | b <- blocks
     , Label n <- [blockLabel b]
     , n >= written
-    , Instruction (Just name) (Assign value) _ <- blockInstructions b
+    , Instruction (Just name) (OAssign value) _ <- blockInstructions b
     ]

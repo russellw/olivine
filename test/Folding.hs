@@ -8,8 +8,9 @@ module Folding (foldingTests) where
 import Test.Tasty
 import Test.Tasty.HUnit
 
+import Olivine.Core.Instruction
 import Olivine.Core.Pass.ConstantFold (foldOperation)
-import Olivine.Syntax.Instruction
+import Olivine.Syntax.Instruction hiding (Operation (..))
 import Olivine.Syntax.Name
 import Olivine.Syntax.Type
 import Olivine.Syntax.Value
@@ -182,5 +183,5 @@ foldingTests =
 -- Folding does not care what a local is called — it works on the constants —
 -- so the pass is written for any, and every case here would otherwise have to
 -- say which it meant.
-folded :: Operation Name Name -> Maybe (TypedValue Name)
+folded :: Operation Name -> Maybe (TypedValue Name)
 folded = foldOperation

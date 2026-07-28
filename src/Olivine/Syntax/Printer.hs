@@ -204,7 +204,7 @@ appendToLast suffix ls = case reverse ls of
   [] -> []
   final : earlier -> reverse ((final <> suffix) : earlier)
 
-renderOperation :: Operation Name Name -> [Text]
+renderOperation :: Operation Name -> [Text]
 renderOperation (ORet Nothing) = ["ret void"]
 renderOperation (ORet (Just v)) = ["ret " <> renderTypedValue v]
 renderOperation (OBr destination) = ["br " <> renderLabel destination]

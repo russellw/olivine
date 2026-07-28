@@ -23,9 +23,8 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 
 import Olivine.Core.Blocks (mergeBlocks, removeForwarding)
+import Olivine.Core.Instruction
 import Olivine.Core.Program
-import Olivine.Syntax.Instruction (Operation (..))
-import Olivine.Syntax.Instruction qualified as Syntax
 import Olivine.Syntax.Type (Type (..))
 import Olivine.Syntax.Value (TypedValue (..), Value (..))
 
@@ -58,8 +57,8 @@ sweep f = mergeBlocks (removeForwarding (prune (decide f)))
     prune g = g {functionBlocks = reachableIn g}
     fold b = b {blockTerminator = foldIn (blockTerminator b)}
     foldIn t =
-      maybe t (\operation -> t {terminatorOperation = operation}) $
-        foldTerminator (terminatorOperation t)
+      maybe t (\transfer -> t {terminatorTransfer = transfer}) $
+        foldTerminator (terminatorTransfer t)
 
 -- | The blocks control can get to, in the order they were written.
 --
@@ -93,19 +92,19 @@ reachableIn f = [b | b <- blocks, blockLabel b `Set.member` reached]
 -- and destinations that agree.  The second needs no constant at all — a
 -- branch to the same block either way goes there whatever it was branching
 -- on, and a @switch@ whose cases all name the default is a @switch@ in name.
-foldTerminator :: Eq label => Syntax.Operation local label -> Maybe (Syntax.Operation local label)
-foldTerminator operation = case operation of
-  OCondBr condition true false
-    | true == false -> Just (OBr true)
+foldTerminator :: Transfer local -> Maybe (Transfer local)
+foldTerminator transfer = case transfer of
+  CondBr condition true false
+    | true == false -> Just (Br true)
     | Just taken <- conditionOf (typedValue condition) ->
-        Just (OBr (if taken then true else false))
-  OSwitch value target cases
-    | all ((== target) . snd) cases -> Just (OBr target)
-    | Just chosen <- caseTaken value target cases -> Just (OBr chosen)
+        Just (Br (if taken then true else false))
+  Switch value target cases
+    | all ((== target) . snd) cases -> Just (Br target)
+    | Just chosen <- caseTaken value target cases -> Just (Br chosen)
   -- An @indirectbr@ names every block its address can hold, so one that names
   -- a single block is a branch to it, whatever address was computed.
-  OIndirectBr _ (target : rest)
-    | all (== target) rest -> Just (OBr target)
+  IndirectBr _ (target : rest)
+    | all (== target) rest -> Just (Br target)
   _ -> Nothing
 
 -- | An @i1@ operand as the branch it decides, when it decides one.
@@ -122,7 +121,7 @@ conditionOf _ = Nothing
 -- The default is where it goes when no case matches, which is what makes this
 -- total once the value is in hand.  LLVM requires the cases to be distinct, so
 -- at most one matches; taking the first does not rely on that being true.
-caseTaken :: TypedValue local -> label -> [(TypedValue local, label)] -> Maybe label
+caseTaken :: TypedValue local -> Label -> [(TypedValue local, Label)] -> Maybe Label
 caseTaken value target cases = do
   n <- bitsOf value
   pure $ case [label | (c, label) <- cases, bitsOf c == Just n] of

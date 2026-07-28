@@ -17,11 +17,9 @@ module Olivine.Core.Pass.DeadCode
 import Data.Set (Set)
 import Data.Set qualified as Set
 
+import Olivine.Core.Instruction
 import Olivine.Core.Program
-import Olivine.Syntax.Instruction (Load (..), Operation (..), isTerminator)
-import Olivine.Syntax.Instruction qualified as Syntax
-import Olivine.Syntax.Operands (localsUsedBy)
-import Olivine.Syntax.Value (Value (..), typedValue)
+import Olivine.Syntax.Instruction (Load (..))
 
 eliminateDeadCode :: Program -> Program
 eliminateDeadCode program =
@@ -47,34 +45,29 @@ sweep f = f {functionBlocks = map prune (functionBlocks f)}
     keep i = case instructionResult i of
       Nothing -> True
       Just name ->
-        name `Set.member` used || not (removable (instructionOperation i))
-    removable (Assign _) = True
-    removable (Perform operation) = removableWhenUnused operation
+        name `Set.member` used || not (removableWhenUnused (instructionOperation i))
 
 -- | Every local the function reads.
 usedIn :: Function -> Set Local
 usedIn f =
   Set.fromList
     ( concat
-        [ readBy (instructionOperation i)
+        [ localsUsedBy (instructionOperation i)
         | b <- functionBlocks f
         , i <- blockInstructions b
         ]
         <> [ n
            | b <- functionBlocks f
-           , n <- localsUsedBy (terminatorOperation (blockTerminator b))
+           , n <- localsUsedBy (terminatorTransfer (blockTerminator b))
            ]
     )
-  where
-    readBy (Perform operation) = localsUsedBy operation
-    readBy (Assign value) = case typedValue value of
-      VLocal n -> [n]
-      _ -> []
 
 -- | Whether an operation can be dropped when nothing reads its result.
 --
--- A terminator never can: it is what carries control onwards, and its result
--- is not the point.  A store writes memory and a call may do anything.
+-- A store writes memory and a call may do anything, so neither is dead
+-- however unread its result.  There is no case for a terminator, because a
+-- terminator is not one of these: it is a 'Transfer', in a slot of its own,
+-- and nothing can hand one to this.
 --
 -- The rest may go, including division, which is arithmetic that can divide by
 -- zero — LLVM makes that undefined rather than a fault to be preserved, so an
@@ -82,11 +75,9 @@ usedIn f =
 -- reading through a pointer that cannot be read is undefined in the same way,
 -- but only when it is not volatile: a volatile load is a side effect that
 -- happens to return something.
-removableWhenUnused :: Syntax.Operation local label -> Bool
-removableWhenUnused operation
-  | isTerminator operation = False
-  | otherwise = case operation of
-      OStore _ -> False
-      OCall _ -> False
-      OLoad l -> not (loadVolatile l)
-      _ -> True
+removableWhenUnused :: Operation local -> Bool
+removableWhenUnused operation = case operation of
+  OStore _ -> False
+  OCall _ -> False
+  OLoad l -> not (loadVolatile l)
+  _ -> True

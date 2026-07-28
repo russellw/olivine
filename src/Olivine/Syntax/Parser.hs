@@ -628,7 +628,7 @@ pOpaqueInstruction = try $ do
   notFollowedBy pBlockLabel
   IOpaque <$> takeWhile1P (Just "instruction") (/= '\n') <* optional eol
 
-pOperation :: Parser (Operation Name Name)
+pOperation :: Parser (Operation Name)
 pOperation =
   choice
     [ pRet
@@ -655,7 +655,7 @@ pOperation =
 
 -- * Arithmetic and comparisons
 
-pBinary :: Parser (Operation Name Name)
+pBinary :: Parser (Operation Name)
 pBinary = do
   op <- pBinaryOp
   flags <- many pInstructionFlag
@@ -673,7 +673,7 @@ pBinary = do
         , binaryRight = right
         }
 
-pUnary :: Parser (Operation Name Name)
+pUnary :: Parser (Operation Name)
 pUnary = do
   op <- OpFNeg <$ keyword "fneg"
   flags <- many pInstructionFlag
@@ -690,7 +690,7 @@ pUnary = do
 
 -- The constant expression of the same shape accepts only the opcodes LLVM
 -- still allows there, which is why 'pCastValue' has its own shorter list.
-pConvert :: Parser (Operation Name Name)
+pConvert :: Parser (Operation Name)
 pConvert = do
   op <- pCastOp
   flags <- many pInstructionFlag
@@ -724,10 +724,10 @@ pCastOp =
     , CastAddrSpaceCast <$ keyword "addrspacecast"
     ]
 
-pICmp :: Parser (Operation Name Name)
+pICmp :: Parser (Operation Name)
 pICmp = keyword "icmp" *> (OICmp <$> pCompare pIntPredicate)
 
-pFCmp :: Parser (Operation Name Name)
+pFCmp :: Parser (Operation Name)
 pFCmp = keyword "fcmp" *> (OFCmp <$> pCompare pFloatPredicate)
 
 -- The flags come before the predicate, as in @icmp samesign ugt i32 %a, %b@.
@@ -826,7 +826,7 @@ pInstructionFlag =
     , FlagFast <$ keyword "fast"
     ]
 
-pSelect :: Parser (Operation Name Name)
+pSelect :: Parser (Operation Name)
 pSelect = do
   keyword "select"
   flags <- many pInstructionFlag
@@ -844,7 +844,7 @@ pSelect = do
         , selectFalse = ifFalse
         }
 
-pExtractElement :: Parser (Operation Name Name)
+pExtractElement :: Parser (Operation Name)
 pExtractElement = do
   keyword "extractelement"
   vector <- pTypedValue
@@ -857,7 +857,7 @@ pExtractElement = do
         , extractElementIndex = index
         }
 
-pInsertElement :: Parser (Operation Name Name)
+pInsertElement :: Parser (Operation Name)
 pInsertElement = do
   keyword "insertelement"
   vector <- pTypedValue
@@ -873,7 +873,7 @@ pInsertElement = do
         , insertElementIndex = index
         }
 
-pShuffleVector :: Parser (Operation Name Name)
+pShuffleVector :: Parser (Operation Name)
 pShuffleVector = do
   keyword "shufflevector"
   left <- pTypedValue
@@ -890,7 +890,7 @@ pShuffleVector = do
         }
 
 -- | @phi [flags] \<ty\> [ \<value\>, %pred ], ...@.
-pPhi :: Parser (Operation Name Name)
+pPhi :: Parser (Operation Name)
 pPhi = do
   keyword "phi"
   flags <- many pInstructionFlag
@@ -910,7 +910,7 @@ pPhi = do
 
 -- * Calls
 
-pCall :: Parser (Operation Name Name)
+pCall :: Parser (Operation Name)
 pCall = do
   tailKind <- optional pTailKind
   keyword "call"
@@ -949,7 +949,7 @@ pArgument = Argument <$> pType <*> many pParamAttribute <*> pValue
 
 -- * Memory
 
-pAlloca :: Parser (Operation Name Name)
+pAlloca :: Parser (Operation Name)
 pAlloca = do
   keyword "alloca"
   inalloca <- option False (True <$ keyword "inalloca")
@@ -969,7 +969,7 @@ pAlloca = do
 
 -- The atomic form is not modelled, and fails here at its ordering keyword
 -- rather than being half-read.
-pLoad :: Parser (Operation Name Name)
+pLoad :: Parser (Operation Name)
 pLoad = do
   keyword "load"
   volatile <- option False (True <$ keyword "volatile")
@@ -986,7 +986,7 @@ pLoad = do
         , loadAlignment = alignment
         }
 
-pStore :: Parser (Operation Name Name)
+pStore :: Parser (Operation Name)
 pStore = do
   keyword "store"
   volatile <- option False (True <$ keyword "volatile")
@@ -1003,7 +1003,7 @@ pStore = do
         , storeAlignment = alignment
         }
 
-pGetElementPtr :: Parser (Operation Name Name)
+pGetElementPtr :: Parser (Operation Name)
 pGetElementPtr = do
   keyword "getelementptr"
   flags <- many pGepFlag
@@ -1024,14 +1024,14 @@ pGetElementPtr = do
 pAlignmentClause :: Parser Natural
 pAlignmentClause = symbol "," *> keyword "align" *> pNatural
 
-pRet :: Parser (Operation Name Name)
+pRet :: Parser (Operation Name)
 pRet = do
   keyword "ret"
   ORet <$> ((Nothing <$ keyword "void") <|> (Just <$> pTypedValue))
 
 -- The unconditional form starts with the label keyword and the conditional
 -- with a type, so one look is enough to tell them apart.
-pBr :: Parser (Operation Name Name)
+pBr :: Parser (Operation Name)
 pBr = do
   keyword "br"
   (OBr <$> pLabelOperand) <|> pConditional
@@ -1046,7 +1046,7 @@ pBr = do
 -- The one terminator written across several lines.  Its cases sit between a
 -- bracket pair that spans line breaks, so this is the only place the parser
 -- steps over a newline within a construct.
-pSwitch :: Parser (Operation Name Name)
+pSwitch :: Parser (Operation Name)
 pSwitch = do
   keyword "switch"
   scrutinee <- pTypedValue
@@ -1064,7 +1064,7 @@ pSwitch = do
       symbol ","
       (,) value <$> pLabelOperand
 
-pIndirectBr :: Parser (Operation Name Name)
+pIndirectBr :: Parser (Operation Name)
 pIndirectBr = do
   keyword "indirectbr"
   address <- pTypedValue

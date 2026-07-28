@@ -28,9 +28,9 @@ import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (mapMaybe)
 
+import Olivine.Core.Instruction
 import Olivine.Core.Phi (Joined (..), PhiNode (..))
 import Olivine.Core.Program
-import Olivine.Syntax.Operands (localsUsedBy, mapOperands)
 import Olivine.Syntax.Type (Type)
 import Olivine.Syntax.Value
 
@@ -53,7 +53,7 @@ reconstruct f = rebuild
       nub
         [ (name, typedValueType value)
         | b <- blocks
-        , Instruction (Just name) (Assign value) _ <- blockInstructions b
+        , Instruction (Just name) (OAssign value) _ <- blockInstructions b
         ]
 
     -- A phi for every such local at every join, to be thinned out after.
@@ -91,9 +91,9 @@ reconstruct f = rebuild
 
     runBlock = foldl apply
       where
-        apply values (Instruction (Just name) (Assign value) _) =
+        apply values (Instruction (Just name) (OAssign value) _) =
           Map.insert name (resolve values (typedValue value)) values
-        apply values (Instruction (Just name) (Perform _) _) =
+        apply values (Instruction (Just name) _ _) =
           Map.insert name (VLocal name) values
         apply values _ = values
 
@@ -164,12 +164,11 @@ reconstruct f = rebuild
         fixpoint g x = let y = g x in if length y == length x then x else fixpoint g y
 
     readByRewritten b =
-      concat
-        [ localsUsedBy operation
-        | i <- mapMaybe (rewrite (blockLabel b)) (blockInstructions b)
-        , Perform operation <- [instructionOperation i]
-        ]
-        <> localsUsedBy (terminatorOperation (rewriteTerminator (blockLabel b) (blockTerminator b)))
+      concatMap
+        (localsUsedBy . instructionOperation)
+        (mapMaybe (rewrite (blockLabel b)) (blockInstructions b))
+        <> localsUsedBy
+          (terminatorTransfer (rewriteTerminator (blockLabel b) (blockTerminator b)))
 
     -- A phi standing for a local, where it is the only one that local needs,
     -- takes that local over rather than being a local of its own.  The phi is
@@ -186,7 +185,8 @@ reconstruct f = rebuild
 
     finalName n = Map.findWithDefault n n finalNames
 
-    renameIn = mapOperands (\(TypedValue t x) -> TypedValue t (renameValue x))
+    renameIn :: Operands f => f Local -> f Local
+    renameIn = mapValues renameValue
     renameValue (VLocal n) = VLocal (finalName n)
     renameValue x = x
 
@@ -204,15 +204,13 @@ reconstruct f = rebuild
         , joinedInstructions =
             [ i
               { instructionResult = finalName <$> instructionResult i
-              , instructionOperation = case instructionOperation i of
-                  Perform op -> Perform (renameIn op)
-                  other -> other
+              , instructionOperation = renameIn (instructionOperation i)
               }
             | i <- joinedInstructions j
             ]
         , joinedTerminator =
             (joinedTerminator j)
-              { terminatorOperation = renameIn (terminatorOperation (joinedTerminator j))
+              { terminatorTransfer = renameIn (terminatorTransfer (joinedTerminator j))
               }
         }
 
@@ -237,30 +235,26 @@ reconstruct f = rebuild
     -- An assignment has no LLVM spelling and needs none: its value has been
     -- carried to wherever the local is read.
     rewrite name instruction = case instructionOperation instruction of
-      Assign _ -> Nothing
-      Perform operation ->
+      OAssign _ -> Nothing
+      operation ->
         Just
           instruction
             { instructionOperation =
-                Perform (mapOperands (fmap' (resolveAt name instruction)) operation)
+                mapValues (resolveAt name instruction) operation
             }
 
     -- A terminator stands after everything in its block, so the values it
     -- sees are the ones on the way out.
     rewriteTerminator name t =
       t
-        { terminatorOperation =
-            mapOperands
-              (fmap' (substitute collapsed . resolve (exitOf name)))
-              (terminatorOperation t)
+        { terminatorTransfer = mapValues (substituteIn (exitOf name)) (terminatorTransfer t)
         }
 
-    fmap' g (TypedValue t x) = TypedValue t (g x)
+    substituteIn values = substitute collapsed . resolve values
 
     -- What a local holds where an instruction stands: the values on the way
     -- into its block, updated by everything before it.
-    resolveAt name instruction value =
-      substitute collapsed (resolve (before name instruction) value)
+    resolveAt name instruction = substituteIn (before name instruction)
 
     before name instruction =
       let block = byLabel Map.! name
