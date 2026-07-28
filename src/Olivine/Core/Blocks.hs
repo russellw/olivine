@@ -12,9 +12,12 @@
 -- reconstructed, which is what empties them, and the rest wherever a pass
 -- leaves a block holding nothing but a branch.
 --
--- Both are careful about phis, which the core does not have: these run either
--- side of reconstruction, and after it a phi names the block a value arrives
--- from, so a block that stops existing is a name that has to be corrected.
+-- Only one of the two knows what a phi is, and the reason is which side of
+-- reconstruction it runs on.  Removing a detour also happens on the way out,
+-- where phis exist again and name the block a value arrives from, so a block
+-- that stops existing is a name to be corrected.  Merging happens only in the
+-- core, which has no phis at all — that being the point of the core — so
+-- there is nothing there to correct and no code here that would.
 module Olivine.Core.Blocks
   ( removeForwarding
   , mergeBlocks
@@ -105,6 +108,11 @@ removeForwarding f = f {functionBlocks = settle (functionBlocks f)}
 -- and its place, so what a merge removes is always the lower of the two,
 -- which is what makes the entry block safe: it is never the lower one, having
 -- no predecessor to be reached from.
+--
+-- Appending one block's instructions to another is the whole of it, because
+-- this runs on the core.  In LLVM the lower block could begin with phis that
+-- the merge invalidates; here it cannot begin with one, so there is nothing
+-- to check for and nothing to fix up.
 mergeBlocks :: Function -> Function
 mergeBlocks f = f {functionBlocks = settle (functionBlocks f)}
   where
@@ -128,23 +136,12 @@ mergeBlocks f = f {functionBlocks = settle (functionBlocks f)}
         target /= entry
       , [_] <- [predecessorsOf f blocks target]
       , below <- [c | c <- blocks, nameOf c == target]
-      , -- A phi at the head of the lower block is a value that depended on
-        -- which edge arrived, and one edge arrives.  Folding it to that value
-        -- is a simplification of its own rather than part of this one.
-        null (phisIn below)
       ]
 
     merge blocks above below =
-      [absorb (rename b) | b <- blocks, nameOf b /= gone]
+      [absorb b | b <- blocks, nameOf b /= nameOf below]
       where
-        gone = nameOf below
         into = nameOf above
-        -- The blocks below branched to name it in their phis, and it is about
-        -- to stop existing.  What arrives at them now comes from the block it
-        -- was merged into.
-        rename b = b {blockInstructions = map (mapPhis relabel) (blockInstructions b)}
-        relabel p =
-          p {phiIncoming = [(v, if l == gone then into else l) | (v, l) <- phiIncoming p]}
         absorb b
           | nameOf b == into =
               b
