@@ -75,7 +75,7 @@ sweep f = f {functionBlocks = map rewrite (functionBlocks f)}
 -- read: the assignment stands where the instruction it replaced stood, so it
 -- reaches every use that instruction reached.  A local assigned more than
 -- once is one a phi became, and holds different things on different paths.
-knownValues :: Function -> Map Name Value
+knownValues :: Function -> Map Local (Value Local)
 knownValues f =
   Map.fromList
     [ (name, value)
@@ -91,7 +91,7 @@ knownValues f =
       ]
 
 -- | What an operation comes to, when it comes to anything.
-foldOperation :: Syntax.Operation label -> Maybe TypedValue
+foldOperation :: Syntax.Operation local label -> Maybe (TypedValue local)
 foldOperation operation = case operation of
   OBinary b -> do
     let t = binaryType b
@@ -122,13 +122,13 @@ widthOf (TInteger w) = Just (fromIntegral w)
 widthOf _ = Nothing
 
 -- | An integer constant, as the number it stands for.
-integerOf :: Type -> Value -> Maybe Integer
+integerOf :: Type -> Value local -> Maybe Integer
 integerOf (TInteger _) (VInteger n) = Just n
 integerOf (TInteger _) (VBoolean b) = Just (if b then 1 else 0)
 integerOf _ _ = Nothing
 
 -- | A number as an integer constant of the given type, wrapped to fit.
-valueOf :: Type -> Integer -> Value
+valueOf :: Type -> Integer -> Value local
 valueOf (TInteger 1) n = VBoolean (odd n)
 valueOf (TInteger w) n = VInteger (signed (fromIntegral w) n)
 valueOf _ n = VInteger n

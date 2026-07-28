@@ -18,7 +18,6 @@ module Olivine.Core.Raise
   ( raise
   ) where
 
-import Data.Char (isDigit)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Text (Text)
@@ -33,7 +32,6 @@ import Olivine.Syntax.Instruction qualified as Syntax
 import Olivine.Syntax.Name
 import Olivine.Syntax.Operands (mapOperands)
 import Olivine.Syntax.Printer (renderName)
-import Olivine.Syntax.Value (TypedValue (..), Value (..))
 
 raise :: Program -> Syntax.Module
 raise = Syntax.Module . map raiseEntry . programEntries
@@ -62,64 +60,58 @@ raiseEntry (EFunction f) =
 -- both be @%3@: LLVM draws them from the same sequence and so does this.
 data Numbering = Numbering
   { numberedSignature :: Syntax.Signature
-  , -- | Only the locals that had numbers.  A local with a name keeps it.
-    numberedLocals :: Map Name Name
+  , -- | Every local, since every local in the core is a number waiting for
+    -- one.
+    numberedLocals :: Map Local Name
   , numberedBlocks :: Map Label Name
   }
 
 -- | Walk a function in the order LLVM numbers it.
 --
 -- Parameters first, then each block in turn: the block itself takes a number
--- before anything in it, and then every instruction whose result was written
--- without a name.  An instruction that names its result, or has none, takes
--- nothing.
+-- before anything in it, and then every instruction that assigns.  There is
+-- no test for whether something was named, because nothing in the core is:
+-- what LLVM calls an unnamed value is all the core has.
 number :: Function -> Numbering
 number f =
   Numbering
     { numberedSignature = signature {Syntax.signatureParameters = parameters}
-    , numberedLocals = Map.fromList (parameterRenames <> resultRenames)
+    , numberedLocals = Map.fromList (parameterNames <> resultNames)
     , numberedBlocks = Map.fromList blockNames
     }
   where
     signature = functionSignature f
 
-    (afterParameters, parameters, parameterRenames) =
-      foldl' takeParameter (0 :: Int, [], []) (Syntax.signatureParameters signature)
-    takeParameter (n, done, renames) p = case Syntax.parameterName p of
-      Just name
-        | numbered name ->
-            ( n + 1
-            , done <> [p {Syntax.parameterName = Just (numberName n)}]
-            , renames <> [(name, numberName n)]
-            )
-        | otherwise -> (n, done <> [p], renames)
-      -- A parameter written as a bare type is unnamed too, and LLVM numbers
-      -- it; there is simply nothing to rename, since nothing can refer to it.
-      Nothing -> (n + 1, done <> [p], renames)
+    (afterParameters, parameters, parameterNames) =
+      foldl' takeParameter (0 :: Int, [], []) $
+        zip (functionParameters f) (Syntax.signatureParameters signature)
+    takeParameter (n, done, names) (local, p) =
+      ( n + 1
+      , done <> [p {Syntax.parameterName = Just (numberName n)}]
+      , names <> [(local, numberName n)]
+      )
 
-    (_, blockNames, resultRenames) =
+    (_, blockNames, resultNames) =
       foldl' takeBlock (afterParameters, [], []) (functionBlocks f)
-    takeBlock (n, names, renames) b =
-      let (n', renames') = foldl' takeResult (n + 1, renames) (blockInstructions b)
-       in (n', names <> [(blockLabel b, numberName n)], renames')
-    takeResult (n, renames) i = case instructionResult i of
-      Just name | numbered name -> (n + 1, renames <> [(name, numberName n)])
-      _ -> (n, renames)
-
--- | Whether a name is a number LLVM issued rather than a name somebody chose.
---
--- Written bare and all digits is the whole test, because that is the only way
--- to write one: a local a source really wanted to call @3@ has to be quoted,
--- and quoting is remembered.
-numbered :: Name -> Bool
-numbered (Name Bare text) = not (T.null text) && T.all isDigit text
-numbered _ = False
+    takeBlock (n, names, results) b =
+      let (n', results') = foldl' takeResult (n + 1, results) (blockInstructions b)
+       in (n', names <> [(blockLabel b, numberName n)], results')
+    takeResult (n, results) i = case instructionResult i of
+      Just local -> (n + 1, results <> [(local, numberName n)])
+      Nothing -> (n, results)
 
 numberName :: Int -> Name
 numberName = Name Bare . T.pack . show
 
-localName :: Numbering -> Name -> Name
-localName numbering name = Map.findWithDefault name name (numberedLocals numbering)
+-- | What a local is called once it is written down.
+--
+-- Every local the function assigns has a number waiting for it, so a local
+-- with none is one nothing defines — which the lowering will not build and no
+-- pass can introduce, since a pass wanting a new local assigns to it.
+localName :: Numbering -> Local -> Name
+localName numbering local =
+  Map.findWithDefault (error "Olivine.Core.Raise: a use of no local") local $
+    numberedLocals numbering
 
 -- | What a block is called once it is written down.
 --
@@ -177,12 +169,10 @@ raiseInstruction numbering i = case instructionOperation i of
 -- Two substitutions that cannot be confused with one another: the labels are
 -- what the operation is parameterized by, so 'fmap' reaches exactly those,
 -- and the locals are its operands, which is what 'mapOperands' reaches.
-raiseOperation :: Numbering -> Syntax.Operation Label -> Syntax.Operation Name
+raiseOperation ::
+  Numbering -> Syntax.Operation Local Label -> Syntax.Operation Name Name
 raiseOperation numbering =
-  fmap (blockLabelName numbering) . mapOperands renameLocal
-  where
-    renameLocal (TypedValue t (VLocal n)) = TypedValue t (VLocal (localName numbering n))
-    renameLocal operand = operand
+  fmap (blockLabelName numbering) . mapOperands (fmap (localName numbering))
 
 -- | The @; preds = %a, %b@ comment LLVM writes after a label.
 --

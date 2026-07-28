@@ -153,10 +153,10 @@ predecessorsOf :: [Block] -> Label -> [Label]
 predecessorsOf blocks target =
   [blockLabel b | b <- blocks, target `elem` targetsOf (blockTerminator b)]
 
-phisIn :: Block -> [Phi Label]
+phisIn :: Block -> [Phi Local Label]
 phisIn b = [p | i <- blockInstructions b, Perform (OPhi p) <- [instructionOperation i]]
 
-mapPhis :: (Phi Label -> Phi Label) -> Instruction -> Instruction
+mapPhis :: (Phi Local Label -> Phi Local Label) -> Instruction -> Instruction
 mapPhis f i = case instructionOperation i of
   Perform (OPhi p) -> i {instructionOperation = Perform (OPhi (f p))}
   _ -> i

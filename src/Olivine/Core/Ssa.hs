@@ -21,17 +21,15 @@ import Data.List (nub)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (mapMaybe)
-import Data.Text qualified as T
 
 import Olivine.Core.Program
 import Olivine.Syntax.Instruction
-import Olivine.Syntax.Name
 import Olivine.Syntax.Operands (localsUsedBy, mapOperands)
 import Olivine.Syntax.Type (Type)
 import Olivine.Syntax.Value
 
 -- | What a local holds at a point in the program.
-type Values = Map Name Value
+type Values = Map Local (Value Local)
 
 reconstruct :: Function -> Function
 reconstruct f = f {functionBlocks = rebuild}
@@ -44,7 +42,7 @@ reconstruct f = f {functionBlocks = rebuild}
       [blockLabel b | b <- blocks, target `elem` targetsOf (blockTerminator b)]
 
     -- Every local the core assigns, and the type it was assigned at.
-    mutable :: [(Name, Type)]
+    mutable :: [(Local, Type)]
     mutable =
       nub
         [ (name, typedValueType value)
@@ -53,13 +51,21 @@ reconstruct f = f {functionBlocks = rebuild}
         ]
 
     -- A phi for every such local at every join, to be thinned out after.
-    placed :: Map Label [(Name, Name, Type)]
+    --
+    -- Each takes a local of its own, issued after everything the function
+    -- already uses.  Which number a phi gets does not matter — the raising
+    -- reissues them all — only that no two share one and none treads on a
+    -- local already there.
+    joins = [blockLabel b | b <- blocks, length (predecessors (blockLabel b)) > 1]
+
+    placed :: Map Label [(Local, Local, Type)]
     placed =
       Map.fromList
-        [ (blockLabel b, [(phiName v (blockLabel b), v, t) | (v, t) <- mutable])
-        | b <- blocks
-        , length (predecessors (blockLabel b)) > 1
+        [ (label, [(Local (base + at * length mutable + k), v, t) | (k, (v, t)) <- zip [0 ..] mutable])
+        | (at, label) <- zip [0 ..] joins
         ]
+      where
+        Local base = nextLocal f
 
     phisAt name = Map.findWithDefault [] name placed
 
@@ -88,7 +94,7 @@ reconstruct f = f {functionBlocks = rebuild}
     exitOf name = Map.findWithDefault Map.empty name exits
 
     -- The operands each placed phi ends up with.
-    operands :: Map Name [(Value, Label)]
+    operands :: Map Local [(Value Local, Label)]
     operands =
       Map.fromList
         [ (p, [(arriving q v, q) | q <- predecessors name])
@@ -103,7 +109,7 @@ reconstruct f = f {functionBlocks = rebuild}
     -- A phi all of whose operands agree, ignoring references to itself, says
     -- nothing; it is replaced by the value they agree on.  Removing them to a
     -- fixed point is what makes placing phis everywhere safe.
-    collapsed :: Map Name Value
+    collapsed :: Map Local (Value Local)
     collapsed = fixpoint step Map.empty
       where
         step known =
@@ -160,10 +166,11 @@ reconstruct f = f {functionBlocks = rebuild}
         <> localsUsedBy (terminatorOperation (rewriteTerminator (blockLabel b) (blockTerminator b)))
 
     -- A phi standing for a local, where it is the only one that local needs,
-    -- takes that local's own name.  Otherwise a module put through Olivine
-    -- twice would come out with the name wrapped twice, and nothing that
-    -- reads the output could be compared with anything.
-    finalNames :: Map Name Name
+    -- takes that local over rather than being a local of its own.  The phi is
+    -- what that local now is, so giving it a second identity would put the
+    -- value one place further down the sequence written out, for no reason a
+    -- reader of the output could see.
+    finalNames :: Map Local Local
     finalNames =
       Map.fromList
         [ (p, v)
@@ -261,10 +268,3 @@ reconstruct f = f {functionBlocks = rebuild}
       _ -> value
 
 
--- | The name of the phi standing for a local at a block.
---
--- The block is a number, so this cannot collide with a name the source chose
--- for a block; it could still collide with one it chose for a local, which is
--- a hazard of the same kind waiting for locals to be numbered too.
-phiName :: Name -> Label -> Name
-phiName v (Label n) = Name Bare ("olivine.phi." <> nameText v <> "." <> T.pack (show n))

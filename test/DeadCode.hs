@@ -19,11 +19,13 @@ deadCodeTests :: TestTree
 deadCodeTests =
   testGroup
     "dead code"
-    [ testCase "what survives the sift" $ do
+    [ -- Locals are numbered as they are defined: the three parameters,
+      -- then %unread %chain %quiet %noisy %risky %room %answer as 3 to 9.
+      testCase "what survives the sift" $ do
         results <- resultsOf sifted
         assertEqual
           "only what is read or does something"
-          [Just (Name Bare "noisy"), Nothing, Just (Name Bare "answer")]
+          [Just (Local 6), Nothing, Just (Local 9)]
           results
     , -- Removing one instruction leaves the one feeding it unread, so a
       -- single sweep is not enough.
@@ -31,14 +33,14 @@ deadCodeTests =
         results <- resultsOf sifted
         assertBool
           ("expected no chain in " <> show results)
-          (Just (Name Bare "chain") `notElem` results)
+          (Just (Local 4) `notElem` results)
     , -- Stated as what should be there rather than by comparing the pass
       -- with itself, which would hold however much it removed.
       testCase "nothing is removed when everything is read" $ do
         results <- resultsOf live
         assertEqual
           "every instruction survives"
-          [Just (Name Bare "sum"), Just (Name Bare "doubled")]
+          [Just (Local 2), Just (Local 3)]
           results
     , testGroup
         "what may go when nothing reads it"
@@ -121,7 +123,7 @@ deadCodeTests =
         ]
 
 -- | What each surviving instruction assigns to, in order.
-resultsOf :: Text -> IO [Maybe Name]
+resultsOf :: Text -> IO [Maybe Local]
 resultsOf source = do
   parsed <- expectParse "<inline>" source
   let program = eliminateDeadCode (lower parsed)

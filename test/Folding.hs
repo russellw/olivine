@@ -75,7 +75,7 @@ foldingTests =
         , -- Float literals are held as written so that nothing rounds them;
           -- folding one would have to decode and re-encode.
           testCase "floating point is not folded" $
-            foldOperation
+            folded
               ( OBinary
                   Binary
                     { binaryOp = OpFAdd
@@ -87,7 +87,7 @@ foldingTests =
               )
               @?= Nothing
         , testCase "an operand that is not known" $
-            foldOperation
+            folded
               ( OBinary
                   Binary
                     { binaryOp = OpAdd
@@ -117,7 +117,7 @@ foldingTests =
     , testGroup
         "select"
         [ testCase "a known condition chooses" $
-            foldOperation
+            folded
               ( OSelect
                   Select
                     { selectFlags = []
@@ -128,7 +128,7 @@ foldingTests =
               )
               @?= Just (TypedValue (TInteger 32) (VInteger 111))
         , testCase "an unknown one does not" $
-            foldOperation
+            folded
               ( OSelect
                   Select
                     { selectFlags = []
@@ -144,7 +144,7 @@ foldingTests =
     int n = TypedValue (TInteger 32) (VInteger n)
     bool b = TypedValue (TInteger 1) (VBoolean b)
     binary op flags left right =
-      foldOperation
+      folded
         ( OBinary
             Binary
               { binaryOp = op
@@ -155,7 +155,7 @@ foldingTests =
               }
         )
     icmp predicate left right =
-      foldOperation
+      folded
         ( OICmp
             Compare
               { compareFlags = []
@@ -166,7 +166,7 @@ foldingTests =
               }
         )
     convert op from value to =
-      foldOperation
+      folded
         ( OConvert
             Convert
               { convertOp = op
@@ -175,3 +175,12 @@ foldingTests =
               , convertTarget = TInteger to
               }
         )
+
+-- | 'foldOperation' at the names the syntax layer uses, which is what these
+-- cases build.
+--
+-- Folding does not care what a local is called — it works on the constants —
+-- so the pass is written for any, and every case here would otherwise have to
+-- say which it meant.
+folded :: Operation Name Name -> Maybe (TypedValue Name)
+folded = foldOperation

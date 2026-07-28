@@ -16,7 +16,7 @@ import Olivine.Syntax.Type
 import Olivine.Syntax.Value
 
 -- | Lines in the spelling LLVM emits, with what each should parse to.
-emitted :: [(Text, Operation Name)]
+emitted :: [(Text, Operation Name Name)]
 emitted =
   [ ( "  %r = select i1 %c, i32 %a, i32 %b"
     , OSelect
@@ -169,7 +169,7 @@ roundTrips line = do
   parsed <- expectParse "<inline>" source
   renderModule parsed @?= source
 
-parsesTo :: Text -> Operation Name -> Assertion
+parsesTo :: Text -> Operation Name Name -> Assertion
 parsesTo line operation = do
   instructions <- instructionsIn (inFunction line)
   take 1 instructions @?= [IOperation (Just (Name Bare "r")) operation []]

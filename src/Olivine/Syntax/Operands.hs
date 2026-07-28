@@ -16,6 +16,7 @@ module Olivine.Syntax.Operands
   , globalsUsedBy
   ) where
 
+import Data.Foldable (toList)
 import Data.Functor.Const (Const (..))
 import Data.Functor.Identity (Identity (..))
 
@@ -30,8 +31,16 @@ import Olivine.Syntax.Value
 -- a type of their own, the operation having named it once for all of them;
 -- those are handed over with that type supplied, and it is dropped again
 -- after, so that a caller sees one shape everywhere.
+--
+-- What a local is called may change on the way through, which is what makes
+-- this the traversal the lowering and the raising rename by: every local an
+-- operation mentions is inside an operand, so visiting the operands is
+-- visiting the locals, and there is no second list to keep in step.
 traverseOperands ::
-  Applicative f => (TypedValue -> f TypedValue) -> Operation label -> f (Operation label)
+  Applicative f =>
+  (TypedValue a -> f (TypedValue b)) ->
+  Operation a label ->
+  f (Operation b label)
 traverseOperands f = go
   where
     bare t x = typedValue <$> f (TypedValue t x)
@@ -97,19 +106,27 @@ traverseOperands f = go
     argument a =
       (\x -> a {argumentValue = x}) <$> bare (argumentType a) (argumentValue a)
 
-mapOperands :: (TypedValue -> TypedValue) -> Operation label -> Operation label
+mapOperands :: (TypedValue a -> TypedValue b) -> Operation a label -> Operation b label
 mapOperands f = runIdentity . traverseOperands (Identity . f)
 
-operandsOf :: Operation label -> [TypedValue]
-operandsOf = getConst . traverseOperands (\x -> Const [x])
+operandsOf :: forall local label. Operation local label -> [TypedValue local]
+operandsOf = getConst . traverseOperands collect
+  where
+    collect :: TypedValue local -> Const [TypedValue local] (TypedValue local)
+    collect x = Const [x]
 
 -- | The locals an operation reads.
-localsUsedBy :: Operation label -> [Name]
-localsUsedBy operation = [n | VLocal n <- map typedValue (operandsOf operation)]
+--
+-- An operand's locals are what its 'Foldable' instance visits, so this
+-- reaches one written inside an aggregate as readily as one written on its
+-- own.  Nothing valid puts a local there, but a pass asking what it may
+-- remove should not be the thing that decides so.
+localsUsedBy :: Operation local label -> [local]
+localsUsedBy = concatMap toList . operandsOf
 
 -- | The globals an operation names, including from inside its constants.
 --
 -- The callee of a call is an operand like any other, so a call names what it
 -- calls here without this having to know what a call is.
-globalsUsedBy :: Operation label -> [Name]
+globalsUsedBy :: Operation local label -> [Name]
 globalsUsedBy = concatMap (globalsIn . typedValue) . operandsOf

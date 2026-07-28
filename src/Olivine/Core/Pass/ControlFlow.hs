@@ -93,7 +93,7 @@ reachableIn f = [b | b <- blocks, blockLabel b `Set.member` reached]
 -- and destinations that agree.  The second needs no constant at all — a
 -- branch to the same block either way goes there whatever it was branching
 -- on, and a @switch@ whose cases all name the default is a @switch@ in name.
-foldTerminator :: Eq label => Syntax.Operation label -> Maybe (Syntax.Operation label)
+foldTerminator :: Eq label => Syntax.Operation local label -> Maybe (Syntax.Operation local label)
 foldTerminator operation = case operation of
   OCondBr condition true false
     | true == false -> Just (OBr true)
@@ -112,7 +112,7 @@ foldTerminator operation = case operation of
 --
 -- An @i1@ written as a number rather than as @true@ or @false@ is the same
 -- value spelled differently, and the low bit is what it says.
-conditionOf :: Value -> Maybe Bool
+conditionOf :: Value local -> Maybe Bool
 conditionOf (VBoolean chosen) = Just chosen
 conditionOf (VInteger n) = Just (odd n)
 conditionOf _ = Nothing
@@ -122,7 +122,7 @@ conditionOf _ = Nothing
 -- The default is where it goes when no case matches, which is what makes this
 -- total once the value is in hand.  LLVM requires the cases to be distinct, so
 -- at most one matches; taking the first does not rely on that being true.
-caseTaken :: TypedValue -> label -> [(TypedValue, label)] -> Maybe label
+caseTaken :: TypedValue local -> label -> [(TypedValue local, label)] -> Maybe label
 caseTaken value target cases = do
   n <- bitsOf value
   pure $ case [label | (c, label) <- cases, bitsOf c == Just n] of
@@ -134,7 +134,7 @@ caseTaken value target cases = do
 -- Taken modulo the width so that two spellings of one value compare equal:
 -- @i8 -1@ and @i8 255@ are the same byte written two ways, and a @switch@ on
 -- either takes the case written as the other.
-bitsOf :: TypedValue -> Maybe Integer
+bitsOf :: TypedValue local -> Maybe Integer
 bitsOf (TypedValue (TInteger width) value) = case value of
   VInteger n -> Just (n `mod` 2 ^ toInteger width)
   VBoolean chosen -> Just (if chosen then 1 else 0)

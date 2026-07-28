@@ -26,7 +26,13 @@ import Data.Text (Text)
 import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Type (Packedness, Type)
 
-data Value
+-- | What a local is called is a parameter, for the reason a block's
+-- destination is: in the syntax it is a 'Name', because that is what was
+-- written, and in the core it is a number the optimizer issued.  A global is
+-- not a parameter and never will be — a global's name is the program's
+-- interface to everything outside it, and is the one thing here that must
+-- survive exactly as written.
+data Value local
   = VInteger Integer
   | -- | @true@ and @false@.
     VBoolean Bool
@@ -45,31 +51,49 @@ data Value
   | -- | @c"..."@, with escapes left undecoded.
     VString Text
   | -- | @[i32 1, i32 2]@
-    VArray [TypedValue]
+    VArray [TypedValue local]
   | -- | @\<i32 1, i32 2\>@
-    VVector [TypedValue]
+    VVector [TypedValue local]
   | -- | @{ i32 1, ptr \@g }@ and its packed form.
-    VStruct Packedness [TypedValue]
+    VStruct Packedness [TypedValue local]
   | -- | A reference to a global, as in @\@counter@.
     VGlobal Name
   | -- | @%x@, naming a local.  In the core representation these will have
     -- addresses and be reassignable; here it is simply what was written.
-    VLocal Name
+    VLocal local
   | -- | @ptrtoint (ptr \@g to i64)@ and the other surviving casts.
-    VCast CastOp TypedValue Type
+    VCast CastOp (TypedValue local) Type
   | -- | @getelementptr inbounds (i8, ptr \@g, i64 8)@.  The 'Type' is the
     -- source element type; the operands are the pointer and the indices.
-    VGetElementPtr [GepFlag] Type [TypedValue]
+    VGetElementPtr [GepFlag] Type [TypedValue local]
   deriving (Eq, Show)
 
 -- | An operand written together with its type, which is how operands appear
 -- everywhere except as a global's initializer, where the global already names
 -- the type.
-data TypedValue = TypedValue
+data TypedValue local = TypedValue
   { typedValueType :: Type
-  , typedValue :: Value
+  , typedValue :: Value local
   }
   deriving (Eq, Show)
+
+-- | Visiting the locals of an operand, which is how one gets renamed.
+--
+-- Standalone because the two types are mutually recursive — an aggregate
+-- holds operands — and each instance needs the other in scope.  A local
+-- inside an aggregate is reached like any other, which matters: a name is a
+-- name however deeply it is written.
+deriving instance Functor Value
+
+deriving instance Foldable Value
+
+deriving instance Traversable Value
+
+deriving instance Functor TypedValue
+
+deriving instance Foldable TypedValue
+
+deriving instance Traversable TypedValue
 
 -- | The conversion opcodes, shared by the @\<op\> \<ty\> \<v\> to \<ty\>@
 -- instruction and by the constant expression of the same shape.
@@ -105,7 +129,7 @@ data GepFlag
 -- This is what a global initializer and a @switch@ case require, and what the
 -- type deliberately no longer enforces.  Aggregates and constant expressions
 -- are constant exactly when everything inside them is.
-isConstant :: Value -> Bool
+isConstant :: Value local -> Bool
 isConstant (VLocal _) = False
 isConstant (VArray elements) = all (isConstant . typedValue) elements
 isConstant (VVector elements) = all (isConstant . typedValue) elements
@@ -128,7 +152,7 @@ isConstant _ = True
 -- Names repeat as often as they are written: whether that matters is the
 -- caller's to decide, and a caller counting references would be wrong to be
 -- handed a set.
-globalsIn :: Value -> [Name]
+globalsIn :: Value local -> [Name]
 globalsIn value = case value of
   VGlobal name -> [name]
   VArray elements -> concatMap inside elements

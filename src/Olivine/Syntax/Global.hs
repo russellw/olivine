@@ -39,7 +39,7 @@ data Global = Global
   , globalMutability :: Mutability
   , globalType :: Type
   , -- | Absent for a declaration, as in @\@g = external global i32@.
-    globalInitializer :: Maybe Value
+    globalInitializer :: Maybe (Value Name)
   , -- | The clauses following the initializer, written with commas between
     -- them.
     globalAttributes :: [GlobalAttribute]
@@ -94,7 +94,7 @@ data IndirectSymbol = IndirectSymbol
     -- one — which LLVM's verifier allows only for an alias, an ifunc needing
     -- a function it can call.  That is a judgement on a program rather than a
     -- fact about the grammar, so it belongs to a verifier and not here.
-    indirectTarget :: Value
+    indirectTarget :: Value Name
   , -- | @, partition "..."@.
     indirectPartition :: Maybe Text
   }

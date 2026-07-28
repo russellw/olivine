@@ -17,6 +17,7 @@ import Olivine.Core.Lower (lower)
 import Olivine.Core.Program
 import Olivine.Core.Raise (raise)
 import Olivine.Syntax.Ast qualified as Syntax
+import Olivine.Syntax.Function qualified as Syntax
 import Olivine.Syntax.Instruction
 import Olivine.Syntax.Name
 import Olivine.Syntax.Printer (renderModule)
@@ -114,22 +115,36 @@ stable name = do
 -- but a branch; removing the forwarding blocks then takes them out again.  If
 -- any survives, one of those three steps has not done its part, and the module
 -- would carry a block that was never in the program.
+-- | The blocks phi elimination puts on split edges do not reach the output.
+--
+-- This used to look for the name those blocks were given.  They have no name
+-- now — a block is a number — so what is checked is what the name was
+-- standing in for: a split block that escaped would be a block the input did
+-- not have, and there are never more blocks out than in.
+--
+-- Not equality, because raising removes detours as well as the ones it made,
+-- and a source can arrive with one of its own.
 noScaffolding :: FilePath -> Assertion
 noScaffolding name = do
   (_, parsed) <- readCorpusFile name
-  let written = renderModule (raise (lower parsed))
-  assertEqual
-    "blocks put on split edges"
-    []
-    [line | line <- T.lines written, "olivine.edge" `T.isInfixOf` line]
+  let blocksIn m =
+        [ length (Syntax.definitionBlocks d)
+        | Syntax.EDefine d <- Syntax.moduleEntries m
+        ]
+  let before = blocksIn parsed
+      after = blocksIn (raise (lower parsed))
+  assertBool
+    ("blocks per function: " <> show before <> " in, " <> show after <> " out")
+    (length before == length after && and (zipWith (>=) before after))
 
 -- | Phi elimination, on the shapes the corpus does not have.
 -- | The numbering written on the way out.
 --
--- Nothing that arrives is kept: LLVM's numbers stop being true as soon as a
--- pass removes an instruction or moves code, so the sequence is issued afresh
--- by LLVM's own rule.  What that rule has to get right is that one counter
--- serves parameters, blocks and values alike.
+-- No name that arrives is kept, chosen or issued: a name is a local's or a
+-- block's identity and nothing else, and identity inside the optimizer is a
+-- number.  So the whole sequence is written afresh by LLVM's own rule, which
+-- has to get right that one counter serves parameters, blocks and results
+-- alike.  A global is the exception, and the only one.
 numberingTests :: TestTree
 numberingTests =
   testGroup
@@ -140,7 +155,7 @@ numberingTests =
       testCase "a gap in what arrived is closed" $
         numbered
           ["define i32 @f(i32 %a) {", "  %9 = add i32 %a, 1", "  ret i32 %9", "}"]
-          ["define i32 @f(i32 %a) {", "  %1 = add i32 %a, 1", "  ret i32 %1", "}"]
+          ["define i32 @f(i32 %0) {", "  %2 = add i32 %0, 1", "  ret i32 %2", "}"]
     , -- One counter, so a block and a value can never both be %2.  The entry
       -- block spends a number without printing a label, which is why the
       -- first instruction here is %3 and not %2.
@@ -156,36 +171,55 @@ numberingTests =
           , "  ret i32 0"
           , "}"
           ]
-          [ "define i32 @f(i1 %c, i32 %n) {"
-          , "  br i1 %c, label %1, label %2"
+          [ "define i32 @f(i1 %0, i32 %1) {"
+          , "  br i1 %0, label %3, label %5"
           , ""
-          , "1:                                                ; preds = %0"
-          , "  %sum = add i32 %n, 1"
-          , "  ret i32 %sum"
+          , "3:                                                ; preds = %2"
+          , "  %4 = add i32 %1, 1"
+          , "  ret i32 %4"
           , ""
-          , "2:                                                ; preds = %0"
+          , "5:                                                ; preds = %2"
           , "  ret i32 0"
           , "}"
           ]
-    , -- A name somebody chose is not a number somebody issued, and survives.
-      -- Whether it was quoted is what tells the two apart, which is why %"3"
-      -- is a name and %3 is not.
-      testCase "a name is left where it is" $
+    , -- A name somebody chose goes the same way as a number, quoted or not.
+      -- Nothing in the core could have kept it: what a local is called there
+      -- is a number, and there is nowhere for a spelling to have been put.
+      testCase "a name somebody chose is not kept either" $
         numbered
-          ["define i32 @f(i32 %a) {", "  %\"3\" = add i32 %a, 1", "  ret i32 %\"3\"", "}"]
-          ["define i32 @f(i32 %a) {", "  %\"3\" = add i32 %a, 1", "  ret i32 %\"3\"", "}"]
+          ["define i32 @f(i32 %count) {", "  %\"3\" = add i32 %count, 1", "  ret i32 %\"3\"", "}"]
+          ["define i32 @f(i32 %0) {", "  %2 = add i32 %0, 1", "  ret i32 %2", "}"]
+    , -- The exception, and the reason it is one: a global's name is how the
+      -- rest of the world refers to it, so it is not the optimizer's to
+      -- reissue.  A local's name reaches nobody.
+      testCase "a global keeps its name" $
+        numbered
+          [ "@counter = global i32 0"
+          , ""
+          , "define i32 @f() {"
+          , "  %seen = load i32, ptr @counter"
+          , "  ret i32 %seen"
+          , "}"
+          ]
+          [ "@counter = global i32 0"
+          , ""
+          , "define i32 @f() {"
+          , "  %1 = load i32, ptr @counter"
+          , "  ret i32 %1"
+          , "}"
+          ]
     , -- The rule being LLVM's own is what makes the trip invisible: what
       -- clang numbered comes back numbered the same, parameters included.
       testCase "what LLVM numbered comes back as it was" $
         let text =
               [ "define i32 @f(i1 %0, i32 %1) {"
-              , "  br i1 %0, label %3, label %4"
+              , "  br i1 %0, label %3, label %5"
               , ""
               , "3:                                                ; preds = %2"
-              , "  %x = add i32 %1, 1"
-              , "  ret i32 %x"
+              , "  %4 = add i32 %1, 1"
+              , "  ret i32 %4"
               , ""
-              , "4:                                                ; preds = %2"
+              , "5:                                                ; preds = %2"
               , "  ret i32 0"
               , "}"
               ]
@@ -214,8 +248,8 @@ phiTests =
     , testCase "an exchange still assigns both locals" $ do
         assignments <- assignmentsIn 3 swap
         assertBool
-          ("expected x and y assigned in " <> show assignments)
-          (all (`elem` map fst assignments) [Name Bare "x", Name Bare "y"])
+          ("expected both phi locals assigned in " <> show assignments)
+          (all (`elem` map fst assignments) [Local 3, Local 4])
     , -- An ordinary pair of phis needs no temporary.
       testCase "independent phis are written out as they are" $ do
         assignments <- assignmentsIn 3 independent
@@ -259,12 +293,16 @@ phiTests =
 -- | The assignments made on the edge that loops back, which is where the
 -- interesting copies are.
 --
+-- Locals are numbered in the order they are defined: the parameters first,
+-- then each result as it was written.  So in both functions below @%x@ is
+-- 'Local' 3 and @%y@ is 'Local' 4, after the three parameters.
+--
 -- Those are the ones in a block the lowering added rather than one the source
 -- wrote, and added blocks are told apart by their label: labels are issued in
 -- the order blocks were written, so anything numbered past the last written
 -- one is a block put on an edge.  The copies on the way in are not these —
 -- the entry block has one successor, so they go at the end of it.
-assignmentsIn :: Int -> Text -> IO [(Name, TypedValue)]
+assignmentsIn :: Int -> Text -> IO [(Local, TypedValue Local)]
 assignmentsIn written source = do
   parsed <- expectParse "<inline>" source
   let blocks = concatMap functionBlocks (functionsIn (lower parsed))

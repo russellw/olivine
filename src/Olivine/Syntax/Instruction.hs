@@ -53,7 +53,7 @@ data Instruction
     --
     -- Whether an operation may name a result is a verifier's business: a
     -- @store@ must not and a @load@ must, and neither is said here.
-    IOperation (Maybe Name) (Operation Name) [MetadataAttachment]
+    IOperation (Maybe Name) (Operation Name Name) [MetadataAttachment]
   | -- | A line not yet modelled, kept as written.
     IOpaque Text
   deriving (Eq, Show)
@@ -73,47 +73,47 @@ data Instruction
 -- function over operations would need writing twice.  With a parameter there
 -- is still one grammar, and every function that does not look at a
 -- destination is written once and works for both.
-data Operation label
+data Operation local label
   = -- | @ret void@, or @ret \<ty\> \<value\>@.
-    ORet (Maybe TypedValue)
+    ORet (Maybe (TypedValue local))
   | -- | @br label %dest@.
     OBr label
   | -- | @br i1 \<cond\>, label %then, label %else@.
-    OCondBr TypedValue label label
+    OCondBr (TypedValue local) label label
   | -- | @switch \<ty\> \<value\>, label %default [ ... ]@.  LLVM requires the
     -- case values to be constants; 'Olivine.Syntax.Value.isConstant' is what
     -- asks, rather than the shape of the data.
-    OSwitch TypedValue label [(TypedValue, label)]
+    OSwitch (TypedValue local) label [(TypedValue local, label)]
   | -- | @indirectbr \<ty\> \<address\>, [label %a, label %b]@.
-    OIndirectBr TypedValue [label]
+    OIndirectBr (TypedValue local) [label]
   | OUnreachable
   | -- | @add nsw i32 %a, %b@ and its relatives, integer, bitwise and
     -- floating point alike.
-    OBinary Binary
+    OBinary (Binary local)
   | -- | @fneg double %a@, the only unary arithmetic operation.
-    OUnary Unary
+    OUnary (Unary local)
   | -- | @icmp slt i32 %a, %b@.
-    OICmp (Compare IntPredicate)
+    OICmp (Compare IntPredicate local)
   | -- | @fcmp olt double %a, %b@.
-    OFCmp (Compare FloatPredicate)
+    OFCmp (Compare FloatPredicate local)
   | -- | @zext nneg i32 %a to i64@ and the other conversions.
-    OConvert Convert
+    OConvert (Convert local)
   | -- | @select [flags] \<selty\> \<cond\>, \<ty\> \<a\>, \<ty\> \<b\>@.
-    OSelect Select
+    OSelect (Select local)
   | -- | @extractelement \<n x ty\> \<vector\>, \<ty\> \<index\>@.
-    OExtractElement ExtractElement
+    OExtractElement (ExtractElement local)
   | -- | @insertelement \<n x ty\> \<vector\>, \<ty\> \<value\>, \<ty\> \<index\>@.
-    OInsertElement InsertElement
+    OInsertElement (InsertElement local)
   | -- | @shufflevector \<n x ty\> \<a\>, \<n x ty\> \<b\>, \<m x i32\> \<mask\>@.
-    OShuffleVector ShuffleVector
+    OShuffleVector (ShuffleVector local)
   | -- | @phi \<ty\> [ \<value\>, %pred ], ...@.
-    OPhi (Phi label)
+    OPhi (Phi local label)
   | -- | @call@, direct or indirect, with or without a result.
-    OCall Call
-  | OAlloca Alloca
-  | OLoad Load
-  | OStore Store
-  | OGetElementPtr GetElementPtr
+    OCall (Call local)
+  | OAlloca (Alloca local)
+  | OLoad (Load local)
+  | OStore (Store local)
+  | OGetElementPtr (GetElementPtr local)
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- | Whether an operation ends its basic block.
@@ -121,7 +121,7 @@ data Operation label
 -- That a block holds exactly one of these, last, is an invariant for a
 -- verifier rather than something the syntax enforces: this layer has to be
 -- able to read back a module that gets it wrong.
-isTerminator :: Operation label -> Bool
+isTerminator :: Operation local label -> Bool
 isTerminator (ORet _) = True
 isTerminator (OBr _) = True
 isTerminator (OCondBr _ _ _) = True
@@ -146,12 +146,12 @@ isTerminator (OGetElementPtr _) = False
 
 -- | A binary operation: an opcode, its flags, the type both operands share,
 -- and the operands.
-data Binary = Binary
+data Binary local = Binary
   { binaryOp :: BinaryOp
   , binaryFlags :: [InstructionFlag]
   , binaryType :: Type
-  , binaryLeft :: Value
-  , binaryRight :: Value
+  , binaryLeft :: Value local
+  , binaryRight :: Value local
   }
   deriving (Eq, Show)
 
@@ -176,11 +176,11 @@ data BinaryOp
   | OpFRem
   deriving (Eq, Show)
 
-data Unary = Unary
+data Unary local = Unary
   { unaryOp :: UnaryOp
   , unaryFlags :: [InstructionFlag]
   , unaryType :: Type
-  , unaryOperand :: Value
+  , unaryOperand :: Value local
   }
   deriving (Eq, Show)
 
@@ -189,10 +189,10 @@ data UnaryOp
   deriving (Eq, Show)
 
 -- | @\<op\> [flags] \<ty\> \<value\> to \<ty\>@.
-data Convert = Convert
+data Convert local = Convert
   { convertOp :: CastOp
   , convertFlags :: [InstructionFlag]
-  , convertOperand :: TypedValue
+  , convertOperand :: TypedValue local
   , convertTarget :: Type
   }
   deriving (Eq, Show)
@@ -202,12 +202,12 @@ data Convert = Convert
 -- @icmp@ and @fcmp@ share their shape and differ only in that, so one record
 -- serves both without letting an integer comparison take a floating point
 -- predicate.
-data Compare predicate = Compare
+data Compare predicate local = Compare
   { compareFlags :: [InstructionFlag]
   , comparePredicate :: predicate
   , compareType :: Type
-  , compareLeft :: Value
-  , compareRight :: Value
+  , compareLeft :: Value local
+  , compareRight :: Value local
   }
   deriving (Eq, Show)
 
@@ -270,34 +270,34 @@ data InstructionFlag
 --
 -- The condition is @i1@ for a scalar select and a vector of @i1@ for an
 -- elementwise one, so it carries its own type like the other operands.
-data Select = Select
+data Select local = Select
   { selectFlags :: [InstructionFlag]
-  , selectCondition :: TypedValue
-  , selectTrue :: TypedValue
-  , selectFalse :: TypedValue
+  , selectCondition :: TypedValue local
+  , selectTrue :: TypedValue local
+  , selectFalse :: TypedValue local
   }
   deriving (Eq, Show)
 
-data ExtractElement = ExtractElement
-  { extractElementVector :: TypedValue
-  , extractElementIndex :: TypedValue
+data ExtractElement local = ExtractElement
+  { extractElementVector :: TypedValue local
+  , extractElementIndex :: TypedValue local
   }
   deriving (Eq, Show)
 
-data InsertElement = InsertElement
-  { insertElementVector :: TypedValue
-  , insertElementValue :: TypedValue
-  , insertElementIndex :: TypedValue
+data InsertElement local = InsertElement
+  { insertElementVector :: TypedValue local
+  , insertElementValue :: TypedValue local
+  , insertElementIndex :: TypedValue local
   }
   deriving (Eq, Show)
 
 -- | The mask is an ordinary operand rather than a list of indices: LLVM
 -- writes it as a vector constant, and @zeroinitializer@ is a common spelling
 -- of one, which a list of numbers could not hold.
-data ShuffleVector = ShuffleVector
-  { shuffleVectorLeft :: TypedValue
-  , shuffleVectorRight :: TypedValue
-  , shuffleVectorMask :: TypedValue
+data ShuffleVector local = ShuffleVector
+  { shuffleVectorLeft :: TypedValue local
+  , shuffleVectorRight :: TypedValue local
+  , shuffleVectorMask :: TypedValue local
   }
   deriving (Eq, Show)
 
@@ -313,11 +313,11 @@ data ShuffleVector = ShuffleVector
 -- would mean the round trip could no longer be checked by comparing the
 -- output with the input.  The conversion is a lowering step between the two
 -- representations, and this type is what it will consume.
-data Phi label = Phi
+data Phi local label = Phi
   { phiFlags :: [InstructionFlag]
   , phiType :: Type
   , -- | The value arriving along each edge, and the block it comes from.
-    phiIncoming :: [(Value, label)]
+    phiIncoming :: [(Value local, label)]
   }
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
@@ -326,7 +326,7 @@ data Phi label = Phi
 -- Inline assembly and operand bundles are not modelled; a call carrying
 -- either stays opaque.  @invoke@ and @callbr@, which are calls that also
 -- branch, are still to come.
-data Call = Call
+data Call local = Call
   { callTail :: Maybe TailKind
   , callFlags :: [InstructionFlag]
   , callCallingConvention :: Maybe CallingConvention
@@ -339,8 +339,8 @@ data Call = Call
     -- Both are types, so one field holds either.
     callType :: Type
   , -- | A global for a direct call, a local for an indirect one.
-    callCallee :: Value
-  , callArguments :: [Argument]
+    callCallee :: Value local
+  , callArguments :: [Argument local]
   , callAttributes :: [AttributeItem]
   }
   deriving (Eq, Show)
@@ -354,19 +354,19 @@ data TailKind
 -- | An argument at a call site: a type, any attributes, and the value.
 --
 -- Not the same as a 'Parameter', which names its value instead of giving one.
-data Argument = Argument
+data Argument local = Argument
   { argumentType :: Type
   , argumentAttributes :: [ParamAttribute]
-  , argumentValue :: Value
+  , argumentValue :: Value local
   }
   deriving (Eq, Show)
 
 -- | @alloca [inalloca] \<ty\> [, \<ty\> \<count\>] [, align N] [, addrspace(N)]@.
-data Alloca = Alloca
+data Alloca local = Alloca
   { allocaInalloca :: Bool
   , allocaType :: Type
   , -- | The number of elements, when more than one is asked for.
-    allocaElementCount :: Maybe TypedValue
+    allocaElementCount :: Maybe (TypedValue local)
   , allocaAlignment :: Maybe Natural
   , allocaAddrSpace :: Maybe Natural
   }
@@ -376,21 +376,21 @@ data Alloca = Alloca
 --
 -- The atomic form, with its ordering and optional syncscope, is not modelled;
 -- a line carrying one stays opaque.
-data Load = Load
+data Load local = Load
   { loadVolatile :: Bool
   , -- | The type loaded, which since pointers became opaque is written out
     -- rather than being recoverable from the pointer.
     loadType :: Type
-  , loadPointer :: TypedValue
+  , loadPointer :: TypedValue local
   , loadAlignment :: Maybe Natural
   }
   deriving (Eq, Show)
 
 -- | @store [volatile] \<ty\> \<value\>, ptr \<pointer\> [, align N]@.
-data Store = Store
+data Store local = Store
   { storeVolatile :: Bool
-  , storeValue :: TypedValue
-  , storePointer :: TypedValue
+  , storeValue :: TypedValue local
+  , storePointer :: TypedValue local
   , storeAlignment :: Maybe Natural
   }
   deriving (Eq, Show)
@@ -400,12 +400,12 @@ data Store = Store
 -- Read back as LLVM writes it, with all its indices.  The core representation
 -- is to replace this with a form computing one offset at a time, which is a
 -- lowering step rather than something to do while reading.
-data GetElementPtr = GetElementPtr
+data GetElementPtr local = GetElementPtr
   { gepFlags :: [GepFlag]
   , -- | The type being indexed into, not the type of the result.
     gepSourceType :: Type
-  , gepPointer :: TypedValue
-  , gepIndices :: [TypedValue]
+  , gepPointer :: TypedValue local
+  , gepIndices :: [TypedValue local]
   }
   deriving (Eq, Show)
 

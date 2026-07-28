@@ -20,7 +20,6 @@ import Data.Set qualified as Set
 import Olivine.Core.Program
 import Olivine.Syntax.Instruction (Load (..), Operation (..), isTerminator)
 import Olivine.Syntax.Instruction qualified as Syntax
-import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Operands (localsUsedBy)
 import Olivine.Syntax.Value (Value (..), typedValue)
 
@@ -53,7 +52,7 @@ sweep f = f {functionBlocks = map prune (functionBlocks f)}
     removable (Perform operation) = removableWhenUnused operation
 
 -- | Every local the function reads.
-usedIn :: Function -> Set Name
+usedIn :: Function -> Set Local
 usedIn f =
   Set.fromList
     ( concat
@@ -83,7 +82,7 @@ usedIn f =
 -- reading through a pointer that cannot be read is undefined in the same way,
 -- but only when it is not volatile: a volatile load is a side effect that
 -- happens to return something.
-removableWhenUnused :: Syntax.Operation label -> Bool
+removableWhenUnused :: Syntax.Operation local label -> Bool
 removableWhenUnused operation
   | isTerminator operation = False
   | otherwise = case operation of

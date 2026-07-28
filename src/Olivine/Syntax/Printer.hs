@@ -204,7 +204,7 @@ appendToLast suffix ls = case reverse ls of
   [] -> []
   final : earlier -> reverse ((final <> suffix) : earlier)
 
-renderOperation :: Operation Name -> [Text]
+renderOperation :: Operation Name Name -> [Text]
 renderOperation (ORet Nothing) = ["ret void"]
 renderOperation (ORet (Just v)) = ["ret " <> renderTypedValue v]
 renderOperation (OBr destination) = ["br " <> renderLabel destination]
@@ -373,7 +373,7 @@ renderTailKind Tail = "tail"
 renderTailKind MustTail = "musttail"
 renderTailKind NoTail = "notail"
 
-renderArgument :: Argument -> Text
+renderArgument :: Argument Name -> Text
 renderArgument a =
   T.concat
     [ renderType (argumentType a)
@@ -382,7 +382,7 @@ renderArgument a =
     , renderValue (argumentValue a)
     ]
 
-renderCompare :: Text -> (predicate -> Text) -> Compare predicate -> Text
+renderCompare :: Text -> (predicate -> Text) -> Compare predicate Name -> Text
 renderCompare name renderPredicate c =
   T.concat
     [ name
@@ -701,7 +701,7 @@ renderGlobalAttribute (GAComdat (Just name)) =
   "comdat($" <> renderName name <> ")"
 renderGlobalAttribute (GAAlign n) = "align " <> showText n
 
-renderValue :: Value -> Text
+renderValue :: Value Name -> Text
 renderValue (VLocal name) = "%" <> renderName name
 renderValue (VInteger n) = showText n
 renderValue (VBoolean True) = "true"
@@ -735,16 +735,16 @@ renderValue (VGetElementPtr flags element operands) =
     , ")"
     ]
 
-renderTypedValue :: TypedValue -> Text
+renderTypedValue :: TypedValue Name -> Text
 renderTypedValue (TypedValue t c) =
   renderType t <> " " <> renderValue c
 
 -- LLVM writes array and vector constants without spaces inside the brackets,
 -- but struct constants with them, matching how it writes the types.
-renderElements :: [TypedValue] -> Text
+renderElements :: [TypedValue Name] -> Text
 renderElements = T.intercalate ", " . map renderTypedValue
 
-renderStructFields :: [TypedValue] -> Text
+renderStructFields :: [TypedValue Name] -> Text
 renderStructFields [] = "{}"
 renderStructFields fields = "{ " <> renderElements fields <> " }"
 

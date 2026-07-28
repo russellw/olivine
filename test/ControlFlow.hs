@@ -27,43 +27,43 @@ controlFlowTests =
     [ testGroup
         "what a branch comes to"
         [ testCase "a branch on true" $
-            foldTerminator (condBr (VBoolean True) "a" "b") @?= Just (OBr (label "a"))
+            folds (condBr (VBoolean True) "a" "b") @?= Just (OBr (label "a"))
         , testCase "a branch on false" $
-            foldTerminator (condBr (VBoolean False) "a" "b") @?= Just (OBr (label "b"))
+            folds (condBr (VBoolean False) "a" "b") @?= Just (OBr (label "b"))
         , -- An i1 written as a number is the same value spelled differently.
           testCase "a branch on a number" $
-            foldTerminator (condBr (VInteger 1) "a" "b") @?= Just (OBr (label "a"))
+            folds (condBr (VInteger 1) "a" "b") @?= Just (OBr (label "a"))
         , -- This one needs no constant: it goes there either way.
           testCase "a branch whose arms agree" $
-            foldTerminator (condBr (VLocal (Name Bare "c")) "a" "a") @?= Just (OBr (label "a"))
+            folds (condBr (VLocal (Name Bare "c")) "a" "a") @?= Just (OBr (label "a"))
         , testCase "a switch on a known value" $
-            foldTerminator (switch (VInteger 2)) @?= Just (OBr (label "two"))
+            folds (switch (VInteger 2)) @?= Just (OBr (label "two"))
         , testCase "a switch on a value no case matches" $
-            foldTerminator (switch (VInteger 9)) @?= Just (OBr (label "otherwise"))
+            folds (switch (VInteger 9)) @?= Just (OBr (label "otherwise"))
         , -- The same byte written two ways, which the widths make equal.
           testCase "a switch case spelled as the other sign" $
-            foldTerminator (switchOn (TInteger 8) (VInteger (-1)) [(VInteger 255, "hit")])
+            folds (switchOn (TInteger 8) (VInteger (-1)) [(VInteger 255, "hit")])
               @?= Just (OBr (label "hit"))
         , testCase "a switch whose cases all name the default" $
-            foldTerminator (switchOn (TInteger 8) (VLocal (Name Bare "x")) [(VInteger 1, "otherwise")])
+            folds (switchOn (TInteger 8) (VLocal (Name Bare "x")) [(VInteger 1, "otherwise")])
               @?= Just (OBr (label "otherwise"))
         , testCase "an indirect branch with one destination" $
-            foldTerminator (OIndirectBr pointer [label "a"]) @?= Just (OBr (label "a"))
+            folds (OIndirectBr pointer [label "a"]) @?= Just (OBr (label "a"))
         ]
     , testGroup
         "where it stops"
         [ testCase "a branch on a local" $
-            foldTerminator (condBr (VLocal (Name Bare "c")) "a" "b") @?= Nothing
+            folds (condBr (VLocal (Name Bare "c")) "a" "b") @?= Nothing
         , -- Branching on poison is undefined, and LLVM may treat it as
           -- unreachable.  Collecting on that is a decision this pass does not
           -- make: it folds branches whose value it knows.
           testCase "a branch on poison" $
-            foldTerminator (condBr VPoison "a" "b") @?= Nothing
+            folds (condBr VPoison "a" "b") @?= Nothing
         , testCase "a switch on a local" $
-            foldTerminator (switch (VLocal (Name Bare "x"))) @?= Nothing
+            folds (switch (VLocal (Name Bare "x"))) @?= Nothing
         , testCase "an indirect branch with a choice to make" $
-            foldTerminator (OIndirectBr pointer [label "a", label "b"]) @?= Nothing
-        , testCase "a return" $ foldTerminator (ORet Nothing :: Syntax.Operation Name) @?= Nothing
+            folds (OIndirectBr pointer [label "a", label "b"]) @?= Nothing
+        , testCase "a return" $ folds (ORet Nothing) @?= Nothing
         ]
     , testGroup
         "what the blocks come to"
@@ -107,11 +107,13 @@ controlFlowTests =
           testCase "a chain becomes one block" $ do
             blocks <- blocksOf chain
             assertEqual "all of it merged into the entry" [Label 0] blocks
-        , testCase "in the order the chain ran" $ do
+        , -- Locals are numbered as they are defined, the one parameter
+          -- first, so %a %b %c are 1 2 3 and the order is the chain's.
+          testCase "in the order the chain ran" $ do
             results <- resultsOf chain
             assertEqual
               "each block's instructions after the ones above it"
-              [Just (Name Bare "a"), Just (Name Bare "b"), Just (Name Bare "c")]
+              [Just (Local 1), Just (Local 2), Just (Local 3)]
               results
         , -- Merging is about the edge, not about how little a block holds:
           -- two ways in means the block below is not the rest of the one
@@ -239,7 +241,7 @@ blocksOf source = do
   pure [blockLabel b | f <- functionsIn simplified, b <- functionBlocks f]
 
 -- | What each surviving instruction assigns to, in order.
-resultsOf :: Text -> IO [Maybe Name]
+resultsOf :: Text -> IO [Maybe Local]
 resultsOf source = do
   simplified <- simplify source
   pure
@@ -249,7 +251,7 @@ resultsOf source = do
     , i <- blockInstructions b
     ]
 
-terminatorsOf :: Text -> IO [Syntax.Operation Label]
+terminatorsOf :: Text -> IO [Syntax.Operation Local Label]
 terminatorsOf source = do
   simplified <- simplify source
   pure
@@ -275,3 +277,11 @@ simplify :: Text -> IO Program
 simplify source = do
   parsed <- expectParse "<inline>" source
   pure (simplifyControlFlow (lower parsed))
+
+-- | 'foldTerminator' at the names the syntax layer uses, which is what these
+-- cases build.
+--
+-- The pass folds branches whatever a local or a block is called, so it is
+-- written for any; these cases have to pick one, and a 'Name' is what reads.
+folds :: Syntax.Operation Name Name -> Maybe (Syntax.Operation Name Name)
+folds = foldTerminator
