@@ -6,25 +6,19 @@
 -- from one place, by a block that goes nowhere else, is the rest of that
 -- block written separately.
 --
--- Detours are what phi elimination puts on split edges.  In the core they are
--- not empty — they hold the assignments the split exists to carry — so
--- removing them does most of its work after single assignment has been
--- reconstructed, which is what empties them, and the rest wherever a pass
--- leaves a block holding nothing but a branch.
---
--- Only one of the two knows what a phi is, and the reason is which side of
--- reconstruction it runs on.  Removing a detour also happens on the way out,
--- where phis exist again and name the block a value arrives from, so a block
--- that stops existing is a name to be corrected.  Merging happens only in the
--- core, which has no phis at all — that being the point of the core — so
--- there is nothing there to correct and no code here that would.
+-- Both run on the core, where there are no phis — that being the point of the
+-- core — so a block that stops existing leaves nothing behind naming it.  The
+-- same detours have to be removed on the way out as well, where phis exist
+-- again and name the block a value arrives from; that is
+-- 'Olivine.Core.Phi.removeForwarding', and it is a separate function because
+-- correcting those names is the whole of what it does differently.
 module Olivine.Core.Blocks
   ( removeForwarding
   , mergeBlocks
   ) where
 
 import Olivine.Core.Program
-import Olivine.Syntax.Instruction (Operation (..), Phi (..))
+import Olivine.Syntax.Instruction (Operation (..))
 
 -- | Remove blocks that do nothing but branch elsewhere.
 --
@@ -39,7 +33,6 @@ removeForwarding :: Function -> Function
 removeForwarding f = f {functionBlocks = settle (functionBlocks f)}
   where
     entry = entryLabel f
-    predecessorsIn = predecessorsOf
 
     settle blocks = case candidates blocks of
       [] -> blocks
@@ -53,47 +46,24 @@ removeForwarding f = f {functionBlocks = settle (functionBlocks f)}
       , OBr target <- [terminatorOperation (blockTerminator b)]
       , -- A block branching to itself is a loop, not a detour.
         target /= blockLabel b
-      , relabellable blocks (blockLabel b) target
       ]
 
-    -- A phi in the target names the block a value arrives from.  Removing the
-    -- detour means naming what came before it instead, which only works when
-    -- there is one such block, and when it is not already named by that phi:
-    -- two entries for one predecessor would have to agree, and nothing here
-    -- knows that they would.
-    relabellable blocks name target =
-      all fits [p | b <- blocks, blockLabel b == target, p <- phisIn b]
-      where
-        fits p = case (name `elem` map snd (phiIncoming p), predecessorsIn blocks name) of
-          (False, _) -> True
-          (True, [before]) -> before `notElem` map snd (phiIncoming p)
-          (True, _) -> False
-
     remove blocks block target =
-      [ redirect b
+      [ retarget b
       | b <- blocks
       , blockLabel b /= blockLabel block
       ]
       where
         gone = blockLabel block
-        before = case predecessorsIn blocks gone of
-          [only] -> only
-          _ -> gone
-        redirect b =
+        retarget b =
           b
-            { blockInstructions = map (mapPhis relabel) (blockInstructions b)
-            , blockTerminator = retarget (blockTerminator b)
+            { blockTerminator =
+                (blockTerminator b)
+                  { terminatorOperation =
+                      fmap (\l -> if l == gone then target else l) $
+                        terminatorOperation (blockTerminator b)
+                  }
             }
-        relabel p =
-          p {phiIncoming = [(v, if l == gone then before else l) | (v, l) <- phiIncoming p]}
-        retarget t = t {terminatorOperation = go (terminatorOperation t)}
-          where
-            to l = if l == gone then target else l
-            go (OBr d) = OBr (to d)
-            go (OCondBr c a b) = OCondBr c (to a) (to b)
-            go (OSwitch v d cases) = OSwitch v (to d) [(x, to l) | (x, l) <- cases]
-            go (OIndirectBr v ds) = OIndirectBr v (map to ds)
-            go other = other
 
 -- | Merge a block into the one block that reaches it.
 --
@@ -152,11 +122,3 @@ mergeBlocks f = f {functionBlocks = settle (functionBlocks f)}
 predecessorsOf :: [Block] -> Label -> [Label]
 predecessorsOf blocks target =
   [blockLabel b | b <- blocks, target `elem` targetsOf (blockTerminator b)]
-
-phisIn :: Block -> [Phi Local Label]
-phisIn b = [p | i <- blockInstructions b, Perform (OPhi p) <- [instructionOperation i]]
-
-mapPhis :: (Phi Local Label -> Phi Local Label) -> Instruction -> Instruction
-mapPhis f i = case instructionOperation i of
-  Perform (OPhi p) -> i {instructionOperation = Perform (OPhi (f p))}
-  _ -> i

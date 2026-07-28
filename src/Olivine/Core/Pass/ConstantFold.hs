@@ -24,7 +24,6 @@ import Data.Maybe (fromMaybe)
 import Olivine.Core.Program
 import Olivine.Syntax.Instruction
 import Olivine.Syntax.Instruction qualified as Syntax
-import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Operands (mapOperands)
 import Olivine.Syntax.Type (Type (..))
 import Olivine.Syntax.Value

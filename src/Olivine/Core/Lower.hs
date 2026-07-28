@@ -11,18 +11,16 @@ import Data.Char (isDigit)
 import Data.List (partition)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (fromMaybe)
 import Data.Text qualified as T
 
+import Olivine.Core.Phi (Joined (..), PhiNode (..), eliminate)
 import Olivine.Core.Program
 import Olivine.Syntax.Ast qualified as Syntax
 import Olivine.Syntax.Function qualified as Syntax
-import Olivine.Syntax.Instruction (Operation (..), Phi (..), isTerminator)
+import Olivine.Syntax.Instruction (Operation (..), isTerminator)
 import Olivine.Syntax.Instruction qualified as Syntax
 import Olivine.Syntax.Name
 import Olivine.Syntax.Operands (traverseOperands)
-import Olivine.Syntax.Type (Type)
-import Olivine.Syntax.Value
 
 lower :: Syntax.Module -> Program
 lower = Program . map lowerEntry . Syntax.moduleEntries
@@ -46,7 +44,7 @@ lowerDefinition definition = do
     Function
       { functionSignature = signature {Syntax.signatureParameters = nameless}
       , functionParameters = take (length parameters) (map Local [0 ..])
-      , functionBlocks = eliminatePhis (length written) (Map.size locals) blocks
+      , functionBlocks = eliminate (length written) (Map.size locals) blocks
       }
   where
     signature = Syntax.definitionSignature definition
@@ -81,28 +79,22 @@ lowerDefinition definition = do
     -- the raising writes the names LLVM will see.
     nameless = [p {Syntax.parameterName = Nothing} | p <- parameters]
 
--- | A block as read, before its phis have been dealt with.
-data Read' = Read'
-  { readLabel :: Label
-  , readPhis :: [(Local, Type, [(Value Local, Label)])]
-  , readBody :: [Instruction]
-  , readTerminator :: Terminator
-  }
-
 readBlock ::
-  Map Name Label -> Map Name Local -> (Label, Syntax.BasicBlock) -> Maybe Read'
+  Map Name Label -> Map Name Local -> (Label, Syntax.BasicBlock) -> Maybe Joined
 readBlock labels locals (label, block) = do
   (body, terminator) <- split labels locals (Syntax.blockBody block)
   let (phis, rest) = partition isPhi body
-  Read' label <$> traverse phi phis <*> traverse instruction rest <*> pure terminator
+  Joined label <$> traverse phi phis <*> traverse instruction rest <*> pure terminator
   where
     isPhi (Syntax.IOperation _ (OPhi _) _) = True
     isPhi _ = False
     phi (Syntax.IOperation (Just name) (OPhi p) _) =
-      (,,)
+      PhiNode
         <$> Map.lookup name locals
-        <*> pure (phiType p)
-        <*> traverse (bitraverse (traverse (`Map.lookup` locals)) (`Map.lookup` labels)) (phiIncoming p)
+        <*> pure (Syntax.phiType p)
+        <*> traverse
+          (bitraverse (traverse (`Map.lookup` locals)) (`Map.lookup` labels))
+          (Syntax.phiIncoming p)
     phi _ = Nothing
     instruction (Syntax.IOperation result operation metadata) =
       Instruction
@@ -148,124 +140,6 @@ split labels locals body = case reverse body of
   where
     modelled (Syntax.IOperation _ operation _) = not (isTerminator operation)
     modelled _ = False
-
--- * Phi elimination
-
--- | Replace every phi with assignments on the edges that reach it.
---
--- Two things make this more than moving instructions about.
---
--- An edge leaving a block with more than one successor cannot carry the
--- assignments, since appending them to that block would also run them on the
--- way to its other successors.  Such an edge is split: a new block holding
--- the assignments is put on it.
---
--- The phis at the head of a block all happen at once, on arrival.  Writing
--- them out in the order they appear is wrong when one reads a local another
--- writes — @a, b = b, a@ being the plainest case — so the assignments on each
--- edge are ordered so that every local is read before it is written, and a
--- cycle is broken with a temporary.
-eliminatePhis :: Int -> Int -> [Read'] -> [Block]
-eliminatePhis firstLabel firstLocal blocks = concatMap build issued
-  where
-    phiBlocks = [b | b <- blocks, not (null (readPhis b))]
-
-    -- The assignments edge P -> B has to make.
-    copiesOn source target =
-      [ (name, TypedValue t value)
-      | b <- phiBlocks
-      , readLabel b == target
-      , (name, t, incoming) <- readPhis b
-      , value <- take 1 [v | (v, p) <- incoming, p == source]
-      ]
-
-    successorsOf b = targetsOf (readTerminator b)
-    splits b = length (successorsOf b) > 1
-
-    -- The edges this block must split, each becoming a block of its own.
-    splitting b =
-      [ (target, copies)
-      | splits b
-      , target <- distinct (successorsOf b)
-      , let copies = copiesOn (readLabel b) target
-      , not (null copies)
-      ]
-
-    -- Blocks put on edges, and the temporaries that breaking a cycle needs,
-    -- are numbered after everything already there, issued across the whole
-    -- function so that no two share.  Building a name out of the two blocks
-    -- an edge joins was the old way, and it could collide with a name the
-    -- source had chosen; a number cannot.
-    issued = snd (foldl' issue ((firstLabel, firstLocal), []) blocks)
-    issue ((nextLabel, nextLocal), done) b =
-      let (afterInline, inline) = sequenceCopies nextLocal (inlineOn b)
-          (afterEdges, edges) = spread afterInline (splitting b)
-       in ( (nextLabel + length edges, afterEdges)
-          , done <> [(b, inline, zip (map Label [nextLabel ..]) edges)]
-          )
-    -- Each edge's copies in turn, each picking up where the last left off.
-    spread next [] = (next, [])
-    spread next ((target, copies) : rest) =
-      let (after, sequenced) = sequenceCopies next copies
-          (afterRest, others) = spread after rest
-       in (afterRest, (target, sequenced) : others)
-
-    -- Assignments that can simply go at the end of the block itself.
-    inlineOn b =
-      [ copy
-      | not (splits b)
-      , target <- distinct (successorsOf b)
-      , copy <- copiesOn (readLabel b) target
-      ]
-
-    build (b, inline, edges) =
-      Block (readLabel b) (readBody b <> map assignment inline) terminator
-        : [ Block label (map assignment copies) (Terminator (OBr target) [])
-          | (label, (target, copies)) <- edges
-          ]
-      where
-        terminator =
-          retarget [(target, label) | (label, (target, _)) <- edges] (readTerminator b)
-
-    assignment (name, value) = Instruction (Just name) (Assign value) []
-
--- | Send a terminator's branches to the blocks that were put on its edges.
-retarget :: [(Label, Label)] -> Terminator -> Terminator
-retarget renames t = t {terminatorOperation = fmap to (terminatorOperation t)}
-  where
-    to label = fromMaybe label (lookup label renames)
-
--- | Order a set of simultaneous assignments so that running them one after
--- another has the same effect.
---
--- An assignment may be emitted once nothing left to do still reads what it
--- writes.  When every remaining assignment is read by another they form a
--- cycle, which is broken by saving one local in a temporary and reading the
--- temporary instead.
-sequenceCopies ::
-  Int -> [(Local, TypedValue Local)] -> (Int, [(Local, TypedValue Local)])
-sequenceCopies = go
-  where
-    go n [] = (n, [])
-    go n pending =
-      case partition (not . isReadBy pending . fst) pending of
-        (ready@(_ : _), rest) -> (ready <>) <$> go n rest
-        ([], (name, value) : rest) ->
-          let temporary = Local n
-              saved = (temporary, TypedValue (typedValueType value) (VLocal name))
-           in (saved :) <$> go (n + 1) ((name, value) : map (substitute name temporary) rest)
-        ([], []) -> (n, [])
-
-    isReadBy pending name =
-      or [reads' name v | (_, v) <- pending]
-    reads' name (TypedValue _ (VLocal other)) = name == other
-    reads' _ _ = False
-    substitute name temporary (dst, TypedValue t (VLocal other))
-      | other == name = (dst, TypedValue t (VLocal temporary))
-    substitute _ _ copy = copy
-
-distinct :: Eq a => [a] -> [a]
-distinct = foldr (\x xs -> x : filter (/= x) xs) []
 
 -- | The number LLVM gives an unlabelled entry block.
 --

@@ -36,6 +36,7 @@ library
                       Olivine.Syntax.Operands
                       Olivine.Syntax.Printer
                       Olivine.Core.Program
+                      Olivine.Core.Phi
                       Olivine.Core.Lower
                       Olivine.Core.Ssa
                       Olivine.Core.Blocks

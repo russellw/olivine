@@ -1,0 +1,265 @@
+-- | The one construct the core does not have, and the two conversions that
+-- get rid of it and put it back.
+--
+-- LLVM writes a value that depends on which edge was taken as a phi at the
+-- head of the block those edges meet at.  The core writes it as an assignment
+-- on each edge, which is possible because a local there can be reassigned.
+-- Neither form is a translation of the other block by block: the phi is one
+-- instruction and the assignments are several, in blocks the phi does not name
+-- and that sometimes have to be created.
+--
+-- So there is a shape between the two, and it is this one — a core block with
+-- its phis still listed separately, which is what LLVM's block is.  The
+-- lowering reads one of these per block and 'eliminate' turns them into core
+-- blocks; on the way out "Olivine.Core.Ssa" produces them again and the
+-- raising writes them down.  Both boundaries meet here, which is what keeps
+-- phis out of "Olivine.Core.Program" entirely: a core 'Block' has no place to
+-- put one, and this is where the place is.
+module Olivine.Core.Phi
+  ( PhiNode (..)
+  , Joined (..)
+  , eliminate
+  , removeForwarding
+  ) where
+
+import Data.List (partition)
+import Data.Maybe (fromMaybe)
+
+import Olivine.Core.Program
+import Olivine.Syntax.Instruction (Operation (..))
+import Olivine.Syntax.Type (Type)
+import Olivine.Syntax.Value (TypedValue (..), Value (..))
+
+-- | A phi: the local it assigns, the type it assigns at, and the value
+-- arriving along each edge together with the block that edge comes from.
+--
+-- Not 'Olivine.Syntax.Instruction.Phi', which is the same thing spelled the
+-- way LLVM writes it, with names for the predecessors and a place for the
+-- fast-math flags a phi may carry.  Here the predecessors are labels like
+-- every other destination in the core, and the flags have nowhere to go
+-- because nothing between the two boundaries reads them.
+data PhiNode = PhiNode
+  { phiLocal :: Local
+  , phiType :: Type
+  , -- | The value arriving along each edge, and the block it comes from.
+    phiIncoming :: [(Value Local, Label)]
+  }
+  deriving (Eq, Show)
+
+-- | A core block with the phis at its head still explicit.
+--
+-- Everything else about it is already the core's: the instructions are core
+-- instructions, the terminator is structural, and a destination is a 'Label'.
+-- Only the phis are left, and only because they are what the two conversions
+-- either side of this exist to remove and restore.
+data Joined = Joined
+  { joinedLabel :: Label
+  , joinedPhis :: [PhiNode]
+  , joinedInstructions :: [Instruction]
+  , joinedTerminator :: Terminator
+  }
+  deriving (Eq, Show)
+
+-- * Into the core
+
+-- | Replace every phi with assignments on the edges that reach it.
+--
+-- Two things make this more than moving instructions about.
+--
+-- An edge leaving a block with more than one successor cannot carry the
+-- assignments, since appending them to that block would also run them on the
+-- way to its other successors.  Such an edge is split: a new block holding
+-- the assignments is put on it.
+--
+-- The phis at the head of a block all happen at once, on arrival.  Writing
+-- them out in the order they appear is wrong when one reads a local another
+-- writes — @a, b = b, a@ being the plainest case — so the assignments on each
+-- edge are ordered so that every local is read before it is written, and a
+-- cycle is broken with a temporary.
+--
+-- The two numbers are where to start issuing labels and locals: everything
+-- this invents is numbered past what the function already has.
+eliminate :: Int -> Int -> [Joined] -> [Block]
+eliminate firstLabel firstLocal blocks = concatMap build issued
+  where
+    phiBlocks = [b | b <- blocks, not (null (joinedPhis b))]
+
+    -- The assignments edge P -> B has to make.
+    copiesOn source target =
+      [ (phiLocal p, TypedValue (phiType p) value)
+      | b <- phiBlocks
+      , joinedLabel b == target
+      , p <- joinedPhis b
+      , value <- take 1 [v | (v, q) <- phiIncoming p, q == source]
+      ]
+
+    successorsOf b = targetsOf (joinedTerminator b)
+    splits b = length (successorsOf b) > 1
+
+    -- The edges this block must split, each becoming a block of its own.
+    splitting b =
+      [ (target, copies)
+      | splits b
+      , target <- distinct (successorsOf b)
+      , let copies = copiesOn (joinedLabel b) target
+      , not (null copies)
+      ]
+
+    -- Blocks put on edges, and the temporaries that breaking a cycle needs,
+    -- are numbered after everything already there, issued across the whole
+    -- function so that no two share.  Building a name out of the two blocks
+    -- an edge joins was the old way, and it could collide with a name the
+    -- source had chosen; a number cannot.
+    issued = snd (foldl' issue ((firstLabel, firstLocal), []) blocks)
+    issue ((nextLabel, nextTemporary), done) b =
+      let (afterInline, inline) = sequenceCopies nextTemporary (inlineOn b)
+          (afterEdges, edges) = spread afterInline (splitting b)
+       in ( (nextLabel + length edges, afterEdges)
+          , done <> [(b, inline, zip (map Label [nextLabel ..]) edges)]
+          )
+    -- Each edge's copies in turn, each picking up where the last left off.
+    spread next [] = (next, [])
+    spread next ((target, copies) : rest) =
+      let (after, sequenced) = sequenceCopies next copies
+          (afterRest, others) = spread after rest
+       in (afterRest, (target, sequenced) : others)
+
+    -- Assignments that can simply go at the end of the block itself.
+    inlineOn b =
+      [ copy
+      | not (splits b)
+      , target <- distinct (successorsOf b)
+      , copy <- copiesOn (joinedLabel b) target
+      ]
+
+    build (b, inline, edges) =
+      Block (joinedLabel b) (joinedInstructions b <> map assignment inline) terminator
+        : [ Block label (map assignment copies) (Terminator (OBr target) [])
+          | (label, (target, copies)) <- edges
+          ]
+      where
+        terminator =
+          retarget [(target, label) | (label, (target, _)) <- edges] (joinedTerminator b)
+
+    assignment (name, value) = Instruction (Just name) (Assign value) []
+
+-- | Send a terminator's branches to the blocks that were put on its edges.
+retarget :: [(Label, Label)] -> Terminator -> Terminator
+retarget renames t = t {terminatorOperation = fmap to (terminatorOperation t)}
+  where
+    to label = fromMaybe label (lookup label renames)
+
+-- | Order a set of simultaneous assignments so that running them one after
+-- another has the same effect.
+--
+-- An assignment may be emitted once nothing left to do still reads what it
+-- writes.  When every remaining assignment is read by another they form a
+-- cycle, which is broken by saving one local in a temporary and reading the
+-- temporary instead.
+sequenceCopies ::
+  Int -> [(Local, TypedValue Local)] -> (Int, [(Local, TypedValue Local)])
+sequenceCopies = go
+  where
+    go n [] = (n, [])
+    go n pending =
+      case partition (not . isReadBy pending . fst) pending of
+        (ready@(_ : _), rest) -> (ready <>) <$> go n rest
+        ([], (name, value) : rest) ->
+          let temporary = Local n
+              saved = (temporary, TypedValue (typedValueType value) (VLocal name))
+           in (saved :) <$> go (n + 1) ((name, value) : map (substitute name temporary) rest)
+        ([], []) -> (n, [])
+
+    isReadBy pending name =
+      or [reads' name v | (_, v) <- pending]
+    reads' name (TypedValue _ (VLocal other)) = name == other
+    reads' _ _ = False
+    substitute name temporary (dst, TypedValue t (VLocal other))
+      | other == name = (dst, TypedValue t (VLocal temporary))
+    substitute _ _ copy = copy
+
+distinct :: Eq a => [a] -> [a]
+distinct = foldr (\x xs -> x : filter (/= x) xs) []
+
+-- * Out of the core
+
+-- | Remove blocks that do nothing but branch elsewhere.
+--
+-- This is what empties the blocks 'eliminate' put on split edges: their
+-- assignments have become phi operands again, leaving a branch and nothing
+-- else, and taking them out is what makes the trip through the core leave the
+-- control flow graph as it found it.
+--
+-- The counterpart in "Olivine.Core.Blocks" removes the same thing and is not
+-- this function, because on that side of reconstruction there are no phis.
+-- Here there are, and a phi names the block a value arrives from, so a block
+-- that stops existing is a name to be corrected — which is the whole
+-- difference between the two and the reason they are apart.
+--
+-- One at a time, to a fixed point: removing a detour can leave the block
+-- before it a detour in turn.  The entry block is never one of them, however
+-- little it does.  A function starts where its first block is, so removing
+-- that block would start it somewhere else, and the block it forwards to may
+-- well have predecessors — which LLVM forbids an entry block, whatever the
+-- rest of the graph says.
+removeForwarding :: [Joined] -> [Joined]
+removeForwarding = settle
+  where
+    settle blocks = case candidates blocks of
+      [] -> blocks
+      (block, target) : _ -> settle (remove blocks block target)
+
+    -- The entry block is the first one, which is the one rule there is now
+    -- that every block has a label like any other.
+    entryOf blocks = case blocks of
+      b : _ -> Just (joinedLabel b)
+      [] -> Nothing
+
+    candidates blocks =
+      [ (b, target)
+      | b <- blocks
+      , Just (joinedLabel b) /= entryOf blocks
+      , null (joinedInstructions b)
+      , null (joinedPhis b)
+      , OBr target <- [terminatorOperation (joinedTerminator b)]
+      , -- A block branching to itself is a loop, not a detour.
+        target /= joinedLabel b
+      , relabellable blocks (joinedLabel b) target
+      ]
+
+    -- A phi in the target names the block a value arrives from.  Removing the
+    -- detour means naming what came before it instead, which only works when
+    -- there is one such block, and when it is not already named by that phi:
+    -- two entries for one predecessor would have to agree, and nothing here
+    -- knows that they would.
+    relabellable blocks name target =
+      all fits [p | b <- blocks, joinedLabel b == target, p <- joinedPhis b]
+      where
+        fits p = case (name `elem` map snd (phiIncoming p), predecessorsOf blocks name) of
+          (False, _) -> True
+          (True, [before]) -> before `notElem` map snd (phiIncoming p)
+          (True, _) -> False
+
+    remove blocks block target =
+      [ redirect b
+      | b <- blocks
+      , joinedLabel b /= joinedLabel block
+      ]
+      where
+        gone = joinedLabel block
+        before = case predecessorsOf blocks gone of
+          [only] -> only
+          _ -> gone
+        redirect b =
+          b
+            { joinedPhis = map relabel (joinedPhis b)
+            , joinedTerminator = retarget [(gone, target)] (joinedTerminator b)
+            }
+        relabel p =
+          p {phiIncoming = [(v, if l == gone then before else l) | (v, l) <- phiIncoming p]}
+
+-- | The blocks that branch to a given one, once each however many edges they
+-- carry there.
+predecessorsOf :: [Joined] -> Label -> [Label]
+predecessorsOf blocks target =
+  [joinedLabel b | b <- blocks, target `elem` targetsOf (joinedTerminator b)]

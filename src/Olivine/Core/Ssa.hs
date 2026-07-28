@@ -5,6 +5,12 @@
 -- the phi elimination the lowering performs: a local assigned on several
 -- edges becomes a phi where those edges meet.
 --
+-- What comes out is therefore not a core function.  It is
+-- 'Olivine.Core.Phi.Joined', the shape with phis listed at the head of a
+-- block, which is what LLVM's block is and what the raising writes down.  A
+-- core 'Olivine.Core.Program.Block' has nowhere to put a phi, and the point of
+-- this pass is producing them, so it produces the form that holds them.
+--
 -- Phis are placed at every join, rather than at the iterated dominance
 -- frontier of each local's definitions.  Placing more than are needed is
 -- harmless as long as the useless ones are removed again, and a phi whose
@@ -22,8 +28,8 @@ import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (mapMaybe)
 
+import Olivine.Core.Phi (Joined (..), PhiNode (..))
 import Olivine.Core.Program
-import Olivine.Syntax.Instruction
 import Olivine.Syntax.Operands (localsUsedBy, mapOperands)
 import Olivine.Syntax.Type (Type)
 import Olivine.Syntax.Value
@@ -31,8 +37,8 @@ import Olivine.Syntax.Value
 -- | What a local holds at a point in the program.
 type Values = Map Local (Value Local)
 
-reconstruct :: Function -> Function
-reconstruct f = f {functionBlocks = rebuild}
+reconstruct :: Function -> [Joined]
+reconstruct f = rebuild
   where
     blocks = functionBlocks f
     order = map blockLabel blocks -- already reverse postorder as written
@@ -186,44 +192,47 @@ reconstruct f = f {functionBlocks = rebuild}
 
     rebuild = map applyNames built
 
-    applyNames b =
-      b
-        { blockInstructions =
+    applyNames j =
+      j
+        { joinedPhis =
+            [ p
+              { phiLocal = finalName (phiLocal p)
+              , phiIncoming = [(renameValue v, from) | (v, from) <- phiIncoming p]
+              }
+            | p <- joinedPhis j
+            ]
+        , joinedInstructions =
             [ i
               { instructionResult = finalName <$> instructionResult i
               , instructionOperation = case instructionOperation i of
                   Perform op -> Perform (renameIn op)
                   other -> other
               }
-            | i <- blockInstructions b
+            | i <- joinedInstructions j
             ]
-        , blockTerminator =
-            (blockTerminator b)
-              { terminatorOperation = renameIn (terminatorOperation (blockTerminator b))
+        , joinedTerminator =
+            (joinedTerminator j)
+              { terminatorOperation = renameIn (terminatorOperation (joinedTerminator j))
               }
         }
 
     built =
-      [ b
-        { blockInstructions =
-            [ Instruction (Just p) (Perform (OPhi (phi t p))) []
-            | (p, _, t) <- surviving (blockLabel b)
-            ]
-              <> mapMaybe (rewrite (blockLabel b)) (blockInstructions b)
-        , blockTerminator = rewriteTerminator (blockLabel b) (blockTerminator b)
-        }
+      [ Joined
+          { joinedLabel = blockLabel b
+          , joinedPhis =
+              [ PhiNode {phiLocal = p, phiType = t, phiIncoming = incomingOf p}
+              | (p, _, t) <- surviving (blockLabel b)
+              ]
+          , joinedInstructions = mapMaybe (rewrite (blockLabel b)) (blockInstructions b)
+          , joinedTerminator = rewriteTerminator (blockLabel b) (blockTerminator b)
+          }
       | b <- blocks
       ]
 
-    phi t p =
-      Phi
-        { phiFlags = []
-        , phiType = t
-        , phiIncoming =
-            [ (substitute collapsed value, from)
-            | (value, from) <- Map.findWithDefault [] p operands
-            ]
-        }
+    incomingOf p =
+      [ (substitute collapsed value, from)
+      | (value, from) <- Map.findWithDefault [] p operands
+      ]
 
     -- An assignment has no LLVM spelling and needs none: its value has been
     -- carried to wherever the local is read.

@@ -23,7 +23,7 @@ import Data.Map.Strict qualified as Map
 import Data.Text (Text)
 import Data.Text qualified as T
 
-import Olivine.Core.Blocks (removeForwarding)
+import Olivine.Core.Phi (Joined (..), PhiNode (..), removeForwarding)
 import Olivine.Core.Program
 import Olivine.Core.Ssa (reconstruct)
 import Olivine.Syntax.Ast qualified as Syntax
@@ -42,7 +42,7 @@ raiseEntry (EFunction f) =
   Syntax.EDefine
     Syntax.Definition
       { Syntax.definitionSignature = numberedSignature numbering
-      , Syntax.definitionBlocks = map (raiseBlock numbering single) (functionBlocks single)
+      , Syntax.definitionBlocks = map (raiseBlock numbering single) single
       }
   where
     -- Reconstruction is what empties the blocks put on split edges: the
@@ -50,7 +50,7 @@ raiseEntry (EFunction f) =
     -- else.  Taking them out again is what makes the trip through the core
     -- leave the control flow graph as it found it.
     single = removeForwarding (reconstruct f)
-    numbering = number single
+    numbering = number (functionSignature f) (functionParameters f) single
 
 -- * Numbering
 
@@ -69,22 +69,21 @@ data Numbering = Numbering
 -- | Walk a function in the order LLVM numbers it.
 --
 -- Parameters first, then each block in turn: the block itself takes a number
--- before anything in it, and then every instruction that assigns.  There is
--- no test for whether something was named, because nothing in the core is:
--- what LLVM calls an unnamed value is all the core has.
-number :: Function -> Numbering
-number f =
+-- before anything in it, then its phis, which stand at its head, and then
+-- every instruction that assigns.  There is no test for whether something was
+-- named, because nothing in the core is: what LLVM calls an unnamed value is
+-- all the core has.
+number :: Syntax.Signature -> [Local] -> [Joined] -> Numbering
+number signature written blocks =
   Numbering
     { numberedSignature = signature {Syntax.signatureParameters = parameters}
     , numberedLocals = Map.fromList (parameterNames <> resultNames)
     , numberedBlocks = Map.fromList blockNames
     }
   where
-    signature = functionSignature f
-
     (afterParameters, parameters, parameterNames) =
       foldl' takeParameter (0 :: Int, [], []) $
-        zip (functionParameters f) (Syntax.signatureParameters signature)
+        zip written (Syntax.signatureParameters signature)
     takeParameter (n, done, names) (local, p) =
       ( n + 1
       , done <> [p {Syntax.parameterName = Just (numberName n)}]
@@ -92,13 +91,13 @@ number f =
       )
 
     (_, blockNames, resultNames) =
-      foldl' takeBlock (afterParameters, [], []) (functionBlocks f)
+      foldl' takeBlock (afterParameters, [], []) blocks
     takeBlock (n, names, results) b =
-      let (n', results') = foldl' takeResult (n + 1, results) (blockInstructions b)
-       in (n', names <> [(blockLabel b, numberName n)], results')
-    takeResult (n, results) i = case instructionResult i of
-      Just local -> (n + 1, results <> [(local, numberName n)])
-      Nothing -> (n, results)
+      let assigned = map phiLocal (joinedPhis b) <> assigning (joinedInstructions b)
+          (n', results') = foldl' takeResult (n + 1, results) assigned
+       in (n', names <> [(joinedLabel b, numberName n)], results')
+    assigning instructions = [local | i <- instructions, Just local <- [instructionResult i]]
+    takeResult (n, results) local = (n + 1, results <> [(local, numberName n)])
 
 numberName :: Int -> Name
 numberName = Name Bare . T.pack . show
@@ -126,29 +125,59 @@ blockLabelName numbering label =
 
 -- * Translation
 
-raiseBlock :: Numbering -> Function -> Block -> Syntax.BasicBlock
-raiseBlock numbering f block =
+raiseBlock :: Numbering -> [Joined] -> Joined -> Syntax.BasicBlock
+raiseBlock numbering blocks block =
   Syntax.BasicBlock
     { Syntax.blockLabel = label
     , Syntax.blockBody =
-        map (raiseInstruction numbering) (blockInstructions block) <> [terminator]
+        map (raisePhi numbering) (joinedPhis block)
+          <> map (raiseInstruction numbering) (joinedInstructions block)
+          <> [terminator]
     }
   where
     -- The entry block's number is spent but not written: nothing may branch
     -- to it, so LLVM leaves the label off and so does this.
     label
-      | Just (blockLabel block) == entryLabel f = Nothing
+      | Just (joinedLabel block) == entryOf blocks = Nothing
       | otherwise =
           Just
             Syntax.BlockLabel
-              { Syntax.blockLabelName = blockLabelName numbering (blockLabel block)
-              , Syntax.blockLabelComment = predecessorComment numbering f (blockLabel block)
+              { Syntax.blockLabelName = blockLabelName numbering (joinedLabel block)
+              , Syntax.blockLabelComment =
+                  predecessorComment numbering blocks (joinedLabel block)
               }
     terminator =
       Syntax.IOperation
         Nothing
-        (raiseOperation numbering (terminatorOperation (blockTerminator block)))
-        (terminatorMetadata (blockTerminator block))
+        (raiseOperation numbering (terminatorOperation (joinedTerminator block)))
+        (terminatorMetadata (joinedTerminator block))
+
+-- | The block a function starts at, which is the first one written.
+entryOf :: [Joined] -> Maybe Label
+entryOf blocks = case blocks of
+  block : _ -> Just (joinedLabel block)
+  [] -> Nothing
+
+-- | One phi, written the way LLVM writes it.
+--
+-- The flags are empty because the core has nowhere to have kept them: nothing
+-- between the two boundaries reads a phi's fast-math flags, so nothing carries
+-- them, and inventing some here would be inventing them.
+raisePhi :: Numbering -> PhiNode -> Syntax.Instruction
+raisePhi numbering p =
+  Syntax.IOperation
+    (Just (localName numbering (phiLocal p)))
+    ( Syntax.OPhi
+        Syntax.Phi
+          { Syntax.phiFlags = []
+          , Syntax.phiType = phiType p
+          , Syntax.phiIncoming =
+              [ (localName numbering <$> value, blockLabelName numbering from)
+              | (value, from) <- phiIncoming p
+              ]
+          }
+    )
+    []
 
 -- | One core instruction.
 --
@@ -183,14 +212,14 @@ raiseOperation numbering =
 -- LLVM lists predecessors in reverse order of where the blocks appear, once
 -- per edge rather than once per block, and writes @; No predecessors!@ for a
 -- block nothing reaches.
-predecessorComment :: Numbering -> Function -> Label -> Maybe Text
-predecessorComment numbering f label
+predecessorComment :: Numbering -> [Joined] -> Label -> Maybe Text
+predecessorComment numbering blocks label
   | null predecessors = Just "; No predecessors!"
   | otherwise = Just ("; preds = " <> T.intercalate ", " (map reference predecessors))
   where
     predecessors =
       concat
-        [ [blockLabel b | target <- targetsOf (blockTerminator b), target == label]
-        | b <- reverse (functionBlocks f)
+        [ [joinedLabel b | target <- targetsOf (joinedTerminator b), target == label]
+        | b <- reverse blocks
         ]
     reference = ("%" <>) . renderName . blockLabelName numbering
