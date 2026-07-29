@@ -15,6 +15,7 @@ module Olivine.Syntax.Type
   , Scalability (..)
   , Arity (..)
   , resolveNamed
+  , elementOf
   ) where
 
 import Data.Map.Strict (Map)
@@ -90,3 +91,13 @@ resolveNamed types = go (Map.size types)
     go 0 t = t
     go n (TNamed name) = maybe (TNamed name) (go (n - 1 :: Int)) (Map.lookup name types)
     go _ t = t
+
+-- | What a vector holds, or the type itself when it is not one.
+--
+-- The answer for something that is not a vector is what makes this usable
+-- where an operation reads either — an addition of two vectors adds their
+-- elements, and one of two integers adds the integers.
+elementOf :: Map Name Type -> Type -> Type
+elementOf types t = case resolveNamed types t of
+  TVector _ _ element -> element
+  _ -> t

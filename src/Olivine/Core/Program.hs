@@ -16,15 +16,21 @@ module Olivine.Core.Program
   , Function (..)
   , Block (..)
   , functionsIn
+  , namedTypes
   , entryLabel
   , nextLocal
   , nextLabel
   ) where
 
+import Data.Map.Strict (Map)
+import Data.Map.Strict qualified as Map
+
 import Olivine.Core.Instruction
 
 import Olivine.Syntax.Ast qualified as Syntax
 import Olivine.Syntax.Function (Signature)
+import Olivine.Syntax.Name (Name)
+import Olivine.Syntax.Type (Type)
 
 -- | A whole program.  Olivine optimizes across all of it at once, so this is
 -- the unit a pass is a function of.
@@ -70,6 +76,22 @@ data Block = Block
 
 functionsIn :: Program -> [Function]
 functionsIn program = [f | EFunction f <- programEntries program]
+
+-- | What the module's named types stand for.
+--
+-- Looked up rather than carried, so that what a field selection or a vector
+-- operation means is a fact about the module and not about the instruction.
+-- They are retained syntax: nothing lowers a type definition because nothing
+-- needs to change one.
+--
+-- Anything asking 'resultType' needs this, which is why it is here rather
+-- than rebuilt by each caller.
+namedTypes :: Program -> Map Name Type
+namedTypes program =
+  Map.fromList
+    [ (name, t)
+    | ERetained (Syntax.ETypeDefinition name t) <- programEntries program
+    ]
 
 -- | A local number nothing in the function already uses.
 --

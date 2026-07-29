@@ -41,6 +41,7 @@ library
                       Olivine.Core.Lower
                       Olivine.Core.Ssa
                       Olivine.Core.Blocks
+                      Olivine.Core.Pass.CommonSubexpressions
                       Olivine.Core.Pass.ConstantFold
                       Olivine.Core.Pass.ControlFlow
                       Olivine.Core.Pass.DeadCode
@@ -98,6 +99,7 @@ test-suite olivine-test
                       DeadCode
                       DeadSymbols
                       Folding
+                      Subexpressions
                       Verify
     build-depends:    base,
                       filepath,

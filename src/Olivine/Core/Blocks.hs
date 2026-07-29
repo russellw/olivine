@@ -19,6 +19,7 @@ module Olivine.Core.Blocks
   ( removeForwarding
   , mergeBlocks
   , reversePostorder
+  , predecessorsOf
   ) where
 
 import Data.Map.Strict qualified as Map

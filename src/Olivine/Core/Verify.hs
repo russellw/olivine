@@ -76,7 +76,7 @@ import Olivine.Syntax.Instruction
   )
 import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Printer (renderInstructionFlag, renderName, renderType)
-import Olivine.Syntax.Type (Type (..), resolveNamed)
+import Olivine.Syntax.Type (Type (..), elementOf, resolveNamed)
 import Olivine.Syntax.Value (CastOp (..), TypedValue (..), Value (..), isConstant)
 import Olivine.Syntax.Verify (symbolsDefinedBy)
 
@@ -181,18 +181,8 @@ data Requirement
 
 -- | Every problem in a program, function by function in the order written.
 verify :: Program -> [Problem]
-verify program = concatMap (verifyFunction types symbols) (functionsIn program)
+verify program = concatMap (verifyFunction (namedTypes program) symbols) (functionsIn program)
   where
-    -- Named types are looked up rather than carried, so what a field
-    -- selection means is a fact about the module and not about the
-    -- instruction.  They are retained syntax: nothing lowers a type
-    -- definition because nothing needs to change one.
-    types =
-      Map.fromList
-        [ (name, t)
-        | ERetained (Syntax.ETypeDefinition name t) <- programEntries program
-        ]
-
     symbols = definedSymbols program
 
 -- | Every symbol the program defines, when it can be said which those are.
@@ -321,53 +311,6 @@ verifyFunction types symbols f =
                , produced /= TVoid
                ]
         )
-
--- | What an operation leaves in the local it assigns to, 'TVoid' when it
--- leaves nothing.
---
--- The core writes down what an instruction reads and not what it produces, so
--- this is the rule that says what a result is worth.  Where an operation is
--- itself malformed the answer is a guess — the element type of something that
--- is not a vector is that thing — and the guess costs nothing, because the
--- shape check reports the malformation either way.
-resultType :: Map Name Type -> Operation (TypedValue local) -> Type
-resultType types operation = case operation of
-  OAssign value -> typedValueType value
-  OBinary b -> typedValueType (binaryLeft b)
-  OUnary u -> typedValueType (unaryOperand u)
-  OICmp c -> boolean (typedValueType (compareLeft c))
-  OFCmp c -> boolean (typedValueType (compareLeft c))
-  OConvert c -> convertTarget c
-  OSelect s -> typedValueType (selectTrue s)
-  OExtractElement e -> elementOf types (typedValueType (extractElementVector e))
-  OInsertElement i -> typedValueType (insertElementVector i)
-  OShuffleVector s -> shuffled s
-  -- The whole function type is written here for a variadic callee and the
-  -- return type alone otherwise, so what a call produces is the return type of
-  -- either.
-  OCall c -> case callType c of
-    TFunction returns _ _ -> returns
-    t -> t
-  OAlloca a -> TPointer (allocaAddrSpace a)
-  OLoad l -> loadType l
-  OStore _ -> TVoid
-  -- A step along a pointer gives back a pointer into the same address space,
-  -- which is what the operand already is.
-  OOffset o -> typedValueType (offsetPointer o)
-  OField field -> typedValueType (fieldPointer field)
-  where
-    -- A comparison of vectors is a vector of answers.
-    boolean t = case resolveNamed types t of
-      TVector scale n _ -> TVector scale n (TInteger 1)
-      _ -> TInteger 1
-
-    -- A shuffle is as long as its mask and as wide as what it shuffles.
-    shuffled s =
-      case ( resolveNamed types (typedValueType (shuffleVectorLeft s))
-           , resolveNamed types (typedValueType (shuffleVectorMask s))
-           ) of
-        (TVector _ _ element, TVector scale n _) -> TVector scale n element
-        _ -> typedValueType (shuffleVectorLeft s)
 
 -- | What an operation demands of its operands.
 --
@@ -593,12 +536,6 @@ satisfies types requirement t = case requirement of
   where
     resolved = resolveNamed types t
     scalar = elementOf types t
-
--- | What a vector holds, or the type itself when it is not one.
-elementOf :: Map Name Type -> Type -> Type
-elementOf types t = case resolveNamed types t of
-  TVector _ _ element -> element
-  _ -> t
 
 -- | What kind of operands an arithmetic opcode reads.
 kindOf :: BinaryOp -> Requirement

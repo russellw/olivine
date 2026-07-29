@@ -43,7 +43,7 @@ for pair in "arith ARITH" "branch BRANCH" "loop LOOP" "memops MEMOPS" "hello HEL
 done
 
 # Hand written cases the corpus does not contain.
-for name in swap dead fold unused promote order inline; do
+for name in swap dead fold unused promote order inline shared; do
     "$olivine" "test/ll/$name.ll" -o "$work/$name.ll"
     "$CLANG" -w "test/ll/$name-driver.c" "test/ll/$name.ll" -o "$work/before" 2>/dev/null
     "$CLANG" -w "test/ll/$name-driver.c" "$work/$name.ll" -o "$work/after" 2>/dev/null

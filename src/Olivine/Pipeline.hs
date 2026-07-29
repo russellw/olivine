@@ -13,6 +13,7 @@ module Olivine.Pipeline
   ) where
 
 import Olivine.Core.Lower (lower)
+import Olivine.Core.Pass.CommonSubexpressions (eliminateCommonSubexpressions)
 import Olivine.Core.Pass.ConstantFold (foldConstants)
 import Olivine.Core.Pass.ControlFlow (simplifyControlFlow)
 import Olivine.Core.Pass.DeadCode (eliminateDeadCode)
@@ -64,6 +65,19 @@ passes :: [Pass]
 -- a block nothing reaches is not promoted, since promotion runs before the
 -- block goes.
 --
+-- Common subexpressions after all of those, because every one of them makes
+-- two computations that were written differently into the same expression:
+-- promotion turns a value that travelled through memory into the local both
+-- sides read, inlining brings two copies of a callee's arithmetic into one
+-- function with the same arguments bound in each, folding settles the indices
+-- of two pointer steps to the same constant, and merging two blocks into one
+-- puts both computations where a single walk of the blocks sees them.
+--
+-- And before the dead code pass, which is what collects on it: an instruction
+-- that becomes a copy of an earlier result stops reading the operands it was
+-- computed from, and whatever was computed only to be one of those operands is
+-- then read by nothing.
+--
 -- Dead symbols last, since it is the one pass that reads what the others
 -- leave: folding a @select@ between two function pointers settles which of
 -- them the program can still reach, a block that control flow removed makes
@@ -75,6 +89,7 @@ passes =
   , Pass "inlining" inlineCalls
   , Pass "constant folding" foldConstants
   , Pass "control flow" simplifyControlFlow
+  , Pass "common subexpressions" eliminateCommonSubexpressions
   , Pass "dead code" eliminateDeadCode
   , Pass "dead symbols" eliminateDeadSymbols
   ]
