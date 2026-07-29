@@ -1,4 +1,4 @@
--- | Simplifying the control flow graph.
+-- | The control flow graph: simplifying it, and walking it.
 --
 -- Two simplifications, both of the same kind: an edge that control has no
 -- choice about is not really an edge.  A block holding nothing but a branch
@@ -12,10 +12,18 @@
 -- again and name the block a value arrives from; that is
 -- 'Olivine.Core.Phi.removeForwarding', and it is a separate function because
 -- correcting those names is the whole of what it does differently.
+--
+-- And one walk, 'reversePostorder', which is the order anything propagating a
+-- value forwards has to go in.
 module Olivine.Core.Blocks
   ( removeForwarding
   , mergeBlocks
+  , reversePostorder
   ) where
+
+import Data.Map.Strict qualified as Map
+import Data.Set (Set)
+import Data.Set qualified as Set
 
 import Olivine.Core.Instruction
 import Olivine.Core.Program
@@ -108,6 +116,44 @@ mergeBlocks f = f {functionBlocks = settle (functionBlocks f)}
                 , blockTerminator = blockTerminator below
                 }
           | otherwise = b
+
+-- | The reachable blocks, each before every block it reaches except across a
+-- back edge.
+--
+-- This is the order a value can be carried forwards in by one walk: a block
+-- comes after the blocks control arrives from, so what arrives has been worked
+-- out by the time it is wanted.  Only a back edge breaks that, and a back edge
+-- is a loop, which no single walk can settle anyway.
+--
+-- The order blocks are written in is not this, which is worth stating because
+-- it looks like it: LLVM puts no requirement on that order at all, and clang
+-- does write a block before the only block that branches to it.  Reading the
+-- written order as a walk order was a bug — a value propagated to a block
+-- before the block it came from, and arrived as nothing.
+--
+-- Blocks nothing reaches are not here.  An order defined by walking forwards
+-- from the entry has nowhere to put them, and no value arrives at one; a
+-- caller that must still visit them has to say where itself.
+reversePostorder :: Function -> [Label]
+reversePostorder f = snd (maybe (Set.empty, []) (visit (Set.empty, [])) (entryLabel f))
+  where
+    successors =
+      Map.fromList [(blockLabel b, targetsOf (blockTerminator b)) | b <- functionBlocks f]
+
+    -- Depth first, each block going in front of everything that finished
+    -- before it.  A block finishes after everything it reaches, so going in
+    -- front of them all puts it before them: that is the reversal, done as the
+    -- walk goes rather than to a finished list afterwards.
+    visit :: (Set Label, [Label]) -> Label -> (Set Label, [Label])
+    visit (seen, ordered) label
+      | Set.member label seen = (seen, ordered)
+      | otherwise =
+          let (seen', ordered') =
+                foldl'
+                  visit
+                  (Set.insert label seen, ordered)
+                  (Map.findWithDefault [] label successors)
+           in (seen', label : ordered')
 
 -- | The blocks that branch to a given one, once each however many edges they
 -- carry there.

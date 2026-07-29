@@ -27,7 +27,10 @@ import Data.List (nub)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (mapMaybe)
+import Data.Set (Set)
+import Data.Set qualified as Set
 
+import Olivine.Core.Blocks (reversePostorder)
 import Olivine.Core.Instruction
 import Olivine.Core.Phi (Joined (..), PhiNode (..))
 import Olivine.Core.Program
@@ -41,8 +44,26 @@ reconstruct :: Function -> [Joined]
 reconstruct f = rebuild
   where
     blocks = functionBlocks f
-    order = map blockLabel blocks -- already reverse postorder as written
     byLabel = Map.fromList [(blockLabel b, b) | b <- blocks]
+
+    -- A value is carried forwards by one walk, so a block has to be visited
+    -- after the blocks it arrives from.  That is reverse postorder, and it has
+    -- to be computed: the order the blocks are written in looks like it and is
+    -- not, since LLVM puts no requirement on that order and clang does write a
+    -- block before the only block that branches to it.
+    --
+    -- Blocks nothing reaches come after, in the order written.  Nothing
+    -- arrives at one, so where among themselves they go cannot matter; that
+    -- they are walked at all does, because a join that is reached can have a
+    -- predecessor that is not, and the phi there reads what that block was left
+    -- holding like it reads any other edge.
+    walked :: [Label]
+    walked = reversePostorder f
+
+    reachable :: Set Label
+    reachable = Set.fromList walked
+
+    order = walked <> filter (not . (`Set.member` reachable)) (map blockLabel blocks)
 
     predecessors target =
       [blockLabel b | b <- blocks, target `elem` targetsOf (blockTerminator b)]
@@ -80,14 +101,38 @@ reconstruct f = rebuild
     exits = foldl step Map.empty order
       where
         step acc name =
-          let block = byLabel Map.! name
-              incoming
-                | not (null (phisAt name)) =
-                    Map.fromList [(v, VLocal p) | (p, v, _) <- phisAt name]
-                | otherwise = case predecessors name of
-                    [only] -> Map.findWithDefault Map.empty only acc
-                    _ -> Map.empty
-           in Map.insert name (runBlock incoming (blockInstructions block)) acc
+          Map.insert
+            name
+            (runBlock (entering acc name) (blockInstructions (byLabel Map.! name)))
+            acc
+
+    -- What the locals hold on the way into a block, given what the blocks
+    -- walked so far were left holding.
+    --
+    -- At a join, the phis placed there: standing for what arrives on each edge
+    -- is what a phi is.  At a block with one predecessor, whatever that block
+    -- was left holding, which the walk order is what guarantees is worked out
+    -- already.  The entry block holds nothing yet, having nothing before it.
+    --
+    -- And at a block nothing reaches, poison for every local the core assigns.
+    -- Nothing was assigned on the way to a block there is no way to, and a
+    -- local this pass takes the name of has no name left to be read by, so
+    -- poison is the only answer that is not a reference to nothing.  Naming it
+    -- here rather than as a fallback wherever a local comes up short is what
+    -- lets 'Olivine.Core.Raise' go on insisting that every local it writes has
+    -- a name.  Unreachable code is the one place with no value to carry, and
+    -- saying so here leaves a value missing anywhere else the error that it is —
+    -- which matters, because answering poison wherever one came up short would
+    -- have turned this very bug from a stop into a wrong answer.
+    entering :: Map Label Values -> Label -> Values
+    entering known name
+      | not (null (phisAt name)) =
+          Map.fromList [(v, VLocal p) | (p, v, _) <- phisAt name]
+      | not (Set.member name reachable) =
+          Map.fromList [(v, VPoison) | (v, _) <- mutable]
+      | otherwise = case predecessors name of
+          [only] -> Map.findWithDefault Map.empty only known
+          _ -> Map.empty
 
     runBlock = foldl apply
       where
@@ -261,15 +306,17 @@ reconstruct f = rebuild
     resolveAt name instruction = substituteIn (before name instruction)
 
     before name instruction =
-      let block = byLabel Map.! name
-          incoming
-            | not (null (phisAt name)) =
-                Map.fromList [(v, VLocal p) | (p, v, _) <- phisAt name]
-            | otherwise = case predecessors name of
-                [only] -> exitOf only
-                _ -> Map.empty
-       in runBlock incoming (takeWhile (/= instruction) (blockInstructions block))
+      runBlock
+        (entering exits name)
+        (takeWhile (/= instruction) (blockInstructions (byLabel Map.! name)))
 
+    -- What a local holds, given what the locals hold here.
+    --
+    -- A local with no entry keeps its name, which is right for the locals that
+    -- have one: an ordinary result is named by the instruction that produced it
+    -- wherever that instruction stands.  The locals the core assigns have no
+    -- name to keep, and 'entering' is what makes sure one of those is never
+    -- looked up here without an entry to find.
     resolve values value = case value of
       VLocal n -> Map.findWithDefault value n values
       _ -> value

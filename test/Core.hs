@@ -21,6 +21,7 @@ import Olivine.Syntax.Ast qualified as Syntax
 import Olivine.Syntax.Function qualified as Syntax
 import Olivine.Syntax.Printer (renderModule)
 import Olivine.Syntax.Value
+import Olivine.Syntax.Verify (renderProblem, verify)
 
 coreTests :: IO TestTree
 coreTests = do
@@ -41,6 +42,7 @@ coreTests = do
           "the scaffolding does not escape"
           [testCase name (noScaffolding name) | name <- names]
       , phiTests
+      , reconstructionTests
       , numberingTests
       ]
 
@@ -271,6 +273,130 @@ phiTests =
         , "  ret i32 %x"
         , "}"
         ]
+
+-- | Putting the phis back, on the shapes that decide what order it has to
+-- happen in.
+--
+-- A value is carried forwards by one walk over the blocks, so the walk has to
+-- reach a block after the blocks control arrives from.  Reading the order the
+-- blocks were written in as that order was a bug: LLVM puts no requirement on
+-- it, and clang at @-O1@ writes a block before the only block that branches to
+-- it, on which reconstruction carried a value to the block before the block it
+-- came from and it arrived as nothing.
+--
+-- What both cases check is that every local the output reads is a local the
+-- output assigns, which is what the syntax verifier already knows how to say.
+-- Stated that way rather than by pinning the text, because the numbering is not
+-- what is being tested and moving a block moves all of it.
+reconstructionTests :: TestTree
+reconstructionTests =
+  testGroup
+    "putting the phis back"
+    [ testCase "a block written before the one it is reached from" $
+        wellFormed outOfOrder
+    , -- The same function with the blocks in the order the walk wants.  It
+      -- always worked; it is here so that the case above is known to be about
+      -- the order and not about the function.
+      testCase "the same function with its blocks in walk order" $
+        wellFormed inOrder
+    , -- Every phi here has 0 on every edge, so reconstruction collapses the
+      -- lot and the use gets the value.  Before the fix it got the name of a
+      -- local that no longer existed.
+      testCase "the value still arrives" $ do
+        text <- raised outOfOrder
+        assertBool
+          ("expected the value to arrive in " <> T.unpack text)
+          ("ret i32 0" `T.isInfixOf` text)
+    , -- The other way a block can have nothing arriving at it.  Nothing
+      -- reaches it, so nothing was ever assigned on the way, and a local whose
+      -- name this pass takes away has no name left to be read by: what it
+      -- holds there is poison, which is also what it holds along an edge that
+      -- brings it nothing.
+      testCase "a value read in a block nothing reaches" $
+        wellFormed orphaned
+    , testCase "and it reads as poison" $ do
+        text <- raised orphaned
+        assertBool
+          ("expected poison in " <> T.unpack text)
+          ("ret i32 poison" `T.isInfixOf` text)
+    ]
+  where
+    -- %late is written before %mid, which is the only block that branches to
+    -- it, so a walk in the written order reaches %late with nothing.  %out
+    -- then reads %y, which is a phi in %mid, and %y is a local the lowering
+    -- assigns rather than one the output can name.
+    outOfOrder =
+      T.unlines
+        [ "define i32 @f(i1 %c) {"
+        , "entry:"
+        , "  br label %head"
+        , ""
+        , "late:"
+        , "  br i1 %c, label %out, label %head"
+        , ""
+        , "head:"
+        , "  %x = phi i32 [ 0, %entry ], [ %y, %late ]"
+        , "  br label %mid"
+        , ""
+        , "mid:"
+        , "  %y = phi i32 [ %x, %head ]"
+        , "  br label %late"
+        , ""
+        , "out:"
+        , "  ret i32 %y"
+        , "}"
+        ]
+    inOrder =
+      T.unlines
+        [ "define i32 @f(i1 %c) {"
+        , "entry:"
+        , "  br label %head"
+        , ""
+        , "head:"
+        , "  %x = phi i32 [ 0, %entry ], [ %y, %late ]"
+        , "  br label %mid"
+        , ""
+        , "mid:"
+        , "  %y = phi i32 [ %x, %head ]"
+        , "  br label %late"
+        , ""
+        , "late:"
+        , "  br i1 %c, label %out, label %head"
+        , ""
+        , "out:"
+        , "  ret i32 %y"
+        , "}"
+        ]
+    orphaned =
+      T.unlines
+        [ "define i32 @f() {"
+        , "entry:"
+        , "  br label %join"
+        , ""
+        , "arm:"
+        , "  br label %join"
+        , ""
+        , "join:"
+        , "  %x = phi i32 [ 0, %entry ], [ 1, %arm ]"
+        , "  ret i32 %x"
+        , ""
+        , "orphan:"
+        , "  ret i32 %x"
+        , "}"
+        ]
+
+-- | Raising leaves a module with nothing wrong with it — in particular, with
+-- no local read that nothing assigns.
+wellFormed :: Text -> Assertion
+wellFormed source = do
+  parsed <- expectParse "<inline>" source
+  assertEqual
+    "nothing wrong with what came out"
+    []
+    (map (T.unpack . renderProblem) (verify (raise (lower parsed))))
+
+raised :: Text -> IO Text
+raised source = renderModule . raise . lower <$> expectParse "<inline>" source
 
 -- | The assignments made on the edge that loops back, which is where the
 -- interesting copies are.
