@@ -17,6 +17,7 @@ import Olivine.Core.Pass.ConstantFold (foldConstants)
 import Olivine.Core.Pass.ControlFlow (simplifyControlFlow)
 import Olivine.Core.Pass.DeadCode (eliminateDeadCode)
 import Olivine.Core.Pass.DeadSymbols (eliminateDeadSymbols)
+import Olivine.Core.Pass.Promote (promoteMemory)
 import Olivine.Core.Program (Program)
 import Olivine.Core.Raise (raise)
 import Olivine.Syntax.Ast (Module)
@@ -28,12 +29,21 @@ data Pass = Pass
 
 -- | The pipeline.
 passes :: [Pass]
--- Folding first, since it leaves the instructions it replaced assigning to
+-- Promotion first, because until a slot becomes a local nothing that follows
+-- can see through it: a value arrives at a use through a store and a load, and
+-- folding reads operands.  This is the ordering the whole pipeline stands on —
+-- unoptimized input is mostly memory traffic, and every pass after this one
+-- works on what promotion turns that traffic into.
+--
+-- Folding next, since it leaves the instructions it replaced assigning to
 -- nothing anyone reads, which is exactly what the dead code pass takes away.
 --
--- Control flow next, because what folding settles about a condition is of no
--- use until the branch on it is rewritten, and folding will not do that: a
--- branch is the shape of the function rather than a value in it.
+-- Control flow after that, because what folding settles about a condition is
+-- of no use until the branch on it is rewritten, and folding will not do that:
+-- a branch is the shape of the function rather than a value in it.  The cost of
+-- this order rather than the other is that a slot whose address escapes only in
+-- a block nothing reaches is not promoted, since promotion runs before the
+-- block goes.
 --
 -- Dead symbols last, since it is the one pass that reads what the others
 -- leave: folding a @select@ between two function pointers settles which of
@@ -42,7 +52,8 @@ passes :: [Pass]
 -- global settles whether the global is read at all.  Nothing that runs before
 -- it can know any of them.
 passes =
-  [ Pass "constant folding" foldConstants
+  [ Pass "memory promotion" promoteMemory
+  , Pass "constant folding" foldConstants
   , Pass "control flow" simplifyControlFlow
   , Pass "dead code" eliminateDeadCode
   , Pass "dead symbols" eliminateDeadSymbols
