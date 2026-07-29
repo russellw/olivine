@@ -32,6 +32,20 @@ coreTests = do
       [ testGroup
           "every definition reaches the core"
           [testCase name (lowersFully name) | name <- names]
+      , -- The corpus is LLVM's own output and holds no comment among its
+        -- instructions, so nothing above reaches this.  A hand-written one used
+        -- to leave its line unread, and the lowering takes a definition whole:
+        -- the entire function stayed out of the core over a line that says
+        -- nothing.
+        testCase "a comment among the instructions does not stop the lowering" $
+          reachesTheCore $
+            T.unlines
+              [ "define i32 @f(i32 %x) {"
+              , "  ; twice what came in"
+              , "  %y = add i32 %x, %x ; here it is"
+              , "  ret i32 %y"
+              , "}"
+              ]
       , testGroup
           "what the core guarantees"
           [testCase name (invariants name) | name <- names]
@@ -54,6 +68,18 @@ lowersFully name = do
   let definitions = [() | Syntax.EDefine _ <- Syntax.moduleEntries parsed]
       program = lower parsed
   assertEqual "definitions lowered" (length definitions) (length (functionsIn program))
+  assertEqual
+    "definitions retained"
+    []
+    [() | ERetained (Syntax.EDefine _) <- programEntries program]
+
+-- | As 'lowersFully', for a definition written here rather than one of the
+-- corpus.
+reachesTheCore :: Text -> Assertion
+reachesTheCore source = do
+  parsed <- expectParse "<inline>" source
+  let program = lower parsed
+  assertEqual "functions lowered" 1 (length (functionsIn program))
   assertEqual
     "definitions retained"
     []

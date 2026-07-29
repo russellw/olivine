@@ -142,6 +142,11 @@ headerSyntaxTests =
       -- attributes of the function it describes.
       testCase "a comment is not an entry" $
         parsesTo "; Function Attrs: nounwind\n" []
+    , -- Nor is one at the end of a line a reason to stop reading the line.
+      -- Declining it would leave the construct opaque, which costs more than
+      -- the comment is worth to anything downstream.
+      testCase "a comment ending a construct is dropped" $
+        parsesTo "target triple = \"aarch64\" ; what it runs on\n" [ETargetTriple "aarch64"]
     , testCase "a near miss stays opaque" $
         parsesTo "target other = \"x\"\n" [EOpaque "target other = \"x\""]
     , -- The type definition rule starts at a local name, so it has to leave

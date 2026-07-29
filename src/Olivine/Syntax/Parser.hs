@@ -62,6 +62,9 @@ renderParseError = errorBundlePretty
 -- second copy of a fact, going stale the moment a pass changed the first;
 -- regenerated, none of them can disagree with what it describes.  A comment
 -- written by hand says nothing to a reader that consumes none of them.
+--
+-- Inside a function body the same two go the same way, for reasons of their own
+-- as well; see 'pBlockBody'.
 pModule :: Parser Module
 pModule = Module . filter kept <$> many pEntry <* eof
   where
@@ -578,16 +581,38 @@ pDefine = do
 -- block is named has none, and contributes no empty block here.
 pBasicBlocks :: Parser [BasicBlock]
 pBasicBlocks = do
-  entry <- many pInstruction
+  entry <- pBlockBody
   labelled <- many (try pLabelledBlock)
   pure ([BasicBlock Nothing entry | not (null entry)] <> labelled)
 
 pLabelledBlock :: Parser BasicBlock
 pLabelledBlock = do
-  -- LLVM writes a blank line before every label but the first in a function.
-  _ <- optional (try pBlankLine)
   header <- pBlockLabel
-  BasicBlock (Just header) <$> many pInstruction
+  BasicBlock (Just header) <$> pBlockBody
+
+-- | The instructions of a block, and the lines among them that hold none.
+--
+-- Those go the way their module-level counterparts do, and for the same
+-- reasons: LLVM writes a blank line before every label but the first, which
+-- the printer regenerates from that rule, and a comment either restates
+-- something the tree already holds or was written by hand for a reader that
+-- consumes none.
+--
+-- Dropping them matters more here than between constructs.  A line the parser
+-- keeps as text is a line the lowering cannot read, and it takes a definition
+-- whole: a single comment in a body would leave the entire function
+-- unoptimized, and a blank line anywhere but before a label would fail
+-- 'pDefine' outright and reduce the function to a run of opaque lines.
+pBlockBody :: Parser [Instruction]
+pBlockBody = pBodyLayout *> many (pInstruction <* pBodyLayout)
+
+-- | Any number of body lines that hold no instruction.
+pBodyLayout :: Parser ()
+pBodyLayout = skipMany (try pBlankLine <|> pCommentLine)
+
+-- | A line whose whole content is a comment.
+pCommentLine :: Parser ()
+pCommentLine = try (hspace *> void pComment) *> endOfLine
 
 pBlockLabel :: Parser BlockLabel
 pBlockLabel = do
@@ -618,13 +643,15 @@ pOperationInstruction = try $ do
   endOfLine
   pure (IOperation result operation attachments)
 
--- Anything in a body that is not the closing brace, a blank line or a label.
--- The text is kept with its indentation: only a modelled instruction could
--- have its indentation regenerated.
+-- Anything in a body that is not the closing brace or a label.  A blank line
+-- and a comment line need no guard here: 'pBlockBody' has consumed every one
+-- of them before this is tried, so neither can be what is next.
+--
+-- The text is kept with its indentation, and with any comment that ends it:
+-- only a modelled instruction could have either regenerated.
 pOpaqueInstruction :: Parser Instruction
 pOpaqueInstruction = try $ do
   notFollowedBy (hspace *> char '}')
-  notFollowedBy pBlankLine
   notFollowedBy pBlockLabel
   IOpaque <$> takeWhile1P (Just "instruction") (/= '\n') <* optional eol
 
@@ -1096,9 +1123,11 @@ pMetadataAttachment = do
   name <- pName
   MetadataAttachment name <$> pMetadataRef
 
--- Horizontal space and line breaks together, for the inside of a switch.
+-- Horizontal space, line breaks and comments together, for the inside of a
+-- switch.  A comment among the cases is skipped like one on a line of its own,
+-- since a semicolon outside a string starts one wherever it appears.
 verticalSpace :: Parser ()
-verticalSpace = skipMany (void (satisfy horizontal) <|> void eol)
+verticalSpace = skipMany (void (satisfy horizontal) <|> void eol <|> void pComment)
   where
     horizontal c = c == ' ' || c == '\t'
 
@@ -1440,6 +1469,12 @@ symbol s = () <$ string s <* hspace
 lexeme :: Parser a -> Parser a
 lexeme p = p <* hspace
 
--- | Trailing horizontal space and the line break, if any.
+-- | Trailing horizontal space, the comment ending the line if there is one,
+-- and the line break, if any.
+--
+-- A comment is dropped rather than declined, so that a construct carrying one
+-- is still read as the construct it is.  Declining it would leave the line
+-- opaque, which for an instruction means the definition around it cannot be
+-- lowered at all — a heavy price for text nothing consumes.
 endOfLine :: Parser ()
-endOfLine = hspace *> (() <$ eol <|> eof)
+endOfLine = hspace *> optional pComment *> (() <$ eol <|> eof)

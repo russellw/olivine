@@ -113,6 +113,7 @@ definitionTests = do
           "rejected"
           [testCase (summarize line) (staysOpaque line) | line <- rejected]
       , fieldTests
+      , layoutTests
       , testGroup
           "corpus"
           [testCase name (corpusStructure name) | name <- names]
@@ -213,6 +214,106 @@ fieldTests =
     ]
   where
     m >=> f = \x -> m x >>= f
+
+-- | Blank lines and comments inside a body, which are layout there as much as
+-- they are between constructs.
+--
+-- LLVM writes both, and someone writing @.ll@ by hand writes them anywhere at
+-- all.  None may reach the tree, and none may cost the definition around it its
+-- structure: the lowering reads a definition whole, so a single line left as
+-- text keeps the whole function out of the core.
+layoutTests :: TestTree
+layoutTests =
+  testGroup
+    "layout in a body"
+    [ testCase "a comment on a line of its own is not an instruction" $ do
+        d <-
+          definition $
+            T.unlines
+              [ "define void @f() {"
+              , "  ; a note somebody wrote"
+              , "  ret void"
+              , "}"
+              ]
+        concatMap blockBody (definitionBlocks d)
+          @?= [IOperation Nothing (ORet Nothing) []]
+    , -- The instruction is what the line says; the comment says nothing the
+      -- tree does not already hold.
+      testCase "a comment ending an instruction is dropped" $ do
+        d <- definition "define void @f() {\n  ret void ; done\n}\n"
+        concatMap blockBody (definitionBlocks d)
+          @?= [IOperation Nothing (ORet Nothing) []]
+    , -- A blank line was read only where LLVM writes one, before a label, so
+      -- one anywhere else failed the whole define and left every line opaque.
+      testCase "a blank line inside a block does not end it" $ do
+        d <-
+          definition $
+            T.unlines
+              [ "define void @f() {"
+              , "  %p = alloca i32"
+              , ""
+              , "  ret void"
+              , "}"
+              ]
+        map (length . blockBody) (definitionBlocks d) @?= [2]
+    , testCase "a comment between two blocks joins neither" $ do
+        d <-
+          definition $
+            T.unlines
+              [ "define void @f() {"
+              , "  br label %a"
+              , ""
+              , "; what a is for"
+              , "a:"
+              , "  ret void"
+              , "}"
+              ]
+        map (length . blockBody) (definitionBlocks d) @?= [1, 1]
+        map (fmap blockLabelName . blockLabel) (definitionBlocks d)
+          @?= [Nothing, Just (Name Bare "a")]
+    , testCase "a comment before the closing brace" $ do
+        d <- definition "define void @f() {\n  ret void\n  ; that was that\n}\n"
+        concatMap blockBody (definitionBlocks d)
+          @?= [IOperation Nothing (ORet Nothing) []]
+    , -- The one instruction written across several lines, where a comment can
+      -- stand between the cases as well as at the end of one.
+      testCase "a comment among the cases of a switch" $ do
+        d <-
+          definition $
+            T.unlines
+              [ "define void @f(i32 %0) {"
+              , "  switch i32 %0, label %2 ["
+              , "    i32 0, label %2 ; zero"
+              , "    ; and one"
+              , "    i32 1, label %2"
+              , "  ]"
+              , ""
+              , "2:                                                ; preds = %1, %1, %1"
+              , "  ret void"
+              , "}"
+              ]
+        let switches =
+              [ length cases
+              | IOperation _ (OSwitch _ _ cases) _ <-
+                  concatMap blockBody (definitionBlocks d)
+              ]
+        switches @?= [2]
+    , -- A line Olivine cannot read keeps every character of itself, the comment
+      -- included: there is nothing left for either to be regenerated from.
+      testCase "an unread line keeps the comment ending it" $ do
+        d <-
+          definition $
+            T.unlines
+              [ "define void @f() {"
+              , "  not.an.instruction ; with a note"
+              , "  ret void"
+              , "}"
+              ]
+        concatMap blockBody (definitionBlocks d)
+          @?= [ IOpaque "  not.an.instruction ; with a note"
+              , IOperation Nothing (ORet Nothing) []
+              ]
+    ]
 
 -- | Every definition in the file must be parsed as one, with every body line
 -- accounted for.  Byte-identical output alone would not show this: it holds
