@@ -117,7 +117,18 @@ foldOperation operation = case operation of
   OSelect s -> case typedValue (selectCondition s) of
     VBoolean chosen -> Just (if chosen then selectTrue s else selectFalse s)
     _ -> Nothing
+  -- A step that moves the pointer nowhere is the pointer it started from.
+  -- Taking a @getelementptr@ apart leaves these behind wherever LLVM wrote an
+  -- index of zero, which it does whenever it walks into an aggregate without
+  -- subscripting it.
+  OOffset o | zero (offsetIndex o) -> Just (offsetPointer o)
+  -- The same thing for the other kind of step, and true whatever the data
+  -- layout says: a struct's first field begins where the struct does.
+  OField f | fieldIndex f == 0 -> Just (fieldPointer f)
   _ -> Nothing
+  where
+    zero (TypedValue _ (VInteger 0)) = True
+    zero _ = False
 
 widthOf :: Type -> Maybe Integer
 widthOf (TInteger w) = Just (fromIntegral w)

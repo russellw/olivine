@@ -32,7 +32,8 @@ import Olivine.Syntax.Function qualified as Syntax
 import Olivine.Syntax.Instruction qualified as Syntax
 import Olivine.Syntax.Name
 import Olivine.Syntax.Printer (renderName)
-import Olivine.Syntax.Value (TypedValue (..))
+import Olivine.Syntax.Type (Type (..))
+import Olivine.Syntax.Value (TypedValue (..), Value (..))
 
 raise :: Program -> Syntax.Module
 raise = Syntax.Module . map raiseEntry . programEntries
@@ -215,7 +216,28 @@ raiseOperation numbering written = case fmap (localName numbering) <$> written o
   OAlloca a -> Syntax.OAlloca a
   OLoad l -> Syntax.OLoad l
   OStore s -> Syntax.OStore s
-  OGetElementPtr g -> Syntax.OGetElementPtr g
+  OOffset o ->
+    Syntax.OGetElementPtr
+      Syntax.GetElementPtr
+        { Syntax.gepFlags = offsetFlags o
+        , Syntax.gepSourceType = offsetElementType o
+        , Syntax.gepPointer = offsetPointer o
+        , Syntax.gepIndices = [offsetIndex o]
+        }
+  -- A struct field is two indices in LLVM whatever it is here: one to arrive
+  -- at the struct and one to pick the field.  The first is the zero stride
+  -- that lowering drops on the way in, put back because there is no way to
+  -- write the second without it.
+  OField f ->
+    Syntax.OGetElementPtr
+      Syntax.GetElementPtr
+        { Syntax.gepFlags = fieldFlags f
+        , Syntax.gepSourceType = fieldStructType f
+        , Syntax.gepPointer = fieldPointer f
+        , Syntax.gepIndices = [index 0, index (toInteger (fieldIndex f))]
+        }
+    where
+      index = TypedValue (TInteger 32) . VInteger
   OAssign _ -> error "Olivine.Core.Raise: an assignment survived reconstruction"
 
 -- | One terminator, on the other side of the boundary.

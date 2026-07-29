@@ -78,6 +78,7 @@ test-suite olivine-test
                       Declares
                       Attributes
                       Metadata
+                      Offsets
                       Definitions
                       Terminators
                       Memory

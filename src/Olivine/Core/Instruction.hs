@@ -37,6 +37,8 @@ module Olivine.Core.Instruction
   , Label (..)
   , Instruction (..)
   , Operation (..)
+  , Offset (..)
+  , Field (..)
   , Terminator (..)
   , Transfer (..)
   , targetsOf
@@ -46,6 +48,7 @@ module Olivine.Core.Instruction
   ) where
 
 import Data.Foldable (toList)
+import Numeric.Natural (Natural)
 
 import Olivine.Syntax.Instruction
   ( Alloca (..)
@@ -55,7 +58,6 @@ import Olivine.Syntax.Instruction
   , Convert (..)
   , ExtractElement (..)
   , FloatPredicate
-  , GetElementPtr (..)
   , InsertElement (..)
   , IntPredicate
   , Load (..)
@@ -66,7 +68,8 @@ import Olivine.Syntax.Instruction
   , Unary (..)
   )
 import Olivine.Syntax.Name (Name)
-import Olivine.Syntax.Value (TypedValue (..), globalsIn)
+import Olivine.Syntax.Type (Type)
+import Olivine.Syntax.Value (GepFlag, TypedValue (..), globalsIn)
 
 -- | What an instruction assigns to, and what an operand names when it names
 -- something the function computed.
@@ -123,7 +126,52 @@ data Operation operand
   | OAlloca (Alloca operand)
   | OLoad (Load operand)
   | OStore (Store operand)
-  | OGetElementPtr (GetElementPtr operand)
+  | -- | One step along a pointer, and the reason this grammar exists
+    -- separately from LLVM's.
+    OOffset (Offset operand)
+  | -- | One step into a struct.
+    OField (Field operand)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
+
+-- | @p + index * sizeof(ty)@.
+--
+-- LLVM's @getelementptr@ takes a list of indices and walks a type with them,
+-- so reading one means knowing what type each index lands in and what the
+-- next one therefore means.  CLAUDE.md asks for a form that calculates one
+-- offset at a time, and this is it: a type to stride over, a pointer, and how
+-- many strides.  A chain of these says what one @getelementptr@ said, with
+-- nothing left implicit between the steps.
+--
+-- The index is an operand, so it may be anything a value may be — this is the
+-- form an array subscript takes, and the subscript is usually not known.
+data Offset operand = Offset
+  { offsetFlags :: [GepFlag]
+  , -- | What one stride covers, not the type of the result.  A pointer has no
+    -- pointee type here any more than it does in LLVM.
+    offsetElementType :: Type
+  , offsetPointer :: operand
+  , offsetIndex :: operand
+  }
+  deriving (Eq, Show, Functor, Foldable, Traversable)
+
+-- | @p + offsetof(ty, index)@.
+--
+-- The other kind of step, and it is not an 'Offset' because it is not a
+-- stride: a struct's fields need not be the same size, so where the @k@th
+-- begins is what the data layout says and not @k@ times anything.
+--
+-- The index is a number rather than an operand because LLVM requires a
+-- constant there, and because an offset nothing can compute until run time is
+-- not an offset into a struct.  That the field exists is a verifier's
+-- business; that the index is constant is this type's.
+data Field operand = Field
+  { fieldFlags :: [GepFlag]
+  , -- | The struct being stepped into, which is what names the field.  Held
+    -- as it was written, so a named type stays named.
+    fieldStructType :: Type
+  , fieldPointer :: operand
+  , fieldIndex :: Natural
+  }
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- | The operation ending a block.  A terminator assigns to nothing, so unlike
