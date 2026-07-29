@@ -97,13 +97,6 @@ stable name = do
   let twice = renderModule (raise (lower reparsed))
   assertEqual "a second trip changes nothing" once twice
 
--- | Nothing Olivine invented on the way through may appear in what it writes.
---
--- Phi elimination puts a block on each split edge and names it; reconstructing
--- single assignment fills those blocks' assignments into phis, leaving nothing
--- but a branch; removing the forwarding blocks then takes them out again.  If
--- any survives, one of those three steps has not done its part, and the module
--- would carry a block that was never in the program.
 -- | The blocks phi elimination puts on split edges do not reach the output.
 --
 -- This used to look for the name those blocks were given.  They have no name
@@ -120,13 +113,12 @@ noScaffolding name = do
         [ length (Syntax.definitionBlocks d)
         | Syntax.EDefine d <- Syntax.moduleEntries m
         ]
-  let before = blocksIn parsed
-      after = blocksIn (raise (lower parsed))
+  let arriving = blocksIn parsed
+      leaving = blocksIn (raise (lower parsed))
   assertBool
-    ("blocks per function: " <> show before <> " in, " <> show after <> " out")
-    (length before == length after && and (zipWith (>=) before after))
+    ("blocks per function: " <> show arriving <> " in, " <> show leaving <> " out")
+    (length arriving == length leaving && and (zipWith (>=) arriving leaving))
 
--- | Phi elimination, on the shapes the corpus does not have.
 -- | The numbering written on the way out.
 --
 -- No name that arrives is kept, chosen or issued: a name is a local's or a
@@ -222,6 +214,7 @@ numberingTests =
         (T.unlines expected)
         (renderModule (raise (lower parsed)))
 
+-- | Phi elimination, on the shapes the corpus does not have.
 phiTests :: TestTree
 phiTests =
   testGroup

@@ -202,13 +202,13 @@ deadSymbolTests =
             assertBool ("expected no unchosen in " <> show kept) ("unchosen" `notElem` kept)
         , testCase "everything reachable survives" $ do
             indirects <- indirectsOf aliased
-            globals <- globalsOf aliased
+            remaining <- globalsOf aliased
             functions <- survivorsOf aliased
             assertEqual
               "the live aliases and ifuncs"
               ["shown", "chain", "middle", "dispatch"]
               indirects
-            assertEqual "the live globals" ["target", "deep_target"] globals
+            assertEqual "the live globals" ["target", "deep_target"] remaining
             assertEqual "the live functions" ["chooser", "run"] functions
         ]
     , -- Every expectation here is what LLVM's own globaldce leaves, comdats
