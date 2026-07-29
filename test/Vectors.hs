@@ -115,9 +115,46 @@ emitted =
           , shuffleVectorMask = TypedValue vector VZeroInitializer
           }
     )
+  , -- LLVM's canonical spelling of a uniform vector constant, and the reason
+    -- it has to be read: it normalizes @\<i32 4, i32 4, i32 4, i32 4\>@ to
+    -- this, so this is the form its own output arrives in.  How wide the
+    -- vector is comes from the operand's type and is nowhere in the constant.
+    ( "  %r = add <4 x i32> %v, splat (i32 4)"
+    , OBinary
+        Binary
+          { binaryOp = OpAdd
+          , binaryFlags = []
+          , binaryLeft = TypedValue vector (VLocal (Name Bare "v"))
+          , binaryRight = TypedValue vector (VSplat (TypedValue (TInteger 32) (VInteger 4)))
+          }
+    )
+  , -- A negative element, which is where a splat could be confused for a
+    -- unary operator on the way in.
+    ( "  %r = icmp eq <4 x i32> %v, splat (i32 -1)"
+    , OICmp
+        Compare
+          { compareFlags = []
+          , comparePredicate = IEq
+          , compareLeft = TypedValue vector (VLocal (Name Bare "v"))
+          , compareRight = TypedValue vector (VSplat (TypedValue (TInteger 32) (VInteger (-1))))
+          }
+    )
+  , -- A float element, held as the text it was written in like any other float
+    -- literal, so that nothing decodes and re-encodes it.
+    ( "  %r = fadd <4 x float> %f, splat (float 1.500000e+00)"
+    , OBinary
+        Binary
+          { binaryOp = OpFAdd
+          , binaryFlags = []
+          , binaryLeft = TypedValue floats (VLocal (Name Bare "f"))
+          , binaryRight =
+              TypedValue floats (VSplat (TypedValue (TFloat FFloat) (VFloat "1.500000e+00")))
+          }
+    )
   ]
   where
     vector = TVector FixedWidth 4 (TInteger 32)
+    floats = TVector FixedWidth 4 (TFloat FFloat)
 
 -- | Malformed, and so left opaque.
 rejected :: [Text]
@@ -150,6 +187,12 @@ vectorTests =
         [ testCase (name line) (isTerminator operation @?= False)
         | (line, operation) <- emitted
         ]
+    , -- A global's initializer is written without a type in front of it, so it
+      -- reaches the value grammar by a different route than an operand does.
+      testCase "a splat initializes a global" $ do
+        let source = "@g = global <4 x i32> splat (i32 7)\n"
+        parsed <- expectParse "<inline>" source
+        renderModule parsed @?= source
     ]
   where
     name = T.unpack . T.strip
@@ -157,7 +200,7 @@ vectorTests =
 inFunction :: Text -> Text
 inFunction line =
   T.unlines
-    [ "define void @f(i1 %c, i32 %a, i32 %b, double %d, double %e, <4 x i32> %v, <4 x i32> %w, <4 x i1> %m) {"
+    [ "define void @f(i1 %c, i32 %a, i32 %b, double %d, double %e, <4 x i32> %v, <4 x i32> %w, <4 x i1> %m, <4 x float> %f) {"
     , line
     , "  ret void"
     , "}"

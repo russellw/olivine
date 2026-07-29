@@ -1285,6 +1285,7 @@ pValue =
     , pStringValue
     , pGetElementPtrValue
     , pCastValue
+    , pSplatValue
     , VGlobal <$> pGlobalName
     , pArrayValue
     , pAngleValue
@@ -1311,6 +1312,14 @@ pAngleValue = do
   c <- pStructValue Packed <|> (VVector <$> pTypedValue `sepBy` symbol ",")
   symbol ">"
   pure c
+
+-- | @splat (i32 4)@, LLVM's canonical spelling of a uniform vector constant.
+--
+-- The element count is absent because the syntax has none: the width is the
+-- one the operand's type gives, so nothing here has to know it.
+pSplatValue :: Parser (Value Name)
+pSplatValue =
+  VSplat <$> (keyword "splat" *> symbol "(" *> pTypedValue <* symbol ")")
 
 pStructValue :: Packedness -> Parser (Value Name)
 pStructValue packedness =

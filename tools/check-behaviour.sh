@@ -17,7 +17,9 @@ olivine=$(cabal list-bin exe:olivine)
 pass=0
 fail=0
 
-for pair in "arith ARITH" "branch BRANCH" "loop LOOP" "memops MEMOPS" "hello HELLO"; do
+for pair in "arith ARITH" "branch BRANCH" "loop LOOP" "memops MEMOPS" "hello HELLO" \
+            "escape ESCAPE" "jumps JUMPS" "unions UNIONS" "indirect INDIRECT" \
+            "linkage LINKAGE"; do
     set -- $pair
     base=$1
     macro=$2

@@ -719,6 +719,7 @@ renderValue VZeroInitializer = "zeroinitializer"
 renderValue (VString s) = "c" <> quoted s
 renderValue (VArray elements) = "[" <> renderElements elements <> "]"
 renderValue (VVector elements) = "<" <> renderElements elements <> ">"
+renderValue (VSplat element) = "splat (" <> renderTypedValue element <> ")"
 renderValue (VStruct Unpacked fields) = renderStructFields fields
 renderValue (VStruct Packed fields) =
   "<" <> renderStructFields fields <> ">"

@@ -54,6 +54,19 @@ data Value local
     VArray [TypedValue local]
   | -- | @\<i32 1, i32 2\>@
     VVector [TypedValue local]
+  | -- | @splat (i32 4)@, a vector every element of which is the same.
+    --
+    -- Held as written rather than expanded into a 'VVector' of copies, for the
+    -- reason a float literal is held as its text: this is LLVM's own canonical
+    -- spelling, so keeping it is what makes the round trip exact.  It
+    -- normalizes @\<i32 4, i32 4\>@ to this and not the other way about, so
+    -- expanding on the way in would mean printing a form LLVM does not write
+    -- and comparing output with input would stop meaning anything.
+    --
+    -- How many elements it has is not here, because it is not in the syntax
+    -- either: the width comes from the type the operand is written with, so
+    -- @splat (i32 4)@ is as many fours as its context says.
+    VSplat (TypedValue local)
   | -- | @{ i32 1, ptr \@g }@ and its packed form.
     VStruct Packedness [TypedValue local]
   | -- | A reference to a global, as in @\@counter@.
@@ -133,6 +146,7 @@ isConstant :: Value local -> Bool
 isConstant (VLocal _) = False
 isConstant (VArray elements) = all (isConstant . typedValue) elements
 isConstant (VVector elements) = all (isConstant . typedValue) elements
+isConstant (VSplat element) = isConstant (typedValue element)
 isConstant (VStruct _ fields) = all (isConstant . typedValue) fields
 isConstant (VCast _ operand _) = isConstant (typedValue operand)
 isConstant (VGetElementPtr _ _ operands) =
@@ -157,6 +171,7 @@ globalsIn value = case value of
   VGlobal name -> [name]
   VArray elements -> concatMap inside elements
   VVector elements -> concatMap inside elements
+  VSplat element -> inside element
   VStruct _ fields -> concatMap inside fields
   VCast _ operand _ -> inside operand
   VGetElementPtr _ _ operands -> concatMap inside operands
