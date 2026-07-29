@@ -18,7 +18,15 @@ mkdir -p test/data
 
 for src in test/c/*.c; do
     name=$(basename "$src" .c)
-    for opt in O0 O2; do
+    # -O1 is here because it is a level, not because these files at it contain
+    # anything in particular.  It was left out at first as being between the
+    # other two, which is the wrong way to choose: what a level emits is what
+    # its own pipeline emits, and reading Olivine's own -O1 output crashed it on
+    # a shape neither -O0 nor -O2 produces.  These sources do not happen to
+    # produce that shape either — test/ll/order.ll is what pins it — so what
+    # this buys is the level being exercised at all rather than any one
+    # construct.
+    for opt in O0 O1 O2; do
         "$CLANG" "-$opt" -S -emit-llvm -o "test/data/$name-$opt.ll" "$src"
     done
 done
