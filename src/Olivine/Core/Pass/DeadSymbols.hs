@@ -56,7 +56,6 @@ import Olivine.Syntax.Instruction qualified as Syntax
 import Olivine.Syntax.Linkage (GlobalAttribute (..), Linkage (..))
 import Olivine.Syntax.Metadata (MetadataOperand (..))
 import Olivine.Syntax.Name (Name (..), isIdentifierChar)
-import Olivine.Syntax.Operands qualified as Syntax
 import Olivine.Syntax.Value (globalsIn, typedValue)
 
 -- | Something a live path can arrive at.
@@ -338,7 +337,7 @@ referencesInEntry entry = case entry of
   _ -> []
   where
     names = map (RSymbol . nameText)
-    instruction (Syntax.IOperation _ operation _) = names (Syntax.globalsUsedBy operation)
+    instruction (Syntax.IOperation _ operation _) = names (globalsUsedBy operation)
     instruction (Syntax.IOpaque text) = mentionedIn text
     metadata (MDValue value) = names (globalsIn (typedValue value))
     metadata (MDTuple operands) = concatMap metadata operands

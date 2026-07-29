@@ -55,8 +55,8 @@ sweep :: Function -> Function
 sweep f = f {functionBlocks = map rewrite (functionBlocks f)}
   where
     known = knownValues f
-    substitute :: Operands g => g Local -> g Local
-    substitute = mapValues resolve
+    substitute :: Functor g => g (TypedValue Local) -> g (TypedValue Local)
+    substitute = fmap (\(TypedValue t x) -> TypedValue t (resolve x))
     resolve (VLocal n) = fromMaybe (VLocal n) (Map.lookup n known)
     resolve x = x
     rewrite b =
@@ -93,19 +93,19 @@ knownValues f =
       ]
 
 -- | What an operation comes to, when it comes to anything.
-foldOperation :: Operation local -> Maybe (TypedValue local)
+foldOperation :: Operation (TypedValue local) -> Maybe (TypedValue local)
 foldOperation operation = case operation of
   OBinary b -> do
-    let t = binaryType b
-    left <- integerOf t (binaryLeft b)
-    right <- integerOf t (binaryRight b)
+    let t = typedValueType (binaryLeft b)
+    left <- integerOf t (typedValue (binaryLeft b))
+    right <- integerOf t (typedValue (binaryRight b))
     width <- widthOf t
     result <- binary (binaryOp b) (binaryFlags b) width left right
     pure (TypedValue t (valueOf t result))
   OICmp c -> do
-    let t = compareType c
-    left <- integerOf t (compareLeft c)
-    right <- integerOf t (compareRight c)
+    let t = typedValueType (compareLeft c)
+    left <- integerOf t (typedValue (compareLeft c))
+    right <- integerOf t (typedValue (compareRight c))
     width <- widthOf t
     pure (TypedValue (TInteger 1) (VBoolean (comparison (comparePredicate c) width left right)))
   OConvert c -> do

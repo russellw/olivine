@@ -92,7 +92,8 @@ reachableIn f = [b | b <- blocks, blockLabel b `Set.member` reached]
 -- and destinations that agree.  The second needs no constant at all — a
 -- branch to the same block either way goes there whatever it was branching
 -- on, and a @switch@ whose cases all name the default is a @switch@ in name.
-foldTerminator :: Transfer local -> Maybe (Transfer local)
+foldTerminator ::
+  Transfer (TypedValue local) -> Maybe (Transfer (TypedValue local))
 foldTerminator transfer = case transfer of
   CondBr condition true false
     | true == false -> Just (Br true)

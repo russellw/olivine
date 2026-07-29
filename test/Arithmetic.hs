@@ -23,7 +23,7 @@ import Olivine.Syntax.Type
 import Olivine.Syntax.Value
 
 -- | Lines in the spelling LLVM emits, with what each should parse to.
-emitted :: [(Text, Operation Name)]
+emitted :: [(Text, Operation (TypedValue Name))]
 emitted =
   [ ("  %r = add i32 %a, %b", binary OpAdd [] (TInteger 32))
   , ("  %r = sub i32 %a, %b", binary OpSub [] (TInteger 32))
@@ -50,13 +50,13 @@ emitted =
   , ("  %r = or disjoint i32 %a, %b", binary OpOr [FlagDisjoint] (TInteger 32))
   , -- Vectors work through the same rule as scalars.
     ( "  %r = add nsw <4 x i32> %va, %vb"
-    , OBinary
+    , let vector = TVector FixedWidth 4 (TInteger 32)
+       in OBinary
         Binary
           { binaryOp = OpAdd
           , binaryFlags = [FlagNSW]
-          , binaryType = TVector FixedWidth 4 (TInteger 32)
-          , binaryLeft = VLocal (Name Bare "va")
-          , binaryRight = VLocal (Name Bare "vb")
+          , binaryLeft = TypedValue vector (VLocal (Name Bare "va"))
+          , binaryRight = TypedValue vector (VLocal (Name Bare "vb"))
           }
     )
   , -- Floating point, and its fast-math flags.
@@ -78,8 +78,7 @@ emitted =
         Unary
           { unaryOp = OpFNeg
           , unaryFlags = []
-          , unaryType = TFloat FDouble
-          , unaryOperand = VLocal (Name Bare "d")
+          , unaryOperand = TypedValue (TFloat FDouble) (VLocal (Name Bare "d"))
           }
     )
   , ( "  %r = fneg fast double %d"
@@ -87,8 +86,7 @@ emitted =
         Unary
           { unaryOp = OpFNeg
           , unaryFlags = [FlagFast]
-          , unaryType = TFloat FDouble
-          , unaryOperand = VLocal (Name Bare "d")
+          , unaryOperand = TypedValue (TFloat FDouble) (VLocal (Name Bare "d"))
           }
     )
   , -- Integer comparisons, over the whole predicate set.
@@ -109,9 +107,8 @@ emitted =
         Compare
           { compareFlags = []
           , comparePredicate = IEq
-          , compareType = TPointer Nothing
-          , compareLeft = VLocal (Name Bare "p")
-          , compareRight = VLocal (Name Bare "q")
+          , compareLeft = TypedValue (TPointer Nothing) (VLocal (Name Bare "p"))
+          , compareRight = TypedValue (TPointer Nothing) (VLocal (Name Bare "q"))
           }
     )
   , -- Floating point comparisons, over the whole predicate set.
@@ -162,9 +159,8 @@ emitted =
         Binary
           { binaryOp = OpAdd
           , binaryFlags = [FlagNSW]
-          , binaryType = TInteger 32
-          , binaryLeft = VLocal (Name Bare "a")
-          , binaryRight = VInteger 1
+          , binaryLeft = TypedValue (TInteger 32) (VLocal (Name Bare "a"))
+          , binaryRight = TypedValue (TInteger 32) (VInteger 1)
           }
     )
   ]
@@ -174,27 +170,24 @@ emitted =
         Binary
           { binaryOp = op
           , binaryFlags = flags
-          , binaryType = t
-          , binaryLeft = VLocal (Name Bare (if isFloat t then "d" else "a"))
-          , binaryRight = VLocal (Name Bare (if isFloat t then "e" else "b"))
+          , binaryLeft = TypedValue t (VLocal (Name Bare (if isFloat t then "d" else "a")))
+          , binaryRight = TypedValue t (VLocal (Name Bare (if isFloat t then "e" else "b")))
           }
     icmp flags predicate t =
       OICmp
         Compare
           { compareFlags = flags
           , comparePredicate = predicate
-          , compareType = t
-          , compareLeft = VLocal (Name Bare "a")
-          , compareRight = VLocal (Name Bare "b")
+          , compareLeft = TypedValue t (VLocal (Name Bare "a"))
+          , compareRight = TypedValue t (VLocal (Name Bare "b"))
           }
     fcmp flags predicate =
       OFCmp
         Compare
           { compareFlags = flags
           , comparePredicate = predicate
-          , compareType = TFloat FDouble
-          , compareLeft = VLocal (Name Bare "d")
-          , compareRight = VLocal (Name Bare "e")
+          , compareLeft = TypedValue (TFloat FDouble) (VLocal (Name Bare "d"))
+          , compareRight = TypedValue (TFloat FDouble) (VLocal (Name Bare "e"))
           }
     convert op flags sourceType operand target =
       OConvert
@@ -262,7 +255,7 @@ roundTrips line = do
   parsed <- expectParse "<inline>" source
   renderModule parsed @?= source
 
-parsesTo :: Text -> Operation Name -> Assertion
+parsesTo :: Text -> Operation (TypedValue Name) -> Assertion
 parsesTo line operation = do
   instructions <- instructionsIn (inFunction line)
   take 1 instructions @?= [IOperation (Just (Name Bare "r")) operation []]

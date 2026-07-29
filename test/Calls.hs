@@ -22,7 +22,7 @@ import Olivine.Syntax.Type
 import Olivine.Syntax.Value
 
 -- | Lines in the spelling LLVM emits, with what each should parse to.
-emitted :: [(Text, Maybe Name, Operation Name)]
+emitted :: [(Text, Maybe Name, Operation (TypedValue Name))]
 emitted =
   [ ( "  call void @g()"
     , Nothing
@@ -32,7 +32,7 @@ emitted =
     , Just (Name Bare "r")
     , OCall
         (call (TInteger 32) (VGlobal (Name Bare "h")))
-          { callArguments = [Argument (TInteger 32) [] (VLocal (Name Bare "a"))]
+          { callArguments = [argument (TInteger 32) [] (VLocal (Name Bare "a"))]
           }
     )
   , -- Argument attributes, which are the same vocabulary a declaration uses.
@@ -41,7 +41,7 @@ emitted =
     , OCall
         (call TVoid (VGlobal (Name Bare "g")))
           { callArguments =
-              [Argument (TPointer Nothing) [PANonNull] (VLocal (Name Bare "p"))]
+              [argument (TPointer Nothing) [PANonNull] (VLocal (Name Bare "p"))]
           }
     )
   , ( "  call void @g(ptr align 8 %p, i8 0, i64 %n, i1 false)"
@@ -49,10 +49,10 @@ emitted =
     , OCall
         (call TVoid (VGlobal (Name Bare "g")))
           { callArguments =
-              [ Argument (TPointer Nothing) [PAAlign 8] (VLocal (Name Bare "p"))
-              , Argument (TInteger 8) [] (VInteger 0)
-              , Argument (TInteger 64) [] (VLocal (Name Bare "n"))
-              , Argument (TInteger 1) [] (VBoolean False)
+              [ argument (TPointer Nothing) [PAAlign 8] (VLocal (Name Bare "p"))
+              , argument (TInteger 8) [] (VInteger 0)
+              , argument (TInteger 64) [] (VLocal (Name Bare "n"))
+              , argument (TInteger 1) [] (VBoolean False)
               ]
           }
     )
@@ -63,7 +63,7 @@ emitted =
         (call (TPointer Nothing) (VGlobal (Name Bare "m")))
           { callReturnAttributes = [PANoAlias]
           , callArguments =
-              [Argument (TInteger 64) [PANoUndef] (VLocal (Name Bare "n"))]
+              [argument (TInteger 64) [PANoUndef] (VLocal (Name Bare "n"))]
           }
     )
   , -- Tail calls.
@@ -94,7 +94,7 @@ emitted =
     , OCall
         (call (TInteger 32) (VLocal (Name Bare "fp")))
           { callArguments =
-              [Argument (TInteger 32) [PANoUndef] (VLocal (Name Bare "a"))]
+              [argument (TInteger 32) [PANoUndef] (VLocal (Name Bare "a"))]
           }
     )
   , -- A variadic callee, where LLVM writes the whole function type in place
@@ -107,7 +107,7 @@ emitted =
             (VGlobal (Name Bare "printf"))
         )
           { callArguments =
-              [Argument (TPointer Nothing) [PANoUndef] (VGlobal (Name Bare "s"))]
+              [argument (TPointer Nothing) [PANoUndef] (VGlobal (Name Bare "s"))]
           }
     )
   , ( "  call fastcc void @g()"
@@ -127,7 +127,7 @@ emitted =
         , callReturnAttributes = []
         , callAddrSpace = Nothing
         , callType = t
-        , callCallee = callee
+        , callCallee = TypedValue (TPointer Nothing) callee
         , callArguments = []
         , callAttributes = []
         }
@@ -146,6 +146,11 @@ rejected =
   , "  call @g()"
   , "  call void @g(ptr)"
   ]
+
+-- | An argument as it used to be written: a type, its attributes, and a bare
+-- value.  The type is on the operand now, and this puts it there.
+argument :: Type -> [ParamAttribute] -> Value Name -> Argument (TypedValue Name)
+argument t attributes value = Argument attributes (TypedValue t value)
 
 callTests :: TestTree
 callTests =
@@ -186,7 +191,7 @@ roundTrips line = do
   parsed <- expectParse "<inline>" source
   renderModule parsed @?= source
 
-parsesTo :: Text -> Maybe Name -> Operation Name -> Assertion
+parsesTo :: Text -> Maybe Name -> Operation (TypedValue Name) -> Assertion
 parsesTo line result operation = do
   instructions <- instructionsIn (inFunction line)
   take 1 instructions @?= [IOperation result operation []]

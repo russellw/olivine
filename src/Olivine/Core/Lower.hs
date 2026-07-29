@@ -21,6 +21,7 @@ import Olivine.Syntax.Function qualified as Syntax
 import Olivine.Syntax.Instruction (isTerminator)
 import Olivine.Syntax.Instruction qualified as Syntax
 import Olivine.Syntax.Name
+import Olivine.Syntax.Value (TypedValue (..))
 
 lower :: Syntax.Module -> Program
 lower = Program . map lowerEntry . Syntax.moduleEntries
@@ -93,7 +94,7 @@ readBlock labels locals (label, block) = do
         <$> Map.lookup name locals
         <*> pure (Syntax.phiType p)
         <*> traverse
-          (bitraverse (traverse (`Map.lookup` locals)) (`Map.lookup` labels))
+          (bitraverse (traverse (`Map.lookup` locals) . typedValue) (`Map.lookup` labels))
           (Syntax.phiIncoming p)
     phi _ = Nothing
     instruction (Syntax.IOperation result operation metadata) =
@@ -115,9 +116,11 @@ readBlock labels locals (label, block) = do
 -- Failing fails the whole definition, which is what makes a use of a local
 -- nothing defines something the core cannot be made to hold.
 lowerOperation ::
-  Map Name Local -> Syntax.Operation Name -> Maybe (Operation Local)
+  Map Name Local ->
+  Syntax.Operation (TypedValue Name) ->
+  Maybe (Operation (TypedValue Local))
 lowerOperation locals written = do
-  operation <- traverse (`Map.lookup` locals) written
+  operation <- traverse (traverse (`Map.lookup` locals)) written
   case operation of
     Syntax.OBinary b -> Just (OBinary b)
     Syntax.OUnary u -> Just (OUnary u)
@@ -149,10 +152,10 @@ lowerOperation locals written = do
 lowerTransfer ::
   Map Name Label ->
   Map Name Local ->
-  Syntax.Operation Name ->
-  Maybe (Transfer Local)
+  Syntax.Operation (TypedValue Name) ->
+  Maybe (Transfer (TypedValue Local))
 lowerTransfer labels locals written = do
-  operation <- traverse (`Map.lookup` locals) written
+  operation <- traverse (traverse (`Map.lookup` locals)) written
   let target = (`Map.lookup` labels)
   case operation of
     Syntax.ORet value -> Just (Ret value)

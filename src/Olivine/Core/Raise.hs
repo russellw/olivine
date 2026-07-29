@@ -32,6 +32,7 @@ import Olivine.Syntax.Function qualified as Syntax
 import Olivine.Syntax.Instruction qualified as Syntax
 import Olivine.Syntax.Name
 import Olivine.Syntax.Printer (renderName)
+import Olivine.Syntax.Value (TypedValue (..))
 
 raise :: Program -> Syntax.Module
 raise = Syntax.Module . map raiseEntry . programEntries
@@ -172,7 +173,9 @@ raisePhi numbering p =
           { Syntax.phiFlags = []
           , Syntax.phiType = phiType p
           , Syntax.phiIncoming =
-              [ (localName numbering <$> value, blockLabelName numbering from)
+              [ ( TypedValue (phiType p) (localName numbering <$> value)
+                , blockLabelName numbering from
+                )
               | (value, from) <- phiIncoming p
               ]
           }
@@ -194,8 +197,11 @@ raiseInstruction numbering i =
 -- no LLVM spelling and needs none — reconstruction carried each assigned
 -- value to wherever the local is read — so reaching one here is a bug in
 -- reconstruction rather than a program this cannot write.
-raiseOperation :: Numbering -> Operation Local -> Syntax.Operation Name
-raiseOperation numbering written = case localName numbering <$> written of
+raiseOperation ::
+  Numbering ->
+  Operation (TypedValue Local) ->
+  Syntax.Operation (TypedValue Name)
+raiseOperation numbering written = case fmap (localName numbering) <$> written of
   OBinary b -> Syntax.OBinary b
   OUnary u -> Syntax.OUnary u
   OICmp c -> Syntax.OICmp c
@@ -213,8 +219,11 @@ raiseOperation numbering written = case localName numbering <$> written of
   OAssign _ -> error "Olivine.Core.Raise: an assignment survived reconstruction"
 
 -- | One terminator, on the other side of the boundary.
-raiseTransfer :: Numbering -> Transfer Local -> Syntax.Operation Name
-raiseTransfer numbering written = case localName numbering <$> written of
+raiseTransfer ::
+  Numbering ->
+  Transfer (TypedValue Local) ->
+  Syntax.Operation (TypedValue Name)
+raiseTransfer numbering written = case fmap (localName numbering) <$> written of
   Ret value -> Syntax.ORet value
   Br target -> Syntax.OBr (label target)
   CondBr condition true false ->

@@ -628,7 +628,7 @@ pOpaqueInstruction = try $ do
   notFollowedBy pBlockLabel
   IOpaque <$> takeWhile1P (Just "instruction") (/= '\n') <* optional eol
 
-pOperation :: Parser (Operation Name)
+pOperation :: Parser (Operation (TypedValue Name))
 pOperation =
   choice
     [ pRet
@@ -655,7 +655,7 @@ pOperation =
 
 -- * Arithmetic and comparisons
 
-pBinary :: Parser (Operation Name)
+pBinary :: Parser (Operation (TypedValue Name))
 pBinary = do
   op <- pBinaryOp
   flags <- many pInstructionFlag
@@ -668,12 +668,11 @@ pBinary = do
       Binary
         { binaryOp = op
         , binaryFlags = flags
-        , binaryType = t
-        , binaryLeft = left
-        , binaryRight = right
+        , binaryLeft = TypedValue t left
+        , binaryRight = TypedValue t right
         }
 
-pUnary :: Parser (Operation Name)
+pUnary :: Parser (Operation (TypedValue Name))
 pUnary = do
   op <- OpFNeg <$ keyword "fneg"
   flags <- many pInstructionFlag
@@ -684,13 +683,12 @@ pUnary = do
       Unary
         { unaryOp = op
         , unaryFlags = flags
-        , unaryType = t
-        , unaryOperand = operand
+        , unaryOperand = TypedValue t operand
         }
 
 -- The constant expression of the same shape accepts only the opcodes LLVM
 -- still allows there, which is why 'pCastValue' has its own shorter list.
-pConvert :: Parser (Operation Name)
+pConvert :: Parser (Operation (TypedValue Name))
 pConvert = do
   op <- pCastOp
   flags <- many pInstructionFlag
@@ -724,14 +722,14 @@ pCastOp =
     , CastAddrSpaceCast <$ keyword "addrspacecast"
     ]
 
-pICmp :: Parser (Operation Name)
+pICmp :: Parser (Operation (TypedValue Name))
 pICmp = keyword "icmp" *> (OICmp <$> pCompare pIntPredicate)
 
-pFCmp :: Parser (Operation Name)
+pFCmp :: Parser (Operation (TypedValue Name))
 pFCmp = keyword "fcmp" *> (OFCmp <$> pCompare pFloatPredicate)
 
 -- The flags come before the predicate, as in @icmp samesign ugt i32 %a, %b@.
-pCompare :: Parser predicate -> Parser (Compare predicate Name)
+pCompare :: Parser predicate -> Parser (Compare predicate (TypedValue Name))
 pCompare pPredicate = do
   flags <- many pInstructionFlag
   predicate <- pPredicate
@@ -743,9 +741,8 @@ pCompare pPredicate = do
     Compare
       { compareFlags = flags
       , comparePredicate = predicate
-      , compareType = t
-      , compareLeft = left
-      , compareRight = right
+      , compareLeft = TypedValue t left
+      , compareRight = TypedValue t right
       }
 
 pBinaryOp :: Parser BinaryOp
@@ -826,7 +823,7 @@ pInstructionFlag =
     , FlagFast <$ keyword "fast"
     ]
 
-pSelect :: Parser (Operation Name)
+pSelect :: Parser (Operation (TypedValue Name))
 pSelect = do
   keyword "select"
   flags <- many pInstructionFlag
@@ -844,7 +841,7 @@ pSelect = do
         , selectFalse = ifFalse
         }
 
-pExtractElement :: Parser (Operation Name)
+pExtractElement :: Parser (Operation (TypedValue Name))
 pExtractElement = do
   keyword "extractelement"
   vector <- pTypedValue
@@ -857,7 +854,7 @@ pExtractElement = do
         , extractElementIndex = index
         }
 
-pInsertElement :: Parser (Operation Name)
+pInsertElement :: Parser (Operation (TypedValue Name))
 pInsertElement = do
   keyword "insertelement"
   vector <- pTypedValue
@@ -873,7 +870,7 @@ pInsertElement = do
         , insertElementIndex = index
         }
 
-pShuffleVector :: Parser (Operation Name)
+pShuffleVector :: Parser (Operation (TypedValue Name))
 pShuffleVector = do
   keyword "shufflevector"
   left <- pTypedValue
@@ -890,27 +887,28 @@ pShuffleVector = do
         }
 
 -- | @phi [flags] \<ty\> [ \<value\>, %pred ], ...@.
-pPhi :: Parser (Operation Name)
+pPhi :: Parser (Operation (TypedValue Name))
 pPhi = do
   keyword "phi"
   flags <- many pInstructionFlag
   t <- pType
-  incoming <- pIncoming `sepBy1` symbol ","
+  incoming <- pIncoming t `sepBy1` symbol ","
   pure (OPhi Phi {phiFlags = flags, phiType = t, phiIncoming = incoming})
   where
     -- The predecessor is written as a plain local name, without the label
-    -- keyword a branch target carries.
-    pIncoming = do
+    -- keyword a branch target carries.  The type is written once for all the
+    -- edges, and each operand takes a copy of it.
+    pIncoming t = do
       symbol "["
       value <- pValue
       symbol ","
       predecessor <- pLocalName
       symbol "]"
-      pure (value, predecessor)
+      pure (TypedValue t value, predecessor)
 
 -- * Calls
 
-pCall :: Parser (Operation Name)
+pCall :: Parser (Operation (TypedValue Name))
 pCall = do
   tailKind <- optional pTailKind
   keyword "call"
@@ -931,7 +929,9 @@ pCall = do
         , callReturnAttributes = returnAttributes
         , callAddrSpace = addrSpace
         , callType = t
-        , callCallee = callee
+        , -- The callee is a pointer and LLVM writes no type for it, so the
+          -- operand takes the type it has rather than one read off the line.
+          callCallee = TypedValue (TPointer Nothing) callee
         , callArguments = arguments
         , callAttributes = attributes
         }
@@ -944,12 +944,16 @@ pTailKind =
     , NoTail <$ keyword "notail"
     ]
 
-pArgument :: Parser (Argument Name)
-pArgument = Argument <$> pType <*> many pParamAttribute <*> pValue
+pArgument :: Parser (Argument (TypedValue Name))
+pArgument = do
+  t <- pType
+  attributes <- many pParamAttribute
+  value <- pValue
+  pure (Argument attributes (TypedValue t value))
 
 -- * Memory
 
-pAlloca :: Parser (Operation Name)
+pAlloca :: Parser (Operation (TypedValue Name))
 pAlloca = do
   keyword "alloca"
   inalloca <- option False (True <$ keyword "inalloca")
@@ -969,7 +973,7 @@ pAlloca = do
 
 -- The atomic form is not modelled, and fails here at its ordering keyword
 -- rather than being half-read.
-pLoad :: Parser (Operation Name)
+pLoad :: Parser (Operation (TypedValue Name))
 pLoad = do
   keyword "load"
   volatile <- option False (True <$ keyword "volatile")
@@ -986,7 +990,7 @@ pLoad = do
         , loadAlignment = alignment
         }
 
-pStore :: Parser (Operation Name)
+pStore :: Parser (Operation (TypedValue Name))
 pStore = do
   keyword "store"
   volatile <- option False (True <$ keyword "volatile")
@@ -1003,7 +1007,7 @@ pStore = do
         , storeAlignment = alignment
         }
 
-pGetElementPtr :: Parser (Operation Name)
+pGetElementPtr :: Parser (Operation (TypedValue Name))
 pGetElementPtr = do
   keyword "getelementptr"
   flags <- many pGepFlag
@@ -1024,14 +1028,14 @@ pGetElementPtr = do
 pAlignmentClause :: Parser Natural
 pAlignmentClause = symbol "," *> keyword "align" *> pNatural
 
-pRet :: Parser (Operation Name)
+pRet :: Parser (Operation (TypedValue Name))
 pRet = do
   keyword "ret"
   ORet <$> ((Nothing <$ keyword "void") <|> (Just <$> pTypedValue))
 
 -- The unconditional form starts with the label keyword and the conditional
 -- with a type, so one look is enough to tell them apart.
-pBr :: Parser (Operation Name)
+pBr :: Parser (Operation (TypedValue Name))
 pBr = do
   keyword "br"
   (OBr <$> pLabelOperand) <|> pConditional
@@ -1046,7 +1050,7 @@ pBr = do
 -- The one terminator written across several lines.  Its cases sit between a
 -- bracket pair that spans line breaks, so this is the only place the parser
 -- steps over a newline within a construct.
-pSwitch :: Parser (Operation Name)
+pSwitch :: Parser (Operation (TypedValue Name))
 pSwitch = do
   keyword "switch"
   scrutinee <- pTypedValue
@@ -1064,7 +1068,7 @@ pSwitch = do
       symbol ","
       (,) value <$> pLabelOperand
 
-pIndirectBr :: Parser (Operation Name)
+pIndirectBr :: Parser (Operation (TypedValue Name))
 pIndirectBr = do
   keyword "indirectbr"
   address <- pTypedValue

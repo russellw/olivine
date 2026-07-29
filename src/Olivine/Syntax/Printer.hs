@@ -204,7 +204,7 @@ appendToLast suffix ls = case reverse ls of
   [] -> []
   final : earlier -> reverse ((final <> suffix) : earlier)
 
-renderOperation :: Operation Name -> [Text]
+renderOperation :: Operation (TypedValue Name) -> [Text]
 renderOperation (ORet Nothing) = ["ret void"]
 renderOperation (ORet (Just v)) = ["ret " <> renderTypedValue v]
 renderOperation (OBr destination) = ["br " <> renderLabel destination]
@@ -235,11 +235,11 @@ renderOperation (OBinary b) =
       [ renderBinaryOp (binaryOp b)
       , " "
       , renderFlags (binaryFlags b)
-      , renderType (binaryType b)
+      , renderType (typedValueType (binaryLeft b))
       , " "
-      , renderValue (binaryLeft b)
+      , renderValue (typedValue (binaryLeft b))
       , ", "
-      , renderValue (binaryRight b)
+      , renderValue (typedValue (binaryRight b))
       ]
   ]
 renderOperation (OUnary u) =
@@ -247,9 +247,9 @@ renderOperation (OUnary u) =
       [ renderUnaryOp (unaryOp u)
       , " "
       , renderFlags (unaryFlags u)
-      , renderType (unaryType u)
+      , renderType (typedValueType (unaryOperand u))
       , " "
-      , renderValue (unaryOperand u)
+      , renderValue (typedValue (unaryOperand u))
       ]
   ]
 renderOperation (OSelect s) =
@@ -293,7 +293,7 @@ renderOperation (OPhi p) =
       , " "
       , T.intercalate
           ", "
-          [ "[ " <> renderValue value <> ", %" <> renderName predecessor <> " ]"
+          [ "[ " <> renderValue (typedValue value) <> ", %" <> renderName predecessor <> " ]"
           | (value, predecessor) <- phiIncoming p
           ]
       ]
@@ -308,7 +308,7 @@ renderOperation (OCall c) =
       , foldMap (\n -> "addrspace(" <> showText n <> ") ") (callAddrSpace c)
       , renderType (callType c)
       , " "
-      , renderValue (callCallee c)
+      , renderValue (typedValue (callCallee c))
       , "("
       , T.intercalate ", " (map renderArgument (callArguments c))
       , ")"
@@ -373,16 +373,17 @@ renderTailKind Tail = "tail"
 renderTailKind MustTail = "musttail"
 renderTailKind NoTail = "notail"
 
-renderArgument :: Argument Name -> Text
+renderArgument :: Argument (TypedValue Name) -> Text
 renderArgument a =
   T.concat
-    [ renderType (argumentType a)
+    [ renderType (typedValueType (argumentValue a))
     , " "
     , T.concat [renderParamAttribute x <> " " | x <- argumentAttributes a]
-    , renderValue (argumentValue a)
+    , renderValue (typedValue (argumentValue a))
     ]
 
-renderCompare :: Text -> (predicate -> Text) -> Compare predicate Name -> Text
+renderCompare ::
+  Text -> (predicate -> Text) -> Compare predicate (TypedValue Name) -> Text
 renderCompare name renderPredicate c =
   T.concat
     [ name
@@ -390,11 +391,11 @@ renderCompare name renderPredicate c =
     , renderFlags (compareFlags c)
     , renderPredicate (comparePredicate c)
     , " "
-    , renderType (compareType c)
+    , renderType (typedValueType (compareLeft c))
     , " "
-    , renderValue (compareLeft c)
+    , renderValue (typedValue (compareLeft c))
     , ", "
-    , renderValue (compareRight c)
+    , renderValue (typedValue (compareRight c))
     ]
 
 -- Each flag is followed by a space, so an empty list contributes nothing.

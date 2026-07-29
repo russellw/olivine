@@ -81,9 +81,8 @@ foldingTests =
                   Binary
                     { binaryOp = OpFAdd
                     , binaryFlags = []
-                    , binaryType = TFloat FDouble
-                    , binaryLeft = VFloat "1.000000e+00"
-                    , binaryRight = VFloat "2.000000e+00"
+                    , binaryLeft = TypedValue (TFloat FDouble) (VFloat "1.000000e+00")
+                    , binaryRight = TypedValue (TFloat FDouble) (VFloat "2.000000e+00")
                     }
               )
               @?= Nothing
@@ -93,9 +92,8 @@ foldingTests =
                   Binary
                     { binaryOp = OpAdd
                     , binaryFlags = []
-                    , binaryType = TInteger 32
-                    , binaryLeft = VLocal (Name Bare "x")
-                    , binaryRight = VInteger 1
+                    , binaryLeft = TypedValue (TInteger 32) (VLocal (Name Bare "x"))
+                    , binaryRight = TypedValue (TInteger 32) (VInteger 1)
                     }
               )
               @?= Nothing
@@ -150,9 +148,8 @@ foldingTests =
             Binary
               { binaryOp = op
               , binaryFlags = flags
-              , binaryType = TInteger 32
-              , binaryLeft = VInteger left
-              , binaryRight = VInteger right
+              , binaryLeft = int left
+              , binaryRight = int right
               }
         )
     icmp predicate left right =
@@ -161,9 +158,8 @@ foldingTests =
             Compare
               { compareFlags = []
               , comparePredicate = predicate
-              , compareType = TInteger 32
-              , compareLeft = VInteger left
-              , compareRight = VInteger right
+              , compareLeft = int left
+              , compareRight = int right
               }
         )
     convert op from value to =
@@ -183,5 +179,5 @@ foldingTests =
 -- Folding does not care what a local is called — it works on the constants —
 -- so the pass is written for any, and every case here would otherwise have to
 -- say which it meant.
-folded :: Operation Name -> Maybe (TypedValue Name)
+folded :: Operation (TypedValue Name) -> Maybe (TypedValue Name)
 folded = foldOperation

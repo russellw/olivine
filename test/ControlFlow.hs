@@ -255,7 +255,7 @@ resultsOf source = do
     , i <- blockInstructions b
     ]
 
-terminatorsOf :: Text -> IO [Transfer Local]
+terminatorsOf :: Text -> IO [Transfer (TypedValue Local)]
 terminatorsOf source = do
   simplified <- simplify source
   pure
@@ -274,7 +274,7 @@ calledIn source = do
     , b <- functionBlocks f
     , i <- blockInstructions b
     , OCall c <- [instructionOperation i]
-    , VGlobal name <- [callCallee c]
+    , VGlobal name <- [typedValue (callCallee c)]
     ]
 
 simplify :: Text -> IO Program
@@ -287,5 +287,5 @@ simplify source = do
 --
 -- The pass folds branches whatever a local is called, so it is written for
 -- any; these cases have to pick one, and the core's own is what reads.
-folds :: Transfer Name -> Maybe (Transfer Name)
+folds :: Transfer (TypedValue Name) -> Maybe (Transfer (TypedValue Name))
 folds = foldTerminator

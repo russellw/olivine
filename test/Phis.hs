@@ -20,7 +20,7 @@ import Olivine.Syntax.Type
 import Olivine.Syntax.Value
 
 -- | Lines in the spelling LLVM emits, with what each should parse to.
-emitted :: [(Text, Operation Name)]
+emitted :: [(Text, Operation (TypedValue Name))]
 emitted =
   [ ( "  %r = phi i32 [ %x, %b1 ], [ %y, %b2 ]"
     , phi
@@ -77,15 +77,22 @@ emitted =
           { phiFlags = [FlagFast]
           , phiType = TFloat FDouble
           , phiIncoming =
-              [ (VLocal (Name Bare "d"), Name Bare "b1")
-              , (VLocal (Name Bare "e"), Name Bare "b2")
+              [ (TypedValue (TFloat FDouble) (VLocal (Name Bare "d")), Name Bare "b1")
+              , (TypedValue (TFloat FDouble) (VLocal (Name Bare "e")), Name Bare "b2")
               ]
           }
     )
   ]
   where
+    -- LLVM writes the type once for all the edges; each operand carries a
+    -- copy of it, so the cases below still name it once.
     phi t incoming =
-      OPhi Phi {phiFlags = [], phiType = t, phiIncoming = incoming}
+      OPhi
+        Phi
+          { phiFlags = []
+          , phiType = t
+          , phiIncoming = [(TypedValue t value, from) | (value, from) <- incoming]
+          }
 
 -- | Malformed, and so left opaque.
 rejected :: [Text]
@@ -147,7 +154,7 @@ roundTrips line = do
   parsed <- expectParse "<inline>" source
   renderModule parsed @?= source
 
-parsesTo :: Text -> Operation Name -> Assertion
+parsesTo :: Text -> Operation (TypedValue Name) -> Assertion
 parsesTo line operation = do
   instructions <- instructionsIn (inFunction line)
   filter isPhi instructions @?= [IOperation (Just (Name Bare "r")) operation []]

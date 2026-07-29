@@ -185,8 +185,8 @@ reconstruct f = rebuild
 
     finalName n = Map.findWithDefault n n finalNames
 
-    renameIn :: Operands f => f Local -> f Local
-    renameIn = mapValues renameValue
+    renameIn :: Functor f => f (TypedValue Local) -> f (TypedValue Local)
+    renameIn = fmap (onValue renameValue)
     renameValue (VLocal n) = VLocal (finalName n)
     renameValue x = x
 
@@ -240,17 +240,21 @@ reconstruct f = rebuild
         Just
           instruction
             { instructionOperation =
-                mapValues (resolveAt name instruction) operation
+                onValue (resolveAt name instruction) <$> operation
             }
 
     -- A terminator stands after everything in its block, so the values it
     -- sees are the ones on the way out.
     rewriteTerminator name t =
       t
-        { terminatorTransfer = mapValues (substituteIn (exitOf name)) (terminatorTransfer t)
+        { terminatorTransfer =
+            onValue (substituteIn (exitOf name)) <$> terminatorTransfer t
         }
 
     substituteIn values = substitute collapsed . resolve values
+
+    -- An operand is a type and a value; every rewrite here is of the value.
+    onValue g (TypedValue t x) = TypedValue t (g x)
 
     -- What a local holds where an instruction stands: the values on the way
     -- into its block, updated by everything before it.

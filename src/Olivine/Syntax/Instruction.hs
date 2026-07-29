@@ -13,14 +13,24 @@
 -- with its indentation, since only a modelled instruction can have its
 -- indentation and its result name regenerated.
 --
--- __Every record holding operands traverses what a local is called.__  Each of
--- them is parameterized by that and by nothing else, so the derived instances
--- reach exactly the locals: reading them off is 'Data.Foldable.toList' and
--- renaming them is 'fmap', at whichever end of the pipeline is asking.  These
--- records are the part of the instruction set that syntax and core genuinely
--- share — an @add@ is an @add@ whether its operands are called @%x@ or @%3@ —
--- so writing the walk once, and having the compiler write it, is what keeps
--- the two grammars above them from costing a second copy of it.
+-- __Every record holding operands is parameterized by the operand.__  Not by
+-- what a local is called, and not by anything else: an operand slot holds the
+-- parameter and nothing stands beside it describing it.  So the derived
+-- instances reach exactly the operands, and every question anybody asks of an
+-- operation — which values it reads, which locals, which globals, and what it
+-- becomes when one is rewritten — is 'fmap', 'traverse' or
+-- 'Data.Foldable.toList' over them.  None of it is written by hand, so adding
+-- an instruction cannot leave one of those answers stale.
+--
+-- What it costs is that an operand carries its own type where LLVM writes the
+-- type once for several — @add i32 %a, %b@ stores @i32@ twice.  That is the
+-- price of the slot being uniform, and it is cheaper than the alternative,
+-- which is one type standing apart from the operands it describes and going
+-- stale the first time a pass rewrites one of them.
+--
+-- These records are the part of the instruction set that syntax and core
+-- genuinely share — an @add@ is an @add@ whether its operands are called @%x@
+-- or @%3@ — and both grammars instantiate them at their own operand.
 module Olivine.Syntax.Instruction
   ( Instruction (..)
   , Operation (..)
@@ -56,7 +66,7 @@ import Olivine.Syntax.Attribute (AttributeItem, ParamAttribute)
 import Olivine.Syntax.Linkage (CallingConvention)
 import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Type (Type)
-import Olivine.Syntax.Value (CastOp, GepFlag, TypedValue, Value)
+import Olivine.Syntax.Value (CastOp, GepFlag, TypedValue)
 
 data Instruction
   = -- | An operation, the name it assigns to its result if it has one, and
@@ -64,7 +74,7 @@ data Instruction
     --
     -- Whether an operation may name a result is a verifier's business: a
     -- @store@ must not and a @load@ must, and neither is said here.
-    IOperation (Maybe Name) (Operation Name) [MetadataAttachment]
+    IOperation (Maybe Name) (Operation (TypedValue Name)) [MetadataAttachment]
   | -- | A line not yet modelled, kept as written.
     IOpaque Text
   deriving (Eq, Show)
@@ -82,47 +92,47 @@ data Instruction
 -- own, "Olivine.Core.Instruction", where a destination is a number and there
 -- is no @phi@; the two were one type parameterized by what a destination is
 -- until the differences stopped being expressible that way.
-data Operation local
+data Operation operand
   = -- | @ret void@, or @ret \<ty\> \<value\>@.
-    ORet (Maybe (TypedValue local))
+    ORet (Maybe operand)
   | -- | @br label %dest@.
     OBr Name
   | -- | @br i1 \<cond\>, label %then, label %else@.
-    OCondBr (TypedValue local) Name Name
+    OCondBr operand Name Name
   | -- | @switch \<ty\> \<value\>, label %default [ ... ]@.  LLVM requires the
     -- case values to be constants; 'Olivine.Syntax.Value.isConstant' is what
     -- asks, rather than the shape of the data.
-    OSwitch (TypedValue local) Name [(TypedValue local, Name)]
+    OSwitch operand Name [(operand, Name)]
   | -- | @indirectbr \<ty\> \<address\>, [label %a, label %b]@.
-    OIndirectBr (TypedValue local) [Name]
+    OIndirectBr operand [Name]
   | OUnreachable
   | -- | @add nsw i32 %a, %b@ and its relatives, integer, bitwise and
     -- floating point alike.
-    OBinary (Binary local)
+    OBinary (Binary operand)
   | -- | @fneg double %a@, the only unary arithmetic operation.
-    OUnary (Unary local)
+    OUnary (Unary operand)
   | -- | @icmp slt i32 %a, %b@.
-    OICmp (Compare IntPredicate local)
+    OICmp (Compare IntPredicate operand)
   | -- | @fcmp olt double %a, %b@.
-    OFCmp (Compare FloatPredicate local)
+    OFCmp (Compare FloatPredicate operand)
   | -- | @zext nneg i32 %a to i64@ and the other conversions.
-    OConvert (Convert local)
+    OConvert (Convert operand)
   | -- | @select [flags] \<selty\> \<cond\>, \<ty\> \<a\>, \<ty\> \<b\>@.
-    OSelect (Select local)
+    OSelect (Select operand)
   | -- | @extractelement \<n x ty\> \<vector\>, \<ty\> \<index\>@.
-    OExtractElement (ExtractElement local)
+    OExtractElement (ExtractElement operand)
   | -- | @insertelement \<n x ty\> \<vector\>, \<ty\> \<value\>, \<ty\> \<index\>@.
-    OInsertElement (InsertElement local)
+    OInsertElement (InsertElement operand)
   | -- | @shufflevector \<n x ty\> \<a\>, \<n x ty\> \<b\>, \<m x i32\> \<mask\>@.
-    OShuffleVector (ShuffleVector local)
+    OShuffleVector (ShuffleVector operand)
   | -- | @phi \<ty\> [ \<value\>, %pred ], ...@.
-    OPhi (Phi local)
+    OPhi (Phi operand)
   | -- | @call@, direct or indirect, with or without a result.
-    OCall (Call local)
-  | OAlloca (Alloca local)
-  | OLoad (Load local)
-  | OStore (Store local)
-  | OGetElementPtr (GetElementPtr local)
+    OCall (Call operand)
+  | OAlloca (Alloca operand)
+  | OLoad (Load operand)
+  | OStore (Store operand)
+  | OGetElementPtr (GetElementPtr operand)
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- | Whether an operation ends its basic block.
@@ -130,7 +140,7 @@ data Operation local
 -- That a block holds exactly one of these, last, is an invariant for a
 -- verifier rather than something the syntax enforces: this layer has to be
 -- able to read back a module that gets it wrong.
-isTerminator :: Operation local -> Bool
+isTerminator :: Operation operand -> Bool
 isTerminator (ORet _) = True
 isTerminator (OBr _) = True
 isTerminator (OCondBr _ _ _) = True
@@ -153,14 +163,19 @@ isTerminator (OLoad _) = False
 isTerminator (OStore _) = False
 isTerminator (OGetElementPtr _) = False
 
--- | A binary operation: an opcode, its flags, the type both operands share,
--- and the operands.
-data Binary local = Binary
+-- | A binary operation: an opcode, its flags, and the operands.
+--
+-- LLVM writes the type once — @add i32 %a, %b@ — and this used to store it
+-- once to match.  It is on each operand instead, because an operand carrying
+-- its own type is what lets the compiler write the walk over them, and
+-- because one type standing apart from the operands it describes is a second
+-- thing to keep true when a pass rewrites one of them.  The printer takes the
+-- type it writes from the left operand.
+data Binary operand = Binary
   { binaryOp :: BinaryOp
   , binaryFlags :: [InstructionFlag]
-  , binaryType :: Type
-  , binaryLeft :: Value local
-  , binaryRight :: Value local
+  , binaryLeft :: operand
+  , binaryRight :: operand
   }
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
@@ -185,11 +200,10 @@ data BinaryOp
   | OpFRem
   deriving (Eq, Show)
 
-data Unary local = Unary
+data Unary operand = Unary
   { unaryOp :: UnaryOp
   , unaryFlags :: [InstructionFlag]
-  , unaryType :: Type
-  , unaryOperand :: Value local
+  , unaryOperand :: operand
   }
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
@@ -198,10 +212,10 @@ data UnaryOp
   deriving (Eq, Show)
 
 -- | @\<op\> [flags] \<ty\> \<value\> to \<ty\>@.
-data Convert local = Convert
+data Convert operand = Convert
   { convertOp :: CastOp
   , convertFlags :: [InstructionFlag]
-  , convertOperand :: TypedValue local
+  , convertOperand :: operand
   , convertTarget :: Type
   }
   deriving (Eq, Show, Functor, Foldable, Traversable)
@@ -211,12 +225,11 @@ data Convert local = Convert
 -- @icmp@ and @fcmp@ share their shape and differ only in that, so one record
 -- serves both without letting an integer comparison take a floating point
 -- predicate.
-data Compare predicate local = Compare
+data Compare predicate operand = Compare
   { compareFlags :: [InstructionFlag]
   , comparePredicate :: predicate
-  , compareType :: Type
-  , compareLeft :: Value local
-  , compareRight :: Value local
+  , compareLeft :: operand
+  , compareRight :: operand
   }
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
@@ -279,34 +292,34 @@ data InstructionFlag
 --
 -- The condition is @i1@ for a scalar select and a vector of @i1@ for an
 -- elementwise one, so it carries its own type like the other operands.
-data Select local = Select
+data Select operand = Select
   { selectFlags :: [InstructionFlag]
-  , selectCondition :: TypedValue local
-  , selectTrue :: TypedValue local
-  , selectFalse :: TypedValue local
+  , selectCondition :: operand
+  , selectTrue :: operand
+  , selectFalse :: operand
   }
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
-data ExtractElement local = ExtractElement
-  { extractElementVector :: TypedValue local
-  , extractElementIndex :: TypedValue local
+data ExtractElement operand = ExtractElement
+  { extractElementVector :: operand
+  , extractElementIndex :: operand
   }
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
-data InsertElement local = InsertElement
-  { insertElementVector :: TypedValue local
-  , insertElementValue :: TypedValue local
-  , insertElementIndex :: TypedValue local
+data InsertElement operand = InsertElement
+  { insertElementVector :: operand
+  , insertElementValue :: operand
+  , insertElementIndex :: operand
   }
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- | The mask is an ordinary operand rather than a list of indices: LLVM
 -- writes it as a vector constant, and @zeroinitializer@ is a common spelling
 -- of one, which a list of numbers could not hold.
-data ShuffleVector local = ShuffleVector
-  { shuffleVectorLeft :: TypedValue local
-  , shuffleVectorRight :: TypedValue local
-  , shuffleVectorMask :: TypedValue local
+data ShuffleVector operand = ShuffleVector
+  { shuffleVectorLeft :: operand
+  , shuffleVectorRight :: operand
+  , shuffleVectorMask :: operand
   }
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
@@ -322,11 +335,15 @@ data ShuffleVector local = ShuffleVector
 -- would mean the round trip could no longer be checked by comparing the
 -- output with the input.  The conversion is a lowering step between the two
 -- representations, and this type is what it will consume.
-data Phi local = Phi
+data Phi operand = Phi
   { phiFlags :: [InstructionFlag]
-  , phiType :: Type
+  , -- | Kept although each operand carries its own, because a phi with no
+    -- incoming edges would otherwise have no type at all.  Nothing rewrites a
+    -- phi's operands — the core has no phi to rewrite — so the two cannot
+    -- drift apart the way an arithmetic operation's would.
+    phiType :: Type
   , -- | The value arriving along each edge, and the block it comes from.
-    phiIncoming :: [(Value local, Name)]
+    phiIncoming :: [(operand, Name)]
   }
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
@@ -335,7 +352,7 @@ data Phi local = Phi
 -- Inline assembly and operand bundles are not modelled; a call carrying
 -- either stays opaque.  @invoke@ and @callbr@, which are calls that also
 -- branch, are still to come.
-data Call local = Call
+data Call operand = Call
   { callTail :: Maybe TailKind
   , callFlags :: [InstructionFlag]
   , callCallingConvention :: Maybe CallingConvention
@@ -346,10 +363,17 @@ data Call local = Call
     -- It writes the function type for a variadic callee, as in
     -- @call i32 (ptr, ...) \@printf@, and the return type alone otherwise.
     -- Both are types, so one field holds either.
+    --
+    -- Not the callee's own type, which is why this stays a field of its own
+    -- while the arithmetic operations lost theirs: the callee is a pointer
+    -- and this is what the call returns.
     callType :: Type
   , -- | A global for a direct call, a local for an indirect one.
-    callCallee :: Value local
-  , callArguments :: [Argument local]
+    --
+    -- An operand like any other, carrying the pointer type it has.  LLVM does
+    -- not write that type here, so the printer does not either.
+    callCallee :: operand
+  , callArguments :: [Argument operand]
   , callAttributes :: [AttributeItem]
   }
   deriving (Eq, Show, Functor, Foldable, Traversable)
@@ -363,19 +387,19 @@ data TailKind
 -- | An argument at a call site: a type, any attributes, and the value.
 --
 -- Not the same as a 'Parameter', which names its value instead of giving one.
-data Argument local = Argument
-  { argumentType :: Type
-  , argumentAttributes :: [ParamAttribute]
-  , argumentValue :: Value local
+data Argument operand = Argument
+  { argumentAttributes :: [ParamAttribute]
+  , argumentValue :: operand
   }
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- | @alloca [inalloca] \<ty\> [, \<ty\> \<count\>] [, align N] [, addrspace(N)]@.
-data Alloca local = Alloca
+data Alloca operand = Alloca
   { allocaInalloca :: Bool
-  , allocaType :: Type
+  , -- | The type allocated, which is not any operand's type.
+    allocaType :: Type
   , -- | The number of elements, when more than one is asked for.
-    allocaElementCount :: Maybe (TypedValue local)
+    allocaElementCount :: Maybe operand
   , allocaAlignment :: Maybe Natural
   , allocaAddrSpace :: Maybe Natural
   }
@@ -385,21 +409,21 @@ data Alloca local = Alloca
 --
 -- The atomic form, with its ordering and optional syncscope, is not modelled;
 -- a line carrying one stays opaque.
-data Load local = Load
+data Load operand = Load
   { loadVolatile :: Bool
   , -- | The type loaded, which since pointers became opaque is written out
     -- rather than being recoverable from the pointer.
     loadType :: Type
-  , loadPointer :: TypedValue local
+  , loadPointer :: operand
   , loadAlignment :: Maybe Natural
   }
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- | @store [volatile] \<ty\> \<value\>, ptr \<pointer\> [, align N]@.
-data Store local = Store
+data Store operand = Store
   { storeVolatile :: Bool
-  , storeValue :: TypedValue local
-  , storePointer :: TypedValue local
+  , storeValue :: operand
+  , storePointer :: operand
   , storeAlignment :: Maybe Natural
   }
   deriving (Eq, Show, Functor, Foldable, Traversable)
@@ -409,12 +433,12 @@ data Store local = Store
 -- Read back as LLVM writes it, with all its indices.  The core representation
 -- is to replace this with a form computing one offset at a time, which is a
 -- lowering step rather than something to do while reading.
-data GetElementPtr local = GetElementPtr
+data GetElementPtr operand = GetElementPtr
   { gepFlags :: [GepFlag]
   , -- | The type being indexed into, not the type of the result.
     gepSourceType :: Type
-  , gepPointer :: TypedValue local
-  , gepIndices :: [TypedValue local]
+  , gepPointer :: operand
+  , gepIndices :: [operand]
   }
   deriving (Eq, Show, Functor, Foldable, Traversable)
 

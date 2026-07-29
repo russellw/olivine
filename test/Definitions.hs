@@ -18,6 +18,7 @@ import Olivine.Syntax.Function
 import Olivine.Syntax.Instruction
 import Olivine.Syntax.Name
 import Olivine.Syntax.Printer (renderModule)
+import Olivine.Syntax.Value (TypedValue)
 
 -- | Definitions in the spelling LLVM itself emits.  The label padding and the
 -- blank line between blocks were taken from @opt -S@ output rather than
@@ -260,7 +261,7 @@ isLabelLine line = case T.uncons line of
   Just (c, _) -> isIdentifierChar c && T.isInfixOf ":" (T.takeWhile (/= ' ') line)
   Nothing -> False
 
-isArithmetic :: Operation Name -> Bool
+isArithmetic :: Operation (TypedValue Name) -> Bool
 isArithmetic (OBinary _) = True
 isArithmetic (OUnary _) = True
 isArithmetic (OICmp _) = True
@@ -290,7 +291,7 @@ isArithmeticLine = operationKeyword `startsWithAny` keywords
       , "shufflevector "
       ]
 
-isMemory :: Operation Name -> Bool
+isMemory :: Operation (TypedValue Name) -> Bool
 isMemory (OAlloca _) = True
 isMemory (OLoad _) = True
 isMemory (OStore _) = True

@@ -67,9 +67,8 @@ deadCodeTests =
         Binary
           { binaryOp = op
           , binaryFlags = []
-          , binaryType = TInteger 32
-          , binaryLeft = VLocal (Name Bare "a")
-          , binaryRight = VLocal (Name Bare "b")
+          , binaryLeft = TypedValue (TInteger 32) (VLocal (Name Bare "a"))
+          , binaryRight = TypedValue (TInteger 32) (VLocal (Name Bare "b"))
           }
     load volatile =
       OLoad
@@ -96,7 +95,7 @@ deadCodeTests =
           , callReturnAttributes = []
           , callAddrSpace = Nothing
           , callType = TVoid
-          , callCallee = VGlobal (Name Bare "g")
+          , callCallee = TypedValue (TPointer Nothing) (VGlobal (Name Bare "g"))
           , callArguments = []
           , callAttributes = []
           }

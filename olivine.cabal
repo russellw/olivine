@@ -33,7 +33,6 @@ library
                       Olivine.Syntax.Global
                       Olivine.Syntax.Type
                       Olivine.Syntax.Parser
-                      Olivine.Syntax.Operands
                       Olivine.Syntax.Printer
                       Olivine.Core.Instruction
                       Olivine.Core.Program

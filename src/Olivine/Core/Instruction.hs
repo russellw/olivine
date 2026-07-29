@@ -20,9 +20,18 @@
 -- passes move code between blocks freely, so what a block was called in the
 -- source is not information the optimizer can keep true.  The consequence
 -- worth stating is that 'Label' is not the type parameter: what the derived
--- instances reach is the locals and only the locals, so renaming operands is
+-- instances reach is the operands and only the operands, so rewriting them is
 -- 'fmap' and cannot touch control flow, and moving control flow is
 -- 'retarget' and cannot touch operands.
+--
+-- __Nothing here walks an operation.__  The operand is the type parameter and
+-- every operand slot holds it, so every question a pass asks of an operation
+-- is a derived instance: rewriting the operands is 'fmap', reading them off is
+-- 'Data.Foldable.toList', and 'localsUsedBy' and 'globalsUsedBy' are those
+-- composed with the operand's own.  Adding an instruction to this grammar is
+-- one constructor and nothing else — there is no list of operations anywhere
+-- that a new one could be left out of, which there was until the operands
+-- became uniform enough for the compiler to write the walk.
 module Olivine.Core.Instruction
   ( Local (..)
   , Label (..)
@@ -32,20 +41,14 @@ module Olivine.Core.Instruction
   , Transfer (..)
   , targetsOf
   , retarget
-  , Operands (..)
-  , mapValues
-  , valuesIn
   , localsUsedBy
   , globalsUsedBy
   ) where
 
 import Data.Foldable (toList)
-import Data.Functor.Const (Const (..))
-import Data.Functor.Identity (Identity (..))
 
 import Olivine.Syntax.Instruction
   ( Alloca (..)
-  , Argument (..)
   , Binary (..)
   , Call (..)
   , Compare (..)
@@ -63,7 +66,7 @@ import Olivine.Syntax.Instruction
   , Unary (..)
   )
 import Olivine.Syntax.Name (Name)
-import Olivine.Syntax.Value (TypedValue (..), Value, globalsIn)
+import Olivine.Syntax.Value (TypedValue (..), globalsIn)
 
 -- | What an instruction assigns to, and what an operand names when it names
 -- something the function computed.
@@ -91,7 +94,7 @@ newtype Label = Label Int
 -- | An operation and the name it assigns to its result, if any.
 data Instruction = Instruction
   { instructionResult :: Maybe Local
-  , instructionOperation :: Operation Local
+  , instructionOperation :: Operation (TypedValue Local)
   , instructionMetadata :: [MetadataAttachment]
   }
   deriving (Eq, Show)
@@ -100,49 +103,49 @@ data Instruction = Instruction
 --
 -- LLVM's instruction set without the terminators, without @phi@, and with
 -- assignment.
-data Operation local
+data Operation operand
   = -- | @r := value@.
     --
     -- A local may be assigned more than once, so this needs no counterpart in
     -- LLVM and has none.  It is what a phi becomes: an assignment on each
     -- edge that reaches the block the phi was at the head of.
-    OAssign (TypedValue local)
-  | OBinary (Binary local)
-  | OUnary (Unary local)
-  | OICmp (Compare IntPredicate local)
-  | OFCmp (Compare FloatPredicate local)
-  | OConvert (Convert local)
-  | OSelect (Select local)
-  | OExtractElement (ExtractElement local)
-  | OInsertElement (InsertElement local)
-  | OShuffleVector (ShuffleVector local)
-  | OCall (Call local)
-  | OAlloca (Alloca local)
-  | OLoad (Load local)
-  | OStore (Store local)
-  | OGetElementPtr (GetElementPtr local)
+    OAssign operand
+  | OBinary (Binary operand)
+  | OUnary (Unary operand)
+  | OICmp (Compare IntPredicate operand)
+  | OFCmp (Compare FloatPredicate operand)
+  | OConvert (Convert operand)
+  | OSelect (Select operand)
+  | OExtractElement (ExtractElement operand)
+  | OInsertElement (InsertElement operand)
+  | OShuffleVector (ShuffleVector operand)
+  | OCall (Call operand)
+  | OAlloca (Alloca operand)
+  | OLoad (Load operand)
+  | OStore (Store operand)
+  | OGetElementPtr (GetElementPtr operand)
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- | The operation ending a block.  A terminator assigns to nothing, so unlike
 -- 'Instruction' it carries no result name.
 data Terminator = Terminator
-  { terminatorTransfer :: Transfer Local
+  { terminatorTransfer :: Transfer (TypedValue Local)
   , terminatorMetadata :: [MetadataAttachment]
   }
   deriving (Eq, Show)
 
 -- | How a block passes control on.
-data Transfer local
+data Transfer operand
   = -- | @ret void@, or @ret \<ty\> \<value\>@.
-    Ret (Maybe (TypedValue local))
+    Ret (Maybe operand)
   | Br Label
-  | CondBr (TypedValue local) Label Label
+  | CondBr operand Label Label
   | -- | The value switched on, where it goes when nothing matches, and the
     -- cases.  LLVM requires the case values to be constants;
     -- 'Olivine.Syntax.Value.isConstant' is what asks, rather than the shape of
     -- the data.
-    Switch (TypedValue local) Label [(TypedValue local, Label)]
-  | IndirectBr (TypedValue local) [Label]
+    Switch operand Label [(operand, Label)]
+  | IndirectBr operand [Label]
   | Unreachable
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
@@ -178,124 +181,21 @@ retarget f t = t {terminatorTransfer = go (terminatorTransfer t)}
     go (IndirectBr address targets) = IndirectBr address (map f targets)
     go Unreachable = Unreachable
 
--- | Visiting the operands of an operation or of a transfer.
---
--- Renaming what a local is called is 'fmap' and reading the locals off is
--- 'Data.Foldable.toList', so neither comes through here.  What does is
--- everything those cannot express: putting a whole value where a local was,
--- which is what folding a constant and reconstructing single assignment both
--- do, and finding the globals, which are not the type parameter and never
--- will be.
---
--- Everything here comes from the one traversal, so reading the operands and
--- rewriting them cannot disagree: an operand missed by one is missed by both,
--- and a single test finds it.  Two grammars cost two of these, and this is the
--- whole of what the fork costs; the counterpart is
--- 'Olivine.Syntax.Operands.valuesIn'.
-class Operands f where
-  traverseValues ::
-    Applicative m => (Value local -> m (Value local')) -> f local -> m (f local')
-
-instance Operands Operation where
-  traverseValues f operation = case operation of
-    OAssign value -> OAssign <$> typed value
-    OBinary b ->
-      (\l r -> OBinary b {binaryLeft = l, binaryRight = r})
-        <$> f (binaryLeft b)
-        <*> f (binaryRight b)
-    OUnary u -> (\x -> OUnary u {unaryOperand = x}) <$> f (unaryOperand u)
-    OICmp c -> OICmp <$> comparison c
-    OFCmp c -> OFCmp <$> comparison c
-    OConvert c ->
-      (\x -> OConvert c {convertOperand = x}) <$> typed (convertOperand c)
-    OSelect s ->
-      (\c t e -> OSelect s {selectCondition = c, selectTrue = t, selectFalse = e})
-        <$> typed (selectCondition s)
-        <*> typed (selectTrue s)
-        <*> typed (selectFalse s)
-    OExtractElement e ->
-      (\v i -> OExtractElement e {extractElementVector = v, extractElementIndex = i})
-        <$> typed (extractElementVector e)
-        <*> typed (extractElementIndex e)
-    OInsertElement i ->
-      ( \v x n ->
-          OInsertElement
-            i {insertElementVector = v, insertElementValue = x, insertElementIndex = n}
-      )
-        <$> typed (insertElementVector i)
-        <*> typed (insertElementValue i)
-        <*> typed (insertElementIndex i)
-    OShuffleVector s ->
-      ( \l r m ->
-          OShuffleVector
-            s {shuffleVectorLeft = l, shuffleVectorRight = r, shuffleVectorMask = m}
-      )
-        <$> typed (shuffleVectorLeft s)
-        <*> typed (shuffleVectorRight s)
-        <*> typed (shuffleVectorMask s)
-    OCall c ->
-      (\callee arguments -> OCall c {callCallee = callee, callArguments = arguments})
-        <$> f (callCallee c)
-        <*> traverse argument (callArguments c)
-    OAlloca a ->
-      (\n -> OAlloca a {allocaElementCount = n})
-        <$> traverse typed (allocaElementCount a)
-    OLoad l -> (\p -> OLoad l {loadPointer = p}) <$> typed (loadPointer l)
-    OStore s ->
-      (\x p -> OStore s {storeValue = x, storePointer = p})
-        <$> typed (storeValue s)
-        <*> typed (storePointer s)
-    OGetElementPtr g ->
-      (\p i -> OGetElementPtr g {gepPointer = p, gepIndices = i})
-        <$> typed (gepPointer g)
-        <*> traverse typed (gepIndices g)
-    where
-      typed (TypedValue t x) = TypedValue t <$> f x
-      comparison c =
-        (\l r -> c {compareLeft = l, compareRight = r})
-          <$> f (compareLeft c)
-          <*> f (compareRight c)
-      argument a = (\x -> a {argumentValue = x}) <$> f (argumentValue a)
-
-instance Operands Transfer where
-  traverseValues f transfer = case transfer of
-    Ret value -> Ret <$> traverse typed value
-    Br target -> pure (Br target)
-    CondBr condition true false ->
-      (\c -> CondBr c true false) <$> typed condition
-    Switch value target cases ->
-      Switch
-        <$> typed value
-        <*> pure target
-        <*> traverse (\(x, l) -> (,l) <$> typed x) cases
-    IndirectBr address targets -> (`IndirectBr` targets) <$> typed address
-    Unreachable -> pure Unreachable
-    where
-      typed (TypedValue t x) = TypedValue t <$> f x
-
--- | Put a value where each operand was.
-mapValues :: Operands f => (Value local -> Value local') -> f local -> f local'
-mapValues f = runIdentity . traverseValues (Identity . f)
-
--- | Every operand, in the order written.
-valuesIn :: forall f local. Operands f => f local -> [Value local]
-valuesIn = getConst . traverseValues collect
-  where
-    collect :: Value local -> Const [Value local] (Value local)
-    collect x = Const [x]
-
 -- | The locals something reads, however deeply they are written.
 --
--- The derived instance, under a name that says what it reaches: a local
--- written inside an aggregate is reached like any other, which matters
+-- Two derived instances composed, under a name that says what they reach: the
+-- outer one visits the operands, the inner one the locals inside each.  A
+-- local written inside an aggregate is reached like any other, which matters
 -- because nothing valid puts one there but a pass asking what it may remove
 -- should not be the thing that decides so.
-localsUsedBy :: Foldable f => f local -> [local]
-localsUsedBy = toList
+localsUsedBy :: (Foldable f, Foldable g) => f (g local) -> [local]
+localsUsedBy = concatMap toList . toList
 
 -- | The globals something names, including from inside its constants.
 --
 -- The callee of a call is an operand like any other, so a call names what it
--- calls here without this having to know what a call is.
-globalsUsedBy :: Operands f => f local -> [Name]
-globalsUsedBy = concatMap globalsIn . valuesIn
+-- calls here without this having to know what a call is — and without anything
+-- here having to know what an operation is either, which is the point of the
+-- operand being the type parameter.
+globalsUsedBy :: Foldable f => f (TypedValue local) -> [Name]
+globalsUsedBy = concatMap (globalsIn . typedValue) . toList
