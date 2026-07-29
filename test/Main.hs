@@ -21,6 +21,7 @@ import Offsets (offsetTests)
 import Phis (phiTests)
 import RoundTrip (roundTripTests)
 import Structure (headerSyntaxTests, structureTests)
+import SyntaxVerify (syntaxVerifyTests)
 import Terminators (terminatorTests)
 import Types (typeTests)
 import Verify (verifyTests)
@@ -28,7 +29,8 @@ import Vectors (vectorTests)
 
 main :: IO ()
 main = do
-  discovered <- sequence [roundTripTests, structureTests, definitionTests, coreTests, verifyTests]
+  discovered <-
+    sequence [roundTripTests, structureTests, definitionTests, coreTests, verifyTests, syntaxVerifyTests]
   defaultMain $
     testGroup
       "olivine"

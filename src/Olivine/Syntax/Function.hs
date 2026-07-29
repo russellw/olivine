@@ -8,16 +8,19 @@ module Olivine.Syntax.Function
   , Definition (..)
   , BasicBlock (..)
   , BlockLabel (..)
+  , entryBlockName
   ) where
 
+import Data.Char (isDigit)
 import Numeric.Natural (Natural)
 
 import Data.Text (Text)
+import Data.Text qualified as T
 
 import Olivine.Syntax.Attribute (AttributeItem, ParamAttribute)
 import Olivine.Syntax.Instruction (Instruction)
 import Olivine.Syntax.Linkage
-import Olivine.Syntax.Name (Name)
+import Olivine.Syntax.Name (Name (..), Quoting (..))
 import Olivine.Syntax.Type (Arity, Type)
 
 data Signature = Signature
@@ -82,3 +85,24 @@ data BlockLabel = BlockLabel
     blockLabelComment :: Maybe Text
   }
   deriving (Eq, Show)
+
+-- | What LLVM calls a block written without a label.
+--
+-- Only the entry block can be written without one, having nothing that
+-- branches to it, and anything asking what the blocks of a function are called
+-- needs an answer for it too: the lowering, to find what a branch to it names,
+-- and the verifier, to say which block a phi takes a value from.
+--
+-- LLVM numbers unnamed values in order, and a block takes a number like
+-- anything else, so the entry block gets the one after the parameters.  A
+-- parameter written @%0@ is an unnamed value whose number has been written
+-- down rather than a parameter named zero, so it counts; one written @%x@ is
+-- named and does not.
+entryBlockName :: Signature -> Name
+entryBlockName signature = Name Bare (T.pack (show (length numbered)))
+  where
+    numbered =
+      [ ()
+      | p <- signatureParameters signature
+      , maybe True (T.all isDigit . nameText) (parameterName p)
+      ]

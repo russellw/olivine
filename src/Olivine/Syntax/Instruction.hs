@@ -35,6 +35,7 @@ module Olivine.Syntax.Instruction
   ( Instruction (..)
   , Operation (..)
   , isTerminator
+  , destinationsOf
   , Binary (..)
   , BinaryOp (..)
   , Unary (..)
@@ -162,6 +163,22 @@ isTerminator (OAlloca _) = False
 isTerminator (OLoad _) = False
 isTerminator (OStore _) = False
 isTerminator (OGetElementPtr _) = False
+
+-- | The blocks an operation may transfer control to, in the order written,
+-- once for each edge rather than once for each block.
+--
+-- A block written twice is two edges — @br i1 %c, label %j, label %j@ is one
+-- of them, and a @switch@ sending two cases to one place is another — and
+-- LLVM counts them that way where it matters, which is that a phi has one
+-- entry for each.  A destination is a 'Name' here and not a block, so nothing
+-- but the function it belongs to can say what it refers to.
+destinationsOf :: Operation operand -> [Name]
+destinationsOf operation = case operation of
+  OBr destination -> [destination]
+  OCondBr _ ifTrue ifFalse -> [ifTrue, ifFalse]
+  OSwitch _ fallback cases -> fallback : map snd cases
+  OIndirectBr _ destinations -> destinations
+  _ -> []
 
 -- | A binary operation: an opcode, its flags, and the operands.
 --

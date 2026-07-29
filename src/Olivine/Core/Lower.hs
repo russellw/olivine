@@ -7,11 +7,9 @@ module Olivine.Core.Lower
   ( lower
   ) where
 
-import Data.Char (isDigit)
 import Data.List (partition)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Data.Text qualified as T
 import Numeric.Natural (Natural)
 
 import Olivine.Core.Instruction
@@ -21,7 +19,7 @@ import Olivine.Syntax.Ast qualified as Syntax
 import Olivine.Syntax.Function qualified as Syntax
 import Olivine.Syntax.Instruction (isTerminator)
 import Olivine.Syntax.Instruction qualified as Syntax
-import Olivine.Syntax.Name
+import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Type (Type)
 import Olivine.Syntax.Type qualified as Syntax
 import Olivine.Syntax.Value (TypedValue (..), Value (..))
@@ -82,7 +80,7 @@ lowerDefinition types definition = do
         | (i, block) <- zip [0 ..] written
         ]
     nameOf block =
-      maybe (entryName signature) Syntax.blockLabelName (Syntax.blockLabel block)
+      maybe (Syntax.entryBlockName signature) Syntax.blockLabelName (Syntax.blockLabel block)
 
     -- Every local the function defines, in the order written: the parameters
     -- first, then each result.  A local is defined once in LLVM, so this
@@ -356,24 +354,3 @@ split labels locals body = case reverse body of
   where
     modelled (Syntax.IOperation _ operation _) = not (isTerminator operation)
     modelled _ = False
-
--- | The number LLVM gives an unlabelled entry block.
---
--- Only the lowering needs this, and only to find what the blocks branching to
--- an unlabelled entry block call it.  Once every block has a 'Label' the
--- question does not come up again: the rule that reads a number off the
--- parameter list belongs at the edge where LLVM's names are still in force.
---
--- LLVM numbers unnamed values in order, and a block takes a number like
--- anything else, so the entry block gets the one after the parameters.  A
--- parameter written @%0@ is an unnamed value whose number has been written
--- down rather than a parameter named zero, so it counts; one written @%x@ is
--- named and does not.
-entryName :: Syntax.Signature -> Name
-entryName signature = Name Bare (T.pack (show (length numbered)))
-  where
-    numbered =
-      [ ()
-      | p <- Syntax.signatureParameters signature
-      , maybe True (T.all isDigit . nameText) (Syntax.parameterName p)
-      ]

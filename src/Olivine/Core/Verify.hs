@@ -30,8 +30,10 @@
 -- __It judges the core and not what is retained beside it.__  A global's
 -- initializer, a declaration's attributes, what an @ifunc@ may resolve
 -- through: those are judgements about syntax the optimizer does not model and
--- no pass can damage.  They belong to a verifier of that layer, and this is
--- not it.
+-- no pass can damage.  So are the names, the block structure and the phis,
+-- which the lowering discards on the way in and the raising invents on the way
+-- out.  All of them belong to "Olivine.Syntax.Verify", which the driver runs
+-- at either end of this one.
 module Olivine.Core.Verify
   ( Problem (..)
   , Site (..)
@@ -55,8 +57,7 @@ import Olivine.Core.Instruction
 import Olivine.Core.Program
 
 import Olivine.Syntax.Ast qualified as Syntax
-import Olivine.Syntax.Function (Definition (..), Parameter (..), Signature (..))
-import Olivine.Syntax.Global (Global (..), IndirectSymbol (..))
+import Olivine.Syntax.Function (Parameter (..), Signature (..))
 import Olivine.Syntax.Instruction
   ( Alloca (..)
   , Binary (..)
@@ -77,6 +78,7 @@ import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Printer (renderInstructionFlag, renderName, renderType)
 import Olivine.Syntax.Type (Type (..), resolveNamed)
 import Olivine.Syntax.Value (CastOp (..), TypedValue (..), Value (..), isConstant)
+import Olivine.Syntax.Verify (symbolsDefinedBy)
 
 -- | Something wrong, and where it is.
 data Problem = Problem
@@ -210,13 +212,12 @@ definedSymbols program
     opaque (ERetained (Syntax.EOpaque _)) = True
     opaque _ = False
 
+    -- What a retained entry defines is asked of the syntax layer rather than
+    -- answered again here: it is a fact about that grammar, and a second copy
+    -- would be a second place to forget a construct.
     defines entry = case entry of
       EFunction f -> [signatureName (functionSignature f)]
-      ERetained (Syntax.EGlobal g) -> [globalName g]
-      ERetained (Syntax.EIndirect s) -> [indirectName s]
-      ERetained (Syntax.EDeclare signature) -> [signatureName signature]
-      ERetained (Syntax.EDefine d) -> [signatureName (definitionSignature d)]
-      _ -> []
+      ERetained retained -> symbolsDefinedBy retained
 
 verifyFunction :: Map Name Type -> Maybe (Set Name) -> Function -> [Problem]
 verifyFunction types symbols f =

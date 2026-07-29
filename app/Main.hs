@@ -2,16 +2,20 @@
 module Main (main) where
 
 import Data.Maybe (listToMaybe)
+import Data.Text (Text)
 import Data.Text.IO qualified as TIO
 import Options.Applicative
 import System.Exit (exitFailure)
 import System.IO (hPutStrLn, stderr)
 
-import Olivine.Core.Verify (Problem, renderProblem, verify)
-import Olivine.Pipeline (optimize, stages)
+import Olivine.Core.Program (Program)
+import Olivine.Core.Raise (raise)
+import Olivine.Core.Verify qualified as Core
+import Olivine.Pipeline (stages)
 import Olivine.Syntax.Ast (Module)
 import Olivine.Syntax.Parser (parseModule, renderParseError)
 import Olivine.Syntax.Printer (renderModule)
+import Olivine.Syntax.Verify qualified as Syntax
 
 data Options = Options
   { optInput :: FilePath
@@ -62,25 +66,39 @@ run opts = do
     Left err -> do
       hPutStrLn stderr (renderParseError err)
       exitFailure
-    Right m -> case if optVerify opts then broken m else Nothing of
-      Just (stage, problems) -> do
-        hPutStrLn stderr ("olivine: " <> stage <> ":")
-        mapM_ (TIO.hPutStrLn stderr . renderProblem) problems
-        exitFailure
-      Nothing -> do
-        let result = renderModule (optimize m)
-        maybe (TIO.putStr result) (`TIO.writeFile` result) (optOutput opts)
+    Right m -> do
+      let core = stages m
+          result = raise (snd (last core))
+      case if optVerify opts then broken m core result else Nothing of
+        Just (stage, problems) -> do
+          hPutStrLn stderr ("olivine: " <> stage <> ":")
+          mapM_ (TIO.hPutStrLn stderr) problems
+          exitFailure
+        Nothing -> do
+          let written = renderModule result
+          maybe (TIO.putStr written) (`TIO.writeFile` written) (optOutput opts)
 
 -- | The first point at which the program is wrong, and what is wrong with it.
 --
 -- The first, because a pass handed a broken program will be blamed for what it
 -- was given: what names the culprit is where the problems start, and
 -- everything after that is a consequence.
-broken :: Module -> Maybe (String, [Problem])
-broken m =
+--
+-- The two ends are judged by the syntax verifier and everything between them
+-- by the core one, each asking what only it can see.  Reading comes first
+-- because a module that arrives broken is not the optimizer's doing, and
+-- writing comes last because a module that leaves broken is.
+broken :: Module -> [(String, Program)] -> Module -> Maybe (String, [Text])
+broken m core result =
   listToMaybe
     [ (stage, problems)
-    | (stage, program) <- stages m
-    , let problems = verify program
+    | (stage, problems) <- checks
     , not (null problems)
     ]
+  where
+    checks =
+      ("as read", map Syntax.renderProblem (Syntax.verify m))
+        : [ (stage, map Core.renderProblem (Core.verify program))
+          | (stage, program) <- core
+          ]
+          <> [("as written", map Syntax.renderProblem (Syntax.verify result))]

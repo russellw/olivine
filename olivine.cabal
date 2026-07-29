@@ -34,6 +34,7 @@ library
                       Olivine.Syntax.Type
                       Olivine.Syntax.Parser
                       Olivine.Syntax.Printer
+                      Olivine.Syntax.Verify
                       Olivine.Core.Instruction
                       Olivine.Core.Program
                       Olivine.Core.Phi
@@ -88,6 +89,7 @@ test-suite olivine-test
                       Phis
                       Vectors
                       Core
+                      SyntaxVerify
                       ControlFlow
                       DeadCode
                       DeadSymbols
