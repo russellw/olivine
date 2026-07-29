@@ -56,23 +56,51 @@
 -- equal declines both.  Taking the sound half is a refinement for later, as is
 -- reading @add %a, %b@ and @add %b, %a@ as one expression.
 --
--- __One walk, so a loop recomputes what it carries in.__  The blocks are
--- walked once, in the order a value can be carried forwards in, and a back
--- edge answers nothing rather than guessing.  Within one turn of a loop that
--- costs nothing — what the body computes twice it computes on one path, and
--- the walk sees both — but an expression worked out before the loop is not
--- available inside it, because the block the loop begins at has a predecessor
--- the walk has not been to.
+-- __Availability is iterated, so a loop keeps what it carries in.__  The
+-- blocks are walked over and over, in the order a value can be carried
+-- forwards in, until what is known on the way into each of them stops
+-- changing.  Every block begins by saying that everything the function
+-- computes anywhere is available in it, and each round takes away whatever
+-- some path into the block turns out not to carry.
 --
--- Settling that means iterating: initialize every block with everything the
--- function computes anywhere, and take facts away until the sets stop
--- changing, which is where a must-analysis of a graph with cycles has to
--- start.  One walk from nothing cannot reach it — starting empty and growing
--- gives the least solution, and the least solution is precisely the one that
--- says nothing crosses a back edge.  What one walk buys instead is that every
--- fact it has is grounded in a path from the entry that produced it, which is
--- why this is the half to write first.  Under-approximating availability
--- shares less and never shares wrongly.
+-- Beginning from everything is what a must-analysis of a graph with cycles
+-- takes.  An expression worked out before a loop is available inside it only
+-- if the back edge agrees, and the back edge cannot agree until the body has
+-- been walked, which cannot happen until the block the loop begins at has.
+-- Beginning from nothing and growing gives the least solution instead, and the
+-- least solution is precisely the one where nothing crosses a back edge: the
+-- loop would recompute everything it was handed.
+--
+-- __Everything is never written down.__  Meeting with the set of every fact is
+-- the identity, so a block no round has reached yet is left saying nothing at
+-- all and the meet passes over it.  That is also the only way to say it, the
+-- copies half of an answer being a map: a map holds one value per local, so
+-- "anything at all" is not a thing it can hold.
+--
+-- __And the rounds are made to stop.__  Walking a block is not monotone.  What
+-- an instruction is left saying depends on what arrived and not only on how
+-- much of it: one that finds its expression already in hand becomes a copy and
+-- leaves the answer where it was, while one that does not leaves the answer in
+-- itself, and every operand is resolved through whichever copies arrived, so
+-- the same expression recorded under two different arrivals is not the same
+-- fact — it is the same computation written two ways.  Less arriving can
+-- therefore mean something different leaving rather than less, and two rounds
+-- that read each other could alternate forever.
+--
+-- So the rounds are bounded.  One round per block and two more take what
+-- arrives at each block as they find it, which is as many as a fact can need —
+-- a round carries it at least one block on, and the last round is the one that
+-- finds nothing left to change.  After that a round holds what arrives to what
+-- arrived last time, which can only shrink and so must stop.  No function in
+-- the corpus asks for a fourth round, let alone for the bound.
+--
+-- Stopping that way is sound whenever it happens, because what makes an answer
+-- sound is that nothing arriving at a block is more than every path into it
+-- agrees on, and an intersection of what arrives with anything is still that.
+-- What it costs is precision, and only past the bound: a computation the
+-- intersection drops because an earlier round wrote it another way is a
+-- computation not shared, which is the direction this pass is allowed to be
+-- wrong in.
 module Olivine.Core.Pass.CommonSubexpressions
   ( eliminateCommonSubexpressions
   , shareable
@@ -82,6 +110,7 @@ import Control.Monad (guard)
 import Data.List (find, mapAccumL)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
+import Data.Maybe (mapMaybe)
 import Data.Set qualified as Set
 
 import Olivine.Core.Blocks (predecessorsOf, reversePostorder)
@@ -127,6 +156,7 @@ data Known = Known
     -- holding one value.
     copies :: Map Local (Value Local)
   }
+  deriving (Eq)
 
 nothingKnown :: Known
 nothingKnown = Known Map.empty Map.empty
@@ -139,37 +169,68 @@ share types f = f {functionBlocks = map rewrite (functionBlocks f)}
     reachable = Set.fromList order
     byLabel = Map.fromList [(blockLabel b, b) | b <- blocks]
 
-    rewrite b = case Map.lookup (blockLabel b) walked of
-      Just (instructions, _) -> b {blockInstructions = instructions}
+    rewrite b = case Map.lookup (blockLabel b) settled of
+      Just (incoming, _) -> b {blockInstructions = snd (walk incoming b)}
       -- A block nothing reaches.  No walk arrives at one, so there is nothing
       -- known in it to share from, and nothing it computes reaches anywhere
       -- else to be shared to.
       Nothing -> b
 
-    -- Every reachable block, with what it is left saying and what is known
-    -- after it.
-    walked :: Map Label ([Instruction], Known)
-    walked = foldl' step Map.empty order
-      where
-        step seen label =
-          let block = byLabel Map.! label
-              (out, instructions) =
-                mapAccumL instruction (entering seen label) (blockInstructions block)
-           in Map.insert label (instructions, out) seen
+    -- A block's instructions rewritten against what is known on the way in,
+    -- with what is known on the way out.
+    walk :: Known -> Block -> (Known, [Instruction])
+    walk incoming block = mapAccumL instruction incoming (blockInstructions block)
 
-    -- What is known on the way into a block: what every block control can
-    -- arrive from was left knowing, and only where they agree.
+    -- What is known on the way into each reachable block and on the way out of
+    -- it, once the rounds have stopped changing them.
     --
-    -- A predecessor the walk has not reached is across a back edge, and it
-    -- answers nothing: what it was left with is what the previous time round
-    -- the loop left there, which this walk has not worked out.  The entry
-    -- block answers nothing for the same reason read the other way — it has
-    -- nothing before it at all.
-    entering :: Map Label ([Instruction], Known) -> Label -> Known
-    entering seen label =
-      case traverse (\p -> snd <$> Map.lookup p seen) (predecessors label) of
-        Just (arriving : rest) -> foldl' agreeing arriving rest
-        _ -> nothingKnown
+    -- A round takes the blocks in turn, each reading what the blocks before it
+    -- in this same round were left saying, so a fact travels as far as the
+    -- order allows rather than one block per round.  Rounds up to the bound
+    -- take what arrives as it is; after that they hold it to what arrived last
+    -- time, which is what stops them.  What leaves is always this round's own
+    -- answer about what arrived: holding /that/ to the previous round's would
+    -- intersect two spellings of one computation, since the operands were
+    -- resolved through the copies each round believed in, and keep neither.
+    settled :: Map Label (Known, Known)
+    settled = settle (length order + 2) Map.empty
+      where
+        settle plain before
+          | after == before = before
+          | otherwise = settle (plain - 1) after
+          where
+            after = foldl' (visit (plain > 0)) before order
+
+        visit plain seen label = case entering seen label of
+          -- Every way in is a block no round has reached yet.  A block reached
+          -- from the entry has a predecessor that was reached before it, so
+          -- this is a block in a cycle the rounds are still working inwards
+          -- to; the next round has more to go on.
+          Nothing -> seen
+          Just arriving ->
+            let incoming = case Map.lookup label seen of
+                  Just (previously, _) | not plain -> agreeing previously arriving
+                  _ -> arriving
+             in Map.insert
+                  label
+                  (incoming, fst (walk incoming (byLabel Map.! label)))
+                  seen
+
+    -- What arrives at a block: what every block control can arrive from was
+    -- left knowing, and only where they agree.
+    --
+    -- A predecessor no round has reached yet is still saying everything, and
+    -- meeting with everything is meeting with nothing, so it is passed over
+    -- rather than answered for.  The entry block is the one place where an
+    -- answer is known outright: a function starts there knowing nothing, and
+    -- an edge back to it — which LLVM forbids, whatever else the graph does —
+    -- could only agree with less.
+    entering :: Map Label (Known, Known) -> Label -> Maybe Known
+    entering known label
+      | entryLabel f == Just label = Just nothingKnown
+      | otherwise = case mapMaybe (fmap snd . (`Map.lookup` known)) (predecessors label) of
+          [] -> Nothing
+          arriving : rest -> Just (foldl' agreeing arriving rest)
 
     -- Blocks nothing reaches are not predecessors.  The edge one carries is
     -- an edge control never takes, and counting it would leave a block that

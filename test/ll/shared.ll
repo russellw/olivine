@@ -77,6 +77,65 @@ done:
   ret i32 %a
 }
 
+; The same again, into a loop.  The block the loop begins at is reached from
+; below as well as from above, so this subscript is shared only because
+; availability is iterated to a fixed point rather than walked once.
+define i32 @carried(ptr %p, i64 %i, i32 %n) {
+entry:
+  %q = getelementptr inbounds [4 x i32], ptr %p, i64 %i, i64 2
+  %a = load i32, ptr %q, align 4
+  br label %head
+
+head:
+  %k = phi i32 [ 0, %entry ], [ %k1, %body ]
+  %t = phi i32 [ %a, %entry ], [ %t1, %body ]
+  %c = icmp slt i32 %k, %n
+  br i1 %c, label %body, label %done
+
+body:
+  %r = getelementptr inbounds [4 x i32], ptr %p, i64 %i, i64 2
+  %b = load i32, ptr %r, align 4
+  %t1 = add i32 %t, %b
+  %k1 = add i32 %k, 1
+  br label %head
+
+done:
+  ret i32 %t
+}
+
+; And the reason iterating cannot simply hand the loop what the block above it
+; worked out.  Promotion turns the slot into a local the body reassigns, so
+; what the entry block knows about @add %s, 1@ does not survive the trip round
+; and the addition in the body has to be computed afresh.  Sharing it would
+; add one to the number the slot held before the loop ever ran.
+define i32 @revisited(i32 %n) {
+entry:
+  %s = alloca i32, align 4
+  store i32 %n, ptr %s, align 4
+  %v0 = load i32, ptr %s, align 4
+  %x0 = add i32 %v0, 1
+  br label %head
+
+head:
+  %k = phi i32 [ 0, %entry ], [ %k1, %body ]
+  %t = phi i32 [ %x0, %entry ], [ %t1, %body ]
+  %c = icmp slt i32 %k, 3
+  br i1 %c, label %body, label %done
+
+body:
+  %v1 = load i32, ptr %s, align 4
+  %w = mul i32 %v1, 2
+  store i32 %w, ptr %s, align 4
+  %v2 = load i32, ptr %s, align 4
+  %x1 = add i32 %v2, 1
+  %t1 = add i32 %t, %x1
+  %k1 = add i32 %k, 1
+  br label %head
+
+done:
+  ret i32 %t
+}
+
 ; Two allocations are two objects, however alike the instructions asking for
 ; them.
 define i32 @separate() {

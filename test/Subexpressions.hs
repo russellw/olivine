@@ -48,25 +48,33 @@ subexpressionTests =
             assertBool
               ("expected a shared step in " <> show copies)
               (not (null copies))
-        , -- Within one turn of a loop the walk sees both computations, which
-          -- is the case the corpus has.  The locals here are the three
-          -- parameters, then %e %i %c %x %y %j as 3 to 8.
+        , -- Both computations in the body are the one the block before the
+          -- loop already made, so neither is left to make.  The locals here
+          -- are the three parameters, then %e %i %c %x %y %j as 3 to 8.
           testCase "twice in a loop body" $ do
             copies <- copiesIn looping
-            assertEqual "the second reads the first" [(Local 7, Local 6)] copies
+            assertEqual
+              "both read what the block before the loop worked out"
+              [(Local 6, Local 3), (Local 7, Local 3)]
+              copies
         ]
     , testGroup
-        "what one walk costs"
-        [ -- What the block before the loop worked out is not available inside
-          -- it, because the block the loop begins at has a predecessor the
-          -- walk has not been to.  Stated as a test rather than left to the
-          -- module comment, so that the pass acquiring a fixed point is a test
-          -- that changes rather than a claim somebody has to notice is stale.
-          testCase "an expression carried into a loop is recomputed" $ do
-            copies <- copiesIn looping
-            assertBool
-              ("expected %x to compute it afresh in " <> show copies)
-              (Local 6 `notElem` map fst copies)
+        "what iterating buys"
+        [ -- The whole of what the rounds are for.  The block the loop begins
+          -- at has a predecessor below it, so one walk over the blocks has
+          -- nothing to say about what arrives along that edge and can only
+          -- assume the worst; the rounds start by assuming the best instead
+          -- and take away what some path does not carry, and no path into the
+          -- loop fails to carry this.
+          testCase "an expression carried into a loop is available" $ do
+            copies <- copiesIn carried
+            assertEqual "%x reads what came in" [(Local 6, Local 3)] copies
+        , -- Two edges deep, which takes a round to reach the outer loop and
+          -- another to reach the inner one.  The locals are the three
+          -- parameters, then %e %i %c %j %x %m %d %k as 3 to 10.
+          testCase "carried into a loop inside a loop" $ do
+            copies <- copiesIn nested
+            assertEqual "%x reads what came in" [(Local 7, Local 3)] copies
         ]
     , testGroup
         "what is not"
@@ -279,6 +287,54 @@ looping =
     , "  %y = mul i32 %a, %b"
     , "  %j = add i32 %i, 1"
     , "  br label %head"
+    , "done:"
+    , "  ret i32 %e"
+    , "}"
+    ]
+
+-- | A loop whose body recomputes what the block before it worked out, and
+-- nothing else.
+carried :: Text
+carried =
+  T.unlines
+    [ "define i32 @f(i32 %a, i32 %b, i32 %n) {"
+    , "entry:"
+    , "  %e = mul i32 %a, %b"
+    , "  br label %head"
+    , "head:"
+    , "  %i = phi i32 [ 0, %entry ], [ %j, %body ]"
+    , "  %c = icmp slt i32 %i, %n"
+    , "  br i1 %c, label %body, label %done"
+    , "body:"
+    , "  %x = mul i32 %a, %b"
+    , "  %j = add i32 %i, %x"
+    , "  br label %head"
+    , "done:"
+    , "  ret i32 %e"
+    , "}"
+    ]
+
+-- | The same, one loop further in.
+nested :: Text
+nested =
+  T.unlines
+    [ "define i32 @f(i32 %a, i32 %b, i32 %n) {"
+    , "entry:"
+    , "  %e = mul i32 %a, %b"
+    , "  br label %outer"
+    , "outer:"
+    , "  %i = phi i32 [ 0, %entry ], [ %k, %latch ]"
+    , "  %c = icmp slt i32 %i, %n"
+    , "  br i1 %c, label %inner, label %done"
+    , "inner:"
+    , "  %j = phi i32 [ 0, %outer ], [ %m, %inner ]"
+    , "  %x = mul i32 %a, %b"
+    , "  %m = add i32 %j, %x"
+    , "  %d = icmp slt i32 %m, %n"
+    , "  br i1 %d, label %inner, label %latch"
+    , "latch:"
+    , "  %k = add i32 %i, 1"
+    , "  br label %outer"
     , "done:"
     , "  ret i32 %e"
     , "}"
