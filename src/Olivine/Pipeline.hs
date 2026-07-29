@@ -17,6 +17,7 @@ import Olivine.Core.Pass.ConstantFold (foldConstants)
 import Olivine.Core.Pass.ControlFlow (simplifyControlFlow)
 import Olivine.Core.Pass.DeadCode (eliminateDeadCode)
 import Olivine.Core.Pass.DeadSymbols (eliminateDeadSymbols)
+import Olivine.Core.Pass.Inline (inlineCalls)
 import Olivine.Core.Pass.Promote (promoteMemory)
 import Olivine.Core.Program (Program)
 import Olivine.Core.Raise (raise)
@@ -35,8 +36,26 @@ passes :: [Pass]
 -- unoptimized input is mostly memory traffic, and every pass after this one
 -- works on what promotion turns that traffic into.
 --
+-- Inlining second, because it is what gives the passes after it something to
+-- work on that they could not otherwise see: an argument becomes an
+-- assignment, so a constant handed to a function is a constant inside it, and
+-- everything below reads operands.  It runs after promotion rather than before
+-- so that the size it judges a callee by is the size of what the callee does,
+-- not the size of the memory traffic an unoptimized front end wrapped it in.
+--
+-- What that order costs is the other direction: a slot whose address is only
+-- ever handed to a function that gets inlined becomes promotable exactly then,
+-- and promotion has already run.  That is the same argument promotion makes
+-- about the dead code pass, and the same answer — a reason to run the pipeline
+-- again, not to run a pass twice inside it.
+--
 -- Folding next, since it leaves the instructions it replaced assigning to
 -- nothing anyone reads, which is exactly what the dead code pass takes away.
+--
+-- Control flow after inlining as well as after folding: inlining leaves the
+-- block it split in two joined by an unconditional branch, and a callee of one
+-- block joined to both halves the same way, which is precisely what block
+-- merging puts back together.
 --
 -- Control flow after that, because what folding settles about a condition is
 -- of no use until the branch on it is rewritten, and folding will not do that:
@@ -53,6 +72,7 @@ passes :: [Pass]
 -- it can know any of them.
 passes =
   [ Pass "memory promotion" promoteMemory
+  , Pass "inlining" inlineCalls
   , Pass "constant folding" foldConstants
   , Pass "control flow" simplifyControlFlow
   , Pass "dead code" eliminateDeadCode

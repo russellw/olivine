@@ -111,11 +111,11 @@ eliminate firstLabel firstLocal blocks = concatMap build issued
     -- an edge joins was the old way, and it could collide with a name the
     -- source had chosen; a number cannot.
     issued = snd (foldl' issue ((firstLabel, firstLocal), []) blocks)
-    issue ((nextLabel, nextTemporary), done) b =
+    issue ((freeLabel, nextTemporary), done) b =
       let (afterInline, inline) = sequenceCopies nextTemporary (inlineOn b)
           (afterEdges, edges) = spread afterInline (splitting b)
-       in ( (nextLabel + length edges, afterEdges)
-          , done <> [(b, inline, zip (map Label [nextLabel ..]) edges)]
+       in ( (freeLabel + length edges, afterEdges)
+          , done <> [(b, inline, zip (map Label [freeLabel ..]) edges)]
           )
     -- Each edge's copies in turn, each picking up where the last left off.
     spread next [] = (next, [])

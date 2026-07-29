@@ -18,6 +18,7 @@ module Olivine.Core.Program
   , functionsIn
   , entryLabel
   , nextLocal
+  , nextLabel
   ) where
 
 import Olivine.Core.Instruction
@@ -92,6 +93,21 @@ nextLocal f = Local (1 + maximum (-1 : [n | Local n <- used]))
            | b <- functionBlocks f
            , local <- localsUsedBy (terminatorTransfer (blockTerminator b))
            ]
+
+-- | A block number nothing in the function already uses.
+--
+-- The counterpart of 'nextLocal', wanted by anything that has to invent a
+-- block — which is inlining, splitting the block a call sits in.  Branch
+-- targets are looked at as well as the blocks themselves, for the reason
+-- operands are looked at there: a destination naming a block that is not
+-- present still names it, and issuing that number would silently connect the
+-- two.
+nextLabel :: Function -> Label
+nextLabel f = Label (1 + maximum (-1 : [n | Label n <- used]))
+  where
+    used =
+      map blockLabel (functionBlocks f)
+        <> concatMap (targetsOf . blockTerminator) (functionBlocks f)
 
 -- | The block a function starts at, which is the first one written.
 --

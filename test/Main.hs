@@ -15,6 +15,7 @@ import Declares (declareTests)
 import Definitions (definitionTests)
 import Globals (globalTests)
 import Indirects (indirectTests)
+import Inlining (inliningTests)
 import Memory (memoryTests)
 import Metadata (metadataTests)
 import Offsets (offsetTests)
@@ -35,4 +36,4 @@ main = do
   defaultMain $
     testGroup
       "olivine"
-      ([typeTests, globalTests, comdatTests, indirectTests, declareTests, attributeTests, metadataTests, terminatorTests, memoryTests, arithmeticTests, callTests, phiTests, vectorTests, deadCodeTests, deadSymbolTests, foldingTests, controlFlowTests, promotionTests, offsetTests, headerSyntaxTests] <> discovered)
+      ([typeTests, globalTests, comdatTests, indirectTests, declareTests, attributeTests, metadataTests, terminatorTests, memoryTests, arithmeticTests, callTests, phiTests, vectorTests, deadCodeTests, deadSymbolTests, foldingTests, controlFlowTests, promotionTests, inliningTests, offsetTests, headerSyntaxTests] <> discovered)

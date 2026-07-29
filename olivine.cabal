@@ -45,6 +45,7 @@ library
                       Olivine.Core.Pass.ControlFlow
                       Olivine.Core.Pass.DeadCode
                       Olivine.Core.Pass.DeadSymbols
+                      Olivine.Core.Pass.Inline
                       Olivine.Core.Pass.Promote
                       Olivine.Core.Raise
                       Olivine.Core.Verify
@@ -78,6 +79,7 @@ test-suite olivine-test
                       Globals
                       Comdats
                       Indirects
+                      Inlining
                       Declares
                       Attributes
                       Metadata
