@@ -8,6 +8,7 @@ module Olivine.Pipeline
   ( Pass (..)
   , passes
   , optimize
+  , stages
   , fixpoint
   ) where
 
@@ -53,7 +54,19 @@ passes =
 -- Lowering and raising happen either side of the passes rather than being
 -- each pass's business, so a pass never sees the syntax layer.
 optimize :: Module -> Module
-optimize = raise . flip (foldl' (flip runPass)) passes . lower
+optimize = raise . snd . last . stages
+
+-- | The core program at every point something can look at it: as it was read,
+-- and then as each pass in turn leaves it, under a label saying which that is.
+--
+-- What wants this is the verifier.  A program that arrives whole and leaves
+-- broken was broken by one particular pass, and the only way to say which is
+-- to look in between; a pass being a pure function from program to program is
+-- what makes the intermediate results there to be looked at.
+stages :: Module -> [(String, Program)]
+stages m = scanl step ("as read", lower m) passes
+  where
+    step (_, program) pass = ("after " <> passName pass, runPass pass program)
 
 -- | Apply a transformation until it stops changing the program.
 fixpoint :: Eq a => (a -> a) -> a -> a

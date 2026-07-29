@@ -14,6 +14,7 @@ module Olivine.Syntax.Printer
   , renderValue
   , renderType
   , renderName
+  , renderInstructionFlag
   ) where
 
 import Data.List.NonEmpty qualified as NE

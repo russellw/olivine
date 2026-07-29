@@ -14,8 +14,11 @@ module Olivine.Syntax.Type
   , Packedness (..)
   , Scalability (..)
   , Arity (..)
+  , resolveNamed
   ) where
 
+import Data.Map.Strict (Map)
+import Data.Map.Strict qualified as Map
 import Numeric.Natural (Natural)
 
 import Olivine.Syntax.Name (Name)
@@ -71,3 +74,19 @@ data Arity
   = FixedArity
   | VariadicArity
   deriving (Eq, Show)
+
+-- | What a named type stands for, given the module's type definitions.
+--
+-- A name is a reference into that table, so anything asking what a type
+-- actually is — which fields a struct has, whether something is a vector —
+-- has to look it up, and what it finds may be another name.  A type that is
+-- not a name, or one the table does not have, stands for itself.
+--
+-- The bound is against a definition that names itself: LLVM rejects one, and
+-- nothing that resolves a type should hang on a module that has it.
+resolveNamed :: Map Name Type -> Type -> Type
+resolveNamed types = go (Map.size types)
+  where
+    go 0 t = t
+    go n (TNamed name) = maybe (TNamed name) (go (n - 1 :: Int)) (Map.lookup name types)
+    go _ t = t

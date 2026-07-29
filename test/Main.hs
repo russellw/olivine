@@ -23,11 +23,12 @@ import RoundTrip (roundTripTests)
 import Structure (headerSyntaxTests, structureTests)
 import Terminators (terminatorTests)
 import Types (typeTests)
+import Verify (verifyTests)
 import Vectors (vectorTests)
 
 main :: IO ()
 main = do
-  discovered <- sequence [roundTripTests, structureTests, definitionTests, coreTests]
+  discovered <- sequence [roundTripTests, structureTests, definitionTests, coreTests, verifyTests]
   defaultMain $
     testGroup
       "olivine"

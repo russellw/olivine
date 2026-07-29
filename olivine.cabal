@@ -45,6 +45,7 @@ library
                       Olivine.Core.Pass.DeadCode
                       Olivine.Core.Pass.DeadSymbols
                       Olivine.Core.Raise
+                      Olivine.Core.Verify
                       Olivine.Pipeline
     build-depends:    base >=4.17 && <5,
                       containers,
@@ -91,6 +92,7 @@ test-suite olivine-test
                       DeadCode
                       DeadSymbols
                       Folding
+                      Verify
     build-depends:    base,
                       filepath,
                       olivine,

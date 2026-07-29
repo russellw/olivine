@@ -299,13 +299,8 @@ gepSteps types = first
 
     stride element index rest = (StrideBy element index :) <$> inside element rest
 
-    -- A named type stands for its body.  The bound is against a definition
-    -- that names itself, which LLVM rejects and this must not loop on.
-    resolve = go (Map.size types)
-      where
-        go 0 t = t
-        go n (Syntax.TNamed name) = maybe (Syntax.TNamed name) (go (n - 1)) (Map.lookup name types)
-        go _ t = t
+    -- A named type stands for its body.
+    resolve = Syntax.resolveNamed types
 
     constantIndex (TypedValue _ (VInteger n))
       | n >= 0 = Just (fromInteger n)
