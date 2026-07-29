@@ -246,9 +246,24 @@ deadSymbolTests =
         , testCase "with the members it can see" $ do
             kept <- globalsOf grouped
             assertBool ("expected presumed in " <> show kept) ("presumed" `elem` kept)
+        , -- The same, where the clause names no group and so means the one
+          -- the symbol's own name spells.  Nothing in the line carries a
+          -- sigil, and a pass that went by sigils alone removed the group
+          -- while the definition claiming it stayed -- which is what every
+          -- C++ translation unit is written like, one unmodelled keyword in
+          -- the header being enough to leave a template instantiation as text.
+          testCase "a group a bare clause on an unread line names stays" $ do
+            kept <- comdatsOf grouped
+            assertBool ("expected unwritten in " <> show kept) ("unwritten" `elem` kept)
+        , testCase "with the members it can see" $ do
+            kept <- globalsOf grouped
+            assertBool ("expected inferred in " <> show kept) ("inferred" `elem` kept)
         , testCase "everything reachable survives" $ do
             kept <- comdatsOf grouped
-            assertEqual "the live groups, in the order written" ["live", "assumed"] kept
+            assertEqual
+              "the live groups, in the order written"
+              ["live", "assumed", "unwritten"]
+              kept
         ]
     , -- A function's body names globals and a global's initializer names
       -- functions, so the two kinds are one graph and a dead chain can cross
@@ -327,6 +342,17 @@ deadSymbolTests =
               -- name containing one does not mention a group.
               testCase "a $ inside a name is part of it" $
                 mentionedIn "  %a$b = load i32, ptr @g$h" @?= [RSymbol "g$h"]
+            , -- Written bare it means the group the symbol's own name spells,
+              -- and puts no sigil in the line.  Which of the names it belongs
+              -- to needs the grammar, which is what this text is here for want
+              -- of, so each of them is taken to name a group as well.
+              testCase "a bare clause names a group with no sigil" $
+                mentionedIn "define void @f() comdat personality ptr @p {"
+                  @?= [RSymbol "f", RSymbol "p", RComdat "f", RComdat "p"]
+            , -- A name that ends in the six letters is not the keyword.
+              testCase "a longer word ending in it is not the clause" $
+                mentionedIn "define void @f() gc \"x\" section \"nocomdat\" {"
+                  @?= [RSymbol "f"]
             ]
         ]
     ]
@@ -488,10 +514,12 @@ deadSymbolTests =
         , "  ret void"
         , "}"
         ]
-    -- Three comdat groups: one a live path arrives at, one nothing reaches,
-    -- and one named only by a header Olivine cannot read — the @gc@ clause is
-    -- not modelled, so that definition comes through as text.  Each group has
-    -- a member that nothing but the group could keep.
+    -- Four comdat groups: one a live path arrives at, one nothing reaches,
+    -- and two named only by a header Olivine cannot read — the @gc@ clause is
+    -- not modelled, so those definitions come through as text.  The last names
+    -- its group the way a C++ translation unit does, with a bare clause and no
+    -- sigil in the line at all.  Each group has a member that nothing but the
+    -- group could keep.
     grouped =
       T.unlines
         [ "$live = comdat any"
@@ -500,11 +528,14 @@ deadSymbolTests =
         , ""
         , "$assumed = comdat any"
         , ""
+        , "$unwritten = comdat any"
+        , ""
         , "@shared = linkonce_odr global i32 0, comdat($live)"
         , "@paired = internal global i32 0, comdat($live)"
         , "@lonely = linkonce_odr global i32 0, comdat($dead)"
         , "@partner = internal global i32 0, comdat($dead)"
         , "@presumed = internal global i32 0, comdat($assumed)"
+        , "@inferred = internal global i32 0, comdat($unwritten)"
         , ""
         , "define linkonce_odr void @live_fn() comdat($live) {"
         , "  ret void"
@@ -515,6 +546,10 @@ deadSymbolTests =
         , "}"
         , ""
         , "define void @unread() comdat($assumed) gc \"shadow-stack\" {"
+        , "  ret void"
+        , "}"
+        , ""
+        , "define void @unwritten() comdat gc \"shadow-stack\" {"
         , "  ret void"
         , "}"
         , ""

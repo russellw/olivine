@@ -244,9 +244,10 @@ reachableIn program = grow Set.empty (concatMap roots (programEntries program))
 -- its references, a symbol in a group being unemittable without it.
 --
 -- Members the syntax layer has not learned to read are not here, and need not
--- be: an unread line is kept whatever happens, and the @$@ in it is a mention
--- of the group like any other, so the group and the rest of its members are
--- kept along with it.
+-- be: an unread line is kept whatever happens, and the group it names is a
+-- mention like any other — written with a @$@, or taken from the names on the
+-- line when the clause is bare, which is 'impliedGroups' — so the group and
+-- the rest of its members are kept along with it.
 comdatMembers :: Program -> [(Reference, [Reference])]
 comdatMembers program =
   [ (group, [symbol name])
@@ -364,10 +365,15 @@ referencesInEntry entry = case entry of
 -- string holding a semicolon.  The third is @$@, which is an identifier
 -- character as well as a sigil, so one that follows another such character is
 -- part of the name it is in rather than the start of a new one.
+--
+-- And one place a name is written with no sigil at all, which is
+-- 'impliedGroups'.
 mentionedIn :: Text -> [Reference]
-mentionedIn = go
+mentionedIn text = named <> impliedGroups text named
   where
-    go text = case T.uncons rest of
+    named = go text
+
+    go source = case T.uncons rest of
       Nothing -> []
       Just (';', more) -> go (T.drop 1 (T.dropWhile (/= '\n') more))
       Just ('"', more) -> go (afterQuote more)
@@ -381,9 +387,42 @@ mentionedIn = go
           let (name, after) = T.span isIdentifierChar more
            in [reference sigil name | not (T.null name)] <> go after
       where
-        (skipped, rest) = T.span ordinary text
+        (skipped, rest) = T.span ordinary source
         attached = maybe False (isIdentifierChar . snd) (T.unsnoc skipped)
     ordinary c = c /= '@' && c /= '$' && c /= ';' && c /= '"'
     reference '$' = RComdat
     reference _ = RSymbol
     afterQuote = T.drop 1 . T.dropWhile (/= '"')
+
+-- | The groups a line is in without saying so.
+--
+-- A @comdat@ clause written bare means the group the symbol's own name spells,
+-- and that is a group named with no @$@ anywhere in the line — the one
+-- reference into a namespace this pass can empty that the scan for sigils
+-- cannot find.  Which symbol on the line the clause belongs to is a question
+-- about the grammar, and the grammar is the thing this text is here for want
+-- of, so every symbol the line mentions is taken to name a group as well.
+--
+-- Being wrong that way costs a group nothing is in, which LLVM drops when it
+-- next reads the module.  Being wrong the other way costs a member kept while
+-- the group it names is gone, which is a module that no longer parses — and
+-- did, for every C++ translation unit, since a @linkonce_odr@ definition with
+-- a clause of its own is what a template instantiation is written as and one
+-- unmodelled keyword in the header is enough to leave it as text.
+--
+-- A string or a comment holding the word is not distinguished from a clause,
+-- and need not be: that mistake is the one the paragraph above says is cheap.
+impliedGroups :: Text -> [Reference] -> [Reference]
+impliedGroups text named =
+  [RComdat name | any bare (T.breakOnAll keyword text), RSymbol name <- named]
+  where
+    keyword = "comdat"
+    bare (before, match) =
+      not (endsInName before) && alone (T.drop (T.length keyword) match)
+    endsInName = maybe False (isIdentifierChar . snd) . T.unsnoc
+    -- @comdat($c)@ says which group and the scan finds it, and a name that
+    -- happens to end in these six letters is not the keyword at all.
+    alone rest = case T.uncons rest of
+      Just ('(', _) -> False
+      Just (c, _) -> not (isIdentifierChar c)
+      Nothing -> True
