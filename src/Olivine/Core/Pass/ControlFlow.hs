@@ -1,7 +1,7 @@
 -- | Simplifying control flow: folding branches that decide nothing, and
 -- removing the blocks nothing can then reach.
 --
--- This is the other half of constant folding.  Folding works out that a
+-- This is the other half of "Olivine.Core.Pass.Fold".  Folding works out that a
 -- condition is @false@ and stops there, because rewriting @br@ is a change to
 -- the shape of the function rather than to a value; this is where that change
 -- is made.  What follows is the point of it: a block nothing branches to is a

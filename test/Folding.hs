@@ -1,4 +1,4 @@
--- | The constant folding pass.
+-- | The folding pass.
 --
 -- Most of these are about where folding must stop.  Getting an answer wrong
 -- is one kind of bug; inventing an answer where LLVM says the result is
@@ -9,7 +9,7 @@ import Test.Tasty
 import Test.Tasty.HUnit
 
 import Olivine.Core.Instruction
-import Olivine.Core.Pass.ConstantFold (foldOperation)
+import Olivine.Core.Pass.Fold (foldOperation, foldThrough)
 import Olivine.Syntax.Instruction hiding (Operation (..))
 import Olivine.Syntax.Name
 import Olivine.Syntax.Type
@@ -18,7 +18,7 @@ import Olivine.Syntax.Value
 foldingTests :: TestTree
 foldingTests =
   testGroup
-    "constant folding"
+    "folding"
     [ testGroup
         "arithmetic"
         [ testCase "add" $ binary OpAdd [] 20 22 @?= Just (int 42)
@@ -137,11 +137,185 @@ foldingTests =
                     }
               )
               @?= Nothing
+        , testCase "two arms holding one value need no condition" $
+            folded
+              ( OSelect
+                  Select
+                    { selectFlags = []
+                    , selectCondition = TypedValue (TInteger 1) (VLocal (Name Bare "c"))
+                    , selectTrue = local "x"
+                    , selectFalse = local "x"
+                    }
+              )
+              @?= Just (local "x")
+        ]
+    , testGroup
+        "identities"
+        [ testCase "adding nothing" $ identity OpAdd [] (local "x") (int 0) @?= Just (local "x")
+        , testCase "the same from the left" $ identity OpAdd [] (int 0) (local "x") @?= Just (local "x")
+        , testCase "subtracting nothing" $ identity OpSub [] (local "x") (int 0) @?= Just (local "x")
+        , -- The other way round is a negation and not an identity at all.
+          testCase "subtracting from nothing" $
+            identity OpSub [] (int 0) (local "x") @?= Nothing
+        , testCase "multiplying by one" $ identity OpMul [] (local "x") (int 1) @?= Just (local "x")
+        , testCase "dividing by one" $ identity OpSDiv [] (local "x") (int 1) @?= Just (local "x")
+        , testCase "shifting by nothing" $ identity OpShl [] (local "x") (int 0) @?= Just (local "x")
+        , testCase "anding with all ones" $
+            identity OpAnd [] (local "x") (int (-1)) @?= Just (local "x")
+        , testCase "oring with nothing" $ identity OpOr [] (local "x") (int 0) @?= Just (local "x")
+        , testCase "a value with itself" $
+            identity OpAnd [] (local "x") (local "x") @?= Just (local "x")
+        , testCase "the same, ored" $ identity OpOr [] (local "x") (local "x") @?= Just (local "x")
+        , testCase "two different values are not one" $
+            identity OpAnd [] (local "x") (local "y") @?= Nothing
+        , -- All ones at a width of one is @true@, which is how the type says
+          -- the number, so the same rule has to recognize it.
+          testCase "all ones at a single bit" $
+            folded
+              ( OBinary
+                  Binary
+                    { binaryOp = OpAnd
+                    , binaryFlags = []
+                    , binaryLeft = TypedValue (TInteger 1) (VLocal (Name Bare "x"))
+                    , binaryRight = TypedValue (TInteger 1) (VBoolean True)
+                    }
+              )
+              @?= Just (TypedValue (TInteger 1) (VLocal (Name Bare "x")))
+        ]
+    , testGroup
+        "identities that come to a constant"
+        [ testCase "multiplying by nothing" $ identity OpMul [] (local "x") (int 0) @?= Just (int 0)
+        , testCase "subtracting a value from itself" $
+            identity OpSub [] (local "x") (local "x") @?= Just (int 0)
+        , testCase "exclusive-oring a value with itself" $
+            identity OpXor [] (local "x") (local "x") @?= Just (int 0)
+        , testCase "the remainder of a division by one" $
+            identity OpURem [] (local "x") (int 1) @?= Just (int 0)
+        , testCase "oring with all ones" $
+            identity OpOr [] (local "x") (int (-1)) @?= Just (int (-1))
+        , -- Shifting nothing leaves nothing however far, and the amounts that
+          -- would make it poison are among the amounts it leaves nothing at.
+          testCase "shifting nothing by an unknown amount" $
+            identity OpShl [] (int 0) (local "x") @?= Just (int 0)
+        , testCase "shifting all ones right, keeping the sign" $
+            identity OpAShr [] (int (-1)) (local "x") @?= Just (int (-1))
+        , -- The flag says the operands share no bits, which two ones do; the
+          -- operation is poison and the answer given is a value, which is the
+          -- direction that is allowed.
+          testCase "oring with all ones, marked disjoint" $
+            identity OpOr [FlagDisjoint] (local "x") (int (-1)) @?= Just (int (-1))
+        ]
+    , testGroup
+        "a value compared with itself"
+        [ testCase "equal to itself" $ reflexive IEq @?= Just (bool True)
+        , testCase "not equal to itself" $ reflexive INe @?= Just (bool False)
+        , testCase "less than itself" $ reflexive ISlt @?= Just (bool False)
+        , testCase "at least itself" $ reflexive IUge @?= Just (bool True)
+        , -- A comparison of vectors is a vector of answers, and a single
+          -- @true@ is not one.
+          testCase "a vector compared with itself" $
+            folded
+              ( OICmp
+                  Compare
+                    { compareFlags = []
+                    , comparePredicate = IEq
+                    , compareLeft = vector
+                    , compareRight = vector
+                    }
+              )
+              @?= Nothing
+        ]
+    , testGroup
+        "conversions of conversions"
+        [ testCase "widened and cut back to the width it came from" $
+            chained (cast CastZExt 1 8) (cast CastTrunc 8 1)
+              @?= Just (OAssign (TypedValue (TInteger 1) (VLocal (Name Bare "x"))))
+        , testCase "cut back past it, so what is left is the cut" $
+            chained (cast CastZExt 32 64) (cast CastTrunc 64 16)
+              @?= Just (converted CastTrunc 32 16)
+        , testCase "cut back short of it, so what is left is the extension" $
+            chained (cast CastSExt 1 32) (cast CastTrunc 32 16)
+              @?= Just (converted CastSExt 1 16)
+        , testCase "two extensions the same way are one" $
+            chained (cast CastZExt 8 16) (cast CastZExt 16 32)
+              @?= Just (converted CastZExt 8 32)
+        , testCase "two cuts are one" $
+            chained (cast CastTrunc 64 32) (cast CastTrunc 32 8)
+              @?= Just (converted CastTrunc 64 8)
+        , -- A zero extension leaves the top bit of what it produced clear, so
+          -- sign extending it copies a zero.
+          testCase "a zero extension sign extended" $
+            chained (cast CastZExt 8 16) (cast CastSExt 16 32)
+              @?= Just (converted CastZExt 8 32)
+        , -- And not the other way about: the sign extension may have set the
+          -- top bit, and the zero extension keeps it where it is.
+          testCase "a sign extension zero extended" $
+            chained (cast CastSExt 8 16) (cast CastZExt 16 32) @?= Nothing
+        , testCase "cut down and zeroed back where it came from is a mask" $
+            chained (cast CastTrunc 32 8) (cast CastZExt 8 32)
+              @?= Just
+                ( OBinary
+                    Binary
+                      { binaryOp = OpAnd
+                      , binaryFlags = []
+                      , binaryLeft = TypedValue (TInteger 32) (VLocal (Name Bare "x"))
+                      , binaryRight = TypedValue (TInteger 32) (VInteger 255)
+                      }
+                )
+        , testCase "and not to any other width, which leaves both" $
+            chained (cast CastTrunc 32 8) (cast CastZExt 8 64) @?= Nothing
+        , -- Promotion writes an assignment between the two wherever the value
+          -- travelled through a slot, which is most of the time.
+          testCase "through the copy a promoted slot leaves" $
+            foldThrough
+              ( \name -> case name of
+                  Name Bare "c" -> Just (OAssign (TypedValue (TInteger 8) (VLocal (Name Bare "w"))))
+                  Name Bare "w" -> Just (OConvert (cast CastZExt 1 8))
+                  _ -> Nothing
+              )
+              ( OConvert
+                  (cast CastTrunc 8 1) {convertOperand = TypedValue (TInteger 8) (VLocal (Name Bare "c"))}
+              )
+              @?= Just (OAssign (TypedValue (TInteger 1) (VLocal (Name Bare "x"))))
+        , testCase "nothing known about the operand" $
+            foldThrough
+              (const Nothing)
+              (OConvert (cast CastTrunc 8 1) {convertOperand = TypedValue (TInteger 8) (VLocal (Name Bare "w"))})
+              @?= Nothing
         ]
     ]
   where
     int n = TypedValue (TInteger 32) (VInteger n)
     bool b = TypedValue (TInteger 1) (VBoolean b)
+    local name = TypedValue (TInteger 32) (VLocal (Name Bare name))
+    vector = TypedValue (TVector FixedWidth 4 (TInteger 32)) (VLocal (Name Bare "v"))
+    identity op flags left right =
+      folded (OBinary Binary {binaryOp = op, binaryFlags = flags, binaryLeft = left, binaryRight = right})
+    reflexive predicate =
+      folded
+        ( OICmp
+            Compare
+              { compareFlags = []
+              , comparePredicate = predicate
+              , compareLeft = local "x"
+              , compareRight = local "x"
+              }
+        )
+    -- A conversion from one width to another, over @%x@.
+    cast op from to =
+      Convert
+        { convertOp = op
+        , convertFlags = []
+        , convertOperand = TypedValue (TInteger from) (VLocal (Name Bare "x"))
+        , convertTarget = TInteger to
+        }
+    -- The inner conversion left in @%w@, and the outer one reading it.
+    chained inner outer =
+      foldThrough
+        (\name -> if name == Name Bare "w" then Just (OConvert inner) else Nothing)
+        (OConvert outer {convertOperand = TypedValue (convertTarget inner) (VLocal (Name Bare "w"))})
+    converted op from to =
+      OConvert (cast op from to) {convertOperand = TypedValue (TInteger from) (VLocal (Name Bare "x"))}
     binary op flags left right =
       folded
         ( OBinary

@@ -13,10 +13,10 @@ module Olivine.Pipeline
   ) where
 
 import Olivine.Core.Lower (lower)
-import Olivine.Core.Pass.ConstantFold (foldConstants)
 import Olivine.Core.Pass.ControlFlow (simplifyControlFlow)
 import Olivine.Core.Pass.DeadCode (eliminateDeadCode)
 import Olivine.Core.Pass.DeadSymbols (eliminateDeadSymbols)
+import Olivine.Core.Pass.Fold (foldOperations)
 import Olivine.Core.Pass.Inline (inlineCalls)
 import Olivine.Core.Pass.LoopInvariants (hoistLoopInvariants)
 import Olivine.Core.Pass.LoopRotation (rotateLoops)
@@ -54,6 +54,12 @@ passes :: [Pass]
 --
 -- Folding next, since it leaves the instructions it replaced assigning to
 -- nothing anyone reads, which is exactly what the dead code pass takes away.
+-- What it settles is not only the computations whose operands are constants:
+-- an operation an operand makes do nothing comes to that operand, and a
+-- conversion of a conversion comes to one conversion or none.  Inlining is
+-- what puts a caller's constant into a callee's arithmetic, and promotion is
+-- what makes a value that travelled through a slot into an operand at all, so
+-- both of those give this more to work on than the source had.
 --
 -- Loop rotation after those and before the rest, because what it does for the
 -- passes below it is change the shape of a loop rather than anything in it.  It
@@ -131,7 +137,7 @@ passes :: [Pass]
 passes =
   [ Pass "memory promotion" promoteMemory
   , Pass "inlining" inlineCalls
-  , Pass "constant folding" foldConstants
+  , Pass "folding" foldOperations
   , Pass "loop rotation" rotateLoops
   , Pass "control flow" simplifyControlFlow
   , Pass "redundancies" eliminateRedundancies

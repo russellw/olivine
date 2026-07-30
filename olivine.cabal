@@ -44,7 +44,7 @@ library
                       Olivine.Core.Blocks
                       Olivine.Core.Loops
                       Olivine.Core.Pass.Redundancies
-                      Olivine.Core.Pass.ConstantFold
+                      Olivine.Core.Pass.Fold
                       Olivine.Core.Pass.ControlFlow
                       Olivine.Core.Pass.DeadCode
                       Olivine.Core.Pass.DeadSymbols

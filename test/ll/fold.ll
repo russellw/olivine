@@ -1,8 +1,11 @@
-; Computations whose operands are known.
+; What a computation comes to: from its operands, from its shape, or from what
+; produced an operand.
 ;
 ; The corpus cannot exercise folding either: clang folds its own before
 ; writing any out.  Each function here returns something a reader can check by
-; hand, and the driver prints them all.
+; hand, and the driver prints them all.  The ones below @unfoldable take an
+; argument, since an identity between two constants would fold without needing
+; to be one.
 define i32 @arithmetic() {
   %a = add i32 20, 22
   %b = sub i32 %a, 2
@@ -60,4 +63,90 @@ define i32 @unfoldable(i32 %n) {
   %d = add i32 %a, %b
   %e = add i32 %d, %c
   ret i32 %e
+}
+
+; An operand that makes the operation do nothing, and two operands that are the
+; same value.  Every step here leaves %n where it found it or leaves nothing at
+; all, so the answer is the argument.
+define i32 @identities(i32 %n) {
+  %a = add i32 %n, 0
+  %b = mul i32 %a, 1
+  %c = and i32 %b, %b
+  %d = or i32 %c, 0
+  %e = xor i32 %d, 0
+  %f = ashr i32 %e, 0
+  %g = sdiv i32 %f, 1
+  ; And the ones that come to nothing whatever the operand holds, including
+  ; the shift of nothing by an amount that would be poison if it were shifting
+  ; something.
+  %h = sub i32 %g, %g
+  %i = mul i32 %n, 0
+  %j = urem i32 %n, 1
+  %k = shl i32 0, %n
+  %l = or i32 %h, %i
+  %m = or i32 %l, %j
+  %o = or i32 %m, %k
+  %p = add i32 %g, %o
+  ret i32 %p
+}
+
+; A value compared with itself answers without the value being known.  Returns
+; one.
+define i32 @reflexive(i32 %n) {
+  %a = icmp eq i32 %n, %n
+  %b = icmp ult i32 %n, %n
+  %c = icmp sge i32 %n, %n
+  %d = xor i1 %a, %b
+  %e = and i1 %d, %c
+  %f = zext i1 %e to i32
+  ret i32 %f
+}
+
+; A conversion of a conversion.  Called with 0x1234abcd: cutting back to the
+; width it came from gives that again, cutting below it gives 0xabcd, and the
+; two extensions of those sixteen bits are -21555 and 43981, which come to
+; 22426.
+define i32 @chains(i32 %n) {
+  %a = zext i32 %n to i64
+  %b = trunc i64 %a to i32
+  %c = sext i32 %b to i64
+  %d = trunc i64 %c to i16
+  %e = sext i16 %d to i32
+  %f = sext i32 %e to i64
+  %g = zext i16 %d to i32
+  %h = sext i32 %g to i64
+  %i = add i64 %f, %h
+  %j = trunc i64 %i to i32
+  ret i32 %j
+}
+
+; Cutting a value down and putting zeroes back where it came from is a mask.
+; Called with 0x1234abcd, so 0xcd.
+define i32 @masked(i32 %n) {
+  %a = trunc i32 %n to i8
+  %b = zext i8 %a to i32
+  ret i32 %b
+}
+
+; A chain the loop carries round, which is the one that must not be followed:
+; the narrowing reads what the widening left the time before, and what the
+; widening widened has been assigned since.  Reading it as that would give the
+; iteration's own %s.  Returns 8 for an argument of 5.
+define i32 @carried(i32 %n) {
+entry:
+  %w0 = zext i32 %n to i64
+  br label %loop
+
+loop:
+  %i = phi i32 [ 0, %entry ], [ %i1, %loop ]
+  %w = phi i64 [ %w0, %entry ], [ %wn, %loop ]
+  %t = trunc i64 %w to i32
+  %s = add i32 %t, %i
+  %wn = zext i32 %s to i64
+  %i1 = add i32 %i, 1
+  %done = icmp eq i32 %i1, 4
+  br i1 %done, label %out, label %loop
+
+out:
+  ret i32 %t
 }
