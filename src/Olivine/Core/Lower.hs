@@ -200,6 +200,9 @@ lowerOperation locals written = do
     Syntax.OSwitch _ _ _ -> Nothing
     Syntax.OIndirectBr _ _ -> Nothing
     Syntax.OUnreachable -> Nothing
+    Syntax.OInvoke _ -> Nothing
+    Syntax.OResume _ -> Nothing
+    Syntax.OLandingPad _ -> Nothing
 
 -- * Taking a getelementptr apart
 

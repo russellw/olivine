@@ -13,7 +13,7 @@ module Olivine.Syntax.Parser
 import Control.Monad (void)
 import Data.Char (isDigit, isHexDigit, isSpace)
 import Data.List.NonEmpty (NonEmpty ((:|)))
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, isJust)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Void (Void)
@@ -690,6 +690,9 @@ pOperation =
     , pShuffleVector
     , pPhi
     , pCall
+    , pInvoke
+    , pLandingPad
+    , OResume <$> (keyword "resume" *> pTypedValue)
     , pConvert
     , pICmp
     , pFCmp
@@ -988,6 +991,13 @@ pCall :: Parser (Operation (TypedValue Name))
 pCall = do
   tailKind <- optional pTailKind
   keyword "call"
+  OCall <$> pCallBody tailKind
+
+-- | Everything after the keyword, which @call@ and @invoke@ write the same
+-- way.  What the tail kind is, is the caller's to say: LLVM's parser refuses
+-- one on an @invoke@ before this is reached.
+pCallBody :: Maybe TailKind -> Parser (Call (TypedValue Name))
+pCallBody tailKind = do
   flags <- many pInstructionFlag
   callingConvention <- optional pCallingConvention
   returnAttributes <- many pParamAttribute
@@ -996,21 +1006,56 @@ pCall = do
   callee <- pValue
   arguments <- symbol "(" *> (pArgument `sepBy` symbol ",") <* symbol ")"
   attributes <- many pAttributeItem
-  pure $
-    OCall
-      Call
-        { callTail = tailKind
-        , callFlags = flags
-        , callCallingConvention = callingConvention
-        , callReturnAttributes = returnAttributes
-        , callAddrSpace = addrSpace
-        , callType = t
-        , -- The callee is a pointer and LLVM writes no type for it, so the
-          -- operand takes the type it has rather than one read off the line.
-          callCallee = TypedValue (TPointer Nothing) callee
-        , callArguments = arguments
-        , callAttributes = attributes
-        }
+  pure
+    Call
+      { callTail = tailKind
+      , callFlags = flags
+      , callCallingConvention = callingConvention
+      , callReturnAttributes = returnAttributes
+      , callAddrSpace = addrSpace
+      , callType = t
+      , -- The callee is a pointer and LLVM writes no type for it, so the
+        -- operand takes the type it has rather than one read off the line.
+        callCallee = TypedValue (TPointer Nothing) callee
+      , callArguments = arguments
+      , callAttributes = attributes
+      }
+
+-- * Exceptions
+
+-- | @invoke ... to label %normal unwind label %unwind@, which LLVM writes
+-- over two lines.
+--
+-- The destinations are read across the line break the way a switch's cases
+-- are, since where LLVM chooses to break a line is layout and not grammar.
+pInvoke :: Parser (Operation (TypedValue Name))
+pInvoke = do
+  keyword "invoke"
+  call <- pCallBody Nothing
+  verticalSpace
+  keyword "to"
+  normal <- pLabelOperand
+  verticalSpace
+  keyword "unwind"
+  OInvoke . Invoke call normal <$> pLabelOperand
+
+-- | @landingpad \<ty\> [cleanup] \<clause\>*@, one clause to a line.
+--
+-- @cleanup@ before the clauses and not among them, which is LLVM's grammar
+-- rather than a choice made here.
+pLandingPad :: Parser (Operation (TypedValue Name))
+pLandingPad = do
+  keyword "landingpad"
+  t <- pType
+  cleanup <- isJust <$> optional (try (verticalSpace *> keyword "cleanup"))
+  clauses <- many (try (verticalSpace *> pLandingPadClause))
+  pure (OLandingPad (LandingPad t cleanup clauses))
+  where
+    pLandingPadClause =
+      choice
+        [ LPCatch <$> (keyword "catch" *> pTypedValue)
+        , LPFilter <$> (keyword "filter" *> pTypedValue)
+        ]
 
 pTailKind :: Parser TailKind
 pTailKind =

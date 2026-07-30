@@ -155,6 +155,23 @@ data Complaint
     -- compile-time constant.  There is nothing else it could be: the header
     -- stands where no local exists yet.
     ClauseNotConstant
+  | -- | A @landingpad@ that neither catches anything nor asks for cleanup,
+    -- which tells the personality routine nothing.
+    LandingPadEmpty
+  | -- | A @landingpad@ standing after an instruction that is not a phi.  It
+    -- says what the block is for, so it comes before the block does anything.
+    LandingPadNotFirst
+  | -- | A block beginning with a @landingpad@ that something other than the
+    -- unwind edge of an @invoke@ leads to.  Control arrives there holding an
+    -- exception, and no ordinary branch has one to hand over.
+    LandingPadNotUnwound
+  | -- | An @invoke@ whose unwind destination does not begin with a
+    -- @landingpad@.
+    UnwindNotToLandingPad
+  | -- | A @landingpad@ or a @resume@ in a function with no @personality@.
+    -- Neither means anything without the routine that decides what an
+    -- unwinder does here.
+    PersonalityMissing
   | -- | An attribute in the return position that belongs to a parameter.
     AttributeNotOnReturn ParamAttribute
   | -- | A definition with nothing in it, which is a declaration written wrong.
@@ -426,8 +443,8 @@ definition known d =
     -- * The control flow graph
     --
     -- Successors are taken from the terminator alone, and only when it is one
-    -- this layer models, so a function holding an @invoke@ has edges nobody
-    -- can see and the questions that need all of them go unasked.
+    -- this layer models, so a function ending a block in something unread has
+    -- edges nobody can see and the questions that need all of them go unasked.
     successorsOf b = case lastOf (blockBody b) of
       Just (IOperation _ operation _) -> destinationsOf operation
       _ -> []
@@ -531,17 +548,50 @@ definition known d =
 
     -- * Block by block
 
+    -- * Landing pads
+    --
+    -- Whether a block begins with one, where 'Nothing' means the head of the
+    -- block holds a line nobody has read and so nothing is known either way.
+    -- Phis come first if there are any, which LLVM allows and this skips.
+    isPad i = at' i >>= \b -> case dropWhile isPhiInstruction (blockBody b) of
+      IOpaque _ : _ -> Nothing
+      IOperation _ (OLandingPad _) _ : _ -> Just True
+      _ -> Just False
+    at' i = if i < length blocks then Just (blocks !! i) else Nothing
+
+    -- The edges arriving at a block that carry an exception, counted the way
+    -- 'predecessorsOf' counts edges.
+    unwindEdgesTo i =
+      [ q
+      | (q, b) <- zip [0 :: Int ..] blocks
+      , Just (IOperation _ (OInvoke v) _) <- [lastOf (blockBody b)]
+      , at (invokeUnwind v) == Just i
+      ]
+
+    hasPersonality = or [True | FCPersonality _ <- signatureFunctionClauses signature]
+
     inBlock bi b =
       map (Problem (AtBlock name (site b))) blockwide
         <> concat (zipWith (instruction bi b) [0 ..] (blockBody b))
       where
-        blockwide = case lastOf (blockBody b) of
-          -- A block ending in a line nobody has read may well end in a
-          -- terminator; only a block ending in something known not to be one
-          -- is known to be missing it.
-          Just (IOperation _ operation _) -> [NoTerminator | not (isTerminator operation)]
-          Just (IOpaque _) -> []
-          Nothing -> [NoTerminator]
+        blockwide =
+          ( case lastOf (blockBody b) of
+              -- A block ending in a line nobody has read may well end in a
+              -- terminator; only a block ending in something known not to be
+              -- one is known to be missing it.
+              Just (IOperation _ operation _) -> [NoTerminator | not (isTerminator operation)]
+              Just (IOpaque _) -> []
+              Nothing -> [NoTerminator]
+          )
+            -- A pad is where an unwinder resumes the function, so every way in
+            -- has to be one that carries an exception.  Asked only where the
+            -- whole graph is visible, since an unread terminator may hold the
+            -- very edge that would make this right.
+            <> [ LandingPadNotUnwound
+               | charted
+               , isPad bi == Just True
+               , predecessorsOf bi /= unwindEdgesTo bi
+               ]
 
     instruction bi b ii i =
       map (Problem (AtInstruction name (site b) ii)) $ case i of
@@ -564,11 +614,38 @@ definition known d =
                | OCall c <- [operation]
                , a <- returnAttributes (callReturnAttributes c)
                ]
+            <> [ a
+               | OInvoke v <- [operation]
+               , a <- returnAttributes (callReturnAttributes (invokeCall v))
+               ]
+            <> exceptional bi b ii operation
             <> reading bi ii operation
             <> symbols
               known
               [g | operand <- toList operation, g <- globalsIn (typedValue operand)]
             <> concatMap (nodeReference known . attachmentNode) attachments
+
+    -- What the three exception handling instructions ask of the function
+    -- around them.
+    exceptional _ b ii operation = case operation of
+      OLandingPad p ->
+        [LandingPadEmpty | not (landingPadCleanup p), null (landingPadClauses p)]
+          <> [ LandingPadNotFirst
+             | not (all isPhiInstruction (take ii (blockBody b)))
+             ]
+          <> [PersonalityMissing | not hasPersonality]
+          <> [ ClauseNotConstant
+             | clause <- landingPadClauses p
+             , value <- toList clause
+             , not (isConstant (typedValue value))
+             ]
+      OResume _ -> [PersonalityMissing | not hasPersonality]
+      OInvoke v ->
+        [ UnwindNotToLandingPad
+        | Just target <- [at (invokeUnwind v)]
+        , isPad target == Just False
+        ]
+      _ -> []
 
     destination label = case at label of
       Nothing -> [MissingBlock label]
@@ -642,6 +719,8 @@ producesValue operation = case operation of
   OAtomicStore _ -> False
   OFence _ -> False
   OCall c -> returns (callType c) /= TVoid
+  OInvoke i -> returns (callType (invokeCall i)) /= TVoid
+  OResume _ -> False
   _ -> True
   where
     returns (TFunction t _ _) = t
@@ -699,7 +778,14 @@ renderComplaint complaint = case complaint of
   ComdatOnDeclaration -> "a comdat on a declaration, which defines nothing to put in one"
   ClauseOnDeclaration ->
     "a personality or an attachment on a declaration, which has no body for either to describe"
-  ClauseNotConstant -> "a header clause given something that is not a constant"
+  ClauseNotConstant -> "a clause given something that is not a constant"
+  LandingPadEmpty -> "a landing pad with neither a clause nor a cleanup"
+  LandingPadNotFirst -> "a landing pad standing after an instruction that is not a phi"
+  LandingPadNotUnwound ->
+    "a landing pad reached by something that is not the unwind edge of an invoke"
+  UnwindNotToLandingPad -> "an invoke unwinding to a block that has no landing pad"
+  PersonalityMissing ->
+    "a landing pad or a resume in a function with no personality"
   AttributeNotOnReturn a ->
     renderParamAttribute a <> ", which does not apply to a return value"
   NoBlocks -> "a definition with no blocks in it"

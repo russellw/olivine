@@ -50,6 +50,9 @@ module Olivine.Syntax.Instruction
   , Phi (..)
   , Call (..)
   , TailKind (..)
+  , Invoke (..)
+  , LandingPad (..)
+  , LandingPadClause (..)
   , Argument (..)
   , Compare (..)
   , IntPredicate (..)
@@ -143,6 +146,15 @@ data Operation operand
     OPhi (Phi operand)
   | -- | @call@, direct or indirect, with or without a result.
     OCall (Call operand)
+  | -- | @invoke@: a call that says where to go when it returns and where to
+    -- go when it throws.
+    OInvoke (Invoke operand)
+  | -- | @landingpad \<ty\> [cleanup] \<clause\>*@, which begins the block an
+    -- @invoke@ throws to and says what it is prepared to handle.
+    OLandingPad (LandingPad operand)
+  | -- | @resume \<ty\> \<value\>@: carry on unwinding with the exception this
+    -- landing pad was given.
+    OResume operand
   | OAlloca (Alloca operand)
   | OLoad (Load operand)
   | OStore (Store operand)
@@ -182,6 +194,9 @@ isTerminator (OExtractValue _) = False
 isTerminator (OInsertValue _) = False
 isTerminator (OPhi _) = False
 isTerminator (OCall _) = False
+isTerminator (OInvoke _) = True
+isTerminator (OLandingPad _) = False
+isTerminator (OResume _) = True
 isTerminator (OAlloca _) = False
 isTerminator (OLoad _) = False
 isTerminator (OStore _) = False
@@ -206,6 +221,7 @@ destinationsOf operation = case operation of
   OCondBr _ ifTrue ifFalse -> [ifTrue, ifFalse]
   OSwitch _ fallback cases -> fallback : map snd cases
   OIndirectBr _ destinations -> destinations
+  OInvoke i -> [invokeNormal i, invokeUnwind i]
   _ -> []
 
 -- | A binary operation: an opcode, its flags, and the operands.
@@ -457,6 +473,51 @@ data TailKind
   | MustTail
   | NoTail
   deriving (Eq, Show)
+
+-- | @[result =] invoke ... to label %normal unwind label %unwind@.
+--
+-- The call is a 'Call' and not a second spelling of one, so everything anybody
+-- asks about a call — its callee, its arguments, what it promises — is asked
+-- here in the same words.  What the two do not share is that this one ends its
+-- block, and that no @tail@ may be written on it: LLVM's parser refuses
+-- @musttail invoke@ outright, so nothing reading a module can put one in the
+-- field, and only a pass inventing one could.
+data Invoke operand = Invoke
+  { invokeCall :: Call operand
+  , -- | Where control goes when the call returns.
+    invokeNormal :: Name
+  , -- | Where it goes when the call throws, which must be a block beginning
+    -- with a @landingpad@.
+    invokeUnwind :: Name
+  }
+  deriving (Eq, Show, Functor, Foldable, Traversable)
+
+-- | @landingpad \<ty\> [cleanup] \<clause\>*@.
+--
+-- What the personality routine is told about this landing pad: the types it
+-- catches, the types it promises not to, and whether it wants control even
+-- when nothing here handles the exception.
+--
+-- @cleanup@ is a flag rather than one more clause because that is what LLVM's
+-- grammar makes it — written before every clause, and refused after one — so
+-- there is no order to lose by holding it apart.  That a pad has at least one
+-- of the two is LLVM's verifier's rule and so it is Olivine's verifier's.
+data LandingPad operand = LandingPad
+  { landingPadType :: Type
+  , landingPadCleanup :: Bool
+  , landingPadClauses :: [LandingPadClause operand]
+  }
+  deriving (Eq, Show, Functor, Foldable, Traversable)
+
+-- | A single clause of a landing pad.
+--
+-- @catch@ names one type, @filter@ an array of the types this pad is the only
+-- handler for; both are constants, which 'Olivine.Syntax.Value.isConstant' is
+-- what asks.
+data LandingPadClause operand
+  = LPCatch operand
+  | LPFilter operand
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- | An argument at a call site: a type, any attributes, and the value.
 --

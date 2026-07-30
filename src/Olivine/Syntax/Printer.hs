@@ -314,22 +314,27 @@ renderOperation (OPhi p) =
       ]
   ]
 renderOperation (OCall c) =
-  [ T.concat
-      [ foldMap ((<> " ") . renderTailKind) (callTail c)
-      , "call "
-      , renderFlags (callFlags c)
-      , foldMap ((<> " ") . renderCallingConvention) (callCallingConvention c)
-      , T.concat [renderParamAttribute a <> " " | a <- callReturnAttributes c]
-      , foldMap (\n -> "addrspace(" <> showText n <> ") ") (callAddrSpace c)
-      , renderType (callType c)
-      , " "
-      , renderValue (typedValue (callCallee c))
-      , "("
-      , T.intercalate ", " (map renderArgument (callArguments c))
-      , ")"
-      , T.concat [" " <> renderAttributeItem a | a <- callAttributes c]
+  [foldMap ((<> " ") . renderTailKind) (callTail c) <> "call " <> renderCall c]
+-- LLVM writes the two destinations on a line of their own, indented ten
+-- spaces; the two this adds are the two the caller puts in front of every
+-- line but the first.
+renderOperation (OInvoke i) =
+  [ "invoke " <> renderCall (invokeCall i)
+  , T.concat
+      [ "        to "
+      , renderLabel (invokeNormal i)
+      , " unwind "
+      , renderLabel (invokeUnwind i)
       ]
   ]
+renderOperation (OLandingPad p) =
+  ("landingpad " <> renderType (landingPadType p))
+    : ["        cleanup" | landingPadCleanup p]
+    <> map (("        " <>) . renderClause) (landingPadClauses p)
+  where
+    renderClause (LPCatch t) = "catch " <> renderTypedValue t
+    renderClause (LPFilter t) = "filter " <> renderTypedValue t
+renderOperation (OResume value) = ["resume " <> renderTypedValue value]
 renderOperation (OConvert c) =
   [ T.concat
       [ renderCastOp (convertOp c)
@@ -449,6 +454,25 @@ renderOperation (OGetElementPtr g) =
       , T.concat [", " <> renderTypedValue i | i <- gepIndices g]
       ]
   ]
+
+-- | A call from its flags to its attributes, which is all an @invoke@ shares
+-- with a @call@: the keyword and what follows the argument list are each
+-- caller's own.
+renderCall :: Call (TypedValue Name) -> Text
+renderCall c =
+  T.concat
+    [ renderFlags (callFlags c)
+    , foldMap ((<> " ") . renderCallingConvention) (callCallingConvention c)
+    , T.concat [renderParamAttribute a <> " " | a <- callReturnAttributes c]
+    , foldMap (\n -> "addrspace(" <> showText n <> ") ") (callAddrSpace c)
+    , renderType (callType c)
+    , " "
+    , renderValue (typedValue (callCallee c))
+    , "("
+    , T.intercalate ", " (map renderArgument (callArguments c))
+    , ")"
+    , T.concat [" " <> renderAttributeItem a | a <- callAttributes c]
+    ]
 
 renderTailKind :: TailKind -> Text
 renderTailKind Tail = "tail"

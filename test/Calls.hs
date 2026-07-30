@@ -139,8 +139,6 @@ rejected =
     "  call void asm sideeffect \"nop\", \"\"()"
   , -- Nor are operand bundles.
     "  call void @g() [ \"deopt\"() ]"
-  , -- Calls that also branch are still to come.
-    "  invoke void @g() to label %a unwind label %b"
   , -- Malformed.
     "  call void @g("
   , "  call @g()"

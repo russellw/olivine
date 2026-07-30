@@ -132,6 +132,57 @@ emitted =
     , T.unlines ["define void @f() {", "  unreachable", "}"]
     , [OUnreachable]
     )
+  , -- The two terminators exception handling adds, and the landing pad
+    -- between them.  LLVM writes an invoke's destinations and a pad's clauses
+    -- on lines of their own, indented ten spaces, which is what the round trip
+    -- half of this checks.
+    ( "invoke and resume"
+    , T.unlines
+        [ "define i32 @f(i32 %x) personality ptr @p {"
+        , "  %r = invoke i32 @h(i32 %x)"
+        , "          to label %ok unwind label %bad"
+        , ""
+        , "ok:                                               ; preds = %0"
+        , "  ret i32 %r"
+        , ""
+        , "bad:                                              ; preds = %0"
+        , "  %l = landingpad { ptr, i32 }"
+        , "          cleanup"
+        , "          catch ptr @t"
+        , "          filter [1 x ptr] [ptr @t]"
+        , "  resume { ptr, i32 } %l"
+        , "}"
+        ]
+    , [ OInvoke
+          Invoke
+            { invokeCall =
+                Call
+                  { callTail = Nothing
+                  , callFlags = []
+                  , callCallingConvention = Nothing
+                  , callReturnAttributes = []
+                  , callAddrSpace = Nothing
+                  , callType = TInteger 32
+                  , callCallee =
+                      TypedValue (TPointer Nothing) (VGlobal (Name Bare "h"))
+                  , callArguments =
+                      [ Argument
+                          []
+                          (TypedValue (TInteger 32) (VLocal (Name Bare "x")))
+                      ]
+                  , callAttributes = []
+                  }
+            , invokeNormal = Name Bare "ok"
+            , invokeUnwind = Name Bare "bad"
+            }
+      , ORet (Just (TypedValue (TInteger 32) (VLocal (Name Bare "r"))))
+      , OResume
+          ( TypedValue
+              (TStruct Unpacked [TPointer Nothing, TInteger 32])
+              (VLocal (Name Bare "l"))
+          )
+      ]
+    )
   ]
 
 -- | Metadata attached to a terminator, which is how debug locations will
@@ -175,9 +226,7 @@ attached =
 -- a definition.
 rejected :: [Text]
 rejected =
-  [ "  invoke void @g() to label %a unwind label %b"
-  , "  callbr void asm \"\", \"\"() to label %a []"
-  , "  resume { ptr, i32 } %e"
+  [ "  callbr void asm \"\", \"\"() to label %a []"
   , "  catchret from %c to label %a"
   , "  cleanupret from %c unwind label %a"
   , -- Malformed rather than unmodelled.

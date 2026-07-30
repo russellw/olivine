@@ -44,6 +44,7 @@ syntaxVerifyTests = do
       , retainedTests
       , structureTests
       , phiTests
+      , exceptionTests
       , localTests
       , silenceTests
       ]
@@ -327,6 +328,104 @@ phiTests =
           []
     ]
 
+-- * Exception handling
+--
+-- Every rule here was put to @opt@ first: each broken module below is one it
+-- rejects, with the message it gives, and each silent one is a module it takes.
+
+exceptionTests :: TestTree
+exceptionTests =
+  testGroup
+    "exceptions"
+    [ testCase "a landing pad with neither a clause nor a cleanup" $
+        expect (padded ["  %l = landingpad { ptr, i32 }"]) [LandingPadEmpty]
+    , -- Two complaints for one mistake, and both are the same mistake seen
+      -- from either end: what LLVM says about this module is that the unwind
+      -- destination has no exception handling instruction, since a pad that
+      -- is not first is not the block's pad at all.
+      testCase "a landing pad standing after an instruction" $
+        expect
+          ( padded
+              [ "  %y = add i32 1, 2"
+              , "  %l = landingpad { ptr, i32 } cleanup"
+              ]
+          )
+          [UnwindNotToLandingPad, LandingPadNotFirst]
+    , -- A phi before it is where LLVM puts one, so this is silence and not a
+      -- complaint: a pad is the first instruction that is not a phi.
+      testCase "a phi standing before the landing pad" $
+        expect
+          [ "declare void @g()"
+          , "define void @f(i32 %x) personality ptr @g {"
+          , "  invoke void @g() to label %ok unwind label %bad"
+          , "ok:"
+          , "  ret void"
+          , "bad:"
+          , "  %p = phi i32 [ %x, %0 ]"
+          , "  %l = landingpad { ptr, i32 } cleanup"
+          , "  resume { ptr, i32 } %l"
+          , "}"
+          ]
+          []
+    , testCase "a landing pad a branch leads to" $
+        expect
+          [ "declare void @g()"
+          , "define void @f() personality ptr @g {"
+          , "  br label %bad"
+          , "bad:"
+          , "  %l = landingpad { ptr, i32 } cleanup"
+          , "  resume { ptr, i32 } %l"
+          , "}"
+          ]
+          [LandingPadNotUnwound]
+    , testCase "an invoke unwinding to a block with no landing pad" $
+        expect
+          [ "declare void @g()"
+          , "define void @f() personality ptr @g {"
+          , "  invoke void @g() to label %ok unwind label %bad"
+          , "ok:"
+          , "  ret void"
+          , "bad:"
+          , "  ret void"
+          , "}"
+          ]
+          [UnwindNotToLandingPad]
+    , testCase "a landing pad in a function with no personality" $
+        expect
+          [ "declare void @g()"
+          , "define void @f() {"
+          , "  invoke void @g() to label %ok unwind label %bad"
+          , "ok:"
+          , "  ret void"
+          , "bad:"
+          , "  %l = landingpad { ptr, i32 } cleanup"
+          , "  resume { ptr, i32 } %l"
+          , "}"
+          ]
+          [PersonalityMissing, PersonalityMissing]
+    , testCase "a catch clause that is not a constant" $
+        expect
+          (padded ["  %l = landingpad { ptr, i32 } catch ptr %x"])
+          [ClauseNotConstant]
+    , testCase "a well formed landing pad" $
+        expect (padded ["  %l = landingpad { ptr, i32 } cleanup"]) []
+    ]
+  where
+    -- A function whose unwind destination holds whatever is being asked
+    -- about, so that only the pad itself is under test.
+    padded pad =
+      [ "declare void @g()"
+      , "define void @f(ptr %x) personality ptr @g {"
+      , "  invoke void @g() to label %ok unwind label %bad"
+      , "ok:"
+      , "  ret void"
+      , "bad:"
+      ]
+        <> pad
+        <> [ "  resume { ptr, i32 } %l"
+           , "}"
+           ]
+
 -- * What the locals are and where they reach
 
 localTests :: TestTree
@@ -418,8 +517,8 @@ silenceTests =
     , -- The same rule one level down: an unread line may assign anything.
       testCase "no local is missing while a line is unread" $
         expect
-          [ "define i32 @f() personality ptr null {"
-          , "  %x = landingpad { ptr, i32 } cleanup"
+          [ "define i32 @f(ptr %p) {"
+          , "  %x = va_arg ptr %p, i32"
           , "  ret i32 %y"
           , "}"
           ]
