@@ -21,7 +21,7 @@ for pair in "arith ARITH" "branch BRANCH" "loop LOOP" "memops MEMOPS" "hello HEL
             "escape ESCAPE" "jumps JUMPS" "unions UNIONS" "indirect INDIRECT" \
             "linkage LINKAGE" "hoist HOIST" "reload RELOAD" \
             "rotate ROTATE" "pick PICK" "values VALUES" "atomics ATOMICS" \
-            "bytes BYTES"; do
+            "bytes BYTES" "fields FIELDS"; do
     set -- $pair
     base=$1
     macro=$2

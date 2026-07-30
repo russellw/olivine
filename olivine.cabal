@@ -54,6 +54,7 @@ library
                       Olivine.Core.Pass.LoopInvariants
                       Olivine.Core.Pass.LoopRotation
                       Olivine.Core.Pass.Promote
+                      Olivine.Core.Pass.Split
                       Olivine.Core.Raise
                       Olivine.Core.Verify
                       Olivine.Pipeline
@@ -109,6 +110,7 @@ test-suite olivine-test
                       Folding
                       IfConversion
                       Redundancies
+                      Split
                       Rotation
                       Verify
     build-depends:    base,

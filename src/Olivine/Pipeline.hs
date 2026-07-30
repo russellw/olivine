@@ -23,6 +23,7 @@ import Olivine.Core.Pass.LoopInvariants (hoistLoopInvariants)
 import Olivine.Core.Pass.LoopRotation (rotateLoops)
 import Olivine.Core.Pass.Promote (promoteMemory)
 import Olivine.Core.Pass.Redundancies (eliminateRedundancies)
+import Olivine.Core.Pass.Split (splitAggregates)
 import Olivine.Core.Program (Program)
 import Olivine.Core.Raise (raise)
 import Olivine.Syntax.Ast (Module)
@@ -34,7 +35,15 @@ data Pass = Pass
 
 -- | The pipeline.
 passes :: [Pass]
--- Promotion first, because until a slot becomes a local nothing that follows
+-- Splitting first, because it is what turns a struct a front end put on the
+-- stack into storage promotion can take at all.  A slot holding a whole struct
+-- is not a local waiting to be found: it is one allocation the program reads a
+-- field at a time, and every one of those reads is a step off its address that
+-- promotion has to treat as an escape.  Splitting is the only pass that makes
+-- another slot promotable, which is why it goes above the pass the whole order
+-- below is built on rather than being another thing to run again afterwards.
+--
+-- Promotion next, because until a slot becomes a local nothing that follows
 -- can see through it: a value arrives at a use through a store and a load, and
 -- folding reads operands.  This is the ordering the whole pipeline stands on —
 -- unoptimized input is mostly memory traffic, and every pass after this one
@@ -151,7 +160,8 @@ passes :: [Pass]
 -- global settles whether the global is read at all.  Nothing that runs before
 -- it can know any of them.
 passes =
-  [ Pass "memory promotion" promoteMemory
+  [ Pass "aggregate splitting" splitAggregates
+  , Pass "memory promotion" promoteMemory
   , Pass "inlining" inlineCalls
   , Pass "folding" foldOperations
   , Pass "loop rotation" rotateLoops

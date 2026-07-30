@@ -59,6 +59,13 @@ int square_b(const struct pair*); int written_then_read(struct pair*,int);
 int separate_slots(int); int both_ways(struct pair*); int around_call(struct pair*);
 int confined_across_call(int); int through_the_store(struct pair*,struct pair*);
 int repeated(const struct pair*,int); int accumulated(const struct pair*,int*,int);
+/* fields.c -- add_into() is defined here so that the address of one field
+   really does reach code this module cannot see. */
+struct corner { int x, y; };
+int add_into(int *p, int v){ *p += v; return *p; }
+int area(int,int,int,int); int pick_corner(int,int,int); int walk(int);
+int through_field(int,int); struct corner make_corner(int,int);
+int diagonal(int,int); int tag_at(int,int);
 /* values.c -- the by-value aggregates have to be declared the same way here */
 struct point { double x, y; };
 struct box { int a,b,c,d,e; };
@@ -244,6 +251,16 @@ int main(void){
     for(int a=-3;a<=3;a++) printf("%d ", (int)folded_down(a*10000,a+300)); printf("\n");
     { char buf[16]; const char *src = "hello, corpus";
       copy_bytes(buf,src); printf("%d %d %s\n", length(src), length(buf), buf); } }
+#endif
+#ifdef FIELDS
+  { for(int k=-2;k<=2;k++) printf("%d ", area(k,k+1,k*3,k*2+7)); printf("\n");
+    for(int w=0;w<2;w++) for(int a=-1;a<=1;a++) printf("%d ", pick_corner(a,a*2+3,w));
+    printf("\n");
+    for(int n=0;n<5;n++) printf("%d ", walk(n)); printf("\n");
+    for(int a=-2;a<=2;a++) printf("%d ", through_field(a,a+4)); printf("\n");
+    for(int x=-2;x<=2;x++) printf("%d ", diagonal(x,x*x)); printf("\n");
+    { struct corner c = make_corner(6,-7); printf("%d %d\n", c.x, c.y); }
+    for(int i=0;i<5;i++) printf("%d ", tag_at(100,i)); printf("\n"); }
 #endif
 #ifdef LINKAGE
   printf("%d %d %d\n", real_answer(), aliased_answer(), weak_count + tentative);

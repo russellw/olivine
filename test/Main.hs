@@ -26,6 +26,7 @@ import Phis (phiTests)
 import Promotion (promotionTests)
 import Redundancies (redundancyTests)
 import Rotation (rotationTests)
+import Split (splitTests)
 import RoundTrip (roundTripTests)
 import Structure (headerSyntaxTests, structureTests)
 import SyntaxVerify (syntaxVerifyTests)
@@ -41,4 +42,4 @@ main = do
   defaultMain $
     testGroup
       "olivine"
-      ([typeTests, globalTests, comdatTests, indirectTests, declareTests, attributeTests, metadataTests, terminatorTests, memoryTests, arithmeticTests, callTests, phiTests, vectorTests, deadCodeTests, deadSymbolTests, foldingTests, controlFlowTests, promotionTests, inliningTests, redundancyTests, rotationTests, ifConversionTests, invariantTests, offsetTests, layoutTests, headerSyntaxTests] <> discovered)
+      ([typeTests, globalTests, comdatTests, indirectTests, declareTests, attributeTests, metadataTests, terminatorTests, memoryTests, arithmeticTests, callTests, phiTests, vectorTests, deadCodeTests, deadSymbolTests, foldingTests, controlFlowTests, promotionTests, splitTests, inliningTests, redundancyTests, rotationTests, ifConversionTests, invariantTests, offsetTests, layoutTests, headerSyntaxTests] <> discovered)
