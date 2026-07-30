@@ -397,6 +397,14 @@ isMemory (OAlloca _) = True
 isMemory (OLoad _) = True
 isMemory (OStore _) = True
 isMemory (OGetElementPtr _) = True
+-- The atomic accesses are memory operations too, and a fence is counted among
+-- them although it names no address: what this asks is that a line of the
+-- kind became an operation of the kind, not that the kind is tidy.
+isMemory (OAtomicLoad _) = True
+isMemory (OAtomicStore _) = True
+isMemory (OAtomicRmw _) = True
+isMemory (OCmpXchg _) = True
+isMemory (OFence _) = True
 isMemory _ = False
 
 -- An operation either starts the line, as store does, or follows the name it
@@ -414,7 +422,16 @@ startsWithAny extract keywords line =
   any (`T.isPrefixOf` extract line) keywords
 
 isMemoryLine :: Text -> Bool
-isMemoryLine = operationKeyword `startsWithAny` ["alloca", "load ", "store ", "getelementptr "]
+isMemoryLine =
+  operationKeyword
+    `startsWithAny` [ "alloca"
+                    , "load "
+                    , "store "
+                    , "getelementptr "
+                    , "atomicrmw "
+                    , "cmpxchg "
+                    , "fence "
+                    ]
 
 startsWithTerminator :: Text -> Bool
 startsWithTerminator line =

@@ -679,6 +679,9 @@ pOperation =
     , pAlloca
     , pLoad
     , pStore
+    , pAtomicRmw
+    , pCmpXchg
+    , pFence
     , pGetElementPtr
     ]
 
@@ -1027,41 +1030,181 @@ pAlloca = do
         , allocaAddrSpace = addrSpace
         }
 
--- The atomic form is not modelled, and fails here at its ordering keyword
--- rather than being half-read.
+-- | @load@ and @load atomic@, which LLVM writes as one instruction and this
+-- reads as two.
+--
+-- The keyword is read here rather than by two alternatives in 'pOperation'
+-- because the second would have to back out of the first: they share
+-- everything up to it.
 pLoad :: Parser (Operation (TypedValue Name))
 pLoad = do
   keyword "load"
+  atomic <- option False (True <$ keyword "atomic")
   volatile <- option False (True <$ keyword "volatile")
   t <- pType
   symbol ","
   pointer <- pTypedValue
-  alignment <- optional (try pAlignmentClause)
-  pure $
-    OLoad
-      Load
-        { loadVolatile = volatile
-        , loadType = t
-        , loadPointer = pointer
-        , loadAlignment = alignment
-        }
+  if atomic
+    then do
+      scope <- optional pSyncScope
+      ordering <- pAtomicOrdering
+      alignment <- optional (try pAlignmentClause)
+      pure $
+        OAtomicLoad
+          AtomicLoad
+            { atomicLoadVolatile = volatile
+            , atomicLoadType = t
+            , atomicLoadPointer = pointer
+            , atomicLoadScope = scope
+            , atomicLoadOrdering = ordering
+            , atomicLoadAlignment = alignment
+            }
+    else do
+      alignment <- optional (try pAlignmentClause)
+      pure $
+        OLoad
+          Load
+            { loadVolatile = volatile
+            , loadType = t
+            , loadPointer = pointer
+            , loadAlignment = alignment
+            }
 
 pStore :: Parser (Operation (TypedValue Name))
 pStore = do
   keyword "store"
+  atomic <- option False (True <$ keyword "atomic")
   volatile <- option False (True <$ keyword "volatile")
   value <- pTypedValue
   symbol ","
   pointer <- pTypedValue
+  if atomic
+    then do
+      scope <- optional pSyncScope
+      ordering <- pAtomicOrdering
+      alignment <- optional (try pAlignmentClause)
+      pure $
+        OAtomicStore
+          AtomicStore
+            { atomicStoreVolatile = volatile
+            , atomicStoreValue = value
+            , atomicStorePointer = pointer
+            , atomicStoreScope = scope
+            , atomicStoreOrdering = ordering
+            , atomicStoreAlignment = alignment
+            }
+    else do
+      alignment <- optional (try pAlignmentClause)
+      pure $
+        OStore
+          Store
+            { storeVolatile = volatile
+            , storeValue = value
+            , storePointer = pointer
+            , storeAlignment = alignment
+            }
+
+pAtomicRmw :: Parser (Operation (TypedValue Name))
+pAtomicRmw = do
+  keyword "atomicrmw"
+  volatile <- option False (True <$ keyword "volatile")
+  op <- pRmwOp
+  pointer <- pTypedValue
+  symbol ","
+  value <- pTypedValue
+  scope <- optional pSyncScope
+  ordering <- pAtomicOrdering
   alignment <- optional (try pAlignmentClause)
   pure $
-    OStore
-      Store
-        { storeVolatile = volatile
-        , storeValue = value
-        , storePointer = pointer
-        , storeAlignment = alignment
+    OAtomicRmw
+      AtomicRmw
+        { atomicRmwVolatile = volatile
+        , atomicRmwOp = op
+        , atomicRmwPointer = pointer
+        , atomicRmwValue = value
+        , atomicRmwScope = scope
+        , atomicRmwOrdering = ordering
+        , atomicRmwAlignment = alignment
         }
+
+pCmpXchg :: Parser (Operation (TypedValue Name))
+pCmpXchg = do
+  keyword "cmpxchg"
+  weak <- option False (True <$ keyword "weak")
+  volatile <- option False (True <$ keyword "volatile")
+  pointer <- pTypedValue
+  symbol ","
+  compareWith <- pTypedValue
+  symbol ","
+  replacement <- pTypedValue
+  scope <- optional pSyncScope
+  success <- pAtomicOrdering
+  onFailure <- pAtomicOrdering
+  alignment <- optional (try pAlignmentClause)
+  pure $
+    OCmpXchg
+      CmpXchg
+        { cmpXchgWeak = weak
+        , cmpXchgVolatile = volatile
+        , cmpXchgPointer = pointer
+        , cmpXchgCompare = compareWith
+        , cmpXchgReplacement = replacement
+        , cmpXchgScope = scope
+        , cmpXchgSuccess = success
+        , cmpXchgFailure = onFailure
+        , cmpXchgAlignment = alignment
+        }
+
+pFence :: Parser (Operation (TypedValue Name))
+pFence = do
+  keyword "fence"
+  scope <- optional pSyncScope
+  ordering <- pAtomicOrdering
+  pure (OFence Fence {fenceScope = scope, fenceOrdering = ordering})
+
+-- | @syncscope("singlethread")@, whose interior is a target's name for a set
+-- of threads and is carried as the text it was written as.
+pSyncScope :: Parser Text
+pSyncScope = keyword "syncscope" *> pParenthesized (pQuoted <* hspace)
+
+pAtomicOrdering :: Parser AtomicOrdering
+pAtomicOrdering =
+  choice
+    [ Unordered <$ keyword "unordered"
+    , Monotonic <$ keyword "monotonic"
+    , AcquireRelease <$ keyword "acq_rel"
+    , Acquire <$ keyword "acquire"
+    , Release <$ keyword "release"
+    , SequentiallyConsistent <$ keyword "seq_cst"
+    ]
+
+-- | The longer spellings stand before the shorter ones they begin with, so
+-- that @umax@ is not read as @u@ followed by nothing.
+pRmwOp :: Parser RmwOp
+pRmwOp =
+  choice
+    [ RmwXchg <$ keyword "xchg"
+    , RmwAdd <$ keyword "add"
+    , RmwSub <$ keyword "sub"
+    , RmwAnd <$ keyword "and"
+    , RmwNand <$ keyword "nand"
+    , RmwOr <$ keyword "or"
+    , RmwXor <$ keyword "xor"
+    , RmwMax <$ keyword "max"
+    , RmwMin <$ keyword "min"
+    , RmwUMax <$ keyword "umax"
+    , RmwUMin <$ keyword "umin"
+    , RmwFAdd <$ keyword "fadd"
+    , RmwFSub <$ keyword "fsub"
+    , RmwFMaximum <$ keyword "fmaximum"
+    , RmwFMinimum <$ keyword "fminimum"
+    , RmwFMax <$ keyword "fmax"
+    , RmwFMin <$ keyword "fmin"
+    , RmwUIncWrap <$ keyword "uinc_wrap"
+    , RmwUDecWrap <$ keyword "udec_wrap"
+    , RmwUSubCond <$ keyword "usub_cond"
+    , RmwUSubSat <$ keyword "usub_sat"
+    ]
 
 pGetElementPtr :: Parser (Operation (TypedValue Name))
 pGetElementPtr = do

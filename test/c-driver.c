@@ -66,6 +66,10 @@ struct point scaled(struct point,double); double dot(struct point,struct point);
 double sum_scaled(struct point,double); double travelled(struct point,int);
 struct box spread(int); int fifth(struct box);
 double _Complex turned(double _Complex,double _Complex);
+/* atomics.c */
+int fetched(_Atomic int*,int); int raised_to(_Atomic int*,int);
+int weighted(_Atomic int*,const int*,int); int fenced(int,int);
+int published(_Atomic int*,int);
 /* bytes.c */
 void scale_apart(int*restrict,const int*restrict,int,const int*restrict);
 void scale_together(int*,const int*,int,const int*);
@@ -208,6 +212,18 @@ int main(void){
     { double _Complex z = 2.0 + 3.0*_Complex_I, w = -1.0 + 0.5*_Complex_I;
       double _Complex r = turned(z,w);
       printf("%.3f %.3f\n", __real__ r, __imag__ r); } }
+#endif
+#ifdef ATOMICS
+  { _Atomic int c = 5;
+    for(int n=0;n<4;n++) printf("%d %d ", fetched(&c,n), (int)c); printf("\n");
+    /* The cell starts below the floor on one call and above it on the next,
+       so the loop runs and then does not. */
+    c = 1; printf("%d %d ", raised_to(&c,9), (int)c);
+    printf("%d %d\n", raised_to(&c,4), (int)c);
+    { int xs[6]; for(int i=0;i<6;i++) xs[i]=i*2-3;
+      c = 3; for(int n=0;n<=6;n+=2) printf("%d ", weighted(&c,xs,n)); printf("\n"); }
+    for(int a=-2;a<=2;a++) printf("%d ", fenced(a,a+1)); printf("\n");
+    c = 0; printf("%d %d\n", published(&c,11), (int)c); }
 #endif
 #ifdef BYTES
   { int in[8], out[8], k = 3;

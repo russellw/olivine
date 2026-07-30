@@ -58,6 +58,13 @@ module Olivine.Syntax.Instruction
   , Alloca (..)
   , Load (..)
   , Store (..)
+  , AtomicOrdering (..)
+  , AtomicLoad (..)
+  , AtomicStore (..)
+  , AtomicRmw (..)
+  , RmwOp (..)
+  , CmpXchg (..)
+  , Fence (..)
   , GetElementPtr (..)
   , MetadataAttachment (..)
   ) where
@@ -139,6 +146,14 @@ data Operation operand
   | OAlloca (Alloca operand)
   | OLoad (Load operand)
   | OStore (Store operand)
+  | -- | The atomic accesses, each an ordering constraint as well as whatever
+    -- it does to memory.
+    OAtomicLoad (AtomicLoad operand)
+  | OAtomicStore (AtomicStore operand)
+  | OAtomicRmw (AtomicRmw operand)
+  | OCmpXchg (CmpXchg operand)
+  | -- | An ordering and nothing else.
+    OFence Fence
   | OGetElementPtr (GetElementPtr operand)
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
@@ -170,6 +185,11 @@ isTerminator (OCall _) = False
 isTerminator (OAlloca _) = False
 isTerminator (OLoad _) = False
 isTerminator (OStore _) = False
+isTerminator (OAtomicLoad _) = False
+isTerminator (OAtomicStore _) = False
+isTerminator (OAtomicRmw _) = False
+isTerminator (OCmpXchg _) = False
+isTerminator (OFence _) = False
 isTerminator (OGetElementPtr _) = False
 
 -- | The blocks an operation may transfer control to, in the order written,
@@ -459,10 +479,132 @@ data Alloca operand = Alloca
   }
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
+-- | How strongly an atomic operation is ordered against the others.
+--
+-- Written as LLVM writes it, which for two of them is not the words they are
+-- named by: @acq_rel@ and @seq_cst@.
+data AtomicOrdering
+  = Unordered
+  | Monotonic
+  | Acquire
+  | Release
+  | AcquireRelease
+  | SequentiallyConsistent
+  deriving (Eq, Show)
+
+-- | @load atomic [volatile] \<ty\>, ptr \<pointer\> [syncscope(\"s\")]
+-- \<ordering\> [, align N]@.
+--
+-- An operation of its own rather than a flag on 'Load', although LLVM writes
+-- it as one word.  What it buys is that every place a pass decides something
+-- about a load has to say what it decides about this separately: an atomic
+-- access is an ordering constraint as well as an access, and the answers a
+-- plain load gets — that two of them may share a value, that one may be
+-- hoisted out of a loop — are not answers to give here.  A flag would have
+-- been read by whoever remembered to read it.
+--
+-- The scope is the text between the quotes.  Which scopes a target has is the
+-- target's business and nothing here decides anything by them.
+data AtomicLoad operand = AtomicLoad
+  { atomicLoadVolatile :: Bool
+  , atomicLoadType :: Type
+  , atomicLoadPointer :: operand
+  , atomicLoadScope :: Maybe Text
+  , atomicLoadOrdering :: AtomicOrdering
+  , atomicLoadAlignment :: Maybe Natural
+  }
+  deriving (Eq, Show, Functor, Foldable, Traversable)
+
+-- | @store atomic [volatile] \<ty\> \<value\>, ptr \<pointer\>
+-- [syncscope(\"s\")] \<ordering\> [, align N]@.
+data AtomicStore operand = AtomicStore
+  { atomicStoreVolatile :: Bool
+  , atomicStoreValue :: operand
+  , atomicStorePointer :: operand
+  , atomicStoreScope :: Maybe Text
+  , atomicStoreOrdering :: AtomicOrdering
+  , atomicStoreAlignment :: Maybe Natural
+  }
+  deriving (Eq, Show, Functor, Foldable, Traversable)
+
+-- | @atomicrmw [volatile] \<op\> ptr \<pointer\>, \<ty\> \<value\>
+-- [syncscope(\"s\")] \<ordering\> [, align N]@.
+--
+-- Reads, computes, and writes back in one indivisible step, answering with
+-- what was there before.
+data AtomicRmw operand = AtomicRmw
+  { atomicRmwVolatile :: Bool
+  , atomicRmwOp :: RmwOp
+  , atomicRmwPointer :: operand
+  , atomicRmwValue :: operand
+  , atomicRmwScope :: Maybe Text
+  , atomicRmwOrdering :: AtomicOrdering
+  , atomicRmwAlignment :: Maybe Natural
+  }
+  deriving (Eq, Show, Functor, Foldable, Traversable)
+
+-- | What an @atomicrmw@ does to the value it finds.
+--
+-- The whole list LLVM has, confirmed one spelling at a time by handing each to
+-- @llvm-as@: an opcode missing from here is a line that stays opaque, and a
+-- line that stays opaque is a whole function the optimizer passes over.
+data RmwOp
+  = RmwXchg
+  | RmwAdd
+  | RmwSub
+  | RmwAnd
+  | RmwNand
+  | RmwOr
+  | RmwXor
+  | RmwMax
+  | RmwMin
+  | RmwUMax
+  | RmwUMin
+  | RmwFAdd
+  | RmwFSub
+  | RmwFMax
+  | RmwFMin
+  | RmwFMaximum
+  | RmwFMinimum
+  | RmwUIncWrap
+  | RmwUDecWrap
+  | RmwUSubCond
+  | RmwUSubSat
+  deriving (Eq, Show)
+
+-- | @cmpxchg [weak] [volatile] ptr \<pointer\>, \<ty\> \<compare\>, \<ty\>
+-- \<new\> [syncscope(\"s\")] \<success\> \<failure\> [, align N]@.
+--
+-- Answers with a pair: what was there, and whether it was replaced.  Reading
+-- that pair apart is @extractvalue@, which is why the aggregate operations and
+-- this arrive together in real code.
+data CmpXchg operand = CmpXchg
+  { cmpXchgWeak :: Bool
+  , cmpXchgVolatile :: Bool
+  , cmpXchgPointer :: operand
+  , cmpXchgCompare :: operand
+  , cmpXchgReplacement :: operand
+  , cmpXchgScope :: Maybe Text
+  , cmpXchgSuccess :: AtomicOrdering
+  , cmpXchgFailure :: AtomicOrdering
+  , cmpXchgAlignment :: Maybe Natural
+  }
+  deriving (Eq, Show, Functor, Foldable, Traversable)
+
+-- | @fence [syncscope(\"s\")] \<ordering\>@.
+--
+-- Touches no address and names no operand: it orders the accesses either side
+-- of it and does nothing else.  Not parameterized by the operand type for
+-- exactly that reason.
+data Fence = Fence
+  { fenceScope :: Maybe Text
+  , fenceOrdering :: AtomicOrdering
+  }
+  deriving (Eq, Show)
+
 -- | @load [volatile] \<ty\>, ptr \<pointer\> [, align N]@.
 --
--- The atomic form, with its ordering and optional syncscope, is not modelled;
--- a line carrying one stays opaque.
+-- The atomic form is 'AtomicLoad', which is an operation of its own.
 data Load operand = Load
   { loadVolatile :: Bool
   , -- | The type loaded, which since pointers became opaque is written out

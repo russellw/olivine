@@ -613,6 +613,10 @@ producesValue operation = case operation of
   OIndirectBr{} -> False
   OUnreachable -> False
   OStore _ -> False
+  -- The two atomic operations that leave nothing behind.  A store is a store
+  -- however it is ordered, and a fence does not touch memory at all.
+  OAtomicStore _ -> False
+  OFence _ -> False
   OCall c -> returns (callType c) /= TVoid
   _ -> True
   where

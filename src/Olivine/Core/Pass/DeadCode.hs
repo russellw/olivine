@@ -80,4 +80,12 @@ removableWhenUnused operation = case operation of
   OStore _ -> False
   OCall _ -> False
   OLoad l -> not (loadVolatile l)
+  -- An atomic is an ordering as much as an access, and an ordering nothing
+  -- reads is not an ordering nothing does: another thread reads it.  That
+  -- holds of the loads as much as of the writes, so none of them goes.
+  OAtomicLoad _ -> False
+  OAtomicStore _ -> False
+  OAtomicRmw _ -> False
+  OCmpXchg _ -> False
+  OFence _ -> False
   _ -> True

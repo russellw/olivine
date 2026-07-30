@@ -401,8 +401,19 @@ eliminateIn types layout f = f {functionBlocks = map rewrite (functionBlocks f)}
                   (typedValueType (storeValue s))
                   (typedValue (storeValue s))
           -- Whatever it does to memory, it does it to memory it can name.
-          OCall _ ->
-            known' {contents = filter (not . reachableByCall objects . contentAddress) (contents known')}
+          OCall _ -> byStrangers known'
+          -- And an atomic is where what another thread did to memory becomes
+          -- visible here, which reaches exactly as far: everything this
+          -- function let out of its sight, and nothing that stayed in it,
+          -- since storage no stranger can name is storage no other thread can
+          -- name either.  A fence names no address and is no exception --
+          -- ordering is what makes an earlier write by somebody else the
+          -- answer to a later read here.
+          OAtomicLoad _ -> byStrangers known'
+          OAtomicStore _ -> byStrangers known'
+          OAtomicRmw _ -> byStrangers known'
+          OCmpXchg _ -> byStrangers known'
+          OFence _ -> byStrangers known'
           OLoad l
             | not (loadVolatile l)
             , Just result <- instructionResult i
@@ -423,6 +434,13 @@ eliminateIn types layout f = f {functionBlocks = map rewrite (functionBlocks f)}
           -- Reads nothing and writes nothing, or is a load with nowhere to put
           -- what it read.
           _ -> known'
+
+        -- Nothing a stranger can reach is known any more.
+        byStrangers known' =
+          known'
+            { contents =
+                filter (not . reachableByCall objects . contentAddress) (contents known')
+            }
 
         -- Every fact about an address a write to this one could have been a
         -- write to.
@@ -460,6 +478,15 @@ shareable operation = case operation of
   OLoad _ -> False
   -- Leaves nothing behind to share.
   OStore _ -> False
+  -- Two atomic reads of one address are two reads: what stands there is what
+  -- another thread last put there, and asking twice is done because the
+  -- answer may differ.  None of them may be dropped either, an ordering being
+  -- what they are written for.
+  OAtomicLoad _ -> False
+  OAtomicStore _ -> False
+  OAtomicRmw _ -> False
+  OCmpXchg _ -> False
+  OFence _ -> False
   OBinary _ -> True
   OUnary _ -> True
   OICmp _ -> True

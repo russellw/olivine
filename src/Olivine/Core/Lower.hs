@@ -183,6 +183,11 @@ lowerOperation locals written = do
     Syntax.OAlloca a -> Just (OAlloca a)
     Syntax.OLoad l -> Just (OLoad l)
     Syntax.OStore s -> Just (OStore s)
+    Syntax.OAtomicLoad l -> Just (OAtomicLoad l)
+    Syntax.OAtomicStore s -> Just (OAtomicStore s)
+    Syntax.OAtomicRmw r -> Just (OAtomicRmw r)
+    Syntax.OCmpXchg c -> Just (OCmpXchg c)
+    Syntax.OFence f -> Just (OFence f)
     -- Both of these are dealt with before this is reached: a phi by
     -- 'readBlock', which takes them off the head of the block, and a
     -- getelementptr by 'lowerGep', which is several instructions rather than

@@ -372,6 +372,73 @@ renderOperation (OStore s) =
       , renderAlignment (storeAlignment s)
       ]
   ]
+renderOperation (OAtomicLoad l) =
+  [ T.concat
+      [ "load atomic "
+      , if atomicLoadVolatile l then "volatile " else ""
+      , renderType (atomicLoadType l)
+      , ", "
+      , renderTypedValue (atomicLoadPointer l)
+      , renderSyncScope (atomicLoadScope l)
+      , " "
+      , renderAtomicOrdering (atomicLoadOrdering l)
+      , renderAlignment (atomicLoadAlignment l)
+      ]
+  ]
+renderOperation (OAtomicStore s) =
+  [ T.concat
+      [ "store atomic "
+      , if atomicStoreVolatile s then "volatile " else ""
+      , renderTypedValue (atomicStoreValue s)
+      , ", "
+      , renderTypedValue (atomicStorePointer s)
+      , renderSyncScope (atomicStoreScope s)
+      , " "
+      , renderAtomicOrdering (atomicStoreOrdering s)
+      , renderAlignment (atomicStoreAlignment s)
+      ]
+  ]
+renderOperation (OAtomicRmw r) =
+  [ T.concat
+      [ "atomicrmw "
+      , if atomicRmwVolatile r then "volatile " else ""
+      , renderRmwOp (atomicRmwOp r)
+      , " "
+      , renderTypedValue (atomicRmwPointer r)
+      , ", "
+      , renderTypedValue (atomicRmwValue r)
+      , renderSyncScope (atomicRmwScope r)
+      , " "
+      , renderAtomicOrdering (atomicRmwOrdering r)
+      , renderAlignment (atomicRmwAlignment r)
+      ]
+  ]
+renderOperation (OCmpXchg c) =
+  [ T.concat
+      [ "cmpxchg "
+      , if cmpXchgWeak c then "weak " else ""
+      , if cmpXchgVolatile c then "volatile " else ""
+      , renderTypedValue (cmpXchgPointer c)
+      , ", "
+      , renderTypedValue (cmpXchgCompare c)
+      , ", "
+      , renderTypedValue (cmpXchgReplacement c)
+      , renderSyncScope (cmpXchgScope c)
+      , " "
+      , renderAtomicOrdering (cmpXchgSuccess c)
+      , " "
+      , renderAtomicOrdering (cmpXchgFailure c)
+      , renderAlignment (cmpXchgAlignment c)
+      ]
+  ]
+renderOperation (OFence f) =
+  [ T.concat
+      [ "fence"
+      , renderSyncScope (fenceScope f)
+      , " "
+      , renderAtomicOrdering (fenceOrdering f)
+      ]
+  ]
 renderOperation (OGetElementPtr g) =
   [ T.concat
       [ "getelementptr "
@@ -751,6 +818,44 @@ renderValue (VGetElementPtr flags element operands) =
     , T.intercalate ", " (renderType element : map renderTypedValue operands)
     , ")"
     ]
+
+-- | The scope an ordering is against, with the space that precedes it, since
+-- it stands between two things and is written only when it is there.
+renderSyncScope :: Maybe Text -> Text
+renderSyncScope = foldMap (\scope -> " syncscope(" <> quoted scope <> ")")
+
+renderAtomicOrdering :: AtomicOrdering -> Text
+renderAtomicOrdering ordering = case ordering of
+  Unordered -> "unordered"
+  Monotonic -> "monotonic"
+  Acquire -> "acquire"
+  Release -> "release"
+  AcquireRelease -> "acq_rel"
+  SequentiallyConsistent -> "seq_cst"
+
+renderRmwOp :: RmwOp -> Text
+renderRmwOp op = case op of
+  RmwXchg -> "xchg"
+  RmwAdd -> "add"
+  RmwSub -> "sub"
+  RmwAnd -> "and"
+  RmwNand -> "nand"
+  RmwOr -> "or"
+  RmwXor -> "xor"
+  RmwMax -> "max"
+  RmwMin -> "min"
+  RmwUMax -> "umax"
+  RmwUMin -> "umin"
+  RmwFAdd -> "fadd"
+  RmwFSub -> "fsub"
+  RmwFMax -> "fmax"
+  RmwFMin -> "fmin"
+  RmwFMaximum -> "fmaximum"
+  RmwFMinimum -> "fminimum"
+  RmwUIncWrap -> "uinc_wrap"
+  RmwUDecWrap -> "udec_wrap"
+  RmwUSubCond -> "usub_cond"
+  RmwUSubSat -> "usub_sat"
 
 -- | The path an aggregate operation reads, each index after its own comma.
 renderIndices :: [Natural] -> Text

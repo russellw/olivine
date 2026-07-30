@@ -55,6 +55,15 @@ deadCodeTests =
         , testCase "a store" $ removableWhenUnused store' @?= False
         , -- Nothing here can tell whether a call does anything, so none goes.
           testCase "a call" $ removableWhenUnused call' @?= False
+        , -- An atomic is an ordering as much as an access, and an ordering
+          -- nothing here reads is one another thread reads.  That holds of
+          -- the read as much as of the write, which is what makes an unread
+          -- atomic load different from an unread plain one.
+          testCase "an atomic load" $ removableWhenUnused atomicLoad' @?= False
+        , testCase "a read modify write" $ removableWhenUnused atomicRmw' @?= False
+        , testCase "a compare and exchange" $ removableWhenUnused cmpXchg' @?= False
+        , -- Which is the whole of what a fence is.
+          testCase "a fence" $ removableWhenUnused fence' @?= False
           -- There were two more here, asking that a return and a branch are
           -- never removable.  Neither can be asked now: a terminator is a
           -- 'Transfer' and this takes an 'Operation', so handing it one does
@@ -86,6 +95,42 @@ deadCodeTests =
           , storePointer = TypedValue (TPointer Nothing) (VLocal (Name Bare "p"))
           , storeAlignment = Nothing
           }
+    pointer = TypedValue (TPointer Nothing) (VLocal (Name Bare "p"))
+    atomicLoad' =
+      OAtomicLoad
+        AtomicLoad
+          { atomicLoadVolatile = False
+          , atomicLoadType = TInteger 32
+          , atomicLoadPointer = pointer
+          , atomicLoadScope = Nothing
+          , atomicLoadOrdering = SequentiallyConsistent
+          , atomicLoadAlignment = Nothing
+          }
+    atomicRmw' =
+      OAtomicRmw
+        AtomicRmw
+          { atomicRmwVolatile = False
+          , atomicRmwOp = RmwAdd
+          , atomicRmwPointer = pointer
+          , atomicRmwValue = TypedValue (TInteger 32) (VInteger 1)
+          , atomicRmwScope = Nothing
+          , atomicRmwOrdering = SequentiallyConsistent
+          , atomicRmwAlignment = Nothing
+          }
+    cmpXchg' =
+      OCmpXchg
+        CmpXchg
+          { cmpXchgWeak = False
+          , cmpXchgVolatile = False
+          , cmpXchgPointer = pointer
+          , cmpXchgCompare = TypedValue (TInteger 32) (VInteger 0)
+          , cmpXchgReplacement = TypedValue (TInteger 32) (VInteger 1)
+          , cmpXchgScope = Nothing
+          , cmpXchgSuccess = SequentiallyConsistent
+          , cmpXchgFailure = Monotonic
+          , cmpXchgAlignment = Nothing
+          }
+    fence' = OFence Fence {fenceScope = Nothing, fenceOrdering = SequentiallyConsistent}
     call' =
       OCall
         Call

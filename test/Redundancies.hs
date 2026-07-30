@@ -217,6 +217,26 @@ redundancyTests =
           testCase "across a call that was given the address" $ do
             answered <- assignmentsIn escapedSlot
             assertEqual "nothing is answered" [] answered
+        , -- An atomic is where a write by another thread becomes visible, so
+          -- what a load of storage this function let out of its sight read
+          -- before one is not what it reads after.  A fence names no address
+          -- and is no exception: ordering is the whole of what it does.
+          testCase "across a fence, of a slot whose address left" $ do
+            answered <- assignmentsIn pastAFence
+            assertEqual "nothing is answered" [] answered
+        , testCase "and across a read modify write" $ do
+            answered <- assignmentsIn pastAnRmw
+            assertEqual "nothing is answered" [] answered
+        , -- But storage no stranger can name is storage no other thread can
+          -- name either, so a slot whose address stayed here is read once
+          -- however it is ordered around.  The locals are %x %a %b %s as 0 to
+          -- 3.
+          testCase "though not of a slot whose address never left" $ do
+            answered <- assignmentsIn fencedConfinedSlot
+            assertEqual
+              "the second load reads the first"
+              [(Local 2, VLocal (Local 1))]
+              answered
         , -- Two pointers this cannot tell apart, so the store between the loads
           -- has to be taken for a store to the one being read.
           testCase "across a store through another pointer" $ do
@@ -866,6 +886,53 @@ pastACall =
     , "  %x = alloca i32, align 4"
     , "  %a = load i32, ptr %x, align 4"
     , "  call void @sink()"
+    , "  %b = load i32, ptr %x, align 4"
+    , "  %s = add i32 %a, %b"
+    , "  ret i32 %s"
+    , "}"
+    ]
+
+-- | A slot the caller was handed the address of, read either side of a fence.
+pastAFence :: Text
+pastAFence =
+  T.unlines
+    [ "define i32 @f(ptr %p) {"
+    , "entry:"
+    , "  %x = alloca i32, align 4"
+    , "  store ptr %x, ptr %p, align 8"
+    , "  %a = load i32, ptr %x, align 4"
+    , "  fence seq_cst"
+    , "  %b = load i32, ptr %x, align 4"
+    , "  %s = add i32 %a, %b"
+    , "  ret i32 %s"
+    , "}"
+    ]
+
+-- | The same, with an operation that reads and writes an unrelated address.
+pastAnRmw :: Text
+pastAnRmw =
+  T.unlines
+    [ "define i32 @f(ptr %p, ptr %q) {"
+    , "entry:"
+    , "  %x = alloca i32, align 4"
+    , "  store ptr %x, ptr %p, align 8"
+    , "  %a = load i32, ptr %x, align 4"
+    , "  %r = atomicrmw add ptr %q, i32 1 seq_cst, align 4"
+    , "  %b = load i32, ptr %x, align 4"
+    , "  %s = add i32 %a, %b"
+    , "  ret i32 %s"
+    , "}"
+    ]
+
+-- | And a slot whose address stayed in this function, read either side of one.
+fencedConfinedSlot :: Text
+fencedConfinedSlot =
+  T.unlines
+    [ "define i32 @f() {"
+    , "entry:"
+    , "  %x = alloca i32, align 4"
+    , "  %a = load i32, ptr %x, align 4"
+    , "  fence seq_cst"
     , "  %b = load i32, ptr %x, align 4"
     , "  %s = add i32 %a, %b"
     , "  ret i32 %s"

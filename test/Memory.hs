@@ -107,6 +107,77 @@ emitted =
           { gepFlags = [GepInbounds]
           }
     )
+  , -- The atomic accesses.  Each carries an ordering, and the ordering is
+    -- what makes it one: it says what the accesses around it may be moved
+    -- past, which is a constraint the plain form does not have.
+    ( "  %r = load atomic i32, ptr %p unordered, align 4"
+    , Just (Name Bare "r")
+    , OAtomicLoad
+        (atomicLoad (TInteger 32) (VLocal (Name Bare "p")) Unordered)
+          { atomicLoadAlignment = Just 4
+          }
+    )
+  , ( "  %r = load atomic volatile i32, ptr %p syncscope(\"agent\") acquire, align 4"
+    , Just (Name Bare "r")
+    , OAtomicLoad
+        (atomicLoad (TInteger 32) (VLocal (Name Bare "p")) Acquire)
+          { atomicLoadVolatile = True
+          , atomicLoadScope = Just "agent"
+          , atomicLoadAlignment = Just 4
+          }
+    )
+  , ( "  store atomic i32 0, ptr %p release, align 4"
+    , Nothing
+    , OAtomicStore
+        AtomicStore
+          { atomicStoreVolatile = False
+          , atomicStoreValue = TypedValue (TInteger 32) (VInteger 0)
+          , atomicStorePointer = TypedValue (TPointer Nothing) (VLocal (Name Bare "p"))
+          , atomicStoreScope = Nothing
+          , atomicStoreOrdering = Release
+          , atomicStoreAlignment = Just 4
+          }
+    )
+  , ( "  %r = atomicrmw add ptr %p, i32 %v seq_cst, align 4"
+    , Just (Name Bare "r")
+    , OAtomicRmw (atomicRmw RmwAdd SequentiallyConsistent) {atomicRmwAlignment = Just 4}
+    )
+  , -- The volatile flag stands after the opcode here and before the type in a
+    -- load, which is the sort of thing only LLVM's own output settles.
+    ( "  %r = atomicrmw volatile umax ptr %p, i32 %v syncscope(\"singlethread\") acq_rel, align 4"
+    , Just (Name Bare "r")
+    , OAtomicRmw
+        (atomicRmw RmwUMax AcquireRelease)
+          { atomicRmwVolatile = True
+          , atomicRmwScope = Just "singlethread"
+          , atomicRmwAlignment = Just 4
+          }
+    )
+  , -- Two orderings: one for the exchange happening and one for it not.
+    ( "  %r = cmpxchg ptr %p, i32 %v, i32 %w seq_cst monotonic, align 4"
+    , Just (Name Bare "r")
+    , OCmpXchg
+        (cmpXchg SequentiallyConsistent Monotonic) {cmpXchgAlignment = Just 4}
+    )
+  , ( "  %r = cmpxchg weak volatile ptr %p, i32 %v, i32 %w syncscope(\"singlethread\") acq_rel monotonic, align 4"
+    , Just (Name Bare "r")
+    , OCmpXchg
+        (cmpXchg AcquireRelease Monotonic)
+          { cmpXchgWeak = True
+          , cmpXchgVolatile = True
+          , cmpXchgScope = Just "singlethread"
+          , cmpXchgAlignment = Just 4
+          }
+    )
+  , -- An ordering and nothing else, which is why it names no result.
+    ( "  fence seq_cst"
+    , Nothing
+    , OFence Fence {fenceScope = Nothing, fenceOrdering = SequentiallyConsistent}
+    )
+  , ( "  fence syncscope(\"singlethread\") acquire"
+    , Nothing
+    , OFence Fence {fenceScope = Just "singlethread", fenceOrdering = Acquire}
+    )
   , ( "  %r = getelementptr inbounds nuw %struct.point, ptr %p, i32 0, i32 1"
     , Just (Name Bare "r")
     , OGetElementPtr
@@ -142,6 +213,37 @@ emitted =
         , storeValue = value
         , storePointer = TypedValue (TPointer Nothing) pointer
         , storeAlignment = Nothing
+        }
+    atomicLoad t pointer ordering =
+      AtomicLoad
+        { atomicLoadVolatile = False
+        , atomicLoadType = t
+        , atomicLoadPointer = TypedValue (TPointer Nothing) pointer
+        , atomicLoadScope = Nothing
+        , atomicLoadOrdering = ordering
+        , atomicLoadAlignment = Nothing
+        }
+    atomicRmw op ordering =
+      AtomicRmw
+        { atomicRmwVolatile = False
+        , atomicRmwOp = op
+        , atomicRmwPointer = TypedValue (TPointer Nothing) (VLocal (Name Bare "p"))
+        , atomicRmwValue = TypedValue (TInteger 32) (VLocal (Name Bare "v"))
+        , atomicRmwScope = Nothing
+        , atomicRmwOrdering = ordering
+        , atomicRmwAlignment = Nothing
+        }
+    cmpXchg success failure =
+      CmpXchg
+        { cmpXchgWeak = False
+        , cmpXchgVolatile = False
+        , cmpXchgPointer = TypedValue (TPointer Nothing) (VLocal (Name Bare "p"))
+        , cmpXchgCompare = TypedValue (TInteger 32) (VLocal (Name Bare "v"))
+        , cmpXchgReplacement = TypedValue (TInteger 32) (VLocal (Name Bare "w"))
+        , cmpXchgScope = Nothing
+        , cmpXchgSuccess = success
+        , cmpXchgFailure = failure
+        , cmpXchgAlignment = Nothing
         }
     gep sourceType indices =
       GetElementPtr
@@ -190,10 +292,10 @@ attached =
 -- line opaque rather than half-parse.
 rejected :: [Text]
 rejected =
-  [ -- Atomic accesses are not modelled.
-    "  %r = load atomic i32, ptr %p unordered, align 4"
-  , "  store atomic i32 0, ptr %p release, align 4"
-  , "  %r = load atomic volatile i32, ptr %p syncscope(\"agent\") acquire, align 4"
+  [ -- An atomic access says how it is ordered, and one that does not is not
+    -- one: this is the plain form with a stray keyword in front of the type.
+    "  %r = load atomic i32, ptr %p, align 4"
+  , "  %r = atomicrmw add ptr %p, i32 %v, align 4"
   , -- Malformed rather than unmodelled.
     "  %r = alloca"
   , "  %r = load i32 ptr %p"
@@ -235,7 +337,7 @@ memoryTests =
 -- parameter of each type the lines need.
 inFunction :: Text -> Text
 inFunction line =
-  T.unlines ["define void @f(ptr %p, i32 %v, i64 %n) {", line, "  ret void", "}"]
+  T.unlines ["define void @f(ptr %p, i32 %v, i32 %w, i64 %n) {", line, "  ret void", "}"]
 
 roundTrips :: Text -> Assertion
 roundTrips line = do

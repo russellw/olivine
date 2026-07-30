@@ -270,7 +270,20 @@ invariantIn globals layout objects f loop =
       [ Access (typedValue (storePointer s)) (typedValueType (storeValue s))
       | OStore s <- inside
       ]
-    calling = not (null [() | OCall _ <- inside])
+    -- A call may write anything it can name, and an atomic is where a write
+    -- by another thread becomes visible, which reaches just as far.  Either of
+    -- them in the body and a load of storage this function let out of its
+    -- sight has to stay in the loop.
+    calling = any strangers inside
+
+    strangers operation = case operation of
+      OCall _ -> True
+      OAtomicLoad _ -> True
+      OAtomicStore _ -> True
+      OAtomicRmw _ -> True
+      OCmpXchg _ -> True
+      OFence _ -> True
+      _ -> False
 
 -- | Every local the loop assigns, which is exactly what is not invariant in
 -- it.
@@ -367,6 +380,11 @@ returns operation = case operation of
   -- program that is defined does.
   OLoad _ -> True
   OStore _ -> True
+  OAtomicLoad _ -> True
+  OAtomicStore _ -> True
+  OAtomicRmw _ -> True
+  OCmpXchg _ -> True
+  OFence _ -> True
   OOffset _ -> True
   OField _ -> True
 

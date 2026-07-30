@@ -55,11 +55,16 @@ import Numeric.Natural (Natural)
 
 import Olivine.Syntax.Instruction
   ( Alloca (..)
+  , AtomicLoad (..)
+  , AtomicRmw (..)
+  , AtomicStore (..)
   , Binary (..)
   , BinaryOp (..)
   , Call (..)
+  , CmpXchg (..)
   , Compare (..)
   , Convert (..)
+  , Fence (..)
   , ExtractElement (..)
   , ExtractValue (..)
   , FloatPredicate
@@ -74,7 +79,7 @@ import Olivine.Syntax.Instruction
   , Unary (..)
   )
 import Olivine.Syntax.Name (Name)
-import Olivine.Syntax.Type (Type (..), elementOf, insideOf, resolveNamed)
+import Olivine.Syntax.Type (Packedness (..), Type (..), elementOf, insideOf, resolveNamed)
 import Olivine.Syntax.Value (GepFlag, TypedValue (..), globalsIn)
 
 -- | What an instruction assigns to, and what an operand names when it names
@@ -137,6 +142,16 @@ data Operation operand
   | OAlloca (Alloca operand)
   | OLoad (Load operand)
   | OStore (Store operand)
+  | -- | The atomic accesses.  Each is an ordering constraint as well as
+    -- whatever it does to memory, which is why none of them is a flag on the
+    -- plain access it resembles: a pass deciding something about a load has
+    -- to decide it about these separately or not at all.
+    OAtomicLoad (AtomicLoad operand)
+  | OAtomicStore (AtomicStore operand)
+  | OAtomicRmw (AtomicRmw operand)
+  | OCmpXchg (CmpXchg operand)
+  | -- | An ordering and nothing else: it names no address.
+    OFence Fence
   | -- | One step along a pointer, and the reason this grammar exists
     -- separately from LLVM's.
     OOffset (Offset operand)
@@ -298,6 +313,15 @@ resultType types operation = case operation of
   OAlloca a -> TPointer (allocaAddrSpace a)
   OLoad l -> loadType l
   OStore _ -> TVoid
+  OAtomicLoad l -> atomicLoadType l
+  OAtomicStore _ -> TVoid
+  -- What was there before, which is of the type of the value written against
+  -- it.
+  OAtomicRmw r -> typedValueType (atomicRmwValue r)
+  -- What was there, and whether it was replaced.  That pair is why aggregate
+  -- values and lock-free code arrive together.
+  OCmpXchg c -> TStruct Unpacked [typedValueType (cmpXchgCompare c), TInteger 1]
+  OFence _ -> TVoid
   -- A step along a pointer gives back a pointer into the same address space,
   -- which is what the operand already is.
   OOffset o -> typedValueType (offsetPointer o)
@@ -356,6 +380,15 @@ speculatable operation = case operation of
   OLoad _ -> False
   -- Writes memory, so moving it changes when the write happens.
   OStore _ -> False
+  -- Every atomic operation orders the accesses around it, and where an
+  -- ordering takes effect is the whole of what it is for.  Running one early
+  -- is running it somewhere else, which is a different program however
+  -- harmless the value it leaves behind.
+  OAtomicLoad _ -> False
+  OAtomicStore _ -> False
+  OAtomicRmw _ -> False
+  OCmpXchg _ -> False
+  OFence _ -> False
   OBinary b -> not (undefinedByZero (binaryOp b))
   OUnary _ -> True
   OICmp _ -> True

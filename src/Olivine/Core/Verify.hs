@@ -62,9 +62,13 @@ import Olivine.Syntax.Ast qualified as Syntax
 import Olivine.Syntax.Function (Parameter (..), Signature (..))
 import Olivine.Syntax.Instruction
   ( Alloca (..)
+  , AtomicLoad (..)
+  , AtomicRmw (..)
+  , AtomicStore (..)
   , Binary (..)
   , BinaryOp (..)
   , Call (..)
+  , CmpXchg (..)
   , Compare (..)
   , Convert (..)
   , ExtractElement (..)
@@ -392,6 +396,16 @@ shape types layout operation = case operation of
   OAlloca a -> foldMap (needs AnInteger) (allocaElementCount a)
   OLoad l -> needs APointer (loadPointer l)
   OStore s -> needs APointer (storePointer s)
+  OAtomicLoad l -> needs APointer (atomicLoadPointer l)
+  OAtomicStore s -> needs APointer (atomicStorePointer s)
+  OAtomicRmw r -> needs APointer (atomicRmwPointer r)
+  -- What is compared against and what replaces it are two values of the one
+  -- thing that stands at the address.
+  OCmpXchg c ->
+    needs APointer (cmpXchgPointer c)
+      <> agree (cmpXchgCompare c) (cmpXchgReplacement c)
+  -- Names no address and reads no operand.
+  OFence _ -> []
   OOffset o ->
     needs APointer (offsetPointer o)
       <> needs AnInteger (offsetIndex o)

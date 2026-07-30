@@ -223,6 +223,11 @@ raiseOperation numbering written = case fmap (localName numbering) <$> written o
   OAlloca a -> Syntax.OAlloca a
   OLoad l -> Syntax.OLoad l
   OStore s -> Syntax.OStore s
+  OAtomicLoad l -> Syntax.OAtomicLoad l
+  OAtomicStore s -> Syntax.OAtomicStore s
+  OAtomicRmw r -> Syntax.OAtomicRmw r
+  OCmpXchg c -> Syntax.OCmpXchg c
+  OFence f -> Syntax.OFence f
   OOffset o ->
     Syntax.OGetElementPtr
       Syntax.GetElementPtr
