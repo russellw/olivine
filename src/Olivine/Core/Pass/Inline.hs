@@ -300,11 +300,26 @@ copyable world callee =
     && not (interposable (signatureLinkage signature))
     && not (any (`elem` attributes) [FANoInline, FAOptNone, FAReturnsTwice, FANaked])
     && not (any indirect (functionBlocks callee))
+    && not (any unwinding (functionBlocks callee))
   where
     signature = functionSignature callee
     attributes = attributesOf world signature
     indirect b = case terminatorTransfer (blockTerminator b) of
       IndirectBr _ _ -> True
+      _ -> False
+
+    -- A body that handles or propagates an exception stays where it is.  What
+    -- its landing pads mean is decided by the personality on the function they
+    -- are written in, and the caller's is another function's promise or none
+    -- at all; a resume copied into a caller unwinds a frame that was never
+    -- asked to unwind.  Nothing here would notice either.
+    unwinding b =
+      any pad (blockInstructions b) || case terminatorTransfer (blockTerminator b) of
+        Invoke{} -> True
+        Resume _ -> True
+        _ -> False
+    pad i = case instructionOperation i of
+      OLandingPad _ -> True
       _ -> False
 
 -- | Whether the definition here might not be the one that runs.

@@ -99,8 +99,14 @@ number signature written blocks =
 
     (_, blockNames, resultNames) =
       foldl' takeBlock (afterParameters, [], []) blocks
+    -- The terminator's result is last because the terminator is: an invoke
+    -- assigns where it stands, and LLVM numbers what a function leaves unnamed
+    -- in the order it is written.
     takeBlock (n, names, results) b =
-      let assigned = map phiLocal (joinedPhis b) <> assigning (joinedInstructions b)
+      let assigned =
+            map phiLocal (joinedPhis b)
+              <> assigning (joinedInstructions b)
+              <> maybe [] pure (resultOf (joinedTerminator b))
           (n', results') = foldl' takeResult (n + 1, results) assigned
        in (n', names <> [(joinedLabel b, numberName n)], results')
     assigning instructions = [local | i <- instructions, Just local <- [instructionResult i]]
@@ -155,7 +161,7 @@ raiseBlock numbering blocks block =
               }
     terminator =
       Syntax.IOperation
-        Nothing
+        (localName numbering <$> resultOf (joinedTerminator block))
         (raiseTransfer numbering (terminatorTransfer (joinedTerminator block)))
         (terminatorMetadata (joinedTerminator block))
 
@@ -250,6 +256,7 @@ raiseOperation numbering written = case fmap (localName numbering) <$> written o
         }
     where
       index = TypedValue (TInteger 32) . VInteger
+  OLandingPad p -> Syntax.OLandingPad p
   OAssign _ -> error "Olivine.Core.Raise: an assignment survived reconstruction"
 
 -- | One terminator, on the other side of the boundary.
@@ -266,6 +273,12 @@ raiseTransfer numbering written = case fmap (localName numbering) <$> written of
     Syntax.OSwitch value (label target) [(x, label l) | (x, l) <- cases]
   IndirectBr address targets -> Syntax.OIndirectBr address (map label targets)
   Unreachable -> Syntax.OUnreachable
+  -- The result is not written here: it is the name on the instruction, which
+  -- 'raiseBlock' takes from 'resultOf' the way it takes an instruction's from
+  -- 'instructionResult'.
+  Invoke _ call normal unwind ->
+    Syntax.OInvoke (Syntax.Invoke call (label normal) (label unwind))
+  Resume value -> Syntax.OResume value
   where
     label = blockLabelName numbering
 

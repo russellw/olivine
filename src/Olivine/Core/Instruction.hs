@@ -43,6 +43,7 @@ module Olivine.Core.Instruction
   , Transfer (..)
   , targetsOf
   , retarget
+  , resultOf
   , localsUsedBy
   , globalsUsedBy
   , resultType
@@ -71,6 +72,7 @@ import Olivine.Syntax.Instruction
   , InsertElement (..)
   , InsertValue (..)
   , IntPredicate
+  , LandingPad (..)
   , Load (..)
   , MetadataAttachment
   , Select (..)
@@ -157,6 +159,15 @@ data Operation operand
     OOffset (Offset operand)
   | -- | One step into a struct.
     OField (Field operand)
+  | -- | What an unwinder leaves at the head of a block it resumes the
+    -- function in.
+    --
+    -- An instruction and not a slot on the block, although LLVM requires it
+    -- to stand first: a block that holds one is thereby not empty, and the
+    -- passes that take a block out of the graph are the ones that ask whether
+    -- it holds anything.  That it stands first is the core verifier's to say,
+    -- and it says it after every pass.
+    OLandingPad (LandingPad operand)
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- | @p + index * sizeof(ty)@.
@@ -221,6 +232,22 @@ data Transfer operand
     Switch operand Label [(operand, Label)]
   | IndirectBr operand [Label]
   | Unreachable
+  | -- | A call that ends its block: what it assigns, the call itself, where
+    -- control goes when it returns, and where it goes when it throws.
+    --
+    -- The one transfer that names a result, which is why the name is here
+    -- rather than beside the transfer: a @ret@ with a result name is then not
+    -- a thing that can be written down.  It is not an operand and 'fmap' does
+    -- not reach it, the same rule 'Label' keeps to.
+    --
+    -- What it holds is a 'Call' and not a copy of one, so a pass asking what
+    -- a call does asks it in one way wherever the call stands.  The value it
+    -- assigns arrives only along the normal edge; nothing in the unwind
+    -- destination may read it, which the verifier checks because the
+    -- dominance rule alone would allow it.
+    Invoke (Maybe Local) (Call operand) Label Label
+  | -- | Carry on unwinding with what the landing pad was handed.
+    Resume operand
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
 -- | The blocks a terminator can branch to, in the order written.
@@ -237,6 +264,8 @@ targetsOf = go . terminatorTransfer
     go (Switch _ target cases) = target : map snd cases
     go (IndirectBr _ targets) = targets
     go Unreachable = []
+    go (Invoke _ _ normal unwind) = [normal, unwind]
+    go (Resume _) = []
 
 -- | Send every branch somewhere else.
 --
@@ -254,6 +283,27 @@ retarget f t = t {terminatorTransfer = go (terminatorTransfer t)}
       Switch value (f target) [(x, f label) | (x, label) <- cases]
     go (IndirectBr address targets) = IndirectBr address (map f targets)
     go Unreachable = Unreachable
+    go (Invoke result call normal unwind) =
+      Invoke result call (f normal) (f unwind)
+    go (Resume value) = Resume value
+
+-- | What a terminator assigns, which only an @invoke@ does.
+--
+-- The counterpart of 'Olivine.Core.Program.blockInstructions' answering
+-- 'instructionResult': anything asking what a function defines has to ask it
+-- of the terminators too, now that one of them defines something.  Written out
+-- case by case for the reason 'targetsOf' is.
+resultOf :: Terminator -> Maybe Local
+resultOf = go . terminatorTransfer
+  where
+    go (Invoke result _ _ _) = result
+    go (Ret _) = Nothing
+    go (Br _) = Nothing
+    go (CondBr _ _ _) = Nothing
+    go (Switch _ _ _) = Nothing
+    go (IndirectBr _ _) = Nothing
+    go Unreachable = Nothing
+    go (Resume _) = Nothing
 
 -- | The locals something reads, however deeply they are written.
 --
@@ -326,6 +376,7 @@ resultType types operation = case operation of
   -- which is what the operand already is.
   OOffset o -> typedValueType (offsetPointer o)
   OField field -> typedValueType (fieldPointer field)
+  OLandingPad p -> landingPadType p
   where
     -- A comparison of vectors is a vector of answers.
     boolean t = case resolveNamed types t of
@@ -374,6 +425,9 @@ speculatable operation = case operation of
   -- Fresh storage each time, so one allocation is not the allocations that were
   -- asked for.
   OAlloca _ -> False
+  -- What an unwinder left, which is a fact about how control arrived here and
+  -- not a computation at all.  There is nowhere else it could stand.
+  OLandingPad _ -> False
   -- The answer is whatever memory holds, and a store or a call in between may
   -- change that.  Nor is the pointer necessarily one that can be read at all
   -- where the load is being put.
@@ -437,3 +491,4 @@ undefinedByZero op = case op of
   OpFMul -> False
   OpFDiv -> False
   OpFRem -> False
+

@@ -88,4 +88,8 @@ removableWhenUnused operation = case operation of
   OAtomicRmw _ -> False
   OCmpXchg _ -> False
   OFence _ -> False
+  -- A landing pad is where an unwinder resumes the function, so it is not a
+  -- computation that can be skipped for being unread: taking it away leaves an
+  -- invoke unwinding to a block that has none.
+  OLandingPad _ -> False
   _ -> True

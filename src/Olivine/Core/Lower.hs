@@ -7,6 +7,7 @@ module Olivine.Core.Lower
   ( lower
   ) where
 
+import Control.Monad (guard)
 import Data.List (partition)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
@@ -110,12 +111,22 @@ readBlock ::
 readBlock types labels locals issued (label, block) = do
   (body, terminator) <- split labels locals (Syntax.blockBody block)
   let (phis, rest) = partition isPhi body
+  -- A phi becomes assignments on the edges that reach it, and an edge into a
+  -- landing pad is one nothing may be put on: LLVM asks that an invoke unwind
+  -- to a block that begins with a pad, so a block holding the copies cannot
+  -- stand between them.  The way round it is to give each such edge a pad of
+  -- its own, copied from this one, and until that is here the definition is
+  -- retained as written.  Nothing clang emits at -O0 has one, phis being what
+  -- promotion produces rather than what a front end writes.
+  guard (null phis || not (any isLandingPad rest))
   written <- traverse phi phis
   (issued', instructions) <- mapAccumM instruction issued rest
   pure (issued', Joined label written (concat instructions) terminator)
   where
     isPhi (Syntax.IOperation _ (Syntax.OPhi _) _) = True
     isPhi _ = False
+    isLandingPad (Syntax.IOperation _ (Syntax.OLandingPad _) _) = True
+    isLandingPad _ = False
     phi (Syntax.IOperation (Just name) (Syntax.OPhi p) _) =
       PhiNode
         <$> Map.lookup name locals
@@ -200,9 +211,11 @@ lowerOperation locals written = do
     Syntax.OSwitch _ _ _ -> Nothing
     Syntax.OIndirectBr _ _ -> Nothing
     Syntax.OUnreachable -> Nothing
+    Syntax.OLandingPad p -> Just (OLandingPad p)
+    -- Both are terminators, which 'split' takes off the end before this is
+    -- reached, the way it does for every other transfer.
     Syntax.OInvoke _ -> Nothing
     Syntax.OResume _ -> Nothing
-    Syntax.OLandingPad _ -> Nothing
 
 -- * Taking a getelementptr apart
 
@@ -326,9 +339,10 @@ gepSteps types = first
 lowerTransfer ::
   Map Name Label ->
   Map Name Local ->
+  Maybe Local ->
   Syntax.Operation (TypedValue Name) ->
   Maybe (Transfer (TypedValue Local))
-lowerTransfer labels locals written = do
+lowerTransfer labels locals result written = do
   operation <- traverse (traverse (`Map.lookup` locals)) written
   let target = (`Map.lookup` labels)
   case operation of
@@ -341,6 +355,11 @@ lowerTransfer labels locals written = do
         <*> traverse (\(x, l) -> (x,) <$> target l) cases
     Syntax.OIndirectBr address ds -> IndirectBr address <$> traverse target ds
     Syntax.OUnreachable -> Just Unreachable
+    Syntax.OInvoke i ->
+      Invoke result (Syntax.invokeCall i)
+        <$> target (Syntax.invokeNormal i)
+        <*> target (Syntax.invokeUnwind i)
+    Syntax.OResume value -> Just (Resume value)
     _ -> Nothing
 
 -- | Take the terminator off the end and the rest as the body.
@@ -355,11 +374,15 @@ split ::
   [Syntax.Instruction] ->
   Maybe ([Syntax.Instruction], Terminator)
 split labels locals body = case reverse body of
-  Syntax.IOperation Nothing operation metadata : rest
+  -- A terminator names a result only where it is an invoke, and there it must:
+  -- what the call left is read in the block it returns to.  Whether the name
+  -- belongs on this terminator at all is the verifier's, not this rule's.
+  Syntax.IOperation result operation metadata : rest
     | isTerminator operation
-    , all modelled rest ->
-        (\t -> (reverse rest, Terminator t metadata))
-          <$> lowerTransfer labels locals operation
+    , all modelled rest -> do
+        assigns <- traverse (`Map.lookup` locals) result
+        t <- lowerTransfer labels locals assigns operation
+        pure (reverse rest, Terminator t metadata)
   _ -> Nothing
   where
     modelled (Syntax.IOperation _ operation _) = not (isTerminator operation)

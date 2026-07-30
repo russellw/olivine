@@ -238,14 +238,23 @@ invariantIn globals layout objects f loop =
     once = writtenOnce f
     assigned = assignedIn f loop
 
-    -- Every instruction the loop runs, which is what a load has to be safe
+    -- Every operation the loop runs, which is what a load has to be safe
     -- against all of.
+    --
+    -- The calls among them include the ones standing where a branch stands: an
+    -- invoke is a call, and a load taken out of a loop whose body may call
+    -- anything is a load moved above a write it cannot see.
     inside =
       [ instructionOperation i
       | b <- functionBlocks f
       , Set.member (blockLabel b) (loopBody loop)
       , i <- blockInstructions b
       ]
+        <> [ OCall call
+           | b <- functionBlocks f
+           , Set.member (blockLabel b) (loopBody loop)
+           , Invoke _ call _ _ <- [terminatorTransfer (blockTerminator b)]
+           ]
 
     -- Whether an instruction may be moved out, given where in the loop it
     -- stands.  Only a load reads the position: for everything else the answer
@@ -290,12 +299,22 @@ invariantIn globals layout objects f loop =
 assignedIn :: Function -> Loop -> Set Local
 assignedIn f loop =
   Set.fromList
-    [ result
-    | b <- functionBlocks f
-    , Set.member (blockLabel b) (loopBody loop)
-    , i <- blockInstructions b
-    , Just result <- [instructionResult i]
-    ]
+    ( [ result
+      | b <- inLoop
+      , i <- blockInstructions b
+      , Just result <- [instructionResult i]
+      ]
+        -- A terminator assigns to something too, now that one of them is a
+        -- call.  A computation reading what an invoke in the body left is not
+        -- invariant, however invariant the rest of it looks.
+        <> mapMaybe (resultOf . blockTerminator) inLoop
+    )
+  where
+    inLoop =
+      [ b
+      | b <- functionBlocks f
+      , Set.member (blockLabel b) (loopBody loop)
+      ]
 
 -- | The locals the function assigns in one place and that are not parameters.
 --
@@ -387,6 +406,9 @@ returns operation = case operation of
   OFence _ -> True
   OOffset _ -> True
   OField _ -> True
+  -- Control is already here: an unwinder put it here, and what stands after a
+  -- landing pad runs.
+  OLandingPad _ -> True
 
 -- | Whether a load can be run wherever it is put, for what it reads rather
 -- than for where it stands.

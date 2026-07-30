@@ -263,7 +263,25 @@ eliminateIn types layout f = f {functionBlocks = map rewrite (functionBlocks f)}
     -- A block's instructions rewritten against what is known on the way in,
     -- with what is known on the way out.
     walk :: Known -> Block -> (Known, [Instruction])
-    walk incoming block = mapAccumL instruction incoming (blockInstructions block)
+    walk incoming block = (leaving (blockTerminator block) after, instructions)
+      where
+        (after, instructions) = mapAccumL instruction incoming (blockInstructions block)
+
+    -- What the terminator itself leaves known, which for every one of them but
+    -- an invoke is what the last instruction left.
+    --
+    -- An invoke is a call standing where a branch stands, and a call may write
+    -- anything a stranger can reach.  What is known on the way out has to say
+    -- so, or the successors — the landing pad among them — answer a load from
+    -- a fact the call has already made false.
+    leaving :: Terminator -> Known -> Known
+    leaving t known = case terminatorTransfer t of
+      Invoke result _ _ _ ->
+        (maybe id kill result known)
+          { contents =
+              filter (not . reachableByCall objects . contentAddress) (contents known)
+          }
+      _ -> known
 
     -- What is known on the way into each reachable block and on the way out of
     -- it, once the rounds have stopped changing them.
@@ -504,6 +522,9 @@ shareable operation = case operation of
   -- is there.
   OOffset _ -> True
   OField _ -> True
+  -- What an unwinder handed this block, which is not a function of anything
+  -- written down and cannot stand anywhere but where it is.
+  OLandingPad _ -> False
 
 -- | An operation with every operand naming the value it stands for, rather
 -- than a local that is a copy of it.

@@ -59,7 +59,7 @@ import Olivine.Core.Layout (Layout, layoutOf, sizeInBits)
 import Olivine.Core.Program
 
 import Olivine.Syntax.Ast qualified as Syntax
-import Olivine.Syntax.Function (Parameter (..), Signature (..))
+import Olivine.Syntax.Function (FunctionClause (..), Parameter (..), Signature (..))
 import Olivine.Syntax.Instruction
   ( Alloca (..)
   , AtomicLoad (..)
@@ -131,6 +131,24 @@ data Complaint
     -- the one block that may not be a destination, and the raising leaves its
     -- label unwritten because nothing can name it.
     BranchToEntry
+  | -- | A landing pad standing anywhere but first in its block.  It is what an
+    -- unwinder leaves on arrival, so nothing can have run before it.
+    --
+    -- The pad is an ordinary instruction here rather than a slot on the block,
+    -- so this is what says it stands where it must.  A pass that puts anything
+    -- in front of one is a pass this reports, which is what the check is for.
+    LandingPadNotFirst
+  | -- | A landing pad in a block anything but an unwind edge leads to, or an
+    -- invoke unwinding to a block that has none.  The two are one rule read
+    -- from either end: a pad is where an exception arrives, and an unwind edge
+    -- is the only way one does.
+    LandingPadNotUnwound
+  | -- | A landing pad or a resume in a function with no @personality@.
+    PersonalityMissing
+  | -- | Something in the unwind destination reading what the invoke assigned.
+    -- The call did not return, so there is no value; dominance allows it,
+    -- since the block is reached only from the invoke, and LLVM does not.
+    ResultOnUnwind Local
   | -- | An operand naming a local nothing in the function defines.
     UndefinedLocal Local
   | -- | An operand naming a symbol the program does not have.
@@ -256,6 +274,65 @@ verifyFunction types layout symbols f =
     inBlock b =
       concat (zipWith (instruction b) [0 ..] (blockInstructions b))
         <> terminator b
+        <> exceptional b
+
+    -- * Where an exception arrives
+    --
+    -- A landing pad and the unwind edges that reach it, checked from both
+    -- ends: what LLVM asks is that each block with a pad is entered by nothing
+    -- else and that each unwind edge arrives at one.
+    exceptional b =
+      map
+        ((,) (At (blockLabel b) 0))
+        ( [LandingPadNotFirst | i <- drop 1 (blockInstructions b), isPad i]
+            <> [PersonalityMissing | needsPersonality b, not hasPersonality]
+            <> [ LandingPadNotUnwound
+               | if begins b
+                  then arrivingAt (blockLabel b) /= throwingAt (blockLabel b)
+                  else not (null (throwingAt (blockLabel b)))
+               ]
+            <> [ ResultOnUnwind result
+               | result <- invokedInto (blockLabel b)
+               , result `elem` readIn b
+               ]
+        )
+
+    isPad i = case instructionOperation i of
+      OLandingPad _ -> True
+      _ -> False
+
+    begins b = any isPad (take 1 (blockInstructions b))
+
+    needsPersonality b =
+      any isPad (blockInstructions b) || case terminatorTransfer (blockTerminator b) of
+        Resume _ -> True
+        _ -> False
+
+    hasPersonality =
+      or [True | FCPersonality _ <- signatureFunctionClauses signature]
+
+    arrivingAt label =
+      [blockLabel b | b <- blocks, label `elem` targetsOf (blockTerminator b)]
+
+    throwingAt label =
+      [ blockLabel b
+      | b <- blocks
+      , Invoke _ _ _ unwind <- [terminatorTransfer (blockTerminator b)]
+      , unwind == label
+      ]
+
+    -- What the invokes throwing into a block left behind, which is what
+    -- nothing in it may read.
+    invokedInto label =
+      [ result
+      | b <- blocks
+      , Invoke (Just result) _ _ unwind <- [terminatorTransfer (blockTerminator b)]
+      , unwind == label
+      ]
+
+    readIn b =
+      concatMap (localsUsedBy . instructionOperation) (blockInstructions b)
+        <> localsUsedBy (terminatorTransfer (blockTerminator b))
 
     instruction b index i =
       map
@@ -333,6 +410,15 @@ verifyFunction types layout symbols f =
                , let produced = resultType types (instructionOperation i)
                , produced /= TVoid
                ]
+            -- What an invoke leaves is defined where the terminator stands,
+            -- which is the one place a definition is not an instruction.
+            <> [ (local, produced)
+               | b <- blocks
+               , Just local <- [resultOf (blockTerminator b)]
+               , Invoke _ call _ _ <- [terminatorTransfer (blockTerminator b)]
+               , let produced = resultType types (OCall call)
+               , produced /= TVoid
+               ]
         )
 
 -- | What an operation demands of its operands.
@@ -406,6 +492,9 @@ shape types layout operation = case operation of
       <> agree (cmpXchgCompare c) (cmpXchgReplacement c)
   -- Names no address and reads no operand.
   OFence _ -> []
+  -- Its clauses are constants the personality routine reads, and what they
+  -- have to be is that routine's business rather than the grammar's.
+  OLandingPad _ -> []
   OOffset o ->
     needs APointer (offsetPointer o)
       <> needs AnInteger (offsetIndex o)
@@ -492,6 +581,14 @@ control types returns transfer = case transfer of
         ]
   IndirectBr address _ -> needs APointer address
   Unreachable -> []
+  -- What the callee is and what it is handed are the questions a call answers,
+  -- and this one answers them the same way: nothing here is about the two
+  -- destinations, which are the graph's business and checked with the rest of
+  -- it.
+  Invoke _ call _ _ -> needs APointer (callCallee call)
+  -- Whatever the personality routine wants, which is not a thing the grammar
+  -- knows: LLVM asks only that a function with one of these have a personality.
+  Resume _ -> []
   where
     needs requirement = require types requirement . typedValueType
 
@@ -655,6 +752,12 @@ renderComplaint complaint = case complaint of
       <> number named
   MissingBlock label -> "a branch to " <> renderLabel label <> ", which is not there"
   BranchToEntry -> "a branch to the entry block, which may not be a destination"
+  LandingPadNotFirst -> "a landing pad standing after something else in its block"
+  LandingPadNotUnwound ->
+    "a landing pad and an unwind edge that do not answer to each other"
+  PersonalityMissing -> "a landing pad or a resume in a function with no personality"
+  ResultOnUnwind local ->
+    renderLocal local <> " is read where the call it comes from did not return"
   UndefinedLocal local -> renderLocal local <> " is defined nowhere"
   UndefinedGlobal name -> "@" <> renderName name <> " is defined nowhere in the program"
   ResultOfVoid -> "a result named for an operation that produces no value"

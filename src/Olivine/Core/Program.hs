@@ -113,7 +113,9 @@ nextLocal f = Local (1 + maximum (-1 : [n | Local n <- used]))
            ]
         <> [ local
            | b <- functionBlocks f
-           , local <- localsUsedBy (terminatorTransfer (blockTerminator b))
+           , local <-
+              maybe [] pure (resultOf (blockTerminator b))
+                <> localsUsedBy (terminatorTransfer (blockTerminator b))
            ]
 
 -- | A block number nothing in the function already uses.
