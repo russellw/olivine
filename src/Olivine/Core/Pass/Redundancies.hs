@@ -1,13 +1,21 @@
--- | Reading a value off the computation that already worked it out, or off the
--- memory that already holds it.
+-- | Reading a value off whatever already has it: the computation that worked it
+-- out, or the memory that holds it.
 --
--- An instruction computing what an earlier one computed becomes an assignment
--- of what the earlier one left behind.  That is the same device folding uses,
--- and for the same reason: the core has assignment, so a pass that finds out
--- what an instruction comes to never has to move or delete anything to say
+-- Two kinds of redundancy under one name, because they are one question here.
+-- An instruction computing what an earlier one computed is redundant, and so is
+-- a load of an address an earlier access already settled; either becomes an
+-- assignment of the value already in hand.  That is the same device folding
+-- uses, and for the same reason: the core has assignment, so a pass that finds
+-- out what an instruction comes to never has to move or delete anything to say
 -- so.  Reconstruction carries the value to the uses and the dead code pass
 -- takes away whatever was only computed to feed the instruction that is now a
 -- copy.
+--
+-- What makes them one question is availability.  Neither kind can be settled by
+-- looking at the instruction: what is in hand where it stands depends on every
+-- path that reaches it, so both are read off the same walk, both are killed by
+-- an assignment to a local, and both name their operands through the same
+-- copies.  Splitting them into two passes would be that walk written twice.
 --
 -- __This is where the core's bargain comes due.__  In single assignment form
 -- "computed already" is a lookup and nothing more: a name is a value, so two
@@ -134,8 +142,8 @@
 -- intersection drops because an earlier round wrote it another way is a
 -- computation not shared, which is the direction this pass is allowed to be
 -- wrong in.
-module Olivine.Core.Pass.CommonSubexpressions
-  ( eliminateCommonSubexpressions
+module Olivine.Core.Pass.Redundancies
+  ( eliminateRedundancies
   , shareable
   ) where
 
@@ -157,12 +165,12 @@ import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Type (Type)
 import Olivine.Syntax.Value (TypedValue (..), Value (..))
 
-eliminateCommonSubexpressions :: Program -> Program
-eliminateCommonSubexpressions program =
+eliminateRedundancies :: Program -> Program
+eliminateRedundancies program =
   program {programEntries = map entry (programEntries program)}
   where
     types = namedTypes program
-    entry (EFunction f) = EFunction (share types f)
+    entry (EFunction f) = EFunction (eliminateIn types f)
     entry retained = retained
 
 -- | What is known at a point in a function.
@@ -222,8 +230,8 @@ data Content = Content
 nothingKnown :: Known
 nothingKnown = Known Map.empty Map.empty []
 
-share :: Map Name Type -> Function -> Function
-share types f = f {functionBlocks = map rewrite (functionBlocks f)}
+eliminateIn :: Map Name Type -> Function -> Function
+eliminateIn types f = f {functionBlocks = map rewrite (functionBlocks f)}
   where
     blocks = functionBlocks f
     order = reversePostorder f
@@ -237,9 +245,9 @@ share types f = f {functionBlocks = map rewrite (functionBlocks f)}
 
     rewrite b = case Map.lookup (blockLabel b) settled of
       Just (incoming, _) -> b {blockInstructions = snd (walk incoming b)}
-      -- A block nothing reaches.  No walk arrives at one, so there is nothing
-      -- known in it to share from, and nothing it computes reaches anywhere
-      -- else to be shared to.
+      -- A block nothing reaches.  No walk arrives at one, so nothing is known
+      -- in it to answer anything with, and nothing it computes or reads reaches
+      -- anywhere else to answer anything there.
       Nothing -> b
 
     -- A block's instructions rewritten against what is known on the way in,

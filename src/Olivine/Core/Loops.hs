@@ -14,10 +14,10 @@
 -- __Dominance is a must-analysis, so it begins from everything.__  A block is
 -- dominated by whatever every path to it passes through, and the way to
 -- compute that is to intersect what the predecessors say until it stops
--- changing.  As in "Olivine.Core.Pass.CommonSubexpressions", the set of every
--- fact is never written down: a block no round has reached yet is left out of
--- the map and passed over by the intersection, since meeting with everything
--- is the identity.
+-- changing.  As in "Olivine.Core.Pass.Redundancies", the set of every fact is
+-- never written down: a block no round has reached yet is left out of the map
+-- and passed over by the intersection, since meeting with everything is the
+-- identity.
 --
 -- Unlike that pass, these rounds are plainly monotone — a round can only take
 -- dominators away — so they need no bound to stop them.

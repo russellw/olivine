@@ -43,7 +43,7 @@ library
                       Olivine.Core.Ssa
                       Olivine.Core.Blocks
                       Olivine.Core.Loops
-                      Olivine.Core.Pass.CommonSubexpressions
+                      Olivine.Core.Pass.Redundancies
                       Olivine.Core.Pass.ConstantFold
                       Olivine.Core.Pass.ControlFlow
                       Olivine.Core.Pass.DeadCode
@@ -103,7 +103,7 @@ test-suite olivine-test
                       DeadCode
                       DeadSymbols
                       Folding
-                      Subexpressions
+                      Redundancies
                       Verify
     build-depends:    base,
                       containers,

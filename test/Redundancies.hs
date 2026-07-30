@@ -1,12 +1,12 @@
--- | The common subexpression pass, redundant loads and all, and the aliasing
--- it stands on for those.
+-- | The redundancy pass — expressions and loads both — and the aliasing it
+-- stands on for the loads.
 --
 -- Two things are checked separately: which computations and loads are answered
 -- from earlier ones, and which must not be.  The second is where the bugs are —
 -- sharing a call, answering a load across something that wrote the address, or
 -- reusing an expression whose operand was reassigned in between gives a module
 -- LLVM accepts and a program that computes something else.
-module Subexpressions (subexpressionTests) where
+module Redundancies (redundancyTests) where
 
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -17,7 +17,7 @@ import Corpus (expectParse)
 import Olivine.Core.Alias
 import Olivine.Core.Instruction
 import Olivine.Core.Lower (lower)
-import Olivine.Core.Pass.CommonSubexpressions (eliminateCommonSubexpressions, shareable)
+import Olivine.Core.Pass.Redundancies (eliminateRedundancies, shareable)
 import Olivine.Core.Pass.Promote (promoteMemory)
 import Olivine.Core.Program
 import Olivine.Syntax.Instruction hiding (Operation (..))
@@ -25,10 +25,10 @@ import Olivine.Syntax.Name
 import Olivine.Syntax.Type
 import Olivine.Syntax.Value
 
-subexpressionTests :: TestTree
-subexpressionTests =
+redundancyTests :: TestTree
+redundancyTests =
   testGroup
-    "common subexpressions"
+    "redundancies"
     [ testGroup
         "what is shared"
         [ -- Locals are numbered as they are defined: the two parameters, then
@@ -349,7 +349,7 @@ assignmentsIn = assignmentsAfter id
 assignmentsAfter :: (Program -> Program) -> Text -> IO [(Local, Value Local)]
 assignmentsAfter before source = do
   parsed <- expectParse "<inline>" source
-  let shared = eliminateCommonSubexpressions (before (lower parsed))
+  let shared = eliminateRedundancies (before (lower parsed))
       original = before (lower parsed)
       assignments program =
         [ (name, value)

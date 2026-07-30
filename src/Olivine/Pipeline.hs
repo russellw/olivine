@@ -13,7 +13,6 @@ module Olivine.Pipeline
   ) where
 
 import Olivine.Core.Lower (lower)
-import Olivine.Core.Pass.CommonSubexpressions (eliminateCommonSubexpressions)
 import Olivine.Core.Pass.ConstantFold (foldConstants)
 import Olivine.Core.Pass.ControlFlow (simplifyControlFlow)
 import Olivine.Core.Pass.DeadCode (eliminateDeadCode)
@@ -21,6 +20,7 @@ import Olivine.Core.Pass.DeadSymbols (eliminateDeadSymbols)
 import Olivine.Core.Pass.Inline (inlineCalls)
 import Olivine.Core.Pass.LoopInvariants (hoistLoopInvariants)
 import Olivine.Core.Pass.Promote (promoteMemory)
+import Olivine.Core.Pass.Redundancies (eliminateRedundancies)
 import Olivine.Core.Program (Program)
 import Olivine.Core.Raise (raise)
 import Olivine.Syntax.Ast (Module)
@@ -66,8 +66,8 @@ passes :: [Pass]
 -- a block nothing reaches is not promoted, since promotion runs before the
 -- block goes.
 --
--- Common subexpressions after all of those, because every one of them makes
--- two computations that were written differently into the same expression:
+-- Redundancies after all of those, because every one of them makes two
+-- computations that were written differently into the same expression:
 -- promotion turns a value that travelled through memory into the local both
 -- sides read, inlining brings two copies of a callee's arithmetic into one
 -- function with the same arguments bound in each, folding settles the indices
@@ -83,7 +83,7 @@ passes :: [Pass]
 -- caller's, where one can answer the other and where the callee's own storage
 -- is storage this function can see the whole life of.
 --
--- Hoisting loop invariants after those, and after common subexpressions in
+-- Hoisting loop invariants after those, and after the redundancies in
 -- particular.  A computation written twice in a loop body is one computation and
 -- one copy of it by the time this sees it, so what leaves the loop is one
 -- arithmetic instruction and a copy that costs nothing; without sharing first it
@@ -116,7 +116,7 @@ passes =
   , Pass "inlining" inlineCalls
   , Pass "constant folding" foldConstants
   , Pass "control flow" simplifyControlFlow
-  , Pass "common subexpressions" eliminateCommonSubexpressions
+  , Pass "redundancies" eliminateRedundancies
   , Pass "loop invariants" hoistLoopInvariants
   , Pass "dead code" eliminateDeadCode
   , Pass "dead symbols" eliminateDeadSymbols

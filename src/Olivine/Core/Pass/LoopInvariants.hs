@@ -11,10 +11,10 @@
 -- assigns holds, at every point inside it, what it held when control arrived —
 -- so reading it before the loop reads the same value the instruction would have
 -- read inside.  That is the whole of the analysis, and it is cheap for the
--- reason "Olivine.Core.Pass.CommonSubexpressions" is not: availability asks
--- what /has been/ computed on the way here, which every path has to agree on,
--- while invariance asks what is /never/ assigned in a set of blocks, which is
--- one sweep over them.
+-- reason "Olivine.Core.Pass.Redundancies" is not: availability asks what /has
+-- been/ computed on the way here, which every path has to agree on, while
+-- invariance asks what is /never/ assigned in a set of blocks, which is one
+-- sweep over them.
 --
 -- __The value goes in a preheader.__  Every edge into the header passes
 -- through one block that goes nowhere else, so what it computes is computed
@@ -52,23 +52,25 @@
 -- runs whenever it is entered at all, is sound and is a refinement for later.
 --
 -- __Memory is not hoisted.__  A load reads what memory holds, and a store or a
--- call anywhere in the loop may change it; saying otherwise takes an aliasing
--- analysis, which Olivine does not have yet.  A loop-invariant load is the
--- single biggest thing this pass leaves on the table, and it is the same gap
--- that stops the common subexpression pass sharing one.
+-- call anywhere in the loop may change it.  Saying otherwise takes aliasing,
+-- which "Olivine.Core.Alias" now answers and this pass does not yet ask:
+-- hoisting a load means asking it of every store and call in the loop rather
+-- than of the instructions between two accesses, and then dealing with the same
+-- must-execute question a division raises, a load being able to fault where a
+-- division divides by zero.  A loop-invariant load is the single biggest thing
+-- this pass leaves on the table, and no longer for want of the analysis.
 --
 -- __The copies come out first.__  An operand is rarely the value it stands
 -- for.  Promotion replaces a load of a slot with a copy of the local the slot
 -- became, standing where the load stood, so a loop reading a variable it never
 -- writes reads a copy that the loop /does/ write, and the arithmetic on it is
--- invariant in nothing.  The common subexpression pass answers this by
--- resolving operands through the copies for the purpose of comparing them,
--- which it can do because it rewrites nothing and moves nothing.  Moving an
--- instruction is not that: an operand written in the program has to mean, where
--- the instruction is moved to, what it meant where it stood.  So the copy is
--- moved as well — it is invariant exactly when what it copies is not assigned
--- in the loop — and the round after it finds the arithmetic reading a local the
--- loop no longer assigns.  Hoisting a copy saves nothing by itself, since
+-- invariant in nothing.  The redundancy pass answers this by resolving operands
+-- through the copies for the purpose of comparing them, which it can do because
+-- it rewrites nothing and moves nothing.  Moving an instruction is not that: an
+-- operand written in the program has to mean, where the instruction is moved to,
+-- what it meant where it stood.  So the copy is moved as well — it is invariant
+-- exactly when what it copies is not assigned in the loop — and the round after
+-- it finds the arithmetic reading a local the loop no longer assigns.  Hoisting a copy saves nothing by itself, since
 -- reconstruction removes every assignment on the way out; what it buys is the
 -- hoist after it.
 --
