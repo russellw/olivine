@@ -217,6 +217,8 @@ raiseOperation numbering written = case fmap (localName numbering) <$> written o
   OExtractElement e -> Syntax.OExtractElement e
   OInsertElement i -> Syntax.OInsertElement i
   OShuffleVector s -> Syntax.OShuffleVector s
+  OExtractValue e -> Syntax.OExtractValue e
+  OInsertValue i -> Syntax.OInsertValue i
   OCall c -> Syntax.OCall c
   OAlloca a -> Syntax.OAlloca a
   OLoad l -> Syntax.OLoad l

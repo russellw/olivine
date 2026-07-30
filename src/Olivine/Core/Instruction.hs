@@ -61,8 +61,10 @@ import Olivine.Syntax.Instruction
   , Compare (..)
   , Convert (..)
   , ExtractElement (..)
+  , ExtractValue (..)
   , FloatPredicate
   , InsertElement (..)
+  , InsertValue (..)
   , IntPredicate
   , Load (..)
   , MetadataAttachment
@@ -72,7 +74,7 @@ import Olivine.Syntax.Instruction
   , Unary (..)
   )
 import Olivine.Syntax.Name (Name)
-import Olivine.Syntax.Type (Type (..), elementOf, resolveNamed)
+import Olivine.Syntax.Type (Type (..), elementOf, insideOf, resolveNamed)
 import Olivine.Syntax.Value (GepFlag, TypedValue (..), globalsIn)
 
 -- | What an instruction assigns to, and what an operand names when it names
@@ -126,6 +128,11 @@ data Operation operand
   | OExtractElement (ExtractElement operand)
   | OInsertElement (InsertElement operand)
   | OShuffleVector (ShuffleVector operand)
+  | -- | Reading a field out of an aggregate held as a value, and writing one
+    -- into it.  What a struct small enough to travel in registers is passed
+    -- and returned as.
+    OExtractValue (ExtractValue operand)
+  | OInsertValue (InsertValue operand)
   | OCall (Call operand)
   | OAlloca (Alloca operand)
   | OLoad (Load operand)
@@ -277,6 +284,10 @@ resultType types operation = case operation of
   OSelect s -> typedValueType (selectTrue s)
   OExtractElement e -> elementOf types (typedValueType (extractElementVector e))
   OInsertElement i -> typedValueType (insertElementVector i)
+  OExtractValue e ->
+    insideOf types (typedValueType (extractValueAggregate e)) (extractValueIndices e)
+  -- The whole aggregate comes back, whatever was written into it.
+  OInsertValue i -> typedValueType (insertValueAggregate i)
   OShuffleVector s -> shuffled s
   -- The whole function type is written here for a variadic callee and the
   -- return type alone otherwise, so what a call produces is the return type of
@@ -354,6 +365,10 @@ speculatable operation = case operation of
   OExtractElement _ -> True
   OInsertElement _ -> True
   OShuffleVector _ -> True
+  -- An index that does not fit the aggregate is a program the verifier
+  -- rejects rather than one that faults, so reading one early is safe.
+  OExtractValue _ -> True
+  OInsertValue _ -> True
   -- Pointer arithmetic says where something is rather than what is there, and
   -- one that runs off the end of its object is poison rather than a fault.
   OOffset _ -> True

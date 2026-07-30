@@ -151,10 +151,38 @@ emitted =
               TypedValue floats (VSplat (TypedValue (TFloat FFloat) (VFloat "1.500000e+00")))
           }
     )
+  , -- A field read out of an aggregate held as a value, which is how a struct
+    -- small enough to travel in registers is returned.
+    ( "  %r = extractvalue { i32, i32 } %s, 0"
+    , OExtractValue
+        ExtractValue
+          { extractValueAggregate = TypedValue pair (VLocal (Name Bare "s"))
+          , extractValueIndices = [0]
+          }
+    )
+  , ( "  %r = insertvalue { i32, i32 } %s, i32 %a, 1"
+    , OInsertValue
+        InsertValue
+          { insertValueAggregate = TypedValue pair (VLocal (Name Bare "s"))
+          , insertValueValue = TypedValue (TInteger 32) (VLocal (Name Bare "a"))
+          , insertValueIndices = [1]
+          }
+    )
+  , -- And a path of more than one index, which is why the indices are a list
+    -- rather than the single step a pointer walk was split into.
+    ( "  %r = extractvalue { i32, { i32, i32 } } %n, 1, 0"
+    , OExtractValue
+        ExtractValue
+          { extractValueAggregate = TypedValue nested (VLocal (Name Bare "n"))
+          , extractValueIndices = [1, 0]
+          }
+    )
   ]
   where
     vector = TVector FixedWidth 4 (TInteger 32)
     floats = TVector FixedWidth 4 (TFloat FFloat)
+    pair = TStruct Unpacked [TInteger 32, TInteger 32]
+    nested = TStruct Unpacked [TInteger 32, pair]
 
 -- | Malformed, and so left opaque.
 rejected :: [Text]
@@ -164,9 +192,10 @@ rejected =
   , "  %r = extractelement <4 x i32> %v"
   , "  %r = insertelement <4 x i32> %v, i32 %a"
   , "  %r = shufflevector <4 x i32> %v, <4 x i32> %w"
-  , -- The aggregate operations are a family of their own, still to come.
-    "  %r = extractvalue { i32, i32 } %s, 0"
-  , "  %r = insertvalue { i32, i32 } %s, i32 %a, 0"
+  , -- An aggregate operation has to say which field, and one index is the
+    -- fewest it can say it in.
+    "  %r = extractvalue { i32, i32 } %s"
+  , "  %r = insertvalue { i32, i32 } %s, i32 %a"
   ]
 
 vectorTests :: TestTree
@@ -200,7 +229,7 @@ vectorTests =
 inFunction :: Text -> Text
 inFunction line =
   T.unlines
-    [ "define void @f(i1 %c, i32 %a, i32 %b, double %d, double %e, <4 x i32> %v, <4 x i32> %w, <4 x i1> %m, <4 x float> %f) {"
+    [ "define void @f(i1 %c, i32 %a, i32 %b, double %d, double %e, <4 x i32> %v, <4 x i32> %w, <4 x i1> %m, <4 x float> %f, { i32, i32 } %s, { i32, { i32, i32 } } %n) {"
     , line
     , "  ret void"
     , "}"

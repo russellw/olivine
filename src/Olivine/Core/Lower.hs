@@ -177,6 +177,8 @@ lowerOperation locals written = do
     Syntax.OExtractElement e -> Just (OExtractElement e)
     Syntax.OInsertElement i -> Just (OInsertElement i)
     Syntax.OShuffleVector s -> Just (OShuffleVector s)
+    Syntax.OExtractValue e -> Just (OExtractValue e)
+    Syntax.OInsertValue i -> Just (OInsertValue i)
     Syntax.OCall c -> Just (OCall c)
     Syntax.OAlloca a -> Just (OAlloca a)
     Syntax.OLoad l -> Just (OLoad l)

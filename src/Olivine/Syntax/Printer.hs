@@ -279,6 +279,18 @@ renderOperation (OInsertElement i) =
             [insertElementVector i, insertElementValue i, insertElementIndex i]
         )
   ]
+renderOperation (OExtractValue e) =
+  [ "extractvalue "
+      <> renderTypedValue (extractValueAggregate e)
+      <> renderIndices (extractValueIndices e)
+  ]
+renderOperation (OInsertValue i) =
+  [ "insertvalue "
+      <> renderTypedValue (insertValueAggregate i)
+      <> ", "
+      <> renderTypedValue (insertValueValue i)
+      <> renderIndices (insertValueIndices i)
+  ]
 renderOperation (OShuffleVector v) =
   [ "shufflevector "
       <> T.intercalate
@@ -739,6 +751,10 @@ renderValue (VGetElementPtr flags element operands) =
     , T.intercalate ", " (renderType element : map renderTypedValue operands)
     , ")"
     ]
+
+-- | The path an aggregate operation reads, each index after its own comma.
+renderIndices :: [Natural] -> Text
+renderIndices indices = T.concat [", " <> showText i | i <- indices]
 
 renderTypedValue :: TypedValue Name -> Text
 renderTypedValue (TypedValue t c) =

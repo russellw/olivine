@@ -3,6 +3,7 @@
    Each corpus source has its own macro; hello.c defines its own main. */
 #include <stdio.h>
 #include <string.h>
+#include <complex.h>
 /* arith.c */
 int sdiv(int,int); unsigned udiv(unsigned,unsigned); int srem(int,int);
 unsigned urem(unsigned,unsigned); int ashr(int,int); unsigned lshr(unsigned,unsigned);
@@ -58,6 +59,13 @@ int square_b(const struct pair*); int written_then_read(struct pair*,int);
 int separate_slots(int); int both_ways(struct pair*); int around_call(struct pair*);
 int confined_across_call(int); int through_the_store(struct pair*,struct pair*);
 int repeated(const struct pair*,int); int accumulated(const struct pair*,int*,int);
+/* values.c -- the by-value aggregates have to be declared the same way here */
+struct point { double x, y; };
+struct box { int a,b,c,d,e; };
+struct point scaled(struct point,double); double dot(struct point,struct point);
+double sum_scaled(struct point,double); double travelled(struct point,int);
+struct box spread(int); int fifth(struct box);
+double _Complex turned(double _Complex,double _Complex);
 /* bytes.c */
 void scale_apart(int*restrict,const int*restrict,int,const int*restrict);
 void scale_together(int*,const int*,int,const int*);
@@ -189,6 +197,17 @@ int main(void){
       /* And with the written address inside the struct being read. */
       cell.b = 5;
       for(int n=0;n<=3;n++) printf("%d ", accumulated(&cell,&cell.b,n)); printf("\n"); } }
+#endif
+#ifdef VALUES
+  { struct point p = {1.5, -2.25}, q = {4.0, 0.5};
+    struct point s = scaled(p, 3.0);
+    printf("%.3f %.3f %.3f\n", s.x, s.y, dot(p,q));
+    for(double k=-1.0;k<=2.0;k+=0.5) printf("%.3f ", sum_scaled(p,k)); printf("\n");
+    for(int n=-1;n<=4;n++) printf("%.3f ", travelled(q,n)); printf("\n");
+    { struct box b = spread(6); printf("%d %d %d\n", b.a, b.e, fifth(b)); }
+    { double _Complex z = 2.0 + 3.0*_Complex_I, w = -1.0 + 0.5*_Complex_I;
+      double _Complex r = turned(z,w);
+      printf("%.3f %.3f\n", __real__ r, __imag__ r); } }
 #endif
 #ifdef BYTES
   { int in[8], out[8], k = 3;

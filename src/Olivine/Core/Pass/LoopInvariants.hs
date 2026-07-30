@@ -359,6 +359,8 @@ returns operation = case operation of
   OExtractElement _ -> True
   OInsertElement _ -> True
   OShuffleVector _ -> True
+  OExtractValue _ -> True
+  OInsertValue _ -> True
   OAlloca _ -> True
   -- These can fault, which is not the same as not returning: a program that
   -- faults is undefined from there on, and this is asked in order to say what a

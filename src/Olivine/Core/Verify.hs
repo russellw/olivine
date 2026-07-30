@@ -68,7 +68,9 @@ import Olivine.Syntax.Instruction
   , Compare (..)
   , Convert (..)
   , ExtractElement (..)
+  , ExtractValue (..)
   , InsertElement (..)
+  , InsertValue (..)
   , InstructionFlag (..)
   , Load (..)
   , Select (..)
@@ -78,7 +80,7 @@ import Olivine.Syntax.Instruction
   )
 import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Printer (renderInstructionFlag, renderName, renderType)
-import Olivine.Syntax.Type (Type (..), elementOf, resolveNamed)
+import Olivine.Syntax.Type (Type (..), elementOf, insideOf, resolveNamed)
 import Olivine.Syntax.Value (CastOp (..), TypedValue (..), Value (..), isConstant)
 import Olivine.Syntax.Verify (symbolsDefinedBy)
 
@@ -186,6 +188,10 @@ data Requirement
     AnIntegerOrPointer
   | AVector
   | AStruct
+  | -- | Something with fields to step into, which for LLVM means a struct or
+    -- an array and not a vector: a vector is indexed by a value rather than
+    -- by a path written in the instruction.
+    AnAggregate
   deriving (Eq, Show)
 
 -- | Every problem in a program, function by function in the order written.
@@ -365,6 +371,15 @@ shape types layout operation = case operation of
          , let given = typedValueType (insertElementValue i)
          , wanted /= given
          ]
+  OExtractValue e ->
+    stepping (typedValueType (extractValueAggregate e)) (extractValueIndices e)
+  OInsertValue i ->
+    let aggregate = typedValueType (insertValueAggregate i)
+        indices = insertValueIndices i
+        wrong = stepping aggregate indices
+        wanted = insideOf types aggregate indices
+        given = typedValueType (insertValueValue i)
+     in wrong <> [Mismatched wanted given | null wrong, wanted /= given]
   OShuffleVector s ->
     needs AVector (shuffleVectorLeft s)
       <> needs AVector (shuffleVectorRight s)
@@ -391,6 +406,20 @@ shape types layout operation = case operation of
         t -> [Expected AStruct t]
   where
     needs requirement = require types requirement . typedValueType
+
+    -- Each index against what the one before it arrived at, which is the walk
+    -- 'insideOf' makes and this one checks: a struct has the field or it has
+    -- not, an array's elements are all of one type, and anything else is not
+    -- something a path can step into.
+    stepping _ [] = []
+    stepping t (index : rest) = case resolveNamed types t of
+      TStruct _ fields
+        | (field : _) <- drop (fromIntegral index) fields -> stepping field rest
+        | otherwise -> [FieldOutOfRange t index]
+      TArray n element
+        | index < n -> stepping element rest
+        | otherwise -> [FieldOutOfRange t index]
+      other -> [Expected AnAggregate other]
 
 -- | What a conversion reads and what it writes.
 conversion ::
@@ -565,6 +594,10 @@ satisfies types requirement t = case requirement of
   AStruct -> case resolved of
     TStruct{} -> True
     _ -> False
+  AnAggregate -> case resolved of
+    TStruct{} -> True
+    TArray{} -> True
+    _ -> False
   where
     resolved = resolveNamed types t
     scalar = elementOf types t
@@ -650,6 +683,7 @@ renderRequirement requirement = case requirement of
   AnIntegerOrPointer -> "an integer or a pointer"
   AVector -> "a vector"
   AStruct -> "a struct"
+  AnAggregate -> "a struct or an array"
 
 -- | A local and a block are numbers with no spelling of their own, so they are
 -- written as what they are rather than as @%3@, which would look like a name

@@ -469,6 +469,10 @@ shareable operation = case operation of
   OExtractElement _ -> True
   OInsertElement _ -> True
   OShuffleVector _ -> True
+  -- Reading a field of a value is a function of the value, and writing one
+  -- answers with the whole aggregate rather than touching anything.
+  OExtractValue _ -> True
+  OInsertValue _ -> True
   -- Pointer arithmetic reads no memory: it says where something is, not what
   -- is there.
   OOffset _ -> True

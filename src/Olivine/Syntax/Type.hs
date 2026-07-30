@@ -16,6 +16,7 @@ module Olivine.Syntax.Type
   , Arity (..)
   , resolveNamed
   , elementOf
+  , insideOf
   ) where
 
 import Data.Map.Strict (Map)
@@ -101,3 +102,25 @@ elementOf :: Map Name Type -> Type -> Type
 elementOf types t = case resolveNamed types t of
   TVector _ _ element -> element
   _ -> t
+
+-- | What stands at a path of indices into an aggregate.
+--
+-- The walk @extractvalue@ and @insertvalue@ are written in terms of: each
+-- index picks a field of a struct or an element of an array, and the next one
+-- is read against what that arrived at.  An array's indices all pick the same
+-- type and a struct's each pick their own, which is why this is a walk rather
+-- than a lookup.
+--
+-- A path that does not fit the type — an index past the last field, a step
+-- into something that is not an aggregate — stops and gives back what it
+-- reached.  That the path fits is a verifier's business, and answering
+-- something here lets everything that asks what an instruction produces stay
+-- total.
+insideOf :: Map Name Type -> Type -> [Natural] -> Type
+insideOf types = foldl step
+  where
+    step t index = case resolveNamed types t of
+      TStruct _ fields
+        | (field : _) <- drop (fromIntegral index) fields -> field
+      TArray _ element -> element
+      _ -> t

@@ -668,6 +668,8 @@ pOperation =
     , pSelect
     , pExtractElement
     , pInsertElement
+    , pExtractValue
+    , pInsertValue
     , pShuffleVector
     , pPhi
     , pCall
@@ -879,6 +881,33 @@ pExtractElement = do
       ExtractElement
         { extractElementVector = vector
         , extractElementIndex = index
+        }
+
+pExtractValue :: Parser (Operation (TypedValue Name))
+pExtractValue = do
+  keyword "extractvalue"
+  aggregate <- pTypedValue
+  indices <- some (symbol "," *> pNatural)
+  pure $
+    OExtractValue
+      ExtractValue
+        { extractValueAggregate = aggregate
+        , extractValueIndices = indices
+        }
+
+pInsertValue :: Parser (Operation (TypedValue Name))
+pInsertValue = do
+  keyword "insertvalue"
+  aggregate <- pTypedValue
+  symbol ","
+  value <- pTypedValue
+  indices <- some (symbol "," *> pNatural)
+  pure $
+    OInsertValue
+      InsertValue
+        { insertValueAggregate = aggregate
+        , insertValueValue = value
+        , insertValueIndices = indices
         }
 
 pInsertElement :: Parser (Operation (TypedValue Name))

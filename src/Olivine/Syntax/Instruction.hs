@@ -44,6 +44,8 @@ module Olivine.Syntax.Instruction
   , Select (..)
   , ExtractElement (..)
   , InsertElement (..)
+  , ExtractValue (..)
+  , InsertValue (..)
   , ShuffleVector (..)
   , Phi (..)
   , Call (..)
@@ -126,6 +128,10 @@ data Operation operand
     OInsertElement (InsertElement operand)
   | -- | @shufflevector \<n x ty\> \<a\>, \<n x ty\> \<b\>, \<m x i32\> \<mask\>@.
     OShuffleVector (ShuffleVector operand)
+  | -- | @extractvalue \<aggty\> \<val\>, \<idx\>{, \<idx\>}*@.
+    OExtractValue (ExtractValue operand)
+  | -- | @insertvalue \<aggty\> \<val\>, \<ty\> \<elt\>, \<idx\>{, \<idx\>}*@.
+    OInsertValue (InsertValue operand)
   | -- | @phi \<ty\> [ \<value\>, %pred ], ...@.
     OPhi (Phi operand)
   | -- | @call@, direct or indirect, with or without a result.
@@ -157,6 +163,8 @@ isTerminator (OSelect _) = False
 isTerminator (OExtractElement _) = False
 isTerminator (OInsertElement _) = False
 isTerminator (OShuffleVector _) = False
+isTerminator (OExtractValue _) = False
+isTerminator (OInsertValue _) = False
 isTerminator (OPhi _) = False
 isTerminator (OCall _) = False
 isTerminator (OAlloca _) = False
@@ -327,6 +335,35 @@ data InsertElement operand = InsertElement
   { insertElementVector :: operand
   , insertElementValue :: operand
   , insertElementIndex :: operand
+  }
+  deriving (Eq, Show, Functor, Foldable, Traversable)
+
+-- | Reading a field out of an aggregate /value/, which is what a struct small
+-- enough to travel in registers becomes: a returned pair arrives as one of
+-- these rather than through memory.
+--
+-- __The indices stay a list.__  This is where @getelementptr@'s walk was
+-- split into one step at a time, and the reason not to do the same here is
+-- that the other half of the pair could not follow: @insertvalue@ into a
+-- nested aggregate is not a sequence of inserts but a read of the inner
+-- value, an insert into that, and an insert of the result back, so splitting
+-- would write out a different program rather than the same one said plainly.
+-- The indices are numbers because LLVM requires constants there, unlike a
+-- vector's index, which may be computed.
+data ExtractValue operand = ExtractValue
+  { extractValueAggregate :: operand
+  , extractValueIndices :: [Natural]
+  }
+  deriving (Eq, Show, Functor, Foldable, Traversable)
+
+-- | Writing a field into an aggregate value, giving back the whole of it.
+--
+-- The value written carries its own type, the aggregate carries the type the
+-- path is read against, and neither says what the other is.
+data InsertValue operand = InsertValue
+  { insertValueAggregate :: operand
+  , insertValueValue :: operand
+  , insertValueIndices :: [Natural]
   }
   deriving (Eq, Show, Functor, Foldable, Traversable)
 

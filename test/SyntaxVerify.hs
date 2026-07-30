@@ -397,8 +397,8 @@ silenceTests =
     , -- The same rule one level down: an unread line may assign anything.
       testCase "no local is missing while a line is unread" $
         expect
-          [ "define i32 @f() {"
-          , "  %x = extractvalue { i32 } zeroinitializer, 0"
+          [ "define i32 @f() personality ptr null {"
+          , "  %x = landingpad { ptr, i32 } cleanup"
           , "  ret i32 %y"
           , "}"
           ]
