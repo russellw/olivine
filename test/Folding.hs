@@ -283,6 +283,34 @@ foldingTests =
               (OConvert (cast CastTrunc 8 1) {convertOperand = TypedValue (TInteger 8) (VLocal (Name Bare "w"))})
               @?= Nothing
         ]
+    , testGroup
+        "a mask between two conversions"
+        [ -- What a C bit field read comes to once the slot it was in is gone.
+          testCase "cut down, masked, and zeroed back where it came from" $
+            combining CastZExt OpAnd 32 16 32 (cut 16) (narrow 16 7) @?= Just (masking 7)
+        , -- The bits above the narrow width are the ones the chain cleared, and
+          -- a constant written negative at that width has them set.
+          testCase "the mask read unsigned at the width it was written at" $
+            combining CastZExt OpAnd 32 16 32 (cut 16) (narrow 16 (-9))
+              @?= Just (masking 65527)
+        , testCase "the mask written first" $
+            combining CastZExt OpAnd 32 16 32 (narrow 16 7) (cut 16) @?= Just (masking 7)
+        , testCase "a mask that is not a constant" $
+            combining CastZExt OpAnd 32 16 32 (cut 16) (TypedValue (TInteger 16) (VLocal (Name Bare "y")))
+              @?= Nothing
+        , -- Back to any other width leaves a conversion standing beside the
+          -- mask, which is no fewer instructions than there were.
+          testCase "zeroed back past the width it came from" $
+            combining CastZExt OpAnd 32 16 64 (cut 16) (narrow 16 7) @?= Nothing
+        , -- The bits the cut took away come back set from the constant rather
+          -- than staying away, so the cut still has to happen.
+          testCase "a mask that sets bits rather than clearing them" $
+            combining CastZExt OpOr 32 16 32 (cut 16) (narrow 16 7) @?= Nothing
+        , -- Whether the top bits come back set depends on the value, not on
+          -- the widths, so there is no one mask that says it.
+          testCase "sign extended rather than zeroed" $
+            combining CastSExt OpAnd 32 16 32 (cut 16) (narrow 16 7) @?= Nothing
+        ]
     ]
   where
     int n = TypedValue (TInteger 32) (VInteger n)
@@ -316,6 +344,40 @@ foldingTests =
         (OConvert outer {convertOperand = TypedValue (convertTarget inner) (VLocal (Name Bare "w"))})
     converted op from to =
       OConvert (cast op from to) {convertOperand = TypedValue (TInteger from) (VLocal (Name Bare "x"))}
+    -- The cut left in @%w@, and a constant at the width it was cut to.
+    cut middle = TypedValue (TInteger middle) (VLocal (Name Bare "w"))
+    narrow middle n = TypedValue (TInteger middle) (VInteger n)
+    -- @%x@ cut from @from@ down to @middle@ in @%w@, an operation over that in
+    -- @%m@, and @%m@ widened to @to@ by the conversion asked about.
+    combining widening op from middle to left right =
+      foldThrough
+        ( \name -> case name of
+            Name Bare "w" -> Just (OConvert (cast CastTrunc from middle))
+            Name Bare "m" ->
+              Just
+                ( OBinary
+                    Binary
+                      { binaryOp = op
+                      , binaryFlags = []
+                      , binaryLeft = left
+                      , binaryRight = right
+                      }
+                )
+            _ -> Nothing
+        )
+        ( OConvert
+            (cast widening middle to)
+              {convertOperand = TypedValue (TInteger middle) (VLocal (Name Bare "m"))}
+        )
+    -- What the whole chain comes to: @%x@ at the width it started at, masked.
+    masking n =
+      OBinary
+        Binary
+          { binaryOp = OpAnd
+          , binaryFlags = []
+          , binaryLeft = TypedValue (TInteger 32) (VLocal (Name Bare "x"))
+          , binaryRight = TypedValue (TInteger 32) (VInteger n)
+          }
     binary op flags left right =
       folded
         ( OBinary

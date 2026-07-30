@@ -6,17 +6,18 @@
 -- @x & -1@ — or the two operands may be the same value, and then the answer is
 -- an operand or a constant that has nothing to do with what the operand holds.
 -- Or what produced an operand may be known, and then a conversion of a
--- conversion is one conversion or none at all.
+-- conversion is one conversion or none at all, and a conversion cut back and
+-- masked is the mask by itself.
 --
 -- A folded instruction becomes an assignment of the value it computes.  The
 -- core has assignment and LLVM does not, which is what makes that possible;
 -- reconstructing single assignment then carries the value to wherever the
 -- local was read, and the dead code pass takes the assignment away.  Nothing
--- new is needed to finish the job.  A chain of conversions is the one case
--- where what comes out is another operation rather than a value, since what a
--- narrowing of a widening comes to is usually a shorter conversion and not a
--- number; the instruction is left computing that instead, reading what the
--- conversion it looked through read, and the same collection follows.
+-- new is needed to finish the job.  Looking through a definition is the one
+-- case where what comes out is another operation rather than a value, since
+-- what a narrowing of a widening comes to is usually a shorter conversion and
+-- not a number; the instruction is left computing that instead, reading what
+-- the definition it looked through read, and the same collection follows.
 --
 -- __An answer may be more defined than the operation, and never less.__  @mul
 -- x, 0@ is poison where @x@ is poison, and folding it to zero replaces poison
@@ -67,6 +68,7 @@ module Olivine.Core.Pass.Fold
   ) where
 
 import Control.Applicative ((<|>))
+import Control.Monad (guard)
 import Data.Bits (complement, shiftL, shiftR, (.&.), (.|.))
 import Data.List (mapAccumL)
 import Data.Map.Strict (Map)
@@ -372,10 +374,20 @@ producing produced = go
 
 -- | What an operation comes to when what produced an operand is known.
 --
--- Conversions only, and integer conversions at that.  A widening followed by a
--- narrowing is the shape a front end writes whenever a value passes through a
--- type on its way to another — @i1@ through @i8@ back to @i1@ is what a C
--- @_Bool@ costs — and what it comes to is one conversion in whichever
+-- Integer conversions, and what may stand between two of them.  A widening
+-- followed by a narrowing is the shape a front end writes whenever a value
+-- passes through a type on its way to another — @i1@ through @i8@ back to @i1@
+-- is what a C @_Bool@ costs — and a narrowing with a mask on it and a widening
+-- back is what reading a bit field comes to once the slot holding it is
+-- promoted.
+foldThrough ::
+  Producer local ->
+  Operation (TypedValue local) ->
+  Maybe (Operation (TypedValue local))
+foldThrough produced operation =
+  throughConversion produced operation <|> throughMask produced operation
+
+-- | A conversion of a conversion, which is one conversion in whichever
 -- direction the two widths ask for, or the original value where they cancel.
 --
 -- What comes out reads what the conversion looked through read, so the
@@ -387,11 +399,11 @@ producing produced = go
 -- is a promise about the narrowing, not about the widening that comes out in
 -- its place; dropping one can only make the result defined where it was
 -- poison, which is the direction that is allowed.
-foldThrough ::
+throughConversion ::
   Producer local ->
   Operation (TypedValue local) ->
   Maybe (Operation (TypedValue local))
-foldThrough produced operation = do
+throughConversion produced operation = do
   OConvert outer <- Just operation
   VLocal name <- Just (typedValue (convertOperand outer))
   OConvert inner <- producing produced name
@@ -440,6 +452,64 @@ foldThrough produced operation = do
                   }
             )
     _ -> Nothing
+
+-- | A value cut down, masked, and zeroed back to the width it came from, which
+-- is the mask alone at the width it started at.
+--
+-- Cutting to @middle@ takes away every bit above that width and putting zeroes
+-- back leaves them away, so the whole chain keeps only the bits the mask keeps
+-- — and the mask, being a constant of the narrow type, has nothing above
+-- @middle@ to keep.  Masking the original value with the same number is
+-- therefore the same value, and the two conversions have nothing left to do.
+--
+-- Only @and@, and only back to the width it came from.  With @or@ or @xor@ the
+-- bits the cut took away come back set or unset by the constant rather than
+-- staying away, so the mask is still needed and the chain is no shorter; with
+-- any other final width a conversion is left standing beside the mask, which
+-- is what "Olivine.Core.Pass.Fold.throughConversion" already says about the
+-- same shape without the mask in it.
+--
+-- The mask is read unsigned at the narrow width, which is what makes @and i16
+-- %x, -9@ come out as @and i32 %y, 65527@: the bits above @middle@ are the
+-- ones the chain cleared, and a constant written as a negative number at the
+-- narrow type has them set.
+--
+-- This is what a C bit field read costs once "Olivine.Core.Pass.Promote" has
+-- taken the slot away.  The load at a narrower type than the slot was stored
+-- at becomes the cut, the shifting and masking clang wrote is the mask, and
+-- the widening back to @int@ is the conversion outside it.
+throughMask ::
+  Producer local ->
+  Operation (TypedValue local) ->
+  Maybe (Operation (TypedValue local))
+throughMask produced operation = do
+  OConvert outer <- Just operation
+  CastZExt <- Just (convertOp outer)
+  VLocal name <- Just (typedValue (convertOperand outer))
+  OBinary masking <- producing produced name
+  OpAnd <- Just (binaryOp masking)
+  middle <- widthOf (typedValueType (binaryLeft masking))
+  to <- widthOf (convertTarget outer)
+  let target = convertTarget outer
+      -- One side is the value being cut down and the other the mask; which is
+      -- which is not settled, so both readings are tried.
+      through cut kept = do
+        mask <- integerOf (typedValueType kept) (typedValue kept)
+        VLocal narrowed <- Just (typedValue cut)
+        OConvert narrowing <- producing produced narrowed
+        CastTrunc <- Just (convertOp narrowing)
+        let source = convertOperand narrowing
+        from <- widthOf (typedValueType source)
+        guard (from == to)
+        pure
+          ( OBinary
+              masking
+                { binaryLeft = source
+                , binaryRight = TypedValue target (valueOf target (unsigned middle mask))
+                }
+          )
+  through (binaryLeft masking) (binaryRight masking)
+    <|> through (binaryRight masking) (binaryLeft masking)
 
 widthOf :: Type -> Maybe Integer
 widthOf (TInteger w) = Just (fromIntegral w)

@@ -128,6 +128,37 @@ define i32 @masked(i32 %n) {
   ret i32 %b
 }
 
+; A value cut down, masked, and zeroed back to the width it came from is the
+; mask by itself, which is what reading a C bit field comes to once the slot
+; holding it has been promoted away.  The negative constant is the case worth
+; writing down: the mask is read unsigned at the narrow width, so -9 at i16
+; keeps every bit but the fourth and clears everything above the sixteenth.
+; Called with 0x1234abcd, giving 5 and 0xabc5, which sum to 43978.
+define i32 @bitfield(i32 %n) {
+  %t = trunc i32 %n to i16
+  %m = and i16 %t, 7
+  %a = zext i16 %m to i32
+  %v = and i16 %t, -9
+  %b = zext i16 %v to i32
+  %s = add i32 %a, %b
+  ret i32 %s
+}
+
+; The same shape where the mask has to stay: an operation that sets the bits
+; the cut took away rather than leaving them away, and a widening past the
+; width the value came from, which would leave a conversion standing beside the
+; mask.  Called with 0x1234abcd, giving 0xabcf and 0xabc5, which sum to 87956.
+define i64 @unmasked(i32 %n) {
+  %t = trunc i32 %n to i16
+  %o = or i16 %t, 7
+  %a = zext i16 %o to i32
+  %m = and i16 %t, -9
+  %b = zext i16 %m to i64
+  %c = zext i32 %a to i64
+  %s = add i64 %b, %c
+  ret i64 %s
+}
+
 ; A chain the loop carries round, which is the one that must not be followed:
 ; the narrowing reads what the widening left the time before, and what the
 ; widening widened has been assigned since.  Reading it as that would give the
