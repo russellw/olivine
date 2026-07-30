@@ -27,16 +27,25 @@
 -- which loops a function has does not want one made of blocks control never
 -- gets to.  Control flow simplification removes them anyway, and this says the
 -- same thing whether it has run or not.
+--
+-- __And the block in front of a loop, since two passes now want it.__  Work
+-- that happens once where a loop is entered has one place it can go, and
+-- putting it there is the same edit whether it was taken out of the loop or
+-- copied out of it.  'Preheader' says where that place is and 'enterThrough'
+-- makes it; what goes there is the caller's business.
 module Olivine.Core.Loops
   ( dominators
   , Loop (..)
   , loopsOf
+  , Preheader (..)
+  , preheaderFor
+  , enterThrough
   ) where
 
 import Data.List (sortOn)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (mapMaybe)
+import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 
@@ -141,3 +150,96 @@ loopsOf f =
           | otherwise = walk (Set.insert label seen) (predecessors label <> rest)
 
     predecessors label = filter (`Set.member` reachable) (predecessorsOf blocks label)
+
+-- | Where a loop's entry work goes.
+--
+-- Every edge into the header passes through one block that goes nowhere else,
+-- so what stands there runs exactly when the loop is entered — including when
+-- the loop is entered a second time, since an edge back in from outside is an
+-- edge into the header like any other and is sent through the preheader too.
+data Preheader
+  = -- | The one block the loop is entered from, which branches nowhere but the
+    -- header.  What runs before the loop is appended to it.
+    Above Label
+  | -- | A block to be made in front of the header, taking over the edges to
+    -- the header from these blocks.
+    Made [Label]
+  deriving (Eq, Show)
+
+-- | The block a loop's entry work belongs in, if there is one to be had.
+--
+-- 'Nothing' for a loop the function starts at, which is a loop whose header is
+-- branched to and is the entry block — @Entry block to function must not have
+-- predecessors@, says LLVM, so no valid module holds one and nothing Olivine
+-- does makes one.  The block in front of the header would be in front of where
+-- the function starts, so declining is not losing an edit that could have been
+-- made; it is not answering a question nothing asks.
+preheaderFor :: Function -> Loop -> Maybe Preheader
+preheaderFor f loop
+  | entryLabel f == Just header = Nothing
+  -- Entered from one block that branches nowhere else: that block already is
+  -- what a preheader is, and its terminator reads nothing, so appending to it
+  -- cannot come between an operand and what reads it.
+  | [only] <- outside
+  , [entering] <- [b | b <- functionBlocks f, blockLabel b == only]
+  , Br target <- terminatorTransfer (blockTerminator entering)
+  , target == header =
+      Just (Above only)
+  | otherwise = Just (Made outside)
+  where
+    header = loopHeader loop
+    outside =
+      [ blockLabel b
+      | b <- functionBlocks f
+      , not (Set.member (blockLabel b) (loopBody loop))
+      , header `elem` targetsOf (blockTerminator b)
+      ]
+
+-- | Put instructions in the block a loop is entered through, and say how that
+-- block then ends.
+--
+-- Two passes want this and they want it slightly differently.  Hoisting
+-- appends what it took out of the loop and leaves the branch to the header
+-- where it was, which is 'Nothing' here.  Rotation appends a copy of the
+-- header and takes the header's own branch along with it, so that the block
+-- decides whether the loop is entered at all.
+--
+-- Where the preheader is 'Made', the header's own place in the list is what
+-- puts the new block in front of it.  Never in front of the first block: a
+-- function starts at its first block, and a loop the function starts at is one
+-- 'preheaderFor' has already declined.
+enterThrough :: Function -> Loop -> Preheader -> [Instruction] -> Maybe Terminator -> Function
+enterThrough f loop preheader added ending = case preheader of
+  Above label -> f {functionBlocks = map (append label) (functionBlocks f)}
+  Made outside -> f {functionBlocks = concatMap (inFront outside) (functionBlocks f)}
+  where
+    header = loopHeader loop
+
+    append label b
+      | blockLabel b == label =
+          b
+            { blockInstructions = blockInstructions b <> added
+            , blockTerminator = fromMaybe (blockTerminator b) ending
+            }
+      | otherwise = b
+
+    made =
+      Block
+        { blockLabel = nextLabel f
+        , blockInstructions = added
+        , blockTerminator = fromMaybe (Terminator (Br header) []) ending
+        }
+
+    inFront outside b
+      | blockLabel b == header = [made, redirect outside b]
+      | otherwise = [redirect outside b]
+
+    redirect outside b
+      | blockLabel b `elem` outside =
+          b
+            { blockTerminator =
+                retarget
+                  (\label -> if label == header then blockLabel made else label)
+                  (blockTerminator b)
+            }
+      | otherwise = b

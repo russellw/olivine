@@ -19,7 +19,8 @@ fail=0
 
 for pair in "arith ARITH" "branch BRANCH" "loop LOOP" "memops MEMOPS" "hello HELLO" \
             "escape ESCAPE" "jumps JUMPS" "unions UNIONS" "indirect INDIRECT" \
-            "linkage LINKAGE" "hoist HOIST" "reload RELOAD"; do
+            "linkage LINKAGE" "hoist HOIST" "reload RELOAD" \
+            "rotate ROTATE"; do
     set -- $pair
     base=$1
     macro=$2

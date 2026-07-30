@@ -35,6 +35,9 @@ int sometimes(const int*,int,int); int guarded_divide(int,int,int);
 int carried_first(int,int); int jumped_into(int,int);
 int scale_now(void); void set_scale(int); int scaled_by_symbol(const int*,int);
 int bumping(int*,int); int bumping_symbol(int);
+/* rotate.c */
+int scale_all(const int*,int,const int*); int consume(int);
+int tickets_taken(void); void reset_tickets(void); int countdown(int);
 /* indirect.c */
 int dispatch(int,int,int); int fib(int); int gcd(int,int); int parity(int);
 int apply_twice(int(*)(int,int),int,int);
@@ -123,6 +126,16 @@ int main(void){
     set_scale(3);
     printf("%d %d ", bumping_symbol(4), scale_now());
     { int cell = 10; set_scale(5); printf("%d %d\n", bumping(&cell,3), cell); } }
+#endif
+#ifdef ROTATE
+  { int xs[6]; for(int i=0;i<6;i++) xs[i]=i*3-4; int k=5;
+    /* The second call reads nothing at all: the loop does not run, and the
+       address the body would have read is null. */
+    printf("%d %d\n", scale_all(xs,6,&k), scale_all((const int*)0,0,(const int*)0));
+    /* How many tickets the loop took says how many times its test ran. */
+    for(int m=0;m<5;m++){ reset_tickets(); printf("%d %d ", consume(m), tickets_taken()); }
+    printf("\n");
+    for(int n=-2;n<10;n++) printf("%d ", countdown(n)); printf("\n"); }
 #endif
 #ifdef INDIRECT
   { for(int w=0;w<6;w++) printf("%d ", dispatch(w,9,4)); printf("\n");

@@ -19,6 +19,7 @@ import Olivine.Core.Pass.DeadCode (eliminateDeadCode)
 import Olivine.Core.Pass.DeadSymbols (eliminateDeadSymbols)
 import Olivine.Core.Pass.Inline (inlineCalls)
 import Olivine.Core.Pass.LoopInvariants (hoistLoopInvariants)
+import Olivine.Core.Pass.LoopRotation (rotateLoops)
 import Olivine.Core.Pass.Promote (promoteMemory)
 import Olivine.Core.Pass.Redundancies (eliminateRedundancies)
 import Olivine.Core.Program (Program)
@@ -53,6 +54,18 @@ passes :: [Pass]
 --
 -- Folding next, since it leaves the instructions it replaced assigning to
 -- nothing anyone reads, which is exactly what the dead code pass takes away.
+--
+-- Loop rotation after those and before the rest, because what it does for the
+-- passes below it is change the shape of a loop rather than anything in it.  It
+-- comes after inlining, which is what brings a loop into the function that will
+-- run it, and after folding, so that the copy it makes of a header is a copy of
+-- the folded one.  It comes before control flow because it leaves the loop as
+-- two blocks the graph has no reason to keep apart, and merging them is what
+-- makes the body and the test one block; before the redundancies for the same
+-- reason, that pass reading a block at a time; and before hoisting, which is
+-- what collects on all of it.  A body that may never run holds loads that
+-- cannot be taken out of the loop, and rotating makes the body the block the
+-- loop is certain to run.
 --
 -- Control flow after inlining as well as after folding: inlining leaves the
 -- block it split in two joined by an unconditional branch, and a callee of one
@@ -119,6 +132,7 @@ passes =
   [ Pass "memory promotion" promoteMemory
   , Pass "inlining" inlineCalls
   , Pass "constant folding" foldConstants
+  , Pass "loop rotation" rotateLoops
   , Pass "control flow" simplifyControlFlow
   , Pass "redundancies" eliminateRedundancies
   , Pass "loop invariants" hoistLoopInvariants

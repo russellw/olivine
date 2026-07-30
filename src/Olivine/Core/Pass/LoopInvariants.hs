@@ -16,15 +16,14 @@
 -- invariance asks what is /never/ assigned in a set of blocks, which is one
 -- sweep over them.
 --
--- __The value goes in a preheader.__  Every edge into the header passes
--- through one block that goes nowhere else, so what it computes is computed
--- exactly when the loop is entered — including when the loop is entered a
--- second time, since an edge back in from outside is an edge into the header
--- like any other and is sent through the preheader too.  Where the loop is
--- already entered from a single block that branches nowhere else, that block
--- /is/ the preheader and the instructions are appended to it, which is the
--- usual case in what a front end emits and why this pass adds no block to most
--- functions.
+-- __The value goes in a preheader.__  Which block that is and how it is made
+-- are "Olivine.Core.Loops"' business, since rotation wants the same block for
+-- its own reasons: it is the block every edge into the header passes through,
+-- so what it computes is computed exactly when the loop is entered.  Where the
+-- loop is already entered from a single block that branches nowhere else, that
+-- block /is/ the preheader and the instructions are appended to it, which is
+-- the usual case in what a front end emits and why this pass adds no block to
+-- most functions.
 --
 -- __The result must be a local the function assigns in one place.__  Here is
 -- the bill the non-SSA core presents this time.  Moving @%x := add %a, %b@
@@ -84,13 +83,15 @@
 --   symbol may be absent and is declined; an alias is not answered for at all,
 --   being a second name for storage this does not follow to.
 --
--- What that leaves is the shape a front end writes most often: a load through a
--- pointer the function was handed, in a body the loop may never reach.  Knowing
--- that one is safe means knowing the pointer is good for as many bytes as the
--- load reads, which is dereferenceability and wants sizes.  The other way to it
--- is to rotate the loop first, which makes the body the header and so makes the
--- must-execute answer above the one that fires — and that is a pass to write
--- rather than an analysis to want.
+-- What that would otherwise leave out is the shape a front end writes most
+-- often: a load through a pointer the function was handed, in a body the loop
+-- may never reach.  Knowing that one is safe by looking at it means knowing the
+-- pointer is good for as many bytes as the load reads, which is
+-- dereferenceability and wants sizes.  The way to it that does not want them is
+-- to rotate the loop first, which makes the body the header and so makes the
+-- must-execute answer above the one that fires; that is
+-- "Olivine.Core.Pass.LoopRotation", and it runs earlier in the pipeline for
+-- this reason.
 --
 -- __The copies come out first.__  An operand is rarely the value it stands
 -- for.  Promotion replaces a load of a slot with a copy of the local the slot
@@ -136,7 +137,7 @@ import Data.Set qualified as Set
 
 import Olivine.Core.Alias (Objects, mayAlias, objectsIn, reachableByCall)
 import Olivine.Core.Instruction
-import Olivine.Core.Loops (Loop (..), loopsOf)
+import Olivine.Core.Loops (Loop (..), Preheader, enterThrough, loopsOf, preheaderFor)
 import Olivine.Core.Program
 import Olivine.Syntax.Ast qualified as Syntax
 import Olivine.Syntax.Global (Global (..))
@@ -207,44 +208,6 @@ candidates globals f =
     -- points into is not a fact about where the instruction computing it
     -- stands.
     objects = objectsIn f
-
--- | Where a loop's hoisted instructions are put.
-data Preheader
-  = -- | The one block the loop is entered from, which branches nowhere but the
-    -- header.  What is hoisted is appended to it, before its branch.
-    Above Label
-  | -- | A block to be made in front of the header, taking over the edges to
-    -- the header from these blocks.
-    Made [Label]
-
--- | The block a loop's invariant work belongs in, if there is one to be had.
---
--- 'Nothing' for a loop the function starts at, which is a loop whose header is
--- branched to and is the entry block — @Entry block to function must not have
--- predecessors@, says LLVM, so no valid module holds one and nothing Olivine
--- does makes one.  The block in front of the header would be in front of where
--- the function starts, so declining is not losing a hoist that could have
--- happened; it is not answering a question nothing asks.
-preheaderFor :: Function -> Loop -> Maybe Preheader
-preheaderFor f loop
-  | entryLabel f == Just header = Nothing
-  -- Entered from one block that branches nowhere else: that block already is
-  -- what a preheader is, and its terminator reads nothing, so appending to it
-  -- cannot come between an operand and what reads it.
-  | [only] <- outside
-  , [entering] <- [b | b <- functionBlocks f, blockLabel b == only]
-  , Br target <- terminatorTransfer (blockTerminator entering)
-  , target == header =
-      Just (Above only)
-  | otherwise = Just (Made outside)
-  where
-    header = loopHeader loop
-    outside =
-      [ blockLabel b
-      | b <- functionBlocks f
-      , not (Set.member (blockLabel b) (loopBody loop))
-      , header `elem` targetsOf (blockTerminator b)
-      ]
 
 -- | The instructions in a loop that can be computed before it instead.
 --
@@ -335,48 +298,16 @@ writtenOnce f =
 -- each is the only assignment to it in the function, which is what made it
 -- hoistable, so no other instruction can be taken for one of these.
 hoistFrom :: Function -> Loop -> Preheader -> [Instruction] -> Function
-hoistFrom f loop preheader moving = case preheader of
-  Above label -> f {functionBlocks = map (append label) stripped}
-  Made outside -> f {functionBlocks = concatMap (inFront outside) stripped}
+hoistFrom f loop preheader moving =
+  enterThrough (f {functionBlocks = map strip (functionBlocks f)}) loop preheader moving Nothing
   where
-    header = loopHeader loop
     moved = Set.fromList (mapMaybe instructionResult moving)
 
-    stripped = map strip (functionBlocks f)
     strip b
       | Set.member (blockLabel b) (loopBody loop) =
           b {blockInstructions = filter (not . hoisted) (blockInstructions b)}
       | otherwise = b
     hoisted i = maybe False (`Set.member` moved) (instructionResult i)
-
-    append label b
-      | blockLabel b == label = b {blockInstructions = blockInstructions b <> moving}
-      | otherwise = b
-
-    -- The block made in front of the header, which the header's own place in
-    -- the list is what puts in front of it.  Never in front of the first block:
-    -- a function starts at its first block, and a loop the function starts at
-    -- is one 'preheaderFor' has already declined.
-    made =
-      Block
-        { blockLabel = nextLabel f
-        , blockInstructions = moving
-        , blockTerminator = Terminator (Br header) []
-        }
-
-    inFront outside b
-      | blockLabel b == header = [made, redirect outside b]
-      | otherwise = [redirect outside b]
-
-    redirect outside b
-      | blockLabel b `elem` outside =
-          b
-            { blockTerminator =
-                retarget
-                  (\label -> if label == header then blockLabel made else label)
-                  (blockTerminator b)
-            }
-      | otherwise = b
 
 -- | Whether an operation may be computed before a loop that would have
 -- computed it inside, judged by what the operation is and nothing else.

@@ -50,6 +50,7 @@ library
                       Olivine.Core.Pass.DeadSymbols
                       Olivine.Core.Pass.Inline
                       Olivine.Core.Pass.LoopInvariants
+                      Olivine.Core.Pass.LoopRotation
                       Olivine.Core.Pass.Promote
                       Olivine.Core.Raise
                       Olivine.Core.Verify
@@ -104,6 +105,7 @@ test-suite olivine-test
                       DeadSymbols
                       Folding
                       Redundancies
+                      Rotation
                       Verify
     build-depends:    base,
                       containers,
