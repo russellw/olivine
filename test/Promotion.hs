@@ -13,6 +13,7 @@ import Test.Tasty.HUnit
 
 import Corpus (expectParse)
 import Olivine.Core.Instruction
+import Olivine.Core.Layout (endiannessOf)
 import Olivine.Core.Lower (lower)
 import Olivine.Core.Pass.Promote (promotableIn, promoteMemory)
 import Olivine.Core.Program
@@ -82,11 +83,15 @@ promotionTests =
           -- to stay, and a slot it reads has to stay a slot.
           testCase "a slot read into nothing" $
             slots (escaping "load i32, ptr %a, align 4") @?>= 0
-        , -- Storing a byte into a word writes part of it, and an assignment
-          -- cannot name part of a local.
+        , -- Storing a byte into a word writes part of it and leaves the rest,
+          -- and an assignment cannot name part of a local.  This is the one
+          -- the group below does not settle: it holds whatever the module
+          -- says about byte order.
           testCase "a slot written at another type" $
             slots (escaping "store i8 3, ptr %a, align 1") @?>= 0
-        , testCase "a slot read at another type" $
+        , -- Reading part of one is a conversion of the value, but only where
+          -- the module says which part.  This module states no data layout.
+          testCase "a slot read at another type, the module saying nothing" $
             slots (escaping "%r = load i8, ptr %a, align 1") @?>= 0
         , -- An array of a length nothing here knows is not one object.
           testCase "a slot of many elements" $
@@ -94,6 +99,95 @@ promotionTests =
         , -- Storage the caller passes rather than storage the function owns.
           testCase "an inalloca slot" $
             slots (allocating "alloca inalloca i32") @?>= 0
+        ]
+    , testGroup
+        "a slot read at a type other than the one written"
+        [ -- What the whole group is for: an @i32@ put in and an @i16@ taken
+          -- out is the low half of the value on a little endian target, and
+          -- the local holds the value.
+          testCase "a narrower read where the layout says little endian" $
+            slots (punning little "i32" "i16") @?>= 1
+        , -- The same read on a big endian target is the high half, which is a
+          -- shift as well as a truncation, and nothing here has been run
+          -- against such a target.
+          testCase "a narrower read where the layout says big endian" $
+            slots (punning big "i32" "i16") @?>= 0
+        , testCase "a narrower read where the module states no layout" $
+            slots (punning "" "i32" "i16") @?>= 0
+        , -- The byte order component stands alone.  A layout that says @m:e@
+          -- and nothing else has an @e@ in it and says nothing about which end
+          -- of a value an address is.
+          testCase "a narrower read where only a mangling names e" $
+            slots (punning "target datalayout = \"m:e-p:64:64\"" "i32" "i16") @?>= 0
+        , -- Equal widths are the same bits either way round, so this one does
+          -- not need the layout at all.
+          testCase "a read of the same width, the module saying nothing" $
+            slots (punning "" "float" "i32") @?>= 1
+        , testCase "a read of the same width on a big endian target" $
+            slots (punning big "float" "i32") @?>= 1
+        , -- Above what was written is whatever the storage held, and a value
+          -- has no such thing.
+          testCase "a read wider than what was written" $
+            slots (punning little "i16" "i32") @?>= 0
+        , -- How wide a pointer is is exactly what the data layout is for, and
+          -- nothing here reads that part of it.
+          testCase "a read of a slot written as a pointer" $
+            slots (punning little "ptr" "i64") @?>= 0
+        , -- Two stores at two widths: the narrower leaves the bits it did not
+          -- write, so there is no one value for the local to hold.
+          testCase "two stores of different widths" $
+            slots
+              ( T.unlines
+                  [ little
+                  , "define i32 @f(i32 %v) {"
+                  , "entry:"
+                  , "  %a = alloca i32, align 4"
+                  , "  store i32 %v, ptr %a, align 4"
+                  , "  store i16 1, ptr %a, align 4"
+                  , "  %r = load i32, ptr %a, align 4"
+                  , "  ret i32 %r"
+                  , "}"
+                  ]
+              )
+              @?>= 0
+        , -- Two stores at one width and two types: the local holds the first,
+          -- and the other store is a conversion into it.
+          testCase "two stores of one width" $
+            slots
+              ( T.unlines
+                  [ little
+                  , "define i32 @f(i32 %v, float %w) {"
+                  , "entry:"
+                  , "  %a = alloca i32, align 4"
+                  , "  store i32 %v, ptr %a, align 4"
+                  , "  store float %w, ptr %a, align 4"
+                  , "  %r = load i32, ptr %a, align 4"
+                  , "  ret i32 %r"
+                  , "}"
+                  ]
+              )
+              @?>= 1
+        , -- The rewrite: the allocation and the store are assignments as
+          -- before, the load is the conversion and an assignment carrying it
+          -- into the local the load named.
+          testCase "a narrower read becomes a truncation" $
+            shapes (punning little "i32" "i16")
+              @?>= ["assign", "assign", "convert", "assign", "other"]
+        , -- Truncation is an operation on integers, so a floating point value
+          -- goes to its bits and back: three conversions rather than one.
+          testCase "a narrower floating point read becomes three conversions" $
+            shapes (punning little "double" "float")
+              @?>= ["assign", "assign", "convert", "convert", "convert", "assign", "other"]
+        , -- A conversion cannot assign to the local the load named, that local
+          -- being one the rest of the function reads and one an assignment
+          -- elsewhere may also write.  So it writes a name of its own.
+          testCase "the conversion writes a name of its own" $ do
+            names <- resultsOf (punning little "i32" "i16")
+            case names of
+              [Just slot, Just stored, Just made, Just read', Nothing] -> do
+                stored @?= slot
+                assertBool "the conversion writes the load's local" (made /= read')
+              other -> assertFailure ("expected five results, got " <> show other)
         ]
     , testGroup
         "what the instructions become"
@@ -172,6 +266,29 @@ promotionTests =
         , "}"
         ]
 
+    -- One slot written at one type and read at another, under whatever the
+    -- module says about byte order — which is what decides which part of the
+    -- stored value a narrower read gets.  The allocation is at neither type,
+    -- since what the local holds is what the stores agree on rather than what
+    -- was allocated.  The load's result is handed to a call so that the value
+    -- is read by something and the slot's address by nothing.
+    punning layout stored read =
+      T.unlines
+        [ layout
+        , "declare void @g(" <> read <> ")"
+        , "define void @f(" <> stored <> " %v) {"
+        , "entry:"
+        , "  %a = alloca i64, align 8"
+        , "  store " <> stored <> " %v, ptr %a, align 8"
+        , "  %r = load " <> read <> ", ptr %a, align 8"
+        , "  call void @g(" <> read <> " %r)"
+        , "  ret void"
+        , "}"
+        ]
+
+    little = "target datalayout = \"e-m:e-p:64:64-i64:64\""
+    big = "target datalayout = \"E-m:e-p:64:64-i64:64\""
+
     -- The same shape, varying the allocation itself.
     allocating what =
       T.unlines
@@ -228,7 +345,7 @@ got @?>= expected = got >>= (@?= expected)
 slots :: Text -> IO Int
 slots source = do
   program <- lowered source
-  pure (sum [length (promotableIn f) | f <- functionsIn program])
+  pure (sum [length (promotableIn (endiannessOf program) f) | f <- functionsIn program])
 
 -- | What each instruction of the one function is, after promotion, named
 -- coarsely enough that a test can state the whole list.
@@ -251,6 +368,7 @@ shapeOf operation = case operation of
   OAlloca _ -> "alloca"
   OLoad _ -> "load"
   OStore _ -> "store"
+  OConvert _ -> "convert"
   _ -> "other"
 
 -- | What each surviving instruction assigns to, in order.

@@ -42,6 +42,7 @@ library
                       Olivine.Core.Lower
                       Olivine.Core.Ssa
                       Olivine.Core.Blocks
+                      Olivine.Core.Layout
                       Olivine.Core.Loops
                       Olivine.Core.Pass.Redundancies
                       Olivine.Core.Pass.Fold
