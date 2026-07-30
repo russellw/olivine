@@ -29,6 +29,10 @@ unsigned get_kind(struct flags); int get_delta(struct flags);
 struct flags set_live(struct flags, _Bool);
 int tight_n(const struct tight*); short tight_s(const struct tight*);
 int next_colour(int); _Bool truthy(int);
+/* hoist.c */
+int scaled_sum(const int*,int,int); int nested_squares(int,int,int);
+int sometimes(const int*,int,int); int guarded_divide(int,int,int);
+int carried_first(int,int); int jumped_into(int,int);
 /* indirect.c */
 int dispatch(int,int,int); int fib(int); int gcd(int,int); int parity(int);
 int apply_twice(int(*)(int,int),int,int);
@@ -87,6 +91,17 @@ int main(void){
     printf("%d %d\n", tight_n(&t), (int)tight_s(&t));
     for(int c=0;c<9;c++) printf("%d ", next_colour(c)); printf("\n");
     for(int i=-1;i<=1;i++) printf("%d ", (int)truthy(i)); printf("\n"); }
+#endif
+#ifdef HOIST
+  { int xs[9]; for(int i=0;i<9;i++) xs[i]=(i*4)%7-3;
+    for(int k=-2;k<=2;k++) printf("%d %d ", scaled_sum(xs,9,k), sometimes(xs,9,k)); printf("\n");
+    printf("%d %d\n", scaled_sum(xs,0,5), sometimes(xs,0,5));
+    for(int r=0;r<4;r++) printf("%d ", nested_squares(3,5,r)); printf("\n");
+    /* The divisor is zero on the calls whose loop does not run: a division
+       hoisted out of the loop would fault here. */
+    printf("%d %d %d\n", guarded_divide(10,0,0), guarded_divide(10,0,-1), guarded_divide(10,3,4));
+    for(int n=0;n<4;n++) printf("%d ", carried_first(n,6)); printf("\n");
+    for(int n=0;n<5;n++) printf("%d ", jumped_into(n,2)); printf("\n"); }
 #endif
 #ifdef INDIRECT
   { for(int w=0;w<6;w++) printf("%d ", dispatch(w,9,4)); printf("\n");

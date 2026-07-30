@@ -19,6 +19,7 @@ import Olivine.Core.Pass.ControlFlow (simplifyControlFlow)
 import Olivine.Core.Pass.DeadCode (eliminateDeadCode)
 import Olivine.Core.Pass.DeadSymbols (eliminateDeadSymbols)
 import Olivine.Core.Pass.Inline (inlineCalls)
+import Olivine.Core.Pass.LoopInvariants (hoistLoopInvariants)
 import Olivine.Core.Pass.Promote (promoteMemory)
 import Olivine.Core.Program (Program)
 import Olivine.Core.Raise (raise)
@@ -73,6 +74,23 @@ passes :: [Pass]
 -- of two pointer steps to the same constant, and merging two blocks into one
 -- puts both computations where a single walk of the blocks sees them.
 --
+-- Hoisting loop invariants after those, and after common subexpressions in
+-- particular.  A computation written twice in a loop body is one computation and
+-- one copy of it by the time this sees it, so what leaves the loop is one
+-- arithmetic instruction and a copy that costs nothing; without sharing first it
+-- would be the same computation hoisted twice.  It also wants the control flow
+-- graph to be the real one, since what it moves and where it moves it are both
+-- decided by the graph: a detour block that forwarding has not yet removed is a
+-- block in the loop body, and a block nothing reaches is a predecessor of the
+-- header that a preheader would have to be put in front of.
+--
+-- Most loops cost it no block at all: a loop a front end wrote is entered from
+-- one block that branches nowhere else, and that block is the preheader
+-- already.  Where the loop is entered from a branch, or from two places, the
+-- block it makes stays — merging will not take it back, the block above it
+-- having somewhere else to go — and that is the price of there being anywhere to
+-- put the value at all.
+--
 -- And before the dead code pass, which is what collects on it: an instruction
 -- that becomes a copy of an earlier result stops reading the operands it was
 -- computed from, and whatever was computed only to be one of those operands is
@@ -90,6 +108,7 @@ passes =
   , Pass "constant folding" foldConstants
   , Pass "control flow" simplifyControlFlow
   , Pass "common subexpressions" eliminateCommonSubexpressions
+  , Pass "loop invariants" hoistLoopInvariants
   , Pass "dead code" eliminateDeadCode
   , Pass "dead symbols" eliminateDeadSymbols
   ]

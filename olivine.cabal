@@ -41,12 +41,14 @@ library
                       Olivine.Core.Lower
                       Olivine.Core.Ssa
                       Olivine.Core.Blocks
+                      Olivine.Core.Loops
                       Olivine.Core.Pass.CommonSubexpressions
                       Olivine.Core.Pass.ConstantFold
                       Olivine.Core.Pass.ControlFlow
                       Olivine.Core.Pass.DeadCode
                       Olivine.Core.Pass.DeadSymbols
                       Olivine.Core.Pass.Inline
+                      Olivine.Core.Pass.LoopInvariants
                       Olivine.Core.Pass.Promote
                       Olivine.Core.Raise
                       Olivine.Core.Verify
@@ -74,6 +76,7 @@ test-suite olivine-test
     hs-source-dirs:   test
     main-is:          Main.hs
     other-modules:    Corpus
+                      Invariants
                       RoundTrip
                       Structure
                       Types
@@ -102,6 +105,7 @@ test-suite olivine-test
                       Subexpressions
                       Verify
     build-depends:    base,
+                      containers,
                       filepath,
                       olivine,
                       tasty >=1.4 && <1.6,
