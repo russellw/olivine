@@ -16,6 +16,7 @@ import Test.Tasty.HUnit
 import Corpus (expectParse)
 import Olivine.Core.Alias
 import Olivine.Core.Instruction
+import Olivine.Core.Layout (layoutOf)
 import Olivine.Core.Lower (lower)
 import Olivine.Core.Pass.Redundancies (eliminateRedundancies, shareable)
 import Olivine.Core.Pass.Promote (promoteMemory)
@@ -156,6 +157,21 @@ redundancyTests =
               "the second load reads the first"
               [(Local 4, VLocal (Local 3))]
               answered
+        , -- Two fields of one struct the caller owns, which is the case the
+          -- data layout answers: the store lands in the four bytes the other
+          -- field is not in.  The locals are the parameter, then %a %b %c %d %s
+          -- as 1 to 5.
+          testCase "across a store to another field of one struct" $ do
+            answered <- assignmentsIn otherField
+            assertEqual
+              "the second load reads the first"
+              [(Local 4, VLocal (Local 2))]
+              answered
+        , -- And the same module with nothing said about the target, where
+          -- which bytes a field is at is not something anything knows.
+          testCase "and not where the module states no layout" $ do
+            answered <- assignmentsIn (T.unlines (drop 1 (T.lines otherField)))
+            assertEqual "the second load stays a load" [] answered
         , -- The precision the whole thing turns on.  A callee reaches what it
           -- was handed and what has a symbol, and this slot is neither, so a
           -- call in between writes nothing that can be read here.  The locals
@@ -251,13 +267,16 @@ redundancyTests =
             assertEqual "named by its own local" (Just (OnStack x)) (objectOf objects (VLocal x))
         , testCase "two allocations are two objects" $ do
             (objects, [x, y]) <- aliasingIn twoSlots
-            assertEqual "which cannot overlap" False (mayAlias objects (VLocal x) (VLocal y))
+            assertEqual
+              "which cannot overlap"
+              False
+              (mayAlias objects (reading (VLocal x)) (reading (VLocal y)))
         , testCase "an allocation and a symbol" $ do
             (objects, [x, _]) <- aliasingIn twoSlots
             assertEqual
               "no symbol names stack storage"
               False
-              (mayAlias objects (VLocal x) (VGlobal (Name Bare "g")))
+              (mayAlias objects (reading (VLocal x)) (reading (VGlobal (Name Bare "g"))))
         , -- Two names, possibly one object: an alias is a second name for
           -- storage that already had one, and two declarations can be one
           -- symbol once the linker has been over them.
@@ -266,7 +285,11 @@ redundancyTests =
             assertEqual
               "which is the cautious answer"
               True
-              (mayAlias objects (VGlobal (Name Bare "g")) (VGlobal (Name Bare "h")))
+              ( mayAlias
+                  objects
+                  (reading (VGlobal (Name Bare "g")))
+                  (reading (VGlobal (Name Bare "h")))
+              )
         , -- A pointer that says nothing about where it points may point
           -- anywhere a pointer got to, and this slot's address never got
           -- anywhere.
@@ -275,7 +298,7 @@ redundancyTests =
             assertEqual
               "cannot be the same storage"
               False
-              (mayAlias objects (VLocal x) (VLocal (Local 0)))
+              (mayAlias objects (reading (VLocal x)) (reading (VLocal (Local 0))))
         , testCase "and no call can reach it either" $ do
             (objects, [x]) <- aliasingIn confinedSlot
             assertEqual "having no way to name it" False (reachableByCall objects (VLocal x))
@@ -286,10 +309,64 @@ redundancyTests =
             assertEqual
               "may be any pointer at all"
               True
-              (mayAlias objects (VLocal x) (VLocal (Local 0)))
+              (mayAlias objects (reading (VLocal x)) (reading (VLocal (Local 0))))
         , testCase "and a call may reach it" $ do
             (objects, [x]) <- aliasingIn handedOver
             assertEqual "the address being out there" True (reachableByCall objects (VLocal x))
+        ]
+    , testGroup
+        "which bytes an access touches"
+        [ -- The whole of what the data layout buys here.  Neither pointer says
+          -- what it points into — both are steps off a parameter — but they are
+          -- steps off the /same/ parameter, and the fields they arrive at do not
+          -- meet.
+          testCase "two fields of one struct" $ do
+            (objects, [a, b, _, _]) <- steppingIn intoFields
+            assertEqual
+              "which cannot be one address"
+              False
+              (mayAlias objects (reading (VLocal a)) (reading (VLocal b)))
+        , testCase "the same field twice" $ do
+            (objects, [a, _, _, _]) <- steppingIn intoFields
+            assertEqual
+              "which is one address"
+              True
+              (mayAlias objects (reading (VLocal a)) (reading (VLocal a)))
+        , -- How far each access reaches is half of the answer: an @i64@ read
+          -- where the @i32@ is covers both fields.
+          testCase "a wider access at the earlier field" $ do
+            (objects, [a, b, _, _]) <- steppingIn intoFields
+            assertEqual
+              "which reaches into the later one"
+              True
+              (mayAlias objects (Access (VLocal a) (TInteger 64)) (reading (VLocal b)))
+        , -- Three bytes into the struct is still the first field.
+          testCase "a byte inside the earlier field" $ do
+            (objects, [a, b, c, _]) <- steppingIn intoFields
+            assertEqual
+              "meets the field it is in"
+              True
+              (mayAlias objects (reading (VLocal a)) (Access (VLocal c) (TInteger 8)))
+            assertEqual
+              "and not the one after it"
+              False
+              (mayAlias objects (reading (VLocal b)) (Access (VLocal c) (TInteger 8)))
+        , -- An index the program has not settled is a step of unknown length,
+          -- which leaves the walk with the base and no offset.
+          testCase "a step by an index nothing settles" $ do
+            (objects, [a, _, _, d]) <- steppingIn intoFields
+            assertEqual
+              "may be anywhere"
+              True
+              (mayAlias objects (reading (VLocal a)) (reading (VLocal d)))
+        , -- The same module with nothing said about the target: which bytes a
+          -- field is at is exactly what the layout string answers.
+          testCase "and none of it where the module states no layout" $ do
+            (objects, [a, b, _, _]) <- steppingIn (T.unlines (drop 1 (T.lines intoFields)))
+            assertEqual
+              "so two fields may be one address"
+              True
+              (mayAlias objects (reading (VLocal a)) (reading (VLocal b)))
         ]
     , testGroup
         "what may be shared at all"
@@ -379,14 +456,51 @@ functionOf source = do
 -- break on the next test that added one.
 aliasingIn :: Text -> IO (Objects, [Local])
 aliasingIn source = do
-  f <- functionOf source
-  pure
-    ( objectsIn f
-    , [ slot
-      | b <- functionBlocks f
-      , Instruction (Just slot) (OAlloca _) _ <- blockInstructions b
-      ]
-    )
+  parsed <- expectParse "test" source
+  let program = lower parsed
+  case functionsIn program of
+    [] -> assertFailure "no function lowered"
+    f : _ ->
+      pure
+        ( objectsIn (layoutOf program) f
+        , [ slot
+          | b <- functionBlocks f
+          , Instruction (Just slot) (OAlloca _) _ <- blockInstructions b
+          ]
+        )
+
+-- | An access at the width most of these tests are written in.
+--
+-- Where a test is about the offsets rather than about the objects it says the
+-- type itself, since how far an access reaches is half of what decides.
+reading :: Value Local -> Access
+reading at = Access at (TInteger 32)
+
+-- | What a function says about its pointers, and the locals its pointer steps
+-- assign to, in the order written.
+--
+-- The steps are looked for rather than counted to for the reason the
+-- allocations are: which local a @getelementptr@ leaves its answer in depends
+-- on how many instructions the lowering issued before it.
+steppingIn :: Text -> IO (Objects, [Local])
+steppingIn source = do
+  parsed <- expectParse "test" source
+  let program = lower parsed
+  case functionsIn program of
+    [] -> assertFailure "no function lowered"
+    f : _ ->
+      pure
+        ( objectsIn (layoutOf program) f
+        , [ result
+          | b <- functionBlocks f
+          , Instruction (Just result) operation _ <- blockInstructions b
+          , stepping operation
+          ]
+        )
+  where
+    stepping (OOffset _) = True
+    stepping (OField _) = True
+    stepping _ = False
 
 twice :: Text
 twice =
@@ -850,6 +964,48 @@ twoSlots =
     , "  store i32 %n, ptr %y, align 4"
     , "  %a = load i32, ptr %x, align 4"
     , "  ret i32 %a"
+    , "}"
+    ]
+
+-- | A field read, the other field written, and the first read again — which is
+-- @both_ways@ in the corpus, the case the aliasing wanted sizes for.
+otherField :: Text
+otherField =
+  T.unlines
+    [ "target datalayout = \"e-m:e-i64:64-n8:16:32:64-S128\""
+    , "%pair = type { i32, i32 }"
+    , "define i32 @f(ptr %p) {"
+    , "entry:"
+    , "  %a = getelementptr %pair, ptr %p, i32 0, i32 1"
+    , "  %b = load i32, ptr %a, align 4"
+    , "  %c = getelementptr %pair, ptr %p, i32 0, i32 0"
+    , "  store i32 7, ptr %c, align 4"
+    , "  %d = load i32, ptr %a, align 4"
+    , "  %s = add i32 %b, %d"
+    , "  ret i32 %s"
+    , "}"
+    ]
+
+-- | Four addresses in one struct a parameter points at: each of the two
+-- fields, a byte part way into the first, and a step by an index nothing
+-- settles.
+--
+-- Written through a parameter rather than through an allocation because that is
+-- the case the offsets are for: two accesses to storage this function did not
+-- make, which the objects alone say nothing about.
+intoFields :: Text
+intoFields =
+  T.unlines
+    [ "target datalayout = \"e-m:e-i64:64-n8:16:32:64-S128\""
+    , "%pair = type { i32, i32 }"
+    , "define i32 @f(ptr %p, i64 %n) {"
+    , "entry:"
+    , "  %a = getelementptr %pair, ptr %p, i32 0, i32 0"
+    , "  %b = getelementptr %pair, ptr %p, i32 0, i32 1"
+    , "  %c = getelementptr i8, ptr %p, i64 3"
+    , "  %d = getelementptr i32, ptr %p, i64 %n"
+    , "  %x = load i32, ptr %a, align 4"
+    , "  ret i32 %x"
     , "}"
     ]
 

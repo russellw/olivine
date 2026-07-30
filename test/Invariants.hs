@@ -265,10 +265,38 @@ invariantTests =
             assertBool
               ("expected the load still in the loop, got " <> show shapes)
               ("load" `elem` (shapes !! 1))
-        , -- Without a data layout nothing here knows an @i64@ does not fit in
-          -- the storage a symbol defined as @i32@ names.
+        , -- An @i64@ read from a symbol defined as @i32@ is two symbols' worth
+          -- of address at best, whether or not the module says how big either
+          -- is.
           testCase "a load of a symbol at another type" $ do
             shapes <- shapesIn readWider
+            assertBool
+              ("expected the load still in the loop, got " <> show shapes)
+              ("load" `elem` (shapes !! 2))
+        , -- The other direction, which is the one the layout settles: the
+          -- bytes an @i16@ reads are bytes an @i32@ symbol has, so the load
+          -- cannot fault wherever it is put.
+          testCase "a load of part of a symbol, where the layout says" $ do
+            shapes <- shapesIn (readNarrower stated)
+            assertBool
+              ("expected the load in the first block, got " <> show shapes)
+              ("load" `elem` firstOf shapes)
+        , -- And the same module with nothing said about the target.  Which
+          -- bytes an @i16@ touches is not something the types answer.
+          testCase "and not where it does not" $ do
+            shapes <- shapesIn (readNarrower "")
+            assertBool
+              ("expected the load still in the loop, got " <> show shapes)
+              ("load" `elem` (shapes !! 2))
+        , -- The alignment written on neither, which without a layout is a
+          -- question nothing can answer and with one is the type's own.
+          testCase "a load of a symbol neither of them aligns" $ do
+            shapes <- shapesIn (readUnaligned stated)
+            assertBool
+              ("expected the load in the first block, got " <> show shapes)
+              ("load" `elem` firstOf shapes)
+        , testCase "and not where the module states no layout" $ do
+            shapes <- shapesIn (readUnaligned "")
             assertBool
               ("expected the load still in the loop, got " <> show shapes)
               ("load" `elem` (shapes !! 2))
@@ -941,6 +969,60 @@ readWider =
     , "  br label %head"
     , "done:"
     , "  ret i64 0"
+    , "}"
+    ]
+
+-- | The layout the corpus is compiled for, as much of it as these need.
+--
+-- Written out rather than left to a default, since a module that says nothing
+-- is exactly the case the tests below it are about.
+stated :: Text
+stated = "target datalayout = \"e-m:e-i64:64-n8:16:32:64-S128\""
+
+-- | A symbol defined as @i32@ and read at @i16@, which reads bytes it has.
+--
+-- The layout line is a parameter because both answers are wanted: with one the
+-- load comes out of the loop, and with nothing said it stays in.
+readNarrower :: Text -> Text
+readNarrower layout =
+  T.unlines
+    [ layout
+    , "@scale = internal global i32 3, align 4"
+    , "define i32 @f(i32 %n) {"
+    , "entry:"
+    , "  br label %head"
+    , "head:"
+    , "  %i = phi i32 [ 0, %entry ], [ %next, %body ]"
+    , "  %c = icmp slt i32 %i, %n"
+    , "  br i1 %c, label %body, label %done"
+    , "body:"
+    , "  %s = load i16, ptr @scale, align 2"
+    , "  %next = add i32 %i, 1"
+    , "  br label %head"
+    , "done:"
+    , "  ret i32 %i"
+    , "}"
+    ]
+
+-- | A symbol and a load that both leave the alignment to the target.
+readUnaligned :: Text -> Text
+readUnaligned layout =
+  T.unlines
+    [ layout
+    , "@scale = internal global i32 3"
+    , "define i32 @f(i32 %n) {"
+    , "entry:"
+    , "  br label %head"
+    , "head:"
+    , "  %i = phi i32 [ 0, %entry ], [ %next, %body ]"
+    , "  %c = icmp slt i32 %i, %n"
+    , "  br i1 %c, label %body, label %done"
+    , "body:"
+    , "  %s = load i32, ptr @scale"
+    , "  %next = add i32 %i, 1"
+    , "  br label %head"
+    , "done:"
+    , "  ret i32 %i"
     , "}"
     ]
 

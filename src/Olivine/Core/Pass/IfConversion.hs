@@ -30,8 +30,11 @@
 -- and "Olivine.Core.Pass.LoopInvariants" already knows two ways to say a load
 -- cannot fault.  Neither applies here — one of them is about standing in a
 -- loop's header and the other about reading a whole symbol — so this declines
--- every load, and a program that wants one converted wants dereferenceability,
--- which wants sizes.
+-- every load, and a program that wants one converted wants dereferenceability:
+-- what the pointer points into and how far along it, which
+-- "Olivine.Core.Alias" answers, against how many bytes that object is, which
+-- "Olivine.Core.Layout" answers.  Both are sayable now and neither is asked
+-- here.
 --
 -- __What it costs is the other side's work.__  Whichever way the branch would
 -- have gone, what if-conversion adds to that path is the instructions on the

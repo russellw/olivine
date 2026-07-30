@@ -80,6 +80,7 @@ test-suite olivine-test
     hs-source-dirs:   test
     main-is:          Main.hs
     other-modules:    Corpus
+                      Layout
                       Invariants
                       RoundTrip
                       Structure

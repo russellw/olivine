@@ -372,8 +372,11 @@ addressedBy i = case instructionOperation i of
 -- @getelementptr T, ptr %p, i64 0@ is @%p@ whatever @T@ is, and field zero of
 -- a struct begins where the struct begins whether or not it is packed.  Both
 -- are true without knowing any type's size, which is why they are here and why
--- no other step is: the address of field one is where the data layout comes
--- in, and nothing reads that — see "Olivine.Core.Layout".
+-- no other step is.  "Olivine.Core.Layout" would now say where field one
+-- begins, but a step to it is a step to part of the slot, and part of a local
+-- is not something an assignment can name: what this pass would need in order
+-- to take one is to hold the slot as its bits and write each access into its
+-- own, which is a larger change than knowing the offset.
 --
 -- A front end writes a step of zero wherever a program names the first element
 -- of an array or the first member of a union, and until this was here the slot

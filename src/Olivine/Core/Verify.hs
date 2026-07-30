@@ -48,12 +48,14 @@ import Data.List (nub, (\\))
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Set (Set)
+import Data.Maybe (fromMaybe)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as T
 import Numeric.Natural (Natural)
 
 import Olivine.Core.Instruction
+import Olivine.Core.Layout (Layout, layoutOf, sizeInBits)
 import Olivine.Core.Program
 
 import Olivine.Syntax.Ast qualified as Syntax
@@ -157,6 +159,13 @@ data Complaint
     CaseNotConstant
   | -- | A struct and a field number it does not have.
     FieldOutOfRange Type Natural
+  | -- | A @bitcast@ between two types that are not the same number of bits,
+    -- in the order written.
+    --
+    -- Reported only where the module states a layout both sizes can be read
+    -- from: what an @i17@ or a @double@ measures is the type's own business,
+    -- but what a pointer or a struct measures is the target's.
+    SizeDiffers Type Type
   | -- | A flag on an operation that may not carry it.
     FlagNotAllowed InstructionFlag
   deriving (Eq, Show)
@@ -181,7 +190,10 @@ data Requirement
 
 -- | Every problem in a program, function by function in the order written.
 verify :: Program -> [Problem]
-verify program = concatMap (verifyFunction (namedTypes program) symbols) (functionsIn program)
+verify program =
+  concatMap
+    (verifyFunction (namedTypes program) (layoutOf program) symbols)
+    (functionsIn program)
   where
     symbols = definedSymbols program
 
@@ -209,8 +221,9 @@ definedSymbols program
       EFunction f -> [signatureName (functionSignature f)]
       ERetained retained -> symbolsDefinedBy retained
 
-verifyFunction :: Map Name Type -> Maybe (Set Name) -> Function -> [Problem]
-verifyFunction types symbols f =
+verifyFunction ::
+  Map Name Type -> Maybe Layout -> Maybe (Set Name) -> Function -> [Problem]
+verifyFunction types layout symbols f =
   [ Problem (signatureName signature) site complaint
   | (site, complaint) <- whole <> concatMap inBlock blocks
   ]
@@ -246,7 +259,7 @@ verifyFunction types symbols f =
                , Just defined <- [definitionOf local]
                , defined /= produced
                ]
-            <> shape types operation
+            <> shape types layout operation
             <> flagged types produced operation
         )
       where
@@ -315,12 +328,17 @@ verifyFunction types symbols f =
 -- | What an operation demands of its operands.
 --
 -- The checks are the ones LLVM makes and no more: that operands which have to
--- agree do, that each is of the kind the opcode reads, and that a field
--- selection picks a field that is there.  Whether a @trunc@ actually narrows,
--- or a @bitcast@ preserves size, is a question about the data layout, which
--- nothing here has yet.
-shape :: Map Name Type -> Operation (TypedValue local) -> [Complaint]
-shape types operation = case operation of
+-- agree do, that each is of the kind the opcode reads, that a field selection
+-- picks a field that is there, and that a @bitcast@ is between two types of
+-- one size.  That last is the one that needs the module's layout, and is
+-- passed over where there is none or where either type has no size there.
+--
+-- Whether a @trunc@ actually narrows is not checked, and could be: the widths
+-- are the types' own.  It is left out because no pass here writes one whose
+-- widths it did not choose, and a check nothing can fail is a check nobody
+-- maintains.
+shape :: Map Name Type -> Maybe Layout -> Operation (TypedValue local) -> [Complaint]
+shape types layout operation = case operation of
   OAssign _ -> []
   OBinary b ->
     agree (binaryLeft b) (binaryRight b)
@@ -332,7 +350,7 @@ shape types operation = case operation of
   OFCmp c ->
     agree (compareLeft c) (compareRight c)
       <> needs AFloat (compareLeft c)
-  OConvert c -> conversion types c
+  OConvert c -> conversion types layout c
   OSelect s ->
     needs ABoolean (selectCondition s)
       <> agree (selectTrue s) (selectFalse s)
@@ -375,9 +393,23 @@ shape types operation = case operation of
     needs requirement = require types requirement . typedValueType
 
 -- | What a conversion reads and what it writes.
-conversion :: Map Name Type -> Convert (TypedValue local) -> [Complaint]
-conversion types c = from (typedValueType (convertOperand c)) <> to (convertTarget c)
+conversion ::
+  Map Name Type -> Maybe Layout -> Convert (TypedValue local) -> [Complaint]
+conversion types layout c =
+  from source <> to target <> [SizeDiffers source target | resized]
   where
+    source = typedValueType (convertOperand c)
+    target = convertTarget c
+
+    -- The one conversion that has to preserve the bits, which is what makes it
+    -- a way of speaking about a value rather than something a machine does.
+    resized = convertOp c == CastBitcast && fromMaybe False (differs <$> layout)
+
+    differs measure =
+      case (sizeInBits measure source, sizeInBits measure target) of
+        (Just a, Just b) -> a /= b
+        _ -> False
+
     (from, to) = case convertOp c of
       CastTrunc -> (integer, integer)
       CastZExt -> (integer, integer)
@@ -390,8 +422,8 @@ conversion types c = from (typedValueType (convertOperand c)) <> to (convertTarg
       CastSIToFP -> (integer, float)
       CastPtrToInt -> (pointer, integer)
       CastIntToPtr -> (integer, pointer)
-      -- A bitcast reinterprets whatever it is given, and whether the two are
-      -- the same size is a question for the data layout.
+      -- A bitcast reinterprets whatever it is given; that the two are the same
+      -- size is checked above, where the layout can say what a size is.
       CastBitcast -> (anything, anything)
       CastAddrSpaceCast -> (pointer, pointer)
 
@@ -602,6 +634,12 @@ renderComplaint complaint = case complaint of
     renderType t <> " has no field " <> T.pack (show index)
   FlagNotAllowed flag ->
     renderInstructionFlag flag <> ", which this operation may not carry"
+  SizeDiffers source target ->
+    "a bitcast from "
+      <> renderType source
+      <> " to "
+      <> renderType target
+      <> ", which is a different number of bits"
 
 renderRequirement :: Requirement -> Text
 renderRequirement requirement = case requirement of

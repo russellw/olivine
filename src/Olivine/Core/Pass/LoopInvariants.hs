@@ -130,11 +130,12 @@ module Olivine.Core.Pass.LoopInvariants
 import Data.List (inits)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (mapMaybe)
+import Data.Maybe (fromMaybe, listToMaybe, mapMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 
-import Olivine.Core.Alias (Objects, mayAlias, objectsIn, reachableByCall)
+import Olivine.Core.Alias (Access (..), Objects, mayAlias, objectsIn, reachableByCall)
+import Olivine.Core.Layout (Layout, alignmentOf, layoutOf, storeSize)
 import Olivine.Core.Instruction
 import Olivine.Core.Loops (Loop (..), Preheader, enterThrough, loopsOf, preheaderFor)
 import Olivine.Core.Program
@@ -155,7 +156,12 @@ hoistLoopInvariants program =
     -- instructions between blocks of one function.
     globals = globalVariables program
 
-    entry (EFunction f) = EFunction (settle globals (rounds f) f)
+    -- What the module says about sizes and offsets, which is what tells a store
+    -- to one field of a struct from a load of another.  Read once for the
+    -- program, being a fact about the target rather than about a function.
+    layout = layoutOf program
+
+    entry (EFunction f) = EFunction (settle globals layout (rounds f) f)
     entry retained = retained
 
 -- | The module's global variables by name.
@@ -182,22 +188,23 @@ rounds f =
     , Set.member (blockLabel b) (loopBody loop)
     ]
 
-settle :: Map Name Global -> Int -> Function -> Function
-settle globals remaining f
+settle :: Map Name Global -> Maybe Layout -> Int -> Function -> Function
+settle globals layout remaining f
   | remaining <= 0 = f
-  | otherwise = case candidates globals f of
+  | otherwise = case candidates globals layout f of
       [] -> f
       (loop, preheader, moving) : _ ->
-        settle globals (remaining - 1) (hoistFrom f loop preheader moving)
+        settle globals layout (remaining - 1) (hoistFrom f loop preheader moving)
 
 -- | The loops with something to take out of them, innermost first, each with
 -- where what comes out of it goes.
-candidates :: Map Name Global -> Function -> [(Loop, Preheader, [Instruction])]
-candidates globals f =
+candidates ::
+  Map Name Global -> Maybe Layout -> Function -> [(Loop, Preheader, [Instruction])]
+candidates globals layout f =
   [ (loop, preheader, moving)
   | loop <- loopsOf f
   , Just preheader <- [preheaderFor f loop]
-  , let moving = invariantIn globals objects f loop
+  , let moving = invariantIn globals layout objects f loop
   , not (null moving)
   ]
   where
@@ -206,7 +213,7 @@ candidates globals f =
     -- per loop: hoisting moves instructions between blocks, and what a pointer
     -- points into is not a fact about where the instruction computing it
     -- stands.
-    objects = objectsIn f
+    objects = objectsIn layout f
 
 -- | The instructions in a loop that can be computed before it instead.
 --
@@ -215,8 +222,9 @@ candidates globals f =
 -- yet, so nothing here reads anything else here, and the order they are
 -- appended in cannot matter.  Two loads are independent of each other in the
 -- stronger sense as well, neither writing anything the other could read.
-invariantIn :: Map Name Global -> Objects -> Function -> Loop -> [Instruction]
-invariantIn globals objects f loop =
+invariantIn ::
+  Map Name Global -> Maybe Layout -> Objects -> Function -> Loop -> [Instruction]
+invariantIn globals layout objects f loop =
   [ i
   | b <- functionBlocks f
   , Set.member (blockLabel b) (loopBody loop)
@@ -245,18 +253,23 @@ invariantIn globals objects f loop =
     movable label above operation = case operation of
       OLoad l ->
         not (loadVolatile l)
-          && not (changed (typedValue (loadPointer l)))
-          && (alwaysReached loop label above || alwaysReadable globals l)
+          && not (changed (Access (typedValue (loadPointer l)) (loadType l)))
+          && (alwaysReached loop label above || alwaysReadable globals layout l)
       _ -> speculatable operation
 
     -- Whether anything the loop runs can write what a load of this address
     -- reads.  A volatile store is a store: what makes it volatile is that the
     -- write must happen, which is the opposite of a reason to pass over it.
-    changed pointer =
-      any (mayAlias objects pointer) stored
-        || (calling && reachableByCall objects pointer)
+    changed read' =
+      any (mayAlias objects read') stored
+        || (calling && reachableByCall objects (accessPointer read'))
 
-    stored = [typedValue (storePointer s) | OStore s <- inside]
+    -- Where each store writes and how much of it: a store to another field of
+    -- the struct a load reads is not a store the load has to be kept behind.
+    stored =
+      [ Access (typedValue (storePointer s)) (typedValueType (storeValue s))
+      | OStore s <- inside
+      ]
     calling = not (null [() | OCall _ <- inside])
 
 -- | Every local the loop assigns, which is exactly what is not invariant in
@@ -363,24 +376,28 @@ returns operation = case operation of
 -- established is that the load reads that storage and no more of the address
 -- space than that.
 --
--- The type settles it, since the core has no data layout to compare sizes
--- with: a load at the type the symbol was defined with reads exactly the
--- symbol.  Any other type may be larger, and @i64@ read from a symbol defined
--- as @i32@ is two symbols' worth of address at best.  A step from the symbol is
--- declined for the same reason — the pointer here has to be the symbol itself,
--- since where an index lands within an object is what a layout would say.
+-- What has to be true of the type is that the load reads no further than the
+-- symbol reaches, which "Olivine.Core.Layout" is what says: the bytes an
+-- access at this type touches, against the bytes an object of the symbol's
+-- type occupies.  A load at the symbol's own type is the usual way that holds
+-- and no longer the only one — @i32@ read from a symbol defined as @i64@ reads
+-- storage the symbol has.  The pointer still has to be the symbol itself
+-- rather than a step from it: where a step lands is a question this is not the
+-- place to ask, "Olivine.Core.Alias" being where a pointer is followed back to
+-- what it points into.  Where the module states no layout the type has to be
+-- the symbol's, which is what this said before there was one.
 --
 -- The alignment likewise, and it is a real question rather than a formality:
 -- an access at an alignment the storage does not have is undefined, so a load
 -- written @align 8@ of a symbol given @align 4@ is undefined when it runs, and
--- running it where it would not have run is inventing that.  Both have to say
--- what they are for this to compare them; where either is silent the answer is
--- the type's natural alignment, which is a size again.
-alwaysReadable :: Map Name Global -> Load (TypedValue Local) -> Bool
-alwaysReadable globals l = case typedValue (loadPointer l) of
+-- running it where it would not have run is inventing that.  Where either is
+-- silent it is the type's own alignment, which is again what the layout says
+-- and, without one, another reason to decline.
+alwaysReadable :: Map Name Global -> Maybe Layout -> Load (TypedValue Local) -> Bool
+alwaysReadable globals layout l = case typedValue (loadPointer l) of
   VGlobal name
     | Just g <- Map.lookup name globals ->
-        globalType g == loadType l
+        within g
           -- The one linkage that says the symbol may not be there when the
           -- program runs: an @extern_weak@ name the linker does not resolve is
           -- null, and reading it is what this exists to avoid.
@@ -388,6 +405,27 @@ alwaysReadable globals l = case typedValue (loadPointer l) of
           && aligned g
   _ -> False
   where
-    aligned g = case (loadAlignment l, [n | GAAlign n <- globalAttributes g]) of
-      (Just wanted, [given]) -> wanted <= given
-      _ -> False
+    -- Whether the load reads storage the symbol has.
+    within g = globalType g == loadType l || fromMaybe False (fits g)
+
+    -- Both as store sizes: what an access touches, and what the object holds
+    -- without the padding an array of them would put between one and the next.
+    -- The padding is storage the symbol has, but saying so is claiming
+    -- something about the object file rather than about the type.
+    fits g = do
+      measure <- layout
+      reads' <- storeSize measure (loadType l)
+      has <- storeSize measure (globalType g)
+      pure (reads' <= has)
+
+    aligned g = fromMaybe False $ do
+      wanted <- stated (loadAlignment l) (loadType l)
+      given <- stated (listToMaybe [n | GAAlign n <- globalAttributes g]) (globalType g)
+      pure (wanted <= given)
+
+    -- What an access or an object is aligned to: what it says, or what its
+    -- type is aligned to where it says nothing.
+    stated (Just written) _ = Just written
+    stated Nothing t = do
+      measure <- layout
+      alignmentOf measure t

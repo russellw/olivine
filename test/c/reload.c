@@ -39,10 +39,11 @@ int separate_slots(int n) {
   return first + x.b + y.a;
 }
 
-/* And a write to the other field of the same struct, which is a distinction
-   nothing yet draws: telling one field from another needs the sizes the data
-   layout has and the core does not read.  So this reads twice, correctly and
-   for want of an analysis rather than because the answer changed. */
+/* And a write to the other field of the same struct.  Telling one field from
+   another is a question about which bytes each access touches, which is what
+   the data layout answers and what Olivine.Core.Layout reads: the two are four
+   bytes apart and four bytes wide, so the write is not to what was read and
+   the second read is the first. */
 int both_ways(struct pair *p) {
   int first = p->b;
   p->a = 7;

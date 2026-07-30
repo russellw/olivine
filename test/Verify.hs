@@ -32,7 +32,7 @@ import Olivine.Syntax.Instruction
   , Load (..)
   )
 import Olivine.Syntax.Name (Name (..), Quoting (..))
-import Olivine.Syntax.Type (FloatKind (..), Type (..))
+import Olivine.Syntax.Type (FloatKind (..), Scalability (..), Type (..))
 import Olivine.Syntax.Value (TypedValue (..), Value (..))
 
 verifyTests :: IO TestTree
@@ -200,6 +200,24 @@ typeTests =
           selecting
           (atBlock 0 (atInstruction 0 (onField (\field -> field {fieldIndex = 5}))))
           [FieldOutOfRange (TNamed (Name Bare "pair")) 5]
+    , -- A bitcast is a way of speaking about a value rather than something a
+      -- machine does, so the bits have to be the same bits.  What a pointer or
+      -- an aggregate measures is the target's business, which makes this the
+      -- one check here that reads the module's layout.
+      testCase "a bitcast between two widths" $
+        expect (recasting stated (TInteger 32) (TInteger 64)) id [SizeDiffers (TInteger 32) (TInteger 64)]
+    , testCase "and not where the module states no layout" $
+        expect (recasting "" (TInteger 32) (TInteger 64)) id []
+    , -- The same bits said another way, which is what a bitcast is for.
+      testCase "a bitcast between two spellings of one width" $
+        expect
+          (recasting stated (TVector FixedWidth 2 (TInteger 32)) (TInteger 64))
+          id
+          []
+    , -- Neither has a size without a layout and the pointer has none with one
+      -- either, being as wide as the target says and no wider.
+      testCase "a bitcast of something with no size" $
+        expect (recasting stated (TPointer Nothing) (TInteger 64)) id []
     ]
 
 -- * What an operation may be qualified by
@@ -302,6 +320,31 @@ switching =
   , "  ret i32 0"
   , "}"
   ]
+
+-- | The layout line the corpus states, for the checks that need one.
+stated :: Text
+stated = "target datalayout = \"e-m:e-i64:64-n8:16:32:64-S128\""
+
+-- | A function that bitcasts its parameter, at whatever pair of types is
+-- asked for.
+--
+-- Written wrong rather than damaged afterwards, unlike the cases above: what
+-- is being asked is about the types themselves, and there is nothing about a
+-- correct bitcast for a damaged one to be a version of.
+recasting :: Text -> Type -> Type -> [Text]
+recasting layout source target =
+  [ layout
+  , "define " <> render target <> " @f(" <> render source <> " %x) {"
+  , "  %y = bitcast " <> render source <> " %x to " <> render target
+  , "  ret " <> render target <> " %y"
+  , "}"
+  ]
+  where
+    render t = case t of
+      TInteger n -> "i" <> T.pack (show n)
+      TPointer _ -> "ptr"
+      TVector _ n element -> "<" <> T.pack (show n) <> " x " <> render element <> ">"
+      _ -> error "recasting: no spelling for this type"
 
 selecting :: [Text]
 selecting =

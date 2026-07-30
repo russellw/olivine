@@ -18,6 +18,7 @@ import IfConversion (ifConversionTests)
 import Indirects (indirectTests)
 import Inlining (inliningTests)
 import Invariants (invariantTests)
+import Layout (layoutTests)
 import Memory (memoryTests)
 import Metadata (metadataTests)
 import Offsets (offsetTests)
@@ -40,4 +41,4 @@ main = do
   defaultMain $
     testGroup
       "olivine"
-      ([typeTests, globalTests, comdatTests, indirectTests, declareTests, attributeTests, metadataTests, terminatorTests, memoryTests, arithmeticTests, callTests, phiTests, vectorTests, deadCodeTests, deadSymbolTests, foldingTests, controlFlowTests, promotionTests, inliningTests, redundancyTests, rotationTests, ifConversionTests, invariantTests, offsetTests, headerSyntaxTests] <> discovered)
+      ([typeTests, globalTests, comdatTests, indirectTests, declareTests, attributeTests, metadataTests, terminatorTests, memoryTests, arithmeticTests, callTests, phiTests, vectorTests, deadCodeTests, deadSymbolTests, foldingTests, controlFlowTests, promotionTests, inliningTests, redundancyTests, rotationTests, ifConversionTests, invariantTests, offsetTests, layoutTests, headerSyntaxTests] <> discovered)

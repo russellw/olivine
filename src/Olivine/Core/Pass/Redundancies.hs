@@ -156,7 +156,8 @@ import Data.Map.Strict qualified as Map
 import Data.Maybe (mapMaybe)
 import Data.Set qualified as Set
 
-import Olivine.Core.Alias (mayAlias, objectsIn, reachableByCall)
+import Olivine.Core.Alias (Access (..), mayAlias, objectsIn, reachableByCall)
+import Olivine.Core.Layout (Layout, layoutOf)
 import Olivine.Core.Blocks (predecessorsOf, reversePostorder)
 import Olivine.Core.Instruction
 import Olivine.Core.Program
@@ -170,7 +171,11 @@ eliminateRedundancies program =
   program {programEntries = map entry (programEntries program)}
   where
     types = namedTypes program
-    entry (EFunction f) = EFunction (eliminateIn types f)
+    -- What the module says about sizes and offsets, read once: it is what
+    -- tells one field of a struct from another when a store to one is asked
+    -- whether it wrote what a load of the other reads.
+    layout = layoutOf program
+    entry (EFunction f) = EFunction (eliminateIn types layout f)
     entry retained = retained
 
 -- | What is known at a point in a function.
@@ -227,11 +232,16 @@ data Content = Content
   }
   deriving (Eq)
 
+-- | The fact as the aliasing reads it: an address and how far the access that
+-- settled it reached.
+contentAccess :: Content -> Access
+contentAccess content = Access (contentAddress content) (contentType content)
+
 nothingKnown :: Known
 nothingKnown = Known Map.empty Map.empty []
 
-eliminateIn :: Map Name Type -> Function -> Function
-eliminateIn types f = f {functionBlocks = map rewrite (functionBlocks f)}
+eliminateIn :: Map Name Type -> Maybe Layout -> Function -> Function
+eliminateIn types layout f = f {functionBlocks = map rewrite (functionBlocks f)}
   where
     blocks = functionBlocks f
     order = reversePostorder f
@@ -239,7 +249,7 @@ eliminateIn types f = f {functionBlocks = map rewrite (functionBlocks f)}
     -- memory below is asked of.  Read from the function as it arrives: the
     -- rewrite replaces computations with copies of the same value, so what a
     -- pointer points into is the same in what leaves.
-    objects = objectsIn f
+    objects = objectsIn layout f
     reachable = Set.fromList order
     byLabel = Map.fromList [(blockLabel b, b) | b <- blocks]
 
@@ -381,10 +391,13 @@ eliminateIn types f = f {functionBlocks = map rewrite (functionBlocks f)}
             -- a fact to keep.
             | otherwise -> clobbering target known'
             where
-              target = typedValue (storePointer s)
+              -- The bytes it writes, which is where it writes and how wide what
+              -- it writes is: a store to one field of a struct leaves what is
+              -- known about the others standing.
+              target = Access (typedValue (storePointer s)) (typedValueType (storeValue s))
               wrote =
                 Content
-                  target
+                  (typedValue (storePointer s))
                   (typedValueType (storeValue s))
                   (typedValue (storeValue s))
           -- Whatever it does to memory, it does it to memory it can name.
@@ -416,7 +429,7 @@ eliminateIn types f = f {functionBlocks = map rewrite (functionBlocks f)}
         clobbering target known' =
           known'
             { contents =
-                filter (not . mayAlias objects target . contentAddress) (contents known')
+                filter (not . mayAlias objects target . contentAccess) (contents known')
             }
 
         -- One more fact, unless it is one already: a load answered by what was
