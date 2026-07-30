@@ -20,9 +20,10 @@ module Olivine.Core.Phi
   , Joined (..)
   , eliminate
   , removeForwarding
+  , inWrittenOrder
   ) where
 
-import Data.List (partition)
+import Data.List (elemIndex, partition, sortOn)
 import Data.Maybe (fromMaybe)
 
 import Olivine.Core.Instruction
@@ -253,6 +254,41 @@ removeForwarding = settle
             }
         relabel p =
           p {phiIncoming = [(v, if l == gone then before else l) | (v, l) <- phiIncoming p]}
+
+-- | Put each phi's operands in the order the blocks they arrive from are
+-- written.
+--
+-- A phi says nothing by the order of its operands, and 'Olivine.Core.Ssa' writes
+-- them in the order the predecessors stand in already, so there is usually
+-- nothing here to do.  What there is to do is 'removeForwarding' just above:
+-- taking a detour out means naming the block before it instead, and that block
+-- stands somewhere else, so the operand it now names is left out of place.
+--
+-- Which would still not matter, except that the trip through the core has to be
+-- a fixed point — @test\/Core.hs@ asks that lowering and raising a second time
+-- changes nothing — and the next trip cannot always take the same block out.
+-- Where the source had a forwarding block for the copies to go in, Olivine's own
+-- output has none, so 'eliminate' has to make one, and it puts a made block
+-- where it puts every made block rather than where that source's block happened
+-- to be.  The two trips then disagree about the order of two operands and about
+-- nothing else at all.  Ordering both by where the blocks stand is what makes
+-- them agree, and it is available here because by this point the blocks are the
+-- ones that will be written.
+--
+-- The order chosen is the order of the blocks rather than LLVM's own habit,
+-- which for the @; preds@ comment is the reverse of it.  What matters is that
+-- there be one; this is the one reconstruction already produces everywhere it
+-- was not interfered with, so it is the one that changes least.
+inWrittenOrder :: [Joined] -> [Joined]
+inWrittenOrder blocks = map order blocks
+  where
+    labels = map joinedLabel blocks
+    order b =
+      b {joinedPhis = [p {phiIncoming = sortOn standing (phiIncoming p)} | p <- joinedPhis b]}
+    -- A value arriving from a block that is not there is a phi naming a
+    -- predecessor the function does not have, which is a program to report
+    -- rather than to sort; it goes last and the verifier says so.
+    standing (_, from) = fromMaybe (length labels) (elemIndex from labels)
 
 -- | The blocks that branch to a given one, once each however many edges they
 -- carry there.

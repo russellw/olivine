@@ -35,10 +35,10 @@ int folded(const int *xs, int n) {
 }
 
 /* The branch is what stops the division by zero. */
-int safe_divide(int a, int b) { return b == 0 ? -1 : a / b; }
+int safe_divide(int a, int b) { return b ? a / b : -1; }
 
 /* The branch is what stops the read through a null pointer. */
-int if_present(const int *p) { return p == 0 ? 0 : *p; }
+int if_present(const int *p) { return p ? *p : 0; }
 
 /* Two calls, of which exactly one must be made. */
 int counter;

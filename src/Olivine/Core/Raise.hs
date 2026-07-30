@@ -24,7 +24,7 @@ import Data.Text (Text)
 import Data.Text qualified as T
 
 import Olivine.Core.Instruction
-import Olivine.Core.Phi (Joined (..), PhiNode (..), removeForwarding)
+import Olivine.Core.Phi (Joined (..), PhiNode (..), inWrittenOrder, removeForwarding)
 import Olivine.Core.Program
 import Olivine.Core.Ssa (reconstruct)
 import Olivine.Syntax.Ast qualified as Syntax
@@ -51,7 +51,12 @@ raiseEntry (EFunction f) =
     -- assignments in them become phi operands, leaving a branch and nothing
     -- else.  Taking them out again is what makes the trip through the core
     -- leave the control flow graph as it found it.
-    single = removeForwarding (reconstruct f)
+    --
+    -- And ordering the phi operands afterwards is what makes it leave the same
+    -- graph the second time as the first: removing a detour renames the block an
+    -- operand arrives from, which is what leaves the order to be settled here
+    -- rather than where the operands were made.
+    single = inWrittenOrder (removeForwarding (reconstruct f))
     numbering = number (functionSignature f) (functionParameters f) single
 
 -- * Numbering

@@ -345,6 +345,17 @@ reconstructionTests =
         assertBool
           ("expected poison in " <> T.unpack text)
           ("ret i32 poison" `T.isInfixOf` text)
+    , -- The order a phi's operands come back in has to be the same order the
+      -- second time, and what makes that a question is the block being removed
+      -- here.  On the way in the copy goes in the source's own forwarding block;
+      -- on the way out that block is empty and taken away, and the operand is
+      -- renamed to the block above it, which stands somewhere else.  The trip
+      -- after this one has no forwarding block to use and makes one instead, in
+      -- the position made blocks go, so the two trips agree about the order only
+      -- because 'Olivine.Core.Phi.inWrittenOrder' settles it.  The corpus has
+      -- this shape as well, in @pick-O0.ll@, which is where it was found.
+      testCase "a phi whose block the raising takes away comes back the same twice" $
+        aFixedPoint absorbed
     ]
   where
     -- %late is written before %mid, which is the only block that branches to
@@ -393,6 +404,27 @@ reconstructionTests =
         , "  ret i32 %y"
         , "}"
         ]
+    -- @b ? a \/ b : -1@ as clang writes it at @-O0@: the constant side is an
+    -- empty block, standing after the side that computes rather than before it.
+    absorbed =
+      T.unlines
+        [ "define i32 @f(i32 %a, i32 %b) {"
+        , "entry:"
+        , "  %c = icmp ne i32 %b, 0"
+        , "  br i1 %c, label %divide, label %spare"
+        , ""
+        , "divide:"
+        , "  %d = sdiv i32 %a, %b"
+        , "  br label %join"
+        , ""
+        , "spare:"
+        , "  br label %join"
+        , ""
+        , "join:"
+        , "  %z = phi i32 [ %d, %divide ], [ -1, %spare ]"
+        , "  ret i32 %z"
+        , "}"
+        ]
     orphaned =
       T.unlines
         [ "define i32 @f() {"
@@ -423,6 +455,14 @@ wellFormed source = do
 
 raised :: Text -> IO Text
 raised source = renderModule . raise . lower <$> expectParse "<inline>" source
+
+-- | That the trip through the core is one, on a definition written here rather
+-- than one of the corpus.  'stable' asks the same of every file in it.
+aFixedPoint :: Text -> Assertion
+aFixedPoint source = do
+  once <- raised source
+  reparsed <- expectParse "<inline>" once
+  assertEqual "a second trip changes nothing" once (renderModule (raise (lower reparsed)))
 
 -- | The assignments made on the edge that loops back, which is where the
 -- interesting copies are.

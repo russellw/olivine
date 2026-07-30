@@ -141,20 +141,20 @@ define dso_local i32 @safe_divide(i32 noundef %0, i32 noundef %1) #0 {
   store i32 %0, ptr %3, align 4
   store i32 %1, ptr %4, align 4
   %5 = load i32, ptr %4, align 4
-  %6 = icmp eq i32 %5, 0
-  br i1 %6, label %7, label %8
+  %6 = icmp ne i32 %5, 0
+  br i1 %6, label %7, label %11
 
 7:                                                ; preds = %2
+  %8 = load i32, ptr %3, align 4
+  %9 = load i32, ptr %4, align 4
+  %10 = sdiv i32 %8, %9
   br label %12
 
-8:                                                ; preds = %2
-  %9 = load i32, ptr %3, align 4
-  %10 = load i32, ptr %4, align 4
-  %11 = sdiv i32 %9, %10
+11:                                               ; preds = %2
   br label %12
 
-12:                                               ; preds = %8, %7
-  %13 = phi i32 [ -1, %7 ], [ %11, %8 ]
+12:                                               ; preds = %11, %7
+  %13 = phi i32 [ %10, %7 ], [ -1, %11 ]
   ret i32 %13
 }
 
@@ -163,19 +163,19 @@ define dso_local i32 @if_present(ptr noundef %0) #0 {
   %2 = alloca ptr, align 8
   store ptr %0, ptr %2, align 8
   %3 = load ptr, ptr %2, align 8
-  %4 = icmp eq ptr %3, null
-  br i1 %4, label %5, label %6
+  %4 = icmp ne ptr %3, null
+  br i1 %4, label %5, label %8
 
 5:                                                ; preds = %1
+  %6 = load ptr, ptr %2, align 8
+  %7 = load i32, ptr %6, align 4
   br label %9
 
-6:                                                ; preds = %1
-  %7 = load ptr, ptr %2, align 8
-  %8 = load i32, ptr %7, align 4
+8:                                                ; preds = %1
   br label %9
 
-9:                                                ; preds = %6, %5
-  %10 = phi i32 [ 0, %5 ], [ %8, %6 ]
+9:                                                ; preds = %8, %5
+  %10 = phi i32 [ %7, %5 ], [ 0, %8 ]
   ret i32 %10
 }
 
