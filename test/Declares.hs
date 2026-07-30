@@ -75,6 +75,10 @@ emitted =
   , "declare void @llvm.va_start.p0(ptr) #10"
   , "declare void @llvm.lifetime.end.p0(i64 immarg, ptr captures(none)) #1"
   , "declare void @llvm.memcpy.p0.p0.i64(ptr noalias writeonly captures(none), ptr noalias readonly captures(none), i64, i1 immarg) #2"
+  , -- The header clauses a declaration is allowed: LLVM takes these two and
+    -- refuses a personality, which says something about a body.
+    "declare void @f() gc \"shadow-stack\""
+  , "declare void @f() prefix i32 7"
   ]
 
 -- | Declarations LLVM accepts but writes back differently.  Olivine keeps
@@ -104,7 +108,6 @@ rejected =
   , "declare void @f("
   , "declare @f()" -- the return type is not optional
   , "declare void f()" -- nor is the sigil
-  , "declare void @f() gc \"shadow-stack\""
   , "declare void @f(ptr captures(none)" -- unbalanced
   ]
 

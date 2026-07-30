@@ -49,7 +49,7 @@ import Data.Text qualified as T
 import Olivine.Core.Instruction
 import Olivine.Core.Program
 import Olivine.Syntax.Ast qualified as Syntax
-import Olivine.Syntax.Function (Signature (..))
+import Olivine.Syntax.Function (FunctionClause (..), Signature (..))
 import Olivine.Syntax.Function qualified as Syntax
 import Olivine.Syntax.Global (Global (..), IndirectSymbol (..))
 import Olivine.Syntax.Instruction qualified as Syntax
@@ -278,11 +278,26 @@ functionReferences :: Function -> [Reference]
 functionReferences f =
   referencesIn f <> signatureReferences (functionSignature f)
 
--- | The names a signature reaches on its own, which is its comdat group and
--- nothing else: what a declaration says about the world beyond it is a type,
--- and a type names no symbols.
+-- | The names a signature reaches on its own: its comdat group, and the
+-- symbols its header clauses name.
+--
+-- A @personality@ names the routine an unwinder calls, and @prefix@ and
+-- @prologue@ hold constants that may name anything a constant may.  None of
+-- them is in any body, so nothing else here would find them, and a personality
+-- routine that no call names is exactly the shape this pass would otherwise
+-- take for dead.
 signatureReferences :: Signature -> [Reference]
-signatureReferences s = groupsOf (signatureName s) (signatureClauses s)
+signatureReferences s =
+  groupsOf (signatureName s) (signatureClauses s)
+    <> [ RSymbol (nameText n)
+       | clause <- signatureFunctionClauses s
+       , value <- case clause of
+          FCGarbageCollector _ -> []
+          FCPrefix v -> [v]
+          FCPrologue v -> [v]
+          FCPersonality v -> [v]
+       , n <- globalsIn (typedValue value)
+       ]
 
 -- | The globals a function's body names.
 referencesIn :: Function -> [Reference]

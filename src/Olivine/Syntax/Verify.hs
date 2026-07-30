@@ -147,6 +147,14 @@ data Complaint
   | -- | A @comdat@ clause on a @declare@, which defines nothing to put in a
     -- group.
     ComdatOnDeclaration
+  | -- | A @personality@ or an attachment on a @declare@.  LLVM takes @gc@ and
+    -- @prefix@ there and refuses these two, both of them saying something
+    -- about a body that is not present.
+    ClauseOnDeclaration
+  | -- | A @prefix@, @prologue@ or @personality@ given something that is not a
+    -- compile-time constant.  There is nothing else it could be: the header
+    -- stands where no local exists yet.
+    ClauseNotConstant
   | -- | An attribute in the return position that belongs to a parameter.
     AttributeNotOnReturn ParamAttribute
   | -- | A definition with nothing in it, which is a declaration written wrong.
@@ -293,6 +301,8 @@ indirect known s =
 declaration :: Known -> Signature -> [Complaint]
 declaration known signature =
   [ComdatOnDeclaration | GAComdat _ <- signatureClauses signature]
+    <> [ClauseOnDeclaration | FCPersonality _ <- signatureFunctionClauses signature]
+    <> [ClauseOnDeclaration | not (null (signatureMetadata signature))]
     <> linkageOf (signatureLinkage signature) Declared
     <> header known signature
 
@@ -301,6 +311,20 @@ header :: Known -> Signature -> [Complaint]
 header known signature =
   returnAttributes (signatureReturnAttributes signature)
     <> concatMap (clause known (signatureName signature)) (signatureClauses signature)
+    <> concatMap functionClause (signatureFunctionClauses signature)
+    <> concatMap (nodeReference known . attachmentNode) (signatureMetadata signature)
+  where
+    -- The three clauses holding a value are asked the same two questions the
+    -- initializer of a global is asked, and for the same reason: it is a
+    -- constant standing outside any body, naming symbols the module must have.
+    functionClause c = case c of
+      FCGarbageCollector _ -> []
+      FCPrefix value -> constant value
+      FCPrologue value -> constant value
+      FCPersonality value -> constant value
+    constant (TypedValue _ value) =
+      [ClauseNotConstant | not (isConstant value)]
+        <> symbols known (globalsIn value)
 
 -- | Whether a definition of the symbol is present here, which is what its
 -- linkage is judged against: the same word means one thing on a function with
@@ -673,6 +697,9 @@ renderComplaint complaint = case complaint of
   TargetNotConstant -> "a target that is not a constant"
   ResolverNotSymbol -> "an ifunc resolving through something that is not a symbol"
   ComdatOnDeclaration -> "a comdat on a declaration, which defines nothing to put in one"
+  ClauseOnDeclaration ->
+    "a personality or an attachment on a declaration, which has no body for either to describe"
+  ClauseNotConstant -> "a header clause given something that is not a constant"
   AttributeNotOnReturn a ->
     renderParamAttribute a <> ", which does not apply to a return value"
   NoBlocks -> "a definition with no blocks in it"

@@ -337,6 +337,8 @@ pSignature = do
   addrSpace <- optional pAddrSpace
   attributes <- many pAttributeItem
   clauses <- many pGlobalAttribute
+  functionClauses <- many pFunctionClause
+  attachments <- many pMetadataAttachment
   pure
     Signature
       { signatureLinkage = linkage
@@ -353,7 +355,22 @@ pSignature = do
       , signatureAddrSpace = addrSpace
       , signatureAttributes = attributes
       , signatureClauses = clauses
+      , signatureFunctionClauses = functionClauses
+      , signatureMetadata = attachments
       }
+
+-- | The header clauses no global variable has.
+--
+-- LLVM writes them in this order and reads them in no other, so nothing here
+-- has to be told which came first.
+pFunctionClause :: Parser FunctionClause
+pFunctionClause =
+  choice
+    [ FCGarbageCollector <$> (keyword "gc" *> pQuoted <* hspace)
+    , FCPrefix <$> (keyword "prefix" *> pTypedValue)
+    , FCPrologue <$> (keyword "prologue" *> pTypedValue)
+    , FCPersonality <$> (keyword "personality" *> pTypedValue)
+    ]
 
 pAttributeItem :: Parser AttributeItem
 pAttributeItem =

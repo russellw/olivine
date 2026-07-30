@@ -71,6 +71,17 @@ emitted =
       , "  ret void"
       , "}"
       ]
+  , -- And the ones only a function has, in the order LLVM writes them.
+    T.unlines
+      [ "define void @f() gc \"shadow-stack\" prefix i32 7 prologue i32 8 personality ptr null !kind !0 {"
+      , "  ret void"
+      , "}"
+      ]
+  , T.unlines
+      [ "define void @f() personality ptr @__gxx_personality_v0 !dbg !10 {"
+      , "  ret void"
+      , "}"
+      ]
   , -- A switch, the one terminator spanning several lines.
     T.unlines
       [ "define void @f(i32 %0) {"
@@ -89,14 +100,10 @@ emitted =
   ]
 
 -- | Definitions Olivine does not model, which must leave every one of their
--- lines opaque rather than half-parse.  These are the header's trailing
--- clauses: valid LLVM, simply not done yet.
+-- lines opaque rather than half-parse.
 rejected :: [Text]
 rejected =
-  [ T.unlines ["define void @f() personality ptr @g {", "  ret void", "}"]
-  , T.unlines ["define void @f() !dbg !0 {", "  ret void", "}"]
-  , T.unlines ["define void @f() gc \"shadow-stack\" {", "  ret void", "}"]
-  , -- No closing brace at all.
+  [ -- No closing brace at all.
     T.unlines ["define void @f() {", "  ret void"]
   ]
 

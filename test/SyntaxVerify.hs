@@ -162,6 +162,27 @@ retainedTests =
         expect
           ["$c = comdat any", "declare void @f() comdat($c)"]
           [ComdatOnDeclaration]
+    , -- The same union one clause further along: LLVM takes @gc@ and @prefix@
+      -- on a declaration and refuses these two, each of them saying something
+      -- about a body that is not there.
+      testCase "a personality on a declaration" $
+        expect
+          ["declare void @f() personality ptr null"]
+          [ClauseOnDeclaration]
+    , testCase "an attachment on a declaration" $
+        expect
+          ["declare void @f() !kind !0", "!0 = !{}"]
+          [ClauseOnDeclaration]
+    , testCase "the clauses a declaration may carry" $
+        expect ["declare void @f() gc \"shadow-stack\" prefix i32 7"] []
+    , testCase "a personality that is not a constant" $
+        expect
+          ["define void @f() personality ptr %p {", "  ret void", "}"]
+          [ClauseNotConstant]
+    , testCase "a personality naming a symbol the module does not have" $
+        expect
+          ["define void @f() personality ptr @p {", "  ret void", "}"]
+          [UndefinedSymbol (Name Bare "p")]
     , testCase "a parameter attribute in the return position" $
         expect
           ["declare byval(i32) ptr @f()"]

@@ -4,6 +4,7 @@
 -- definition, so it is kept separate from either and shared by both.
 module Olivine.Syntax.Function
   ( Signature (..)
+  , FunctionClause (..)
   , Parameter (..)
   , Definition (..)
   , BasicBlock (..)
@@ -18,10 +19,11 @@ import Data.Text (Text)
 import Data.Text qualified as T
 
 import Olivine.Syntax.Attribute (AttributeItem, ParamAttribute)
-import Olivine.Syntax.Instruction (Instruction)
+import Olivine.Syntax.Instruction (Instruction, MetadataAttachment)
 import Olivine.Syntax.Linkage
 import Olivine.Syntax.Name (Name (..), Quoting (..))
 import Olivine.Syntax.Type (Arity, Type)
+import Olivine.Syntax.Value (TypedValue)
 
 data Signature = Signature
   { signatureLinkage :: Maybe Linkage
@@ -48,7 +50,42 @@ data Signature = Signature
     -- one production, read here by one rule, so what that rule reads is the
     -- union and the verifier's is the judgement.
     signatureClauses :: [GlobalAttribute]
+  , -- | @gc@, @prefix@, @prologue@ and @personality@: the clauses no global
+    -- variable has, in the order LLVM writes them.
+    --
+    -- The same union as 'signatureClauses' and for the same reason — LLVM
+    -- takes @gc@ and @prefix@ on a declaration and refuses @personality@,
+    -- and one rule reads the header of either.
+    signatureFunctionClauses :: [FunctionClause]
+  , -- | The metadata attached to the function itself, @!dbg !10@ and its
+    -- relatives, which follow every other clause.
+    --
+    -- The same shape as an instruction's attachments, because it is the same
+    -- construct in the other place LLVM allows one.  A declaration may not
+    -- carry any, which is again the verifier's judgement and not this type's.
+    signatureMetadata :: [MetadataAttachment]
   }
+  deriving (Eq, Show)
+
+-- | A clause a function may carry and a global variable may not.
+--
+-- Each names something the function has beside its body: the collector its
+-- frames are walked by, the data laid down before or after its entry point,
+-- and the routine that decides what an unwinder does when an exception
+-- reaches it.  Three of the four hold a constant, which is a value like any
+-- other here — that it must be constant is 'Olivine.Syntax.Value.isConstant'
+-- to ask, not this type to make unrepresentable.
+data FunctionClause
+  = -- | @gc "shadow-stack"@.
+    FCGarbageCollector Text
+  | -- | @prefix \<ty\> \<constant\>@.
+    FCPrefix (TypedValue Name)
+  | -- | @prologue \<ty\> \<constant\>@.
+    FCPrologue (TypedValue Name)
+  | -- | @personality \<ty\> \<constant\>@, the routine an unwinder asks what
+    -- this function wants done.  A function holding a @landingpad@ must have
+    -- one.
+    FCPersonality (TypedValue Name)
   deriving (Eq, Show)
 
 data Parameter = Parameter

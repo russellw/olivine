@@ -617,6 +617,17 @@ renderSignature s =
         <> map renderAttributeItem (signatureAttributes s)
         -- The clauses a global writes commas between, a function does not.
         <> map renderGlobalAttribute (signatureClauses s)
+        <> map renderFunctionClause (signatureFunctionClauses s)
+        <> [ "!" <> renderName name <> " !" <> showText node
+           | MetadataAttachment name node <- signatureMetadata s
+           ]
+
+renderFunctionClause :: FunctionClause -> Text
+renderFunctionClause (FCGarbageCollector name) = "gc \"" <> name <> "\""
+renderFunctionClause (FCPrefix value) = "prefix " <> renderTypedValue value
+renderFunctionClause (FCPrologue value) = "prologue " <> renderTypedValue value
+renderFunctionClause (FCPersonality value) =
+  "personality " <> renderTypedValue value
 
 renderParameter :: Parameter -> Text
 renderParameter p =
