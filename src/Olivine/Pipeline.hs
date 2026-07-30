@@ -74,6 +74,15 @@ passes :: [Pass]
 -- of two pointer steps to the same constant, and merging two blocks into one
 -- puts both computations where a single walk of the blocks sees them.
 --
+-- What that pass says about memory wants the same order for a reason of its
+-- own.  A load it can answer from an earlier access is one whose address it can
+-- tell from the addresses written in between, and promotion has already taken
+-- away the traffic where the question does not arise — a slot that became a
+-- local is not memory any more.  What is left is the accesses that go through a
+-- pointer, and inlining is what brings a callee's into the same function as the
+-- caller's, where one can answer the other and where the callee's own storage
+-- is storage this function can see the whole life of.
+--
 -- Hoisting loop invariants after those, and after common subexpressions in
 -- particular.  A computation written twice in a loop body is one computation and
 -- one copy of it by the time this sees it, so what leaves the loop is one

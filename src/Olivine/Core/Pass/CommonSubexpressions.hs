@@ -1,4 +1,5 @@
--- | Reading a value off the computation that already worked it out.
+-- | Reading a value off the computation that already worked it out, or off the
+-- memory that already holds it.
 --
 -- An instruction computing what an earlier one computed becomes an assignment
 -- of what the earlier one left behind.  That is the same device folding uses,
@@ -34,11 +35,43 @@
 -- carrying its value to the uses, and doing it again here would be a second
 -- place to keep that right.
 --
--- __Memory does not come into it.__  Nothing shareable reads memory, so a
--- store or a call standing between two computations invalidates nothing, and
--- availability here is about assignment alone.  A load is what it would take
--- to make memory matter, and a load is not shared: what it answers is what
--- memory holds, and this pass says nothing about memory.
+-- __A load is not shared; it is answered.__  Nothing shareable reads memory,
+-- so two runs of any expression here give the same value whatever happened in
+-- between, and for those availability is about assignment alone.  A load is
+-- the other kind: what it answers is not a function of its operands but of
+-- what memory holds at the address they name, so two loads written identically
+-- are one value only if nothing wrote that address in between.
+--
+-- So what is carried along beside the expressions is what memory is known to
+-- hold — an address, the type it was accessed at, and the value the access left
+-- there.  A load records what it read and a store records what it wrote, which
+-- makes one fact of two transformations: a load finding the address in hand
+-- becomes a copy of the earlier load's result, or of the stored value where a
+-- store is what put it there.  Nothing about the two cases differs, because
+-- what memory holds does not remember how it came to hold it.
+--
+-- __What invalidates it is a question about pointers, and lives elsewhere.__
+-- A store writes the address it names and, for all this can tell, every
+-- address that might be the same one; a call writes anything it can reach.
+-- Which addresses those are is "Olivine.Core.Alias", worked out once per
+-- function and asked here.  The precision that matters most is the one about
+-- calls: a slot whose address never left this function's own accesses is
+-- storage no callee can name, so what is known about it survives a call, and
+-- without that a load in any loop containing a call would be recomputed.
+--
+-- The type is part of the fact rather than checked against it, so a store of
+-- one type followed by a load of another is two facts about one address and
+-- neither answers the other.  Writing four bytes of an eight byte slot leaves
+-- something no load of the slot can be told, and the way to decline that is to
+-- have no fact to find.
+--
+-- __A volatile access is neither answered nor recorded.__  The point of one is
+-- that it happens, so it is never replaced by a copy; and what it leaves behind
+-- is not something to reason about, a volatile store being written precisely
+-- where reading the value back is not the same as remembering it.  A volatile
+-- store still invalidates, since it does write.  The atomic forms are not
+-- modelled at all — a line carrying one keeps its function out of the core —
+-- so there is nothing here to say about them.
 --
 -- __Nothing moves.__  Availability says the earlier computation already ran on
 -- every path that arrives here, so no operation is hoisted anywhere and none
@@ -106,16 +139,20 @@ module Olivine.Core.Pass.CommonSubexpressions
   , shareable
   ) where
 
+import Control.Applicative ((<|>))
 import Control.Monad (guard)
+import Data.Foldable (toList)
 import Data.List (find, mapAccumL)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (mapMaybe)
 import Data.Set qualified as Set
 
+import Olivine.Core.Alias (mayAlias, objectsIn, reachableByCall)
 import Olivine.Core.Blocks (predecessorsOf, reversePostorder)
 import Olivine.Core.Instruction
 import Olivine.Core.Program
+import Olivine.Syntax.Instruction (Load (..), Store (..))
 import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Type (Type)
 import Olivine.Syntax.Value (TypedValue (..), Value (..))
@@ -130,8 +167,10 @@ eliminateCommonSubexpressions program =
 
 -- | What is known at a point in a function.
 --
--- Both halves are killed by the same event — an assignment to a local — which
--- is why they travel together rather than being two analyses.
+-- The first two are killed by the same event — an assignment to a local —
+-- which is why they travel together rather than being two analyses.  The third
+-- is killed by that as well, an address and the value found there both being
+-- written with locals, and by writes to memory besides.
 data Known = Known
   { -- | The expressions worked out already, each with the local holding the
     -- answer and the type of what that local holds, indexed by the locals the
@@ -155,17 +194,44 @@ data Known = Known
     -- same expression when the operands they read are different locals
     -- holding one value.
     copies :: Map Local (Value Local)
+  , -- | What memory is known to hold, one fact per access that settled it.
+    --
+    -- A list rather than a map keyed by the address, because the event that
+    -- invalidates these is a write to /some/ address that may be the one, which
+    -- is a question asked of each fact in turn and not a lookup.  There are as
+    -- many of them as the block has accesses whose value still stands, which is
+    -- few.
+    contents :: [Content]
+  }
+  deriving (Eq)
+
+-- | What memory holds at one address, as one access left it.
+--
+-- The address and the value are resolved through 'copies', as an expression's
+-- operands are, so that two accesses through two locals holding one pointer are
+-- accesses to one address.  The type is what the access was at, and is part of
+-- what the fact says rather than something to check against it: a load at
+-- another type reads other bytes, and finds no fact here to answer it.
+data Content = Content
+  { contentAddress :: Value Local
+  , contentType :: Type
+  , contentValue :: Value Local
   }
   deriving (Eq)
 
 nothingKnown :: Known
-nothingKnown = Known Map.empty Map.empty
+nothingKnown = Known Map.empty Map.empty []
 
 share :: Map Name Type -> Function -> Function
 share types f = f {functionBlocks = map rewrite (functionBlocks f)}
   where
     blocks = functionBlocks f
     order = reversePostorder f
+    -- What the function's own pointers point into, which every question about
+    -- memory below is asked of.  Read from the function as it arrives: the
+    -- rewrite replaces computations with copies of the same value, so what a
+    -- pointer points into is the same in what leaves.
+    objects = objectsIn f
     reachable = Set.fromList order
     byLabel = Map.fromList [(blockLabel b, b) | b <- blocks]
 
@@ -244,19 +310,37 @@ share types f = f {functionBlocks = map rewrite (functionBlocks f)}
         -- through what it is a copy of.
         operation = resolve known (instructionOperation i)
 
-        -- The local already holding what this computes, if there is one.
+        -- The value this instruction can be read off something that already has
+        -- it, if there is one.
         held = do
-          guard (shareable operation)
           result <- instructionResult i
+          value <- computed <|> loaded
+          -- The value can already be in the very local this assigns to, which
+          -- is nothing to rewrite: it is a copy of itself.
+          guard (typedValue value /= VLocal result)
+          pure value
+
+        -- A local holding what this computes.
+        computed = do
+          guard (shareable operation)
           (_, holder, t) <- lookupExpression operation known
-          -- The expression can already be held in the very local this assigns
-          -- to, which is nothing to rewrite: it is a copy of itself.
-          guard (holder /= result)
           pure (TypedValue t (VLocal holder))
+
+        -- What memory is known to hold where this reads it.
+        loaded = do
+          OLoad l <- Just operation
+          guard (not (loadVolatile l))
+          value <- lookupContent (typedValue (loadPointer l)) (loadType l) known
+          pure (TypedValue (loadType l) value)
 
         copy value = i {instructionOperation = OAssign value}
 
-        after = case instructionResult i of
+        -- What the instruction leaves known: what assigning to its result does,
+        -- and then what it does to memory.  Two questions rather than one, a
+        -- store answering only the second and a load both.
+        after = written assigned
+
+        assigned = case instructionResult i of
           -- Assigns to nothing, so there is nothing it can invalidate.
           Nothing -> known
           Just result
@@ -274,10 +358,65 @@ share types f = f {functionBlocks = map rewrite (functionBlocks f)}
               result `notElem` localsUsedBy operation ->
                 record operation result (resultType types operation) remaining
             -- A call, a load, an allocation: nothing to say about what it left
-            -- behind beyond what its assignment took away.
+            -- behind beyond what its assignment took away.  What a load leaves
+            -- known about memory is 'written' below, which is a different fact.
             | otherwise -> remaining
             where
               remaining = kill result known
+
+        -- What the instruction leaves known about memory.
+        written known' = case operation of
+          OStore s
+            | not (storeVolatile s) -> recording wrote (clobbering target known')
+            -- It writes, so what stood at the address it names no longer
+            -- stands; that it is volatile only means the value it wrote is not
+            -- a fact to keep.
+            | otherwise -> clobbering target known'
+            where
+              target = typedValue (storePointer s)
+              wrote =
+                Content
+                  target
+                  (typedValueType (storeValue s))
+                  (typedValue (storeValue s))
+          -- Whatever it does to memory, it does it to memory it can name.
+          OCall _ ->
+            known' {contents = filter (not . reachableByCall objects . contentAddress) (contents known')}
+          OLoad l
+            | not (loadVolatile l)
+            , Just result <- instructionResult i
+            , -- A load into the local its own address is read from leaves that
+              -- address naming something else, so there is no fact to record
+              -- about it.
+              result `notElem` localsUsedBy operation ->
+                recording
+                  ( Content
+                      (typedValue (loadPointer l))
+                      (loadType l)
+                      -- What it was answered with where it was answered, so
+                      -- that the fact a later load finds is the one already
+                      -- there rather than a second spelling of it.
+                      (maybe (VLocal result) typedValue held)
+                  )
+                  known'
+          -- Reads nothing and writes nothing, or is a load with nowhere to put
+          -- what it read.
+          _ -> known'
+
+        -- Every fact about an address a write to this one could have been a
+        -- write to.
+        clobbering target known' =
+          known'
+            { contents =
+                filter (not . mayAlias objects target . contentAddress) (contents known')
+            }
+
+        -- One more fact, unless it is one already: a load answered by what was
+        -- known records what was known, and recording it twice would leave two
+        -- facts for one access for the meet to choose between.
+        recording content known'
+          | content `elem` contents known' = known'
+          | otherwise = known' {contents = content : contents known'}
 
 -- | Whether two runs of an operation with the same operands leave the same
 -- value behind.
@@ -295,8 +434,8 @@ shareable operation = case operation of
   -- Fresh storage each time, so two allocations are two objects however alike
   -- the instructions asking for them.
   OAlloca _ -> False
-  -- The answer is whatever memory holds, and memory is not what this pass
-  -- watches.
+  -- The answer is not a function of the operands but of what memory holds at
+  -- the address they name, which is what 'contents' is for.
   OLoad _ -> False
   -- Leaves nothing behind to share.
   OStore _ -> False
@@ -336,6 +475,14 @@ lookupExpression operation known =
     (\(candidate, _, _) -> candidate == operation)
     (Map.findWithDefault [] (localsUsedBy operation) (expressions known))
 
+-- | What memory is known to hold at an address, accessed at a type.
+lookupContent :: Value Local -> Type -> Known -> Maybe (Value Local)
+lookupContent address t known =
+  contentValue
+    <$> find
+      (\c -> contentAddress c == address && contentType c == t)
+      (contents known)
+
 record ::
   Operation (TypedValue Local) -> Local -> Type -> Known -> Known
 record operation result t known =
@@ -359,10 +506,21 @@ noted result value known
 
 -- | What is left known by an assignment to a local.
 --
--- Three things go: every expression that reads it, which now means something
--- else; every expression held in it, since it now holds something else; and
--- every copy either of it or of something it was a copy of, for both reasons
--- at once.
+-- Four things go: every expression that reads it, which now means something
+-- else; every expression held in it, since it now holds something else; every
+-- copy either of it or of something it was a copy of, for both reasons at once;
+-- and every fact about memory whose address or whose value was written with it,
+-- for those same two reasons — an address is somewhere else now, and a value
+-- found there is no longer where the fact says it is.
+--
+-- That last one is also what an @alloca@ reached twice needs.  Storage
+-- allocated in a loop is a new object each time round and holds whatever it
+-- holds, and the allocation assigns to the local naming it, so the facts the
+-- last iteration left about that address go before the body reads it again.  It
+-- is the second of two reasons rather than the only one: the address of such a
+-- slot is written with a local nothing above the loop assigns, so no path into
+-- the loop carries a fact about it and the meet would have dropped it anyway.
+-- Which of the two is doing the work is not something to depend on.
 kill :: Local -> Known -> Known
 kill assigned known =
   Known
@@ -375,15 +533,22 @@ kill assigned known =
         Map.filterWithKey
           (\target value -> target /= assigned && value /= VLocal assigned)
           (copies known)
+    , contents = filter (notElem assigned . mentions) (contents known)
     }
+  where
+    mentions c = toList (contentAddress c) <> toList (contentValue c)
 
 -- | What two paths agree on: the same expression, held in the same local, on
--- both, and the same copies on both.
+-- both; the same copies on both; and the same value at the same address on
+-- both.
 --
 -- Two blocks that worked the same expression out into different locals leave
 -- nothing a block below them can name — there is no one local that holds it
 -- however control arrived — so requiring the holders to agree is not caution
--- but the whole of what makes the answer nameable.
+-- but the whole of what makes the answer nameable.  The same goes for memory,
+-- where the fact is what the address holds: two paths that stored different
+-- values to one address leave a block below them nothing it can say the address
+-- holds.
 agreeing :: Known -> Known -> Known
 agreeing a b =
   Known
@@ -399,4 +564,5 @@ agreeing a b =
             (\x y -> if x == y then Just x else Nothing)
             (copies a)
             (copies b)
+    , contents = filter (`elem` contents b) (contents a)
     }

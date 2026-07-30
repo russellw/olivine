@@ -40,6 +40,15 @@ int apply_twice(int(*)(int,int),int,int);
 int real_answer(void); int aliased_answer(void); int hidden_helper(int);
 int never_inlined(int); int uses_them(int);
 extern int weak_count; extern int tentative;
+/* reload.c -- sink() is defined here so that a call in the middle of a function
+   really can write what a pointer handed to that function reads. */
+struct pair { int a; int b; };
+struct pair *watched;
+void sink(void){ if(watched) watched->b += 100; }
+int square_b(const struct pair*); int written_then_read(struct pair*,int);
+int separate_slots(int); int both_ways(struct pair*); int around_call(struct pair*);
+int confined_across_call(int); int through_the_store(struct pair*,struct pair*);
+int repeated(const struct pair*,int); int accumulated(const struct pair*,int*,int);
 static int twice(int x){return x*2;}
 static int plus(int a,int b){return a+b;}
 #ifdef HELLO
@@ -109,6 +118,29 @@ int main(void){
     for(int a=1;a<=30;a+=7) for(int b=1;b<=12;b+=5) printf("%d ", gcd(a,b)); printf("\n");
     for(int i=-1;i<=6;i++) printf("%d ", parity(i)); printf("\n");
     printf("%d\n", apply_twice(plus,3,4)); }
+#endif
+#ifdef RELOAD
+  { struct pair cell = {3,4}, other = {10,20};
+    printf("%d %d %d\n", square_b(&cell), written_then_read(&cell,9), cell.b);
+    printf("%d %d\n", separate_slots(5), separate_slots(-2));
+    cell.a = 1; cell.b = 2;
+    printf("%d %d\n", both_ways(&cell), cell.a);
+    /* sink() writes through this one, so a second read that did not happen
+       shows up as an answer twice the first read. */
+    cell.b = 4; watched = &cell;
+    printf("%d %d\n", around_call(&cell), cell.b);
+    watched = 0;
+    printf("%d\n", confined_across_call(7));
+    cell.b = 6;
+    printf("%d %d %d\n", through_the_store(&cell,&cell), through_the_store(&cell,&other), other.b);
+    cell.b = 5;
+    for(int n=-1;n<=3;n++) printf("%d ", repeated(&cell,n)); printf("\n");
+    { int out = 0;
+      for(int n=0;n<=3;n++) printf("%d ", accumulated(&cell,&out,n));
+      printf("%d\n", out);
+      /* And with the written address inside the struct being read. */
+      cell.b = 5;
+      for(int n=0;n<=3;n++) printf("%d ", accumulated(&cell,&cell.b,n)); printf("\n"); } }
 #endif
 #ifdef LINKAGE
   printf("%d %d %d\n", real_answer(), aliased_answer(), weak_count + tentative);

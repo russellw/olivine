@@ -35,6 +35,7 @@ library
                       Olivine.Syntax.Parser
                       Olivine.Syntax.Printer
                       Olivine.Syntax.Verify
+                      Olivine.Core.Alias
                       Olivine.Core.Instruction
                       Olivine.Core.Program
                       Olivine.Core.Phi

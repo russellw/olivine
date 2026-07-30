@@ -1,9 +1,11 @@
--- | The common subexpression pass.
+-- | The common subexpression pass, redundant loads and all, and the aliasing
+-- it stands on for those.
 --
--- Two things are checked separately: which computations are shared, and which
--- must not be.  The second is where the bugs are — sharing a call, or an
--- expression whose operand was reassigned in between, gives a module LLVM
--- accepts and a program that computes something else.
+-- Two things are checked separately: which computations and loads are answered
+-- from earlier ones, and which must not be.  The second is where the bugs are —
+-- sharing a call, answering a load across something that wrote the address, or
+-- reusing an expression whose operand was reassigned in between gives a module
+-- LLVM accepts and a program that computes something else.
 module Subexpressions (subexpressionTests) where
 
 import Data.Text (Text)
@@ -12,6 +14,7 @@ import Test.Tasty
 import Test.Tasty.HUnit
 
 import Corpus (expectParse)
+import Olivine.Core.Alias
 import Olivine.Core.Instruction
 import Olivine.Core.Lower (lower)
 import Olivine.Core.Pass.CommonSubexpressions (eliminateCommonSubexpressions, shareable)
@@ -113,15 +116,180 @@ subexpressionTests =
         , testCase "two calls to the same function" $ do
             copies <- copiesIn calling
             assertEqual "nothing is shared" [] copies
-        , -- What a load answers is what memory holds, and the store in
-          -- between changes that.  No load is shared at all, so this holds
-          -- whether or not the store is there to see.
-          testCase "two loads through the same pointer" $ do
-            copies <- copiesIn loading
-            assertEqual "nothing is shared" [] copies
         , testCase "two allocations of the same size" $ do
             copies <- copiesIn allocating
             assertEqual "nothing is shared" [] copies
+        ]
+    , testGroup
+        "what memory answers"
+        [ -- Locals are numbered as they are defined: the parameter, then %a %b
+          -- %s as 1 to 3.
+          testCase "a second load of one address" $ do
+            answered <- assignmentsIn twiceLoaded
+            assertEqual
+              "the second load reads what the first left"
+              [(Local 2, VLocal (Local 1))]
+              answered
+        , -- The other half of the same fact.  What memory holds does not
+          -- remember whether a load or a store put it there, so a store answers
+          -- a load below it for the same reason one load answers another.
+          testCase "a load of what was just stored" $ do
+            answered <- assignmentsIn storedThenLoaded
+            assertEqual
+              "the load reads the stored value"
+              [(Local 2, VLocal (Local 1))]
+              answered
+        , -- And it need not be a local: a store of a constant leaves the
+          -- constant there.
+          testCase "a load of a constant that was stored" $ do
+            answered <- assignmentsIn loading
+            assertEqual
+              "the second load is the stored constant"
+              [(Local 2, VInteger 99)]
+              answered
+        , -- Two allocations are two objects, so a write to one is not a write to
+          -- the other however alike the accesses look.  The locals are the
+          -- parameter, then %x %y %a %b %s as 1 to 5.
+          testCase "across a store to a different allocation" $ do
+            answered <- assignmentsIn otherSlot
+            assertEqual
+              "the second load reads the first"
+              [(Local 4, VLocal (Local 3))]
+              answered
+        , -- The precision the whole thing turns on.  A callee reaches what it
+          -- was handed and what has a symbol, and this slot is neither, so a
+          -- call in between writes nothing that can be read here.  The locals
+          -- are %x %a %b %s as 0 to 3.
+          testCase "across a call, of a slot whose address never left" $ do
+            answered <- assignmentsIn pastACall
+            assertEqual
+              "the second load reads the first"
+              [(Local 2, VLocal (Local 1))]
+              answered
+        , -- A symbol names its storage as plainly as an allocation does, so a
+          -- load through one is answered the same way.  The locals here are
+          -- %a %b %s as 0 to 2, there being no parameters.
+          testCase "a second load of a symbol" $ do
+            answered <- assignmentsIn symbolTwice
+            assertEqual
+              "the second load reads the first"
+              [(Local 1, VLocal (Local 0))]
+              answered
+        , -- What iterating buys for memory, as 'carried' is what it buys for
+          -- arithmetic.  The block the loop begins at is reached from below as
+          -- well as above, and nothing round the loop writes memory.  The
+          -- locals are the two parameters, then %a %i %t %c %b %u %j as 2 to 8.
+          testCase "a load carried into a loop" $ do
+            answered <- assignmentsIn carriedLoad
+            assertEqual
+              "the body reads what the block above the loop read"
+              [(Local 6, VLocal (Local 2))]
+              answered
+        , -- Both arms wrote the address, and both wrote the same thing, which is
+          -- what makes it something a block below them can be told.  The locals
+          -- are the three parameters, then %a as 3.
+          testCase "stored to the same value on both paths here" $ do
+            answered <- assignmentsIn storedAlike
+            assertEqual
+              "the load reads what both arms wrote"
+              [(Local 3, VLocal (Local 2))]
+              answered
+        ]
+    , testGroup
+        "what memory does not"
+        [ -- The address was handed to the callee, so the callee could write it.
+          testCase "across a call that was given the address" $ do
+            answered <- assignmentsIn escapedSlot
+            assertEqual "nothing is answered" [] answered
+        , -- Two pointers this cannot tell apart, so the store between the loads
+          -- has to be taken for a store to the one being read.
+          testCase "across a store through another pointer" $ do
+            answered <- assignmentsIn throughAnother
+            assertEqual "nothing is answered" [] answered
+        , -- Two symbols, and nothing here tells them apart: an alias is a second
+          -- name for storage that already had one.  Reading the module to find
+          -- which names are aliases of what is what this case is waiting for,
+          -- and until then it is a load answered less often than it could be.
+          testCase "across a store to another symbol" $ do
+            answered <- assignmentsIn symbolAndAnother
+            assertEqual "nothing is answered" [] answered
+        , -- Eight bytes were written and four are being read.  The load is of
+          -- part of what the store wrote, and a part is not something the store
+          -- said anything about.
+          testCase "a load narrower than the store above it" $ do
+            answered <- assignmentsIn otherWidth
+            assertEqual "nothing is answered" [] answered
+        , -- The point of a volatile access is that it happens, so neither is
+          -- replaced by a copy of the other.
+          testCase "a second volatile load" $ do
+            answered <- assignmentsIn volatileTwice
+            assertEqual "nothing is answered" [] answered
+        , -- And what one leaves behind is not a fact to keep: reading a volatile
+          -- address is not the same as remembering what it read.
+          testCase "a plain load below a volatile one" $ do
+            answered <- assignmentsIn volatileThenPlain
+            assertEqual "nothing is answered" [] answered
+        , -- Both arms wrote the address and they wrote different things, so
+          -- there is nothing the block below them can be told it holds.
+          testCase "stored to different values on the two paths here" $ do
+            answered <- assignmentsIn storedEitherWay
+            assertEqual "nothing is answered" [] answered
+        , -- Storage allocated in a loop is a new object each time round, holding
+          -- whatever it holds, so what the last iteration left at that address
+          -- is not what this one finds there.  Two things say so — the
+          -- allocation assigns to the local naming the address, and no path from
+          -- above the loop carries a fact about a local only the loop assigns —
+          -- and this asks for the answer rather than for either of them.
+          testCase "a slot allocated again each time round the loop" $ do
+            answered <- assignmentsIn reallocated
+            assertEqual "nothing is answered" [] answered
+        ]
+    , testGroup
+        "which pointers may be one"
+        [ testCase "an allocation is the storage it made" $ do
+            (objects, [x, _]) <- aliasingIn twoSlots
+            assertEqual "named by its own local" (Just (OnStack x)) (objectOf objects (VLocal x))
+        , testCase "two allocations are two objects" $ do
+            (objects, [x, y]) <- aliasingIn twoSlots
+            assertEqual "which cannot overlap" False (mayAlias objects (VLocal x) (VLocal y))
+        , testCase "an allocation and a symbol" $ do
+            (objects, [x, _]) <- aliasingIn twoSlots
+            assertEqual
+              "no symbol names stack storage"
+              False
+              (mayAlias objects (VLocal x) (VGlobal (Name Bare "g")))
+        , -- Two names, possibly one object: an alias is a second name for
+          -- storage that already had one, and two declarations can be one
+          -- symbol once the linker has been over them.
+          testCase "two symbols are not told apart" $ do
+            (objects, _) <- aliasingIn twoSlots
+            assertEqual
+              "which is the cautious answer"
+              True
+              (mayAlias objects (VGlobal (Name Bare "g")) (VGlobal (Name Bare "h")))
+        , -- A pointer that says nothing about where it points may point
+          -- anywhere a pointer got to, and this slot's address never got
+          -- anywhere.
+          testCase "a slot whose address stayed put, and a stranger" $ do
+            (objects, [x]) <- aliasingIn confinedSlot
+            assertEqual
+              "cannot be the same storage"
+              False
+              (mayAlias objects (VLocal x) (VLocal (Local 0)))
+        , testCase "and no call can reach it either" $ do
+            (objects, [x]) <- aliasingIn confinedSlot
+            assertEqual "having no way to name it" False (reachableByCall objects (VLocal x))
+        , -- One step is all it takes: the address was written somewhere a
+          -- callee could read it back.
+          testCase "a slot whose address was stored somewhere" $ do
+            (objects, [x]) <- aliasingIn handedOver
+            assertEqual
+              "may be any pointer at all"
+              True
+              (mayAlias objects (VLocal x) (VLocal (Local 0)))
+        , testCase "and a call may reach it" $ do
+            (objects, [x]) <- aliasingIn handedOver
+            assertEqual "the address being out there" True (reachableByCall objects (VLocal x))
         ]
     , testGroup
         "what may be shared at all"
@@ -153,7 +321,9 @@ subexpressionTests =
 -- writes those itself, for a phi and for a pointer step that moves nowhere,
 -- and they are not what this pass leaves behind.
 copiesIn :: Text -> IO [(Local, Local)]
-copiesIn = copiesAfter id
+copiesIn source = locals <$> assignmentsAfter id source
+  where
+    locals xs = [(name, read') | (name, VLocal read') <- xs]
 
 -- | The same, of a function promotion has already been over.
 --
@@ -163,23 +333,60 @@ copiesIn = copiesAfter id
 -- for its own reasons, and these cases are why the order is not the only
 -- thing keeping the answer right.
 promotedCopiesIn :: Text -> IO [(Local, Local)]
-promotedCopiesIn = copiesAfter promoteMemory
+promotedCopiesIn source = locals <$> assignmentsAfter promoteMemory source
+  where
+    locals xs = [(name, read') | (name, VLocal read') <- xs]
 
-copiesAfter :: (Program -> Program) -> Text -> IO [(Local, Local)]
-copiesAfter before source = do
+-- | Everything the pass turned into an assignment, as the local assigned and
+-- the value it now holds.
+--
+-- Wider than 'copiesIn' because a load can be answered by something that is not
+-- a local: a store of a constant leaves the constant at the address, and a load
+-- reading it becomes an assignment with no local in it at all.
+assignmentsIn :: Text -> IO [(Local, Value Local)]
+assignmentsIn = assignmentsAfter id
+
+assignmentsAfter :: (Program -> Program) -> Text -> IO [(Local, Value Local)]
+assignmentsAfter before source = do
   parsed <- expectParse "<inline>" source
   let shared = eliminateCommonSubexpressions (before (lower parsed))
       original = before (lower parsed)
-      copies program =
-        [ (name, read')
+      assignments program =
+        [ (name, value)
         | f <- functionsIn program
         , b <- functionBlocks f
-        , Instruction (Just name) (OAssign (TypedValue _ (VLocal read'))) _ <-
+        , Instruction (Just name) (OAssign (TypedValue _ value)) _ <-
             blockInstructions b
         ]
-  -- What the pass added, rather than every copy in the result: lowering and
-  -- promotion write their own, and those are not this pass's doing.
-  pure [copy | copy <- copies shared, copy `notElem` copies original]
+  -- What the pass added, rather than every assignment in the result: lowering
+  -- and promotion write their own, and those are not this pass's doing.
+  pure [a | a <- assignments shared, a `notElem` assignments original]
+
+-- | The first function of a module, lowered, for the questions that are asked
+-- of the analysis rather than of the rewrite.
+functionOf :: Text -> IO Function
+functionOf source = do
+  parsed <- expectParse "<inline>" source
+  case functionsIn (lower parsed) of
+    f : _ -> pure f
+    [] -> assertFailure "no function lowered"
+
+-- | What a function says about its pointers, and the locals its allocations
+-- assign to, in the order written.
+--
+-- The slots are looked for rather than counted to, because an @alloca@ is not
+-- the only instruction the lowering issues a local for and counting would
+-- break on the next test that added one.
+aliasingIn :: Text -> IO (Objects, [Local])
+aliasingIn source = do
+  f <- functionOf source
+  pure
+    ( objectsIn f
+    , [ slot
+      | b <- functionBlocks f
+      , Instruction (Just slot) (OAlloca _) _ <- blockInstructions b
+      ]
+    )
 
 twice :: Text
 twice =
@@ -387,6 +594,8 @@ calling =
     , "}"
     ]
 
+-- | A load either side of a store to the same address.  The first load's answer
+-- is gone and the store's is there instead.
 loading :: Text
 loading =
   T.unlines
@@ -397,6 +606,279 @@ loading =
     , "  %b = load i32, ptr %p, align 4"
     , "  %s = add i32 %a, %b"
     , "  ret i32 %s"
+    , "}"
+    ]
+
+twiceLoaded :: Text
+twiceLoaded =
+  T.unlines
+    [ "define i32 @f(ptr %p) {"
+    , "entry:"
+    , "  %a = load i32, ptr %p, align 4"
+    , "  %b = load i32, ptr %p, align 4"
+    , "  %s = add i32 %a, %b"
+    , "  ret i32 %s"
+    , "}"
+    ]
+
+storedThenLoaded :: Text
+storedThenLoaded =
+  T.unlines
+    [ "define i32 @f(ptr %p, i32 %n) {"
+    , "entry:"
+    , "  store i32 %n, ptr %p, align 4"
+    , "  %a = load i32, ptr %p, align 4"
+    , "  ret i32 %a"
+    , "}"
+    ]
+
+otherSlot :: Text
+otherSlot =
+  T.unlines
+    [ "define i32 @f(i32 %n) {"
+    , "entry:"
+    , "  %x = alloca i32, align 4"
+    , "  %y = alloca i32, align 4"
+    , "  %a = load i32, ptr %x, align 4"
+    , "  store i32 %n, ptr %y, align 4"
+    , "  %b = load i32, ptr %x, align 4"
+    , "  %s = add i32 %a, %b"
+    , "  ret i32 %s"
+    , "}"
+    ]
+
+pastACall :: Text
+pastACall =
+  T.unlines
+    [ "declare void @sink()"
+    , "define i32 @f() {"
+    , "entry:"
+    , "  %x = alloca i32, align 4"
+    , "  %a = load i32, ptr %x, align 4"
+    , "  call void @sink()"
+    , "  %b = load i32, ptr %x, align 4"
+    , "  %s = add i32 %a, %b"
+    , "  ret i32 %s"
+    , "}"
+    ]
+
+escapedSlot :: Text
+escapedSlot =
+  T.unlines
+    [ "declare void @sink(ptr)"
+    , "define i32 @f() {"
+    , "entry:"
+    , "  %x = alloca i32, align 4"
+    , "  %a = load i32, ptr %x, align 4"
+    , "  call void @sink(ptr %x)"
+    , "  %b = load i32, ptr %x, align 4"
+    , "  %s = add i32 %a, %b"
+    , "  ret i32 %s"
+    , "}"
+    ]
+
+throughAnother :: Text
+throughAnother =
+  T.unlines
+    [ "define i32 @f(ptr %p, ptr %q, i32 %n) {"
+    , "entry:"
+    , "  %a = load i32, ptr %p, align 4"
+    , "  store i32 %n, ptr %q, align 4"
+    , "  %b = load i32, ptr %p, align 4"
+    , "  %s = add i32 %a, %b"
+    , "  ret i32 %s"
+    , "}"
+    ]
+
+otherWidth :: Text
+otherWidth =
+  T.unlines
+    [ "define i32 @f(ptr %p, i64 %n) {"
+    , "entry:"
+    , "  store i64 %n, ptr %p, align 8"
+    , "  %a = load i32, ptr %p, align 4"
+    , "  ret i32 %a"
+    , "}"
+    ]
+
+volatileTwice :: Text
+volatileTwice =
+  T.unlines
+    [ "define i32 @f(ptr %p) {"
+    , "entry:"
+    , "  %a = load volatile i32, ptr %p, align 4"
+    , "  %b = load volatile i32, ptr %p, align 4"
+    , "  %s = add i32 %a, %b"
+    , "  ret i32 %s"
+    , "}"
+    ]
+
+volatileThenPlain :: Text
+volatileThenPlain =
+  T.unlines
+    [ "define i32 @f(ptr %p) {"
+    , "entry:"
+    , "  %a = load volatile i32, ptr %p, align 4"
+    , "  %b = load i32, ptr %p, align 4"
+    , "  %s = add i32 %a, %b"
+    , "  ret i32 %s"
+    , "}"
+    ]
+
+-- | A loop whose body reads what the block above the loop read, and writes no
+-- memory at all.
+carriedLoad :: Text
+carriedLoad =
+  T.unlines
+    [ "define i32 @f(ptr %p, i32 %n) {"
+    , "entry:"
+    , "  %a = load i32, ptr %p, align 4"
+    , "  br label %head"
+    , "head:"
+    , "  %i = phi i32 [ 0, %entry ], [ %j, %body ]"
+    , "  %t = phi i32 [ %a, %entry ], [ %u, %body ]"
+    , "  %c = icmp slt i32 %i, %n"
+    , "  br i1 %c, label %body, label %done"
+    , "body:"
+    , "  %b = load i32, ptr %p, align 4"
+    , "  %u = add i32 %t, %b"
+    , "  %j = add i32 %i, 1"
+    , "  br label %head"
+    , "done:"
+    , "  ret i32 %t"
+    , "}"
+    ]
+
+-- | Storage allocated inside the loop, read before it is written.
+reallocated :: Text
+reallocated =
+  T.unlines
+    [ "define i32 @f(i32 %n) {"
+    , "entry:"
+    , "  br label %head"
+    , "head:"
+    , "  %k = phi i32 [ 0, %entry ], [ %k1, %body ]"
+    , "  %t = phi i32 [ 0, %entry ], [ %t1, %body ]"
+    , "  %c = icmp slt i32 %k, %n"
+    , "  br i1 %c, label %body, label %done"
+    , "body:"
+    , "  %x = alloca i32, align 4"
+    , "  %v = load i32, ptr %x, align 4"
+    , "  store i32 %k, ptr %x, align 4"
+    , "  %t1 = add i32 %t, %v"
+    , "  %k1 = add i32 %k, 1"
+    , "  br label %head"
+    , "done:"
+    , "  ret i32 %t"
+    , "}"
+    ]
+
+storedAlike :: Text
+storedAlike =
+  T.unlines
+    [ "define i32 @f(ptr %p, i1 %c, i32 %n) {"
+    , "entry:"
+    , "  br i1 %c, label %yes, label %no"
+    , "yes:"
+    , "  store i32 %n, ptr %p, align 4"
+    , "  br label %join"
+    , "no:"
+    , "  store i32 %n, ptr %p, align 4"
+    , "  br label %join"
+    , "join:"
+    , "  %a = load i32, ptr %p, align 4"
+    , "  ret i32 %a"
+    , "}"
+    ]
+
+storedEitherWay :: Text
+storedEitherWay =
+  T.unlines
+    [ "define i32 @f(ptr %p, i1 %c, i32 %n) {"
+    , "entry:"
+    , "  br i1 %c, label %yes, label %no"
+    , "yes:"
+    , "  store i32 1, ptr %p, align 4"
+    , "  br label %join"
+    , "no:"
+    , "  store i32 %n, ptr %p, align 4"
+    , "  br label %join"
+    , "join:"
+    , "  %a = load i32, ptr %p, align 4"
+    , "  ret i32 %a"
+    , "}"
+    ]
+
+symbolTwice :: Text
+symbolTwice =
+  T.unlines
+    [ "@count = internal global i32 0"
+    , "define i32 @f() {"
+    , "entry:"
+    , "  %a = load i32, ptr @count, align 4"
+    , "  %b = load i32, ptr @count, align 4"
+    , "  %s = add i32 %a, %b"
+    , "  ret i32 %s"
+    , "}"
+    ]
+
+symbolAndAnother :: Text
+symbolAndAnother =
+  T.unlines
+    [ "@count = internal global i32 0"
+    , "@other = internal global i32 7"
+    , "define i32 @f() {"
+    , "entry:"
+    , "  %a = load i32, ptr @count, align 4"
+    , "  store i32 3, ptr @other, align 4"
+    , "  %b = load i32, ptr @count, align 4"
+    , "  %s = add i32 %a, %b"
+    , "  ret i32 %s"
+    , "}"
+    ]
+
+-- Functions the aliasing is asked about rather than run over.
+
+twoSlots :: Text
+twoSlots =
+  T.unlines
+    [ "define i32 @f(i32 %n) {"
+    , "entry:"
+    , "  %x = alloca i32, align 4"
+    , "  %y = alloca i32, align 4"
+    , "  store i32 %n, ptr %x, align 4"
+    , "  store i32 %n, ptr %y, align 4"
+    , "  %a = load i32, ptr %x, align 4"
+    , "  ret i32 %a"
+    , "}"
+    ]
+
+-- | A slot read and written and nothing else, beside a pointer that arrived
+-- from somewhere this function cannot see.
+confinedSlot :: Text
+confinedSlot =
+  T.unlines
+    [ "define i32 @f(ptr %p) {"
+    , "entry:"
+    , "  %x = alloca i32, align 4"
+    , "  store i32 1, ptr %x, align 4"
+    , "  %a = load i32, ptr %x, align 4"
+    , "  %b = load i32, ptr %p, align 4"
+    , "  %s = add i32 %a, %b"
+    , "  ret i32 %s"
+    , "}"
+    ]
+
+-- | The same slot, with its address written where anything could read it back.
+handedOver :: Text
+handedOver =
+  T.unlines
+    [ "define i32 @f(ptr %p) {"
+    , "entry:"
+    , "  %x = alloca i32, align 4"
+    , "  store ptr %x, ptr %p, align 8"
+    , "  %a = load i32, ptr %x, align 4"
+    , "  ret i32 %a"
     , "}"
     ]
 
