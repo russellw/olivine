@@ -83,6 +83,10 @@ void scale_together(int*,const int*,int,const int*);
 unsigned checksum(const unsigned char*,int); int span(const signed char*,int);
 unsigned char low_bits(unsigned); short folded_down(int,int);
 int length(const char*); void copy_bytes(char*restrict,const char*restrict);
+/* except.cpp -- C++, so these are the extern "C" names it exports */
+extern int cleanups_run;
+int caught_value(int); int caught_anything(int); int cleanup_on_both(int);
+int passed_on(int); int summed(const int*,int);
 static int twice(int x){return x*2;}
 static int plus(int a,int b){return a+b;}
 #ifdef HELLO
@@ -261,6 +265,16 @@ int main(void){
     for(int x=-2;x<=2;x++) printf("%d ", diagonal(x,x*x)); printf("\n");
     { struct corner c = make_corner(6,-7); printf("%d %d\n", c.x, c.y); }
     for(int i=0;i<5;i++) printf("%d ", tag_at(100,i)); printf("\n"); }
+#endif
+#ifdef EXCEPT
+  { for(int x=-3;x<=3;x++)
+      printf("%d %d %d %d\n", caught_value(x), caught_anything(x),
+        cleanup_on_both(x), passed_on(x));
+    /* The cleanups are counted rather than printed as they happen, so that
+       what is checked is how many ran and not what order they ran in. */
+    printf("%d\n", cleanups_run);
+    { static const int values[6] = {1,2,-3,4,-5,6};
+      for(int n=0;n<=6;n++) printf("%d ", summed(values,n)); printf("\n"); } }
 #endif
 #ifdef LINKAGE
   printf("%d %d %d\n", real_answer(), aliased_answer(), weak_count + tentative);

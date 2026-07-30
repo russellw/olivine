@@ -440,9 +440,20 @@ isMemoryLine =
                     , "fence "
                     ]
 
+-- An invoke is the one terminator that names a result, so this reads through
+-- the assignment the way the memory and arithmetic lines are read.
 startsWithTerminator :: Text -> Bool
-startsWithTerminator line =
-  any (`T.isPrefixOf` T.stripStart line) ["ret ", "ret\n", "br ", "switch ", "indirectbr ", "unreachable"]
+startsWithTerminator =
+  operationKeyword
+    `startsWithAny` [ "ret "
+                    , "ret\n"
+                    , "br "
+                    , "switch "
+                    , "indirectbr "
+                    , "unreachable"
+                    , "invoke "
+                    , "resume "
+                    ]
 
 -- The lines between a header and its closing brace that are neither blank nor
 -- a label.

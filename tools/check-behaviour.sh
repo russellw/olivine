@@ -17,19 +17,22 @@ olivine=$(cabal list-bin exe:olivine)
 pass=0
 fail=0
 
+# A third field, where there is one, is what the module has to be linked
+# against: the C++ source needs the runtime its exceptions are thrown through.
 for pair in "arith ARITH" "branch BRANCH" "loop LOOP" "memops MEMOPS" "hello HELLO" \
             "escape ESCAPE" "jumps JUMPS" "unions UNIONS" "indirect INDIRECT" \
             "linkage LINKAGE" "hoist HOIST" "reload RELOAD" \
             "rotate ROTATE" "pick PICK" "values VALUES" "atomics ATOMICS" \
-            "bytes BYTES" "fields FIELDS"; do
+            "bytes BYTES" "fields FIELDS" "except EXCEPT -lstdc++"; do
     set -- $pair
     base=$1
     macro=$2
+    shift 2
     for level in O0 O1 O2; do
         name="$base-$level.ll"
         "$olivine" "test/data/$name" -o "$work/$name"
-        "$CLANG" "-D$macro" -w test/c-driver.c "test/data/$name" -o "$work/before" 2>/dev/null
-        "$CLANG" "-D$macro" -w test/c-driver.c "$work/$name" -o "$work/after" 2>/dev/null
+        "$CLANG" "-D$macro" -w test/c-driver.c "test/data/$name" "$@" -o "$work/before" 2>/dev/null
+        "$CLANG" "-D$macro" -w test/c-driver.c "$work/$name" "$@" -o "$work/after" 2>/dev/null
         "$work/before" > "$work/before.txt" 2>&1 || true
         before=$?
         "$work/after" > "$work/after.txt" 2>&1 || true
