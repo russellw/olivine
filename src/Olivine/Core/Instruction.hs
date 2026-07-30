@@ -46,6 +46,7 @@ module Olivine.Core.Instruction
   , localsUsedBy
   , globalsUsedBy
   , resultType
+  , speculatable
   ) where
 
 import Data.Foldable (toList)
@@ -55,6 +56,7 @@ import Numeric.Natural (Natural)
 import Olivine.Syntax.Instruction
   ( Alloca (..)
   , Binary (..)
+  , BinaryOp (..)
   , Call (..)
   , Compare (..)
   , Convert (..)
@@ -302,3 +304,88 @@ resultType types operation = case operation of
            ) of
         (TVector _ _ element, TVector scale n _) -> TVector scale n element
         _ -> typedValueType (shuffleVectorLeft s)
+
+-- | Whether an operation may be run where the program would not have run it.
+--
+-- Two questions at once, and an operation has to answer both: that it leaves
+-- the same value behind whenever its operands are the same, and that running it
+-- where the original would not have run it changes nothing else.  Written out
+-- case by case with no catch-all, so that an operation added to the grammar
+-- later fails to compile here rather than being quietly taken for one that can
+-- be moved.
+--
+-- Two passes want it, and neither of them for a reason the other shares.
+-- "Olivine.Core.Pass.LoopInvariants" computes a value before a loop that may
+-- never be entered; "Olivine.Core.Pass.IfConversion" runs both sides of a
+-- branch where control took one.  What they have in common is the whole of what
+-- is asked here, which is why it is a fact about the grammar and lives with the
+-- grammar rather than in either of them.
+--
+-- A load answers the first question in neither direction here, since what it
+-- answers depends on what happens to memory in between and, for the second, on
+-- whether the address can be read at all where it is being put.  Both are
+-- questions about a place rather than about an operation, so this says only that
+-- nothing about a load on its own settles them.
+speculatable :: Operation operand -> Bool
+speculatable operation = case operation of
+  -- A copy saves nothing by being made earlier — reconstruction removes every
+  -- assignment on the way out of the core, so there is no instruction here to
+  -- pay for.  It is moved because it is what stands between a pass and the value
+  -- it is looking at: promotion turns every load of a slot into a copy where the
+  -- load was, so what an operand names is rarely the value it stands for.
+  OAssign _ -> True
+  -- May do anything, and may answer differently each time it is asked.
+  OCall _ -> False
+  -- Fresh storage each time, so one allocation is not the allocations that were
+  -- asked for.
+  OAlloca _ -> False
+  -- The answer is whatever memory holds, and a store or a call in between may
+  -- change that.  Nor is the pointer necessarily one that can be read at all
+  -- where the load is being put.
+  OLoad _ -> False
+  -- Writes memory, so moving it changes when the write happens.
+  OStore _ -> False
+  OBinary b -> not (undefinedByZero (binaryOp b))
+  OUnary _ -> True
+  OICmp _ -> True
+  OFCmp _ -> True
+  OConvert _ -> True
+  OSelect _ -> True
+  OExtractElement _ -> True
+  OInsertElement _ -> True
+  OShuffleVector _ -> True
+  -- Pointer arithmetic says where something is rather than what is there, and
+  -- one that runs off the end of its object is poison rather than a fault.
+  OOffset _ -> True
+  OField _ -> True
+
+-- | Whether an opcode undefines the program on operands it can be given.
+--
+-- The integer divisions, and only those: dividing by zero is undefined
+-- behaviour in LLVM rather than poison, so one of these run where the program
+-- would not have run it is behaviour invented rather than behaviour preserved.
+-- Everything else here answers poison at worst — a shift past the width, an
+-- @nsw@ addition that overflows — which is a value nothing goes on to read.
+--
+-- Floating point division is not one of them: dividing by zero is an infinity,
+-- and the default environment traps on nothing.
+undefinedByZero :: BinaryOp -> Bool
+undefinedByZero op = case op of
+  OpUDiv -> True
+  OpSDiv -> True
+  OpURem -> True
+  OpSRem -> True
+  OpAdd -> False
+  OpSub -> False
+  OpMul -> False
+  OpShl -> False
+  OpLShr -> False
+  OpAShr -> False
+  OpAnd -> False
+  OpOr -> False
+  OpXor -> False
+  OpFAdd -> False
+  OpFSub -> False
+  OpFMul -> False
+  OpFDiv -> False
+  OpFRem -> False

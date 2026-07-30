@@ -21,6 +21,7 @@ import Olivine.Core.Instruction
 import Olivine.Core.Lower (lower)
 import Olivine.Core.Pass.Inline (bodySize, inlineCalls, sizeThreshold)
 import Olivine.Core.Program
+import Olivine.Core.Raise (raise)
 import Olivine.Pipeline (optimize)
 import Olivine.Syntax.Function (Signature (..))
 import Olivine.Syntax.Instruction (Call (..))
@@ -120,6 +121,8 @@ inliningTests =
         , -- The case that needs a phi in single assignment form.  Nothing in
           -- the pass builds one: each return assigns, and reconstruction works
           -- out on the way back to LLVM what that means where the paths meet.
+          -- The pipeline goes on to make selects of both branches, which is
+          -- "Olivine.Core.Pass.IfConversion"'s doing and is tested there.
           testCase "three returns become one phi" $
             phis (branching <> caller) @?>= 1
         , testCase "a void callee leaves the result unnamed" $
@@ -524,9 +527,17 @@ sizeOf source = do
 
 -- | How many phis the whole pipeline writes, which is where the returns of an
 -- inlined body meeting at one use become visible.
+-- | How many phis the copied body needs once it is back in single assignment
+-- form.
+--
+-- Inlining and the raising, not the pipeline: what the returns of a callee
+-- become where the paths meet is the question, and further down the pipeline
+-- "Olivine.Core.Pass.IfConversion" answers it a second time by removing the
+-- paths.
 phis :: Text -> IO Int
 phis source = do
-  written <- rendered source
+  program <- lower <$> expectParse "<inline>" source
+  let written = renderModule (raise (inlineCalls program))
   pure (length (filter (" = phi " `T.isInfixOf`) (T.lines written)))
 
 rendered :: Text -> IO Text

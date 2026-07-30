@@ -48,6 +48,7 @@ library
                       Olivine.Core.Pass.ControlFlow
                       Olivine.Core.Pass.DeadCode
                       Olivine.Core.Pass.DeadSymbols
+                      Olivine.Core.Pass.IfConversion
                       Olivine.Core.Pass.Inline
                       Olivine.Core.Pass.LoopInvariants
                       Olivine.Core.Pass.LoopRotation
@@ -104,6 +105,7 @@ test-suite olivine-test
                       DeadCode
                       DeadSymbols
                       Folding
+                      IfConversion
                       Redundancies
                       Rotation
                       Verify

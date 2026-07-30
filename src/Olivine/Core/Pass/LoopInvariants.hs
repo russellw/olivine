@@ -125,7 +125,6 @@
 -- and everything a compiler emits is, but nothing here checks.
 module Olivine.Core.Pass.LoopInvariants
   ( hoistLoopInvariants
-  , hoistable
   ) where
 
 import Data.List (inits)
@@ -141,7 +140,7 @@ import Olivine.Core.Loops (Loop (..), Preheader, enterThrough, loopsOf, preheade
 import Olivine.Core.Program
 import Olivine.Syntax.Ast qualified as Syntax
 import Olivine.Syntax.Global (Global (..))
-import Olivine.Syntax.Instruction (Binary (..), BinaryOp (..), Load (..), Store (..))
+import Olivine.Syntax.Instruction (Load (..), Store (..))
 import Olivine.Syntax.Linkage (GlobalAttribute (..), Linkage (..))
 import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Value (TypedValue (..), Value (..))
@@ -242,13 +241,13 @@ invariantIn globals objects f loop =
 
     -- Whether an instruction may be moved out, given where in the loop it
     -- stands.  Only a load reads the position: for everything else the answer
-    -- is a fact about the operation alone, which is 'hoistable'.
+    -- is a fact about the operation alone, which is 'speculatable'.
     movable label above operation = case operation of
       OLoad l ->
         not (loadVolatile l)
           && not (changed (typedValue (loadPointer l)))
           && (alwaysReached loop label above || alwaysReadable globals l)
-      _ -> hoistable operation
+      _ -> speculatable operation
 
     -- Whether anything the loop runs can write what a load of this address
     -- reads.  A volatile store is a store: what makes it volatile is that the
@@ -309,57 +308,6 @@ hoistFrom f loop preheader moving =
       | otherwise = b
     hoisted i = maybe False (`Set.member` moved) (instructionResult i)
 
--- | Whether an operation may be computed before a loop that would have
--- computed it inside, judged by what the operation is and nothing else.
---
--- Two questions at once, and an operation has to answer both: that it leaves
--- the same value behind whenever its operands are the same, and that running
--- it where the original would not have run it changes nothing else.  Written
--- out case by case with no catch-all, so that an operation added to the grammar
--- later fails to compile here rather than being quietly taken for one that can
--- be moved.
---
--- A load answers the first question in neither direction here, since what it
--- answers depends on what the loop does to memory and on where in the loop it
--- stands; 'invariantIn' asks it there, and this says only that nothing about a
--- load on its own settles it.
-hoistable :: Operation operand -> Bool
-hoistable operation = case operation of
-  -- A copy saves nothing by being made earlier — reconstruction removes every
-  -- assignment on the way out of the core, so there is no instruction here to
-  -- pay for.  It is hoisted because it is what stands between the loop and the
-  -- value it is invariant in.  Promotion turns every load of a slot into a copy
-  -- where the load was, so a computation on a variable the loop never writes
-  -- reads two copies made inside the loop and is invariant in nothing until
-  -- they come out; taking them out is what makes the round after it see what
-  -- the arithmetic really reads.
-  OAssign _ -> True
-  -- May do anything, and may answer differently each time it is asked.
-  OCall _ -> False
-  -- Fresh storage each time, so one allocation before the loop is not the
-  -- allocations the loop asked for.
-  OAlloca _ -> False
-  -- The answer is whatever memory holds, and a store or a call in the loop may
-  -- change that.  Nor is the pointer necessarily one that can be read at all
-  -- when the loop is not entered.  Both are asked in 'invariantIn', which is
-  -- where the loop is to ask them of.
-  OLoad _ -> False
-  -- Writes memory, so moving it changes when the write happens.
-  OStore _ -> False
-  OBinary b -> not (undefinedByZero (binaryOp b))
-  OUnary _ -> True
-  OICmp _ -> True
-  OFCmp _ -> True
-  OConvert _ -> True
-  OSelect _ -> True
-  OExtractElement _ -> True
-  OInsertElement _ -> True
-  OShuffleVector _ -> True
-  -- Pointer arithmetic says where something is rather than what is there, and
-  -- one that runs off the end of its object is poison rather than a fault.
-  OOffset _ -> True
-  OField _ -> True
-
 -- | Whether the loop runs an instruction whenever it is entered at all.
 --
 -- In the header, since every block of the body is reached through it and no
@@ -382,7 +330,7 @@ alwaysReached loop label above =
 --
 -- A call may not come back — it may throw, it may exit, it may not finish —
 -- and nothing else in the grammar has anywhere to go but on.  Written out case
--- by case with no catch-all for the reason 'hoistable' is: an operation added
+-- by case with no catch-all for the reason 'speculatable' is: an operation added
 -- later that can end the function has to be looked at here rather than be taken
 -- for one that cannot.
 returns :: Operation operand -> Bool
@@ -443,35 +391,3 @@ alwaysReadable globals l = case typedValue (loadPointer l) of
     aligned g = case (loadAlignment l, [n | GAAlign n <- globalAttributes g]) of
       (Just wanted, [given]) -> wanted <= given
       _ -> False
-
--- | Whether an opcode undefines the program on operands it can be given.
---
--- The integer divisions, and only those: dividing by zero is undefined
--- behaviour in LLVM rather than poison, so one of these run where the program
--- would not have run it is behaviour invented rather than behaviour preserved.
--- Everything else here answers poison at worst — a shift past the width, an
--- @nsw@ addition that overflows — which is a value nothing reads when the loop
--- does not run.
---
--- Floating point division is not one of them: dividing by zero is an infinity,
--- and the default environment traps on nothing.
-undefinedByZero :: BinaryOp -> Bool
-undefinedByZero op = case op of
-  OpUDiv -> True
-  OpSDiv -> True
-  OpURem -> True
-  OpSRem -> True
-  OpAdd -> False
-  OpSub -> False
-  OpMul -> False
-  OpShl -> False
-  OpLShr -> False
-  OpAShr -> False
-  OpAnd -> False
-  OpOr -> False
-  OpXor -> False
-  OpFAdd -> False
-  OpFSub -> False
-  OpFMul -> False
-  OpFDiv -> False
-  OpFRem -> False

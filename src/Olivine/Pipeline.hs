@@ -17,6 +17,7 @@ import Olivine.Core.Pass.ControlFlow (simplifyControlFlow)
 import Olivine.Core.Pass.DeadCode (eliminateDeadCode)
 import Olivine.Core.Pass.DeadSymbols (eliminateDeadSymbols)
 import Olivine.Core.Pass.Fold (foldOperations)
+import Olivine.Core.Pass.IfConversion (convertBranches)
 import Olivine.Core.Pass.Inline (inlineCalls)
 import Olivine.Core.Pass.LoopInvariants (hoistLoopInvariants)
 import Olivine.Core.Pass.LoopRotation (rotateLoops)
@@ -85,6 +86,21 @@ passes :: [Pass]
 -- a block nothing reaches is not promoted, since promotion runs before the
 -- block goes.
 --
+-- If-conversion after control flow, because the diamond it looks for has to be
+-- the real one: at @-O0@ one of the two sides of an @else if@ arrives as a block
+-- that forwards to the side proper, and a side that does not branch to the join
+-- is not recognized as one.  It is the same reason hoisting wants that pass to
+-- have run.  What it leaves behind is a block that branches to a join reached
+-- from nowhere else, and it puts those together itself rather than being a reason
+-- to run control flow a second time.
+--
+-- Before the redundancies, so that the two sides brought into one block are one
+-- block for the availability walk to look at, and so that what the selects read
+-- is what everything else in that block reads.  And before hoisting, which
+-- collects on it twice over: a conditional in a loop body that becomes a select
+-- is a body with no branch left in it, and the block it becomes is the header of
+-- a rotated loop, where a load may be taken out.
+--
 -- Redundancies after all of those, because every one of them makes two
 -- computations that were written differently into the same expression:
 -- promotion turns a value that travelled through memory into the local both
@@ -140,6 +156,7 @@ passes =
   , Pass "folding" foldOperations
   , Pass "loop rotation" rotateLoops
   , Pass "control flow" simplifyControlFlow
+  , Pass "if conversion" convertBranches
   , Pass "redundancies" eliminateRedundancies
   , Pass "loop invariants" hoistLoopInvariants
   , Pass "dead code" eliminateDeadCode

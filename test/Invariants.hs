@@ -18,7 +18,7 @@ import Corpus (expectParse)
 import Olivine.Core.Instruction
 import Olivine.Core.Loops (Loop (..), dominators, loopsOf)
 import Olivine.Core.Lower (lower)
-import Olivine.Core.Pass.LoopInvariants (hoistLoopInvariants, hoistable)
+import Olivine.Core.Pass.LoopInvariants (hoistLoopInvariants)
 import Olivine.Core.Pass.Promote (promoteMemory)
 import Olivine.Core.Program
 import Olivine.Syntax.Instruction hiding (Operation (..))
@@ -297,30 +297,35 @@ invariantTests =
               shapes
         ]
     , testGroup
+        -- The predicate is 'Olivine.Core.Instruction.speculatable', which this
+        -- pass asks in order to compute something before a loop that may never
+        -- run and "Olivine.Core.Pass.IfConversion" asks in order to run one side
+        -- of a branch where control took the other.  What it means is the same
+        -- either way, and these are the cases hoisting turns on.
         "what may be hoisted at all"
-        [ testCase "arithmetic" $ hoistable (binary OpAdd) @?= True
-        , testCase "a comparison" $ hoistable comparison @?= True
-        , testCase "a conversion" $ hoistable conversion @?= True
-        , testCase "a pointer step" $ hoistable step @?= True
-        , testCase "a field selection" $ hoistable field @?= True
+        [ testCase "arithmetic" $ speculatable (binary OpAdd) @?= True
+        , testCase "a comparison" $ speculatable comparison @?= True
+        , testCase "a conversion" $ speculatable conversion @?= True
+        , testCase "a pointer step" $ speculatable step @?= True
+        , testCase "a field selection" $ speculatable field @?= True
         , -- Not for what it computes, but because what reads it cannot leave
           -- the loop until it has.
-          testCase "an assignment" $ hoistable assignment @?= True
+          testCase "an assignment" $ speculatable assignment @?= True
         , -- Undefined behaviour on operands it may be given, so running it
           -- where the program would not have is inventing that behaviour.
-          testCase "a signed division" $ hoistable (binary OpSDiv) @?= False
-        , testCase "an unsigned remainder" $ hoistable (binary OpURem) @?= False
+          testCase "a signed division" $ speculatable (binary OpSDiv) @?= False
+        , testCase "an unsigned remainder" $ speculatable (binary OpURem) @?= False
         , -- Dividing by zero here is an infinity, and nothing traps.
-          testCase "a floating point division" $ hoistable (binary OpFDiv) @?= True
+          testCase "a floating point division" $ speculatable (binary OpFDiv) @?= True
         , -- Not settled by what the operation is: what a load answers depends
           -- on what the loop does to memory and on where in the loop it
           -- stands, which is asked of the loop and tested above.
-          testCase "a load" $ hoistable load' @?= False
-        , testCase "a store" $ hoistable store' @?= False
-        , testCase "a call" $ hoistable call' @?= False
+          testCase "a load" $ speculatable load' @?= False
+        , testCase "a store" $ speculatable store' @?= False
+        , testCase "a call" $ speculatable call' @?= False
         , -- Fresh storage each time, so one allocation before the loop is not
           -- the allocations the loop asked for.
-          testCase "an allocation" $ hoistable allocation @?= False
+          testCase "an allocation" $ speculatable allocation @?= False
         ]
     ]
 
@@ -981,7 +986,7 @@ carried =
     , "}"
     ]
 
--- Operations at the core's own operand type, for 'hoistable', which reads
+-- Operations at the core's own operand type, for 'speculatable', which reads
 -- nothing but which operation it is.
 
 binary :: BinaryOp -> Operation (TypedValue Local)

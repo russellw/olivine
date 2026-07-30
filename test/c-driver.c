@@ -29,6 +29,10 @@ unsigned get_kind(struct flags); int get_delta(struct flags);
 struct flags set_live(struct flags, _Bool);
 int tight_n(const struct tight*); short tight_s(const struct tight*);
 int next_colour(int); _Bool truthy(int);
+/* pick.c */
+int larger(int,int); int sign(int); int bumped(int,int); int folded(const int*,int);
+int safe_divide(int,int); int if_present(const int*); int one_call(int);
+extern int counter;
 /* hoist.c */
 int scaled_sum(const int*,int,int); int nested_squares(int,int,int);
 int sometimes(const int*,int,int); int guarded_divide(int,int,int);
@@ -136,6 +140,19 @@ int main(void){
     for(int m=0;m<5;m++){ reset_tickets(); printf("%d %d ", consume(m), tickets_taken()); }
     printf("\n");
     for(int n=-2;n<10;n++) printf("%d ", countdown(n)); printf("\n"); }
+#endif
+#ifdef PICK
+  { for(int a=-2;a<3;a++) for(int b=-1;b<2;b++) printf("%d ", larger(a,b)); printf("\n");
+    for(int x=-3;x<4;x++) printf("%d ", sign(x)); printf("\n");
+    for(int c=0;c<2;c++) printf("%d ", bumped(7,c)); printf("\n");
+    { int xs[5] = {3,-4,0,6,-1}; printf("%d %d\n", folded(xs,5), folded(xs,0)); }
+    /* b == 0 is where the branch is the only thing keeping the division from
+       happening, and p == 0 the same for the load. */
+    for(int b=-2;b<3;b++) printf("%d ", safe_divide(12,b)); printf("\n");
+    { int one = 1; printf("%d %d\n", if_present(&one), if_present((const int*)0)); }
+    /* Exactly one of the two calls may be made, whichever way it goes. */
+    counter = 0; printf("%d %d ", one_call(1), counter);
+    counter = 0; printf("%d %d\n", one_call(0), counter); }
 #endif
 #ifdef INDIRECT
   { for(int w=0;w<6;w++) printf("%d ", dispatch(w,9,4)); printf("\n");
