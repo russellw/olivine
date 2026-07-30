@@ -188,6 +188,13 @@ reconstruct f = rebuild
     -- of the phi standing for it, and looking at the original would find
     -- neither.  A phi read only by another live phi is live too, so the set
     -- grows to a fixed point.
+    --
+    -- The reads are counted once each before the first round, because a round
+    -- is judged to have found nothing by the count coming out the same and a
+    -- round is what removes the repetitions.  Two blocks reading one local and
+    -- one phi found in the same round is a round that adds one and takes one
+    -- away — which stopped the walk with the phi it had just found left out,
+    -- and wrote a reference to a phi nothing went on to place.
     surviving name =
       [phi' | phi' <- phisAt name, live (nameOfPhi phi')]
       where
@@ -195,7 +202,7 @@ reconstruct f = rebuild
 
     live p = p `elem` liveSet
 
-    liveSet = fixpoint grow (concatMap readByRewritten blocks)
+    liveSet = fixpoint grow (nub (concatMap readByRewritten blocks))
       where
         grow known =
           nub
