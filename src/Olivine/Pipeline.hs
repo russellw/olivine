@@ -87,7 +87,11 @@ passes :: [Pass]
 -- particular.  A computation written twice in a loop body is one computation and
 -- one copy of it by the time this sees it, so what leaves the loop is one
 -- arithmetic instruction and a copy that costs nothing; without sharing first it
--- would be the same computation hoisted twice.  It also wants the control flow
+-- would be the same computation hoisted twice.  The same holds of the loads it
+-- takes out, and for the same reason with memory in it: two reads of one address
+-- in a body are one read and a copy already, and promotion has taken away the
+-- traffic through slots that became locals, so what this has to ask the aliasing
+-- about is what is genuinely left.  It also wants the control flow
 -- graph to be the real one, since what it moves and where it moves it are both
 -- decided by the graph: a detour block that forwarding has not yet removed is a
 -- block in the loop body, and a block nothing reaches is a predecessor of the

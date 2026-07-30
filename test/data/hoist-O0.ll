@@ -3,6 +3,8 @@ source_filename = "test/c/hoist.c"
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-pc-linux-gnu"
 
+@scale = internal global i32 3, align 4
+
 ; Function Attrs: noinline nounwind optnone uwtable
 define dso_local i32 @scaled_sum(ptr noundef %0, i32 noundef %1, i32 noundef %2) #0 {
   %4 = alloca ptr, align 8
@@ -247,6 +249,112 @@ define dso_local i32 @carried_first(i32 noundef %0, i32 noundef %1) #0 {
 }
 
 ; Function Attrs: noinline nounwind optnone uwtable
+define dso_local i32 @scale_now() #0 {
+  %1 = load i32, ptr @scale, align 4
+  ret i32 %1
+}
+
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local void @set_scale(i32 noundef %0) #0 {
+  %2 = alloca i32, align 4
+  store i32 %0, ptr %2, align 4
+  %3 = load i32, ptr %2, align 4
+  store i32 %3, ptr @scale, align 4
+  ret void
+}
+
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local i32 @scaled_by_symbol(ptr noundef %0, i32 noundef %1) #0 {
+  %3 = alloca ptr, align 8
+  %4 = alloca i32, align 4
+  %5 = alloca i32, align 4
+  %6 = alloca i32, align 4
+  store ptr %0, ptr %3, align 8
+  store i32 %1, ptr %4, align 4
+  store i32 0, ptr %5, align 4
+  store i32 0, ptr %6, align 4
+  br label %7
+
+7:                                                ; preds = %21, %2
+  %8 = load i32, ptr %6, align 4
+  %9 = load i32, ptr %4, align 4
+  %10 = icmp slt i32 %8, %9
+  br i1 %10, label %11, label %24
+
+11:                                               ; preds = %7
+  %12 = load ptr, ptr %3, align 8
+  %13 = load i32, ptr %6, align 4
+  %14 = sext i32 %13 to i64
+  %15 = getelementptr inbounds i32, ptr %12, i64 %14
+  %16 = load i32, ptr %15, align 4
+  %17 = load i32, ptr @scale, align 4
+  %18 = mul nsw i32 %16, %17
+  %19 = load i32, ptr %5, align 4
+  %20 = add nsw i32 %19, %18
+  store i32 %20, ptr %5, align 4
+  br label %21
+
+21:                                               ; preds = %11
+  %22 = load i32, ptr %6, align 4
+  %23 = add nsw i32 %22, 1
+  store i32 %23, ptr %6, align 4
+  br label %7, !llvm.loop !13
+
+24:                                               ; preds = %7
+  %25 = load i32, ptr %5, align 4
+  ret i32 %25
+}
+
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local i32 @bumping(ptr noundef %0, i32 noundef %1) #0 {
+  %3 = alloca ptr, align 8
+  %4 = alloca i32, align 4
+  %5 = alloca i32, align 4
+  %6 = alloca i32, align 4
+  store ptr %0, ptr %3, align 8
+  store i32 %1, ptr %4, align 4
+  store i32 0, ptr %5, align 4
+  store i32 0, ptr %6, align 4
+  br label %7
+
+7:                                                ; preds = %18, %2
+  %8 = load i32, ptr %6, align 4
+  %9 = load i32, ptr %4, align 4
+  %10 = icmp slt i32 %8, %9
+  br i1 %10, label %11, label %21
+
+11:                                               ; preds = %7
+  %12 = load i32, ptr @scale, align 4
+  %13 = load i32, ptr %5, align 4
+  %14 = add nsw i32 %13, %12
+  store i32 %14, ptr %5, align 4
+  %15 = load ptr, ptr %3, align 8
+  %16 = load i32, ptr %15, align 4
+  %17 = add nsw i32 %16, 1
+  store i32 %17, ptr %15, align 4
+  br label %18
+
+18:                                               ; preds = %11
+  %19 = load i32, ptr %6, align 4
+  %20 = add nsw i32 %19, 1
+  store i32 %20, ptr %6, align 4
+  br label %7, !llvm.loop !14
+
+21:                                               ; preds = %7
+  %22 = load i32, ptr %5, align 4
+  ret i32 %22
+}
+
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local i32 @bumping_symbol(i32 noundef %0) #0 {
+  %2 = alloca i32, align 4
+  store i32 %0, ptr %2, align 4
+  %3 = load i32, ptr %2, align 4
+  %4 = call i32 @bumping(ptr noundef @scale, i32 noundef %3)
+  ret i32 %4
+}
+
+; Function Attrs: noinline nounwind optnone uwtable
 define dso_local i32 @jumped_into(i32 noundef %0, i32 noundef %1) #0 {
   %3 = alloca i32, align 4
   %4 = alloca i32, align 4
@@ -285,7 +393,7 @@ define dso_local i32 @jumped_into(i32 noundef %0, i32 noundef %1) #0 {
   %22 = load i32, ptr %6, align 4
   %23 = add nsw i32 %22, 1
   store i32 %23, ptr %6, align 4
-  br label %12, !llvm.loop !13
+  br label %12, !llvm.loop !15
 
 24:                                               ; preds = %12
   %25 = load i32, ptr %5, align 4
@@ -311,3 +419,5 @@ attributes #0 = { noinline nounwind optnone uwtable "frame-pointer"="all" "min-l
 !11 = distinct !{!11, !7}
 !12 = distinct !{!12, !7}
 !13 = distinct !{!13, !7}
+!14 = distinct !{!14, !7}
+!15 = distinct !{!15, !7}

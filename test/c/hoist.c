@@ -7,7 +7,12 @@
    Three of these are cases hoisting must decline, and two of them are wrong in
    a way the driver can see: a division that faults, and a variable read before
    it is assigned.  The third is a loop no block dominates the body of, which
-   there is nowhere to hoist out of. */
+   there is nowhere to hoist out of.
+
+   The last two are the same pair for what a loop reads rather than what it
+   computes: a symbol read in a loop that leaves it alone, and one read in a
+   loop that writes it, where the driver hands the loop the symbol's own
+   address so that a read wrongly taken out shows up in what it prints. */
 
 int scaled_sum(const int *xs, int n, int k) {
   int total = 0;
@@ -57,6 +62,37 @@ int carried_first(int n, int k) {
   }
   return total;
 }
+
+/* What a loop reads out of memory and cannot change, which is the other half
+   of what comes out of one.  A symbol is storage the program has for as long
+   as it runs, so reading one cannot fault; that is what lets the read come out
+   of a body the loop may never reach at all. */
+static int scale = 3;
+
+int scale_now(void) { return scale; }
+void set_scale(int v) { scale = v; }
+
+int scaled_by_symbol(const int *xs, int n) {
+  int total = 0;
+  for (int i = 0; i < n; i++)
+    total += xs[i] * scale;
+  return total;
+}
+
+/* The same read, in a loop that writes through a pointer it was handed.  The
+   pointer may be where the symbol is, and 'bumping_symbol' makes it exactly
+   that, so the read has to happen again every time round: hoisted, the loop
+   would add the first iteration's value n times. */
+int bumping(int *p, int n) {
+  int total = 0;
+  for (int i = 0; i < n; i++) {
+    total += scale;
+    *p += 1;
+  }
+  return total;
+}
+
+int bumping_symbol(int n) { return bumping(&scale, n); }
 
 /* A jump into the middle of a loop, so no block dominates the whole of it and
    there is no natural loop to hoist out of.  Here to be survived rather than

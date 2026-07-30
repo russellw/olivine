@@ -33,6 +33,8 @@ int next_colour(int); _Bool truthy(int);
 int scaled_sum(const int*,int,int); int nested_squares(int,int,int);
 int sometimes(const int*,int,int); int guarded_divide(int,int,int);
 int carried_first(int,int); int jumped_into(int,int);
+int scale_now(void); void set_scale(int); int scaled_by_symbol(const int*,int);
+int bumping(int*,int); int bumping_symbol(int);
 /* indirect.c */
 int dispatch(int,int,int); int fib(int); int gcd(int,int); int parity(int);
 int apply_twice(int(*)(int,int),int,int);
@@ -110,7 +112,17 @@ int main(void){
        hoisted out of the loop would fault here. */
     printf("%d %d %d\n", guarded_divide(10,0,0), guarded_divide(10,0,-1), guarded_divide(10,3,4));
     for(int n=0;n<4;n++) printf("%d ", carried_first(n,6)); printf("\n");
-    for(int n=0;n<5;n++) printf("%d ", jumped_into(n,2)); printf("\n"); }
+    for(int n=0;n<5;n++) printf("%d ", jumped_into(n,2)); printf("\n");
+    /* The read of the symbol comes out of this loop, so the call with n = 0
+       runs a read the program never ran.  Reading a symbol cannot fault, and
+       what it answers is the same either way. */
+    for(int s=-1;s<=2;s++) { set_scale(s); printf("%d %d ", scaled_by_symbol(xs,9), scaled_by_symbol(xs,0)); }
+    printf("\n");
+    /* The loop writes the symbol it reads, so a read hoisted out of it would
+       add the first iteration's value four times over. */
+    set_scale(3);
+    printf("%d %d ", bumping_symbol(4), scale_now());
+    { int cell = 10; set_scale(5); printf("%d %d\n", bumping(&cell,3), cell); } }
 #endif
 #ifdef INDIRECT
   { for(int w=0;w<6;w++) printf("%d ", dispatch(w,9,4)); printf("\n");

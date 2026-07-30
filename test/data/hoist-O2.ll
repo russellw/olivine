@@ -3,6 +3,8 @@ source_filename = "test/c/hoist.c"
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-pc-linux-gnu"
 
+@scale = internal unnamed_addr global i32 3, align 4
+
 ; Function Attrs: nofree norecurse nosync nounwind memory(argmem: read) uwtable
 define dso_local i32 @scaled_sum(ptr noundef readonly captures(none) %0, i32 noundef %1, i32 noundef %2) local_unnamed_addr #0 {
   %4 = icmp sgt i32 %1, 0
@@ -223,11 +225,177 @@ define dso_local i32 @carried_first(i32 noundef %0, i32 noundef %1) local_unname
   br i1 %37, label %30, label %32, !llvm.loop !18
 }
 
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(read, argmem: none, inaccessiblemem: none) uwtable
+define dso_local i32 @scale_now() local_unnamed_addr #3 {
+  %1 = load i32, ptr @scale, align 4, !tbaa !5
+  ret i32 %1
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(write, argmem: none, inaccessiblemem: none) uwtable
+define dso_local void @set_scale(i32 noundef %0) local_unnamed_addr #4 {
+  store i32 %0, ptr @scale, align 4, !tbaa !5
+  ret void
+}
+
+; Function Attrs: nofree norecurse nosync nounwind memory(read, inaccessiblemem: none) uwtable
+define dso_local i32 @scaled_by_symbol(ptr noundef readonly captures(none) %0, i32 noundef %1) local_unnamed_addr #5 {
+  %3 = icmp sgt i32 %1, 0
+  br i1 %3, label %4, label %33
+
+4:                                                ; preds = %2
+  %5 = load i32, ptr @scale, align 4, !tbaa !5
+  %6 = zext nneg i32 %1 to i64
+  %7 = icmp ult i32 %1, 8
+  br i1 %7, label %30, label %8
+
+8:                                                ; preds = %4
+  %9 = and i64 %6, 2147483640
+  %10 = insertelement <4 x i32> poison, i32 %5, i64 0
+  %11 = shufflevector <4 x i32> %10, <4 x i32> poison, <4 x i32> zeroinitializer
+  br label %12
+
+12:                                               ; preds = %12, %8
+  %13 = phi i64 [ 0, %8 ], [ %24, %12 ]
+  %14 = phi <4 x i32> [ zeroinitializer, %8 ], [ %22, %12 ]
+  %15 = phi <4 x i32> [ zeroinitializer, %8 ], [ %23, %12 ]
+  %16 = getelementptr inbounds nuw i32, ptr %0, i64 %13
+  %17 = getelementptr inbounds nuw i8, ptr %16, i64 16
+  %18 = load <4 x i32>, ptr %16, align 4, !tbaa !5
+  %19 = load <4 x i32>, ptr %17, align 4, !tbaa !5
+  %20 = mul nsw <4 x i32> %11, %18
+  %21 = mul nsw <4 x i32> %11, %19
+  %22 = add <4 x i32> %20, %14
+  %23 = add <4 x i32> %21, %15
+  %24 = add nuw i64 %13, 8
+  %25 = icmp eq i64 %24, %9
+  br i1 %25, label %26, label %12, !llvm.loop !19
+
+26:                                               ; preds = %12
+  %27 = add <4 x i32> %23, %22
+  %28 = tail call i32 @llvm.vector.reduce.add.v4i32(<4 x i32> %27)
+  %29 = icmp eq i64 %9, %6
+  br i1 %29, label %33, label %30
+
+30:                                               ; preds = %4, %26
+  %31 = phi i64 [ 0, %4 ], [ %9, %26 ]
+  %32 = phi i32 [ 0, %4 ], [ %28, %26 ]
+  br label %35
+
+33:                                               ; preds = %35, %26, %2
+  %34 = phi i32 [ 0, %2 ], [ %28, %26 ], [ %41, %35 ]
+  ret i32 %34
+
+35:                                               ; preds = %30, %35
+  %36 = phi i64 [ %42, %35 ], [ %31, %30 ]
+  %37 = phi i32 [ %41, %35 ], [ %32, %30 ]
+  %38 = getelementptr inbounds nuw i32, ptr %0, i64 %36
+  %39 = load i32, ptr %38, align 4, !tbaa !5
+  %40 = mul nsw i32 %5, %39
+  %41 = add nsw i32 %40, %37
+  %42 = add nuw nsw i64 %36, 1
+  %43 = icmp eq i64 %42, %6
+  br i1 %43, label %33, label %35, !llvm.loop !20
+}
+
+; Function Attrs: nofree norecurse nosync nounwind memory(read, argmem: readwrite, inaccessiblemem: none) uwtable
+define dso_local i32 @bumping(ptr noundef captures(none) %0, i32 noundef %1) local_unnamed_addr #6 {
+  %3 = icmp sgt i32 %1, 0
+  br i1 %3, label %4, label %37
+
+4:                                                ; preds = %2
+  %5 = load i32, ptr %0, align 4, !tbaa !5
+  %6 = icmp ult i32 %1, 8
+  br i1 %6, label %31, label %7
+
+7:                                                ; preds = %4
+  %8 = and i32 %1, 2147483640
+  %9 = insertelement <4 x i32> <i32 poison, i32 0, i32 0, i32 0>, i32 %5, i64 0
+  %10 = load i32, ptr @scale, align 4, !tbaa !5
+  %11 = insertelement <4 x i32> poison, i32 %10, i64 0
+  %12 = shufflevector <4 x i32> %11, <4 x i32> poison, <4 x i32> zeroinitializer
+  br label %13
+
+13:                                               ; preds = %13, %7
+  %14 = phi i32 [ 0, %7 ], [ %23, %13 ]
+  %15 = phi <4 x i32> [ %9, %7 ], [ %21, %13 ]
+  %16 = phi <4 x i32> [ zeroinitializer, %7 ], [ %22, %13 ]
+  %17 = phi <4 x i32> [ zeroinitializer, %7 ], [ %19, %13 ]
+  %18 = phi <4 x i32> [ zeroinitializer, %7 ], [ %20, %13 ]
+  %19 = add <4 x i32> %12, %17
+  %20 = add <4 x i32> %12, %18
+  %21 = add <4 x i32> %15, splat (i32 1)
+  %22 = add <4 x i32> %16, splat (i32 1)
+  %23 = add nuw i32 %14, 8
+  %24 = icmp eq i32 %23, %8
+  br i1 %24, label %25, label %13, !llvm.loop !21
+
+25:                                               ; preds = %13
+  %26 = add <4 x i32> %22, %21
+  %27 = tail call i32 @llvm.vector.reduce.add.v4i32(<4 x i32> %26)
+  %28 = add <4 x i32> %20, %19
+  %29 = tail call i32 @llvm.vector.reduce.add.v4i32(<4 x i32> %28)
+  store i32 %27, ptr %0, align 4, !tbaa !5
+  %30 = icmp eq i32 %1, %8
+  br i1 %30, label %37, label %31
+
+31:                                               ; preds = %4, %25
+  %32 = phi i32 [ %5, %4 ], [ %27, %25 ]
+  %33 = phi i32 [ 0, %4 ], [ %8, %25 ]
+  %34 = phi i32 [ 0, %4 ], [ %29, %25 ]
+  %35 = load i32, ptr @scale, align 4, !tbaa !5
+  br label %39
+
+36:                                               ; preds = %39
+  store i32 %44, ptr %0, align 4, !tbaa !5
+  br label %37
+
+37:                                               ; preds = %36, %25, %2
+  %38 = phi i32 [ 0, %2 ], [ %29, %25 ], [ %43, %36 ]
+  ret i32 %38
+
+39:                                               ; preds = %31, %39
+  %40 = phi i32 [ %44, %39 ], [ %32, %31 ]
+  %41 = phi i32 [ %45, %39 ], [ %33, %31 ]
+  %42 = phi i32 [ %43, %39 ], [ %34, %31 ]
+  %43 = add nsw i32 %35, %42
+  %44 = add nsw i32 %40, 1
+  %45 = add nuw nsw i32 %41, 1
+  %46 = icmp eq i32 %45, %1
+  br i1 %46, label %36, label %39, !llvm.loop !22
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(readwrite, argmem: none, inaccessiblemem: none) uwtable
+define dso_local i32 @bumping_symbol(i32 noundef %0) local_unnamed_addr #7 {
+  %2 = icmp sgt i32 %0, 0
+  br i1 %2, label %3, label %17
+
+3:                                                ; preds = %1
+  %4 = load i32, ptr @scale, align 4, !tbaa !5
+  %5 = add nsw i32 %0, -1
+  %6 = add i32 %4, 1
+  %7 = mul i32 %5, %6
+  %8 = add i32 %4, %7
+  %9 = zext nneg i32 %5 to i33
+  %10 = add nsw i32 %0, -2
+  %11 = zext i32 %10 to i33
+  %12 = mul i33 %9, %11
+  %13 = lshr i33 %12, 1
+  %14 = trunc nuw i33 %13 to i32
+  %15 = add i32 %8, %14
+  %16 = add i32 %4, %0
+  store i32 %16, ptr @scale, align 4, !tbaa !5
+  br label %17
+
+17:                                               ; preds = %3, %1
+  %18 = phi i32 [ 0, %1 ], [ %15, %3 ]
+  ret i32 %18
+}
+
 ; Function Attrs: nofree norecurse nosync nounwind memory(none) uwtable
 define dso_local i32 @jumped_into(i32 noundef %0, i32 noundef %1) local_unnamed_addr #2 {
   %3 = and i32 %0, 1
   %4 = mul nsw i32 %1, 5
-  br label %5, !llvm.loop !19
+  br label %5, !llvm.loop !23
 
 5:                                                ; preds = %2, %9
   %6 = phi i32 [ %10, %9 ], [ 0, %2 ]
@@ -238,19 +406,24 @@ define dso_local i32 @jumped_into(i32 noundef %0, i32 noundef %1) local_unnamed_
 9:                                                ; preds = %5
   %10 = add nsw i32 %6, %4
   %11 = add nuw nsw i32 %7, 1
-  br label %5, !llvm.loop !19
+  br label %5, !llvm.loop !23
 
 12:                                               ; preds = %5
   ret i32 %6
 }
 
 ; Function Attrs: nocallback nofree nosync nounwind speculatable willreturn memory(none)
-declare i32 @llvm.vector.reduce.add.v4i32(<4 x i32>) #3
+declare i32 @llvm.vector.reduce.add.v4i32(<4 x i32>) #8
 
 attributes #0 = { nofree norecurse nosync nounwind memory(argmem: read) uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #1 = { mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #2 = { nofree norecurse nosync nounwind memory(none) uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
-attributes #3 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }
+attributes #3 = { mustprogress nofree norecurse nosync nounwind willreturn memory(read, argmem: none, inaccessiblemem: none) uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
+attributes #4 = { mustprogress nofree norecurse nosync nounwind willreturn memory(write, argmem: none, inaccessiblemem: none) uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
+attributes #5 = { nofree norecurse nosync nounwind memory(read, inaccessiblemem: none) uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
+attributes #6 = { nofree norecurse nosync nounwind memory(read, argmem: readwrite, inaccessiblemem: none) uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
+attributes #7 = { mustprogress nofree norecurse nosync nounwind willreturn memory(readwrite, argmem: none, inaccessiblemem: none) uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
+attributes #8 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }
 
 !llvm.module.flags = !{!0, !1, !2, !3}
 !llvm.ident = !{!4}
@@ -274,4 +447,8 @@ attributes #3 = { nocallback nofree nosync nounwind speculatable willreturn memo
 !16 = distinct !{!16, !10, !17, !11, !12}
 !17 = !{!"llvm.loop.peeled.count", i32 1}
 !18 = distinct !{!18, !10, !17, !12, !11}
-!19 = distinct !{!19, !10}
+!19 = distinct !{!19, !10, !11, !12}
+!20 = distinct !{!20, !10, !12, !11}
+!21 = distinct !{!21, !10, !11, !12}
+!22 = distinct !{!22, !10, !12, !11}
+!23 = distinct !{!23, !10}

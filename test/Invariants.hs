@@ -147,6 +147,35 @@ invariantTests =
               ("mul" `elem` firstOf shapes)
         ]
     , testGroup
+        "what a load answers"
+        [ -- Nothing in the loop writes anywhere the pointer could be, and the
+          -- load stands in the header, so the loop runs it whenever it is
+          -- entered at all: moving it to the preheader moves it past nothing.
+          testCase "from the header, out of a loop that writes nothing" $ do
+            shapes <- shapesIn readInHeader
+            assertEqual
+              "the load is in the block above the loop"
+              [["copy", "load"], ["icmp"], ["add", "copy"], []]
+              shapes
+        , -- Reading a symbol cannot fault, so this one comes out of a block
+          -- the loop may never reach at all.
+          testCase "of a symbol, from a block the loop may not reach" $ do
+            shapes <- shapesIn readSymbol
+            assertEqual
+              "the load is in the block above the loop"
+              [["copy", "load"], ["icmp"], ["add", "copy"], []]
+              shapes
+        , -- The store in the loop is to a slot whose address never left this
+          -- function, and the symbol is not that slot.  Which is the whole of
+          -- what makes this a question for "Olivine.Core.Alias" rather than a
+          -- count of the stores in the body.
+          testCase "past a store to somewhere else" $ do
+            shapes <- shapesIn readPastStore
+            assertBool
+              ("expected the load in the first block, got " <> show shapes)
+              ("load" `elem` firstOf shapes)
+        ]
+    , testGroup
         "where it goes"
         [ -- The loop is entered from a block that branches two ways, so that
           -- block is not the preheader: what is hoisted has to go somewhere
@@ -155,7 +184,7 @@ invariantTests =
             shapes <- shapesIn guarded
             assertEqual
               "a block of its own in front of the header"
-              [[], ["mul"], ["load", "icmp"], []]
+              [[], ["mul"], ["call"], []]
               shapes
         , testCase "and every way into the loop goes through it" $ do
             edges <- edgesIn twoWays
@@ -191,7 +220,7 @@ invariantTests =
             shapes <- shapesIn dividing
             assertEqual
               "in the loop, where it was"
-              [[], ["load", "icmp"], ["sdiv", "add"], []]
+              [["copy"], ["icmp"], ["sdiv", "add", "copy"], []]
               shapes
         , -- Nothing here can tell whether a call answers the same thing twice,
           -- or what it does on the way to answering.
@@ -200,10 +229,54 @@ invariantTests =
             assertBool
               ("expected the call still in the loop, got " <> show shapes)
               ("call" `elem` (shapes !! 2))
-        , -- What a load answers is what memory holds, and a store or a call in
-          -- the loop may change it.
-          testCase "a load" $ do
+        , -- Through a pointer the function was handed, in a block the loop may
+          -- never reach: nothing says the address can be read at all where the
+          -- loop is entered and the body is not.
+          testCase "a load of what the function was handed" $ do
             shapes <- shapesIn loading
+            assertBool
+              ("expected the load still in the loop, got " <> show shapes)
+              ("load" `elem` (shapes !! 2))
+        , -- The store may be to the symbol, so what it reads is not what the
+          -- iteration before it read.
+          testCase "a load the loop may write" $ do
+            shapes <- shapesIn writtenInLoop
+            assertBool
+              ("expected the load still in the loop, got " <> show shapes)
+              ("load" `elem` (shapes !! 2))
+        , -- A callee reaches every symbol, whatever it does with it.
+          testCase "a load of a symbol the loop calls past" $ do
+            shapes <- shapesIn callingPast
+            assertBool
+              ("expected the load still in the loop, got " <> show shapes)
+              ("load" `elem` (shapes !! 2))
+        , -- The slot is one no callee can name, so the call is not what writes
+          -- it; what declines this is that the call may not come back, and the
+          -- loop can therefore be entered without the load below it running.
+          testCase "a load below a call in the header" $ do
+            shapes <- shapesIn calledAbove
+            assertBool
+              ("expected the load still in the loop, got " <> show shapes)
+              ("load" `elem` (shapes !! 1))
+        , -- The point of a volatile access is that it happens, as many times
+          -- as it is written to happen.
+          testCase "a volatile load the loop is certain to run" $ do
+            shapes <- shapesIn volatileInHeader
+            assertBool
+              ("expected the load still in the loop, got " <> show shapes)
+              ("load" `elem` (shapes !! 1))
+        , -- Without a data layout nothing here knows an @i64@ does not fit in
+          -- the storage a symbol defined as @i32@ names.
+          testCase "a load of a symbol at another type" $ do
+            shapes <- shapesIn readWider
+            assertBool
+              ("expected the load still in the loop, got " <> show shapes)
+              ("load" `elem` (shapes !! 2))
+        , -- An access at an alignment the storage does not have is undefined
+          -- when it runs, so running it where it would not have run invents
+          -- that.
+          testCase "a load of a symbol at an alignment it was not given" $ do
+            shapes <- shapesIn readOveraligned
             assertBool
               ("expected the load still in the loop, got " <> show shapes)
               ("load" `elem` (shapes !! 2))
@@ -211,7 +284,7 @@ invariantTests =
             shapes <- shapesIn variant
             assertEqual
               "nothing leaves"
-              [[], ["load", "icmp"], ["mul", "add"], []]
+              [["copy"], ["icmp"], ["mul", "add", "copy"], []]
               shapes
         , -- The bill the non-SSA core presents: promotion makes the variable a
           -- local assigned in two places, and moving the assignment earlier
@@ -239,7 +312,10 @@ invariantTests =
         , testCase "an unsigned remainder" $ hoistable (binary OpURem) @?= False
         , -- Dividing by zero here is an infinity, and nothing traps.
           testCase "a floating point division" $ hoistable (binary OpFDiv) @?= True
-        , testCase "a load" $ hoistable load' @?= False
+        , -- Not settled by what the operation is: what a load answers depends
+          -- on what the loop does to memory and on where in the loop it
+          -- stands, which is asked of the loop and tested above.
+          testCase "a load" $ hoistable load' @?= False
         , testCase "a store" $ hoistable store' @?= False
         , testCase "a call" $ hoistable call' @?= False
         , -- Fresh storage each time, so one allocation before the loop is not
@@ -545,16 +621,21 @@ slotted =
 
 -- | A loop entered from a block that branches two ways, so the block above it
 -- is not a preheader.
+--
+-- What the loop goes round on is a call, which is the one thing left that is
+-- variant without being carried: a counter would be a phi, and the edge a phi
+-- needs a copy on is a critical edge the lowering splits, which would make the
+-- preheader this is about before the pass could be asked for one.
 guarded :: Text
 guarded =
   T.unlines
-    [ "define i32 @f(i32 %n, i32 %k, i1 %p, ptr %q) {"
+    [ "declare i1 @more()"
+    , "define i32 @f(i32 %n, i32 %k, i1 %p) {"
     , "entry:"
     , "  br i1 %p, label %head, label %done"
     , "head:"
     , "  %sq = mul i32 %k, %k"
-    , "  %v = load i32, ptr %q, align 4"
-    , "  %c = icmp slt i32 %v, %n"
+    , "  %c = call i1 @more()"
     , "  br i1 %c, label %head, label %done"
     , "done:"
     , "  ret i32 %n"
@@ -601,16 +682,16 @@ leading =
 dividing :: Text
 dividing =
   T.unlines
-    [ "define i32 @f(i32 %n, i32 %a, i32 %b, ptr %p) {"
+    [ "define i32 @f(i32 %n, i32 %a, i32 %b) {"
     , "entry:"
     , "  br label %head"
     , "head:"
-    , "  %v = load i32, ptr %p, align 4"
-    , "  %c = icmp slt i32 %v, %n"
+    , "  %i = phi i32 [ 0, %entry ], [ %t, %body ]"
+    , "  %c = icmp slt i32 %i, %n"
     , "  br i1 %c, label %body, label %done"
     , "body:"
     , "  %q = sdiv i32 %a, %b"
-    , "  %t = add i32 %q, 1"
+    , "  %t = add i32 %i, %q"
     , "  br label %head"
     , "done:"
     , "  ret i32 %n"
@@ -635,6 +716,10 @@ calling =
     , "}"
     ]
 
+-- | A load through a pointer the function was handed, in the body rather than
+-- the header.  The loop writes nothing, so what it reads is the same every
+-- time round; what is not known is whether the address can be read at all on
+-- the turn where the loop is entered and the body is not.
 loading :: Text
 loading =
   T.unlines
@@ -642,10 +727,12 @@ loading =
     , "entry:"
     , "  br label %head"
     , "head:"
-    , "  %c = icmp slt i32 %n, 8"
+    , "  %i = phi i32 [ 0, %entry ], [ %next, %body ]"
+    , "  %c = icmp slt i32 %i, %n"
     , "  br i1 %c, label %body, label %done"
     , "body:"
     , "  %x = load i32, ptr %p, align 4"
+    , "  %next = add i32 %i, %x"
     , "  br label %head"
     , "done:"
     , "  ret i32 %n"
@@ -657,19 +744,219 @@ loading =
 variant :: Text
 variant =
   T.unlines
-    [ "define i32 @f(i32 %n, ptr %p) {"
+    [ "define i32 @f(i32 %n) {"
     , "entry:"
     , "  br label %head"
     , "head:"
-    , "  %v = load i32, ptr %p, align 4"
-    , "  %c = icmp slt i32 %v, %n"
+    , "  %i = phi i32 [ 0, %entry ], [ %next, %body ]"
+    , "  %c = icmp slt i32 %i, %n"
     , "  br i1 %c, label %body, label %done"
     , "body:"
-    , "  %sq = mul i32 %v, %n"
+    , "  %sq = mul i32 %i, %n"
     , "  %next = add i32 %sq, 1"
     , "  br label %head"
     , "done:"
     , "  ret i32 %n"
+    , "}"
+    ]
+
+-- | A load in the header of a loop that writes nothing at all: the loop runs
+-- it whenever it is entered, so where it lands is a block the loop is entered
+-- through.
+readInHeader :: Text
+readInHeader =
+  T.unlines
+    [ "define i32 @f(i32 %n, ptr %p) {"
+    , "entry:"
+    , "  br label %head"
+    , "head:"
+    , "  %i = phi i32 [ 0, %entry ], [ %next, %body ]"
+    , "  %v = load i32, ptr %p, align 4"
+    , "  %c = icmp slt i32 %i, %n"
+    , "  br i1 %c, label %body, label %done"
+    , "body:"
+    , "  %next = add i32 %i, %v"
+    , "  br label %head"
+    , "done:"
+    , "  ret i32 %i"
+    , "}"
+    ]
+
+-- | A symbol read in the body, which the loop reaches only while the count
+-- lasts.  Nothing writes it and reading it cannot fault, so it comes out
+-- anyway.
+readSymbol :: Text
+readSymbol =
+  T.unlines
+    [ "@scale = internal global i32 3, align 4"
+    , "define i32 @f(i32 %n) {"
+    , "entry:"
+    , "  br label %head"
+    , "head:"
+    , "  %i = phi i32 [ 0, %entry ], [ %next, %body ]"
+    , "  %c = icmp slt i32 %i, %n"
+    , "  br i1 %c, label %body, label %done"
+    , "body:"
+    , "  %s = load i32, ptr @scale, align 4"
+    , "  %next = add i32 %i, %s"
+    , "  br label %head"
+    , "done:"
+    , "  ret i32 %i"
+    , "}"
+    ]
+
+-- | The same, with a store in the loop to a slot that is not the symbol.
+readPastStore :: Text
+readPastStore =
+  T.unlines
+    [ "@scale = internal global i32 3, align 4"
+    , "define i32 @f(i32 %n) {"
+    , "entry:"
+    , "  %t = alloca i32, align 4"
+    , "  br label %head"
+    , "head:"
+    , "  %i = phi i32 [ 0, %entry ], [ %next, %body ]"
+    , "  %c = icmp slt i32 %i, %n"
+    , "  br i1 %c, label %body, label %done"
+    , "body:"
+    , "  store i32 %i, ptr %t, align 4"
+    , "  %s = load i32, ptr @scale, align 4"
+    , "  %next = add i32 %i, %s"
+    , "  br label %head"
+    , "done:"
+    , "  ret i32 %i"
+    , "}"
+    ]
+
+-- | A store through a pointer the function was handed, which may be where the
+-- symbol is.
+writtenInLoop :: Text
+writtenInLoop =
+  T.unlines
+    [ "@scale = internal global i32 3, align 4"
+    , "define i32 @f(i32 %n, ptr %p) {"
+    , "entry:"
+    , "  br label %head"
+    , "head:"
+    , "  %i = phi i32 [ 0, %entry ], [ %next, %body ]"
+    , "  %c = icmp slt i32 %i, %n"
+    , "  br i1 %c, label %body, label %done"
+    , "body:"
+    , "  %s = load i32, ptr @scale, align 4"
+    , "  store i32 %i, ptr %p, align 4"
+    , "  %next = add i32 %i, %s"
+    , "  br label %head"
+    , "done:"
+    , "  ret i32 %i"
+    , "}"
+    ]
+
+-- | A call in the loop, which reaches every symbol the program has.
+callingPast :: Text
+callingPast =
+  T.unlines
+    [ "@scale = internal global i32 3, align 4"
+    , "declare void @tick()"
+    , "define i32 @f(i32 %n) {"
+    , "entry:"
+    , "  br label %head"
+    , "head:"
+    , "  %i = phi i32 [ 0, %entry ], [ %next, %body ]"
+    , "  %c = icmp slt i32 %i, %n"
+    , "  br i1 %c, label %body, label %done"
+    , "body:"
+    , "  %s = load i32, ptr @scale, align 4"
+    , "  call void @tick()"
+    , "  %next = add i32 %i, %s"
+    , "  br label %head"
+    , "done:"
+    , "  ret i32 %i"
+    , "}"
+    ]
+
+-- | A load in the header with a call above it.  The slot it reads is one whose
+-- address never leaves the function, so the call cannot be what writes it.
+calledAbove :: Text
+calledAbove =
+  T.unlines
+    [ "declare void @tick()"
+    , "define i32 @f(i32 %n, i32 %k) {"
+    , "entry:"
+    , "  %s = alloca i32, align 4"
+    , "  store i32 %k, ptr %s, align 4"
+    , "  br label %head"
+    , "head:"
+    , "  %i = phi i32 [ 0, %entry ], [ %next, %head ]"
+    , "  call void @tick()"
+    , "  %v = load i32, ptr %s, align 4"
+    , "  %next = add i32 %i, %v"
+    , "  %c = icmp slt i32 %next, %n"
+    , "  br i1 %c, label %head, label %done"
+    , "done:"
+    , "  ret i32 %next"
+    , "}"
+    ]
+
+-- | The same slot read in the header of a loop with nothing in it that could
+-- write it, and written @volatile@.
+volatileInHeader :: Text
+volatileInHeader =
+  T.unlines
+    [ "define i32 @f(i32 %n, i32 %k) {"
+    , "entry:"
+    , "  %s = alloca i32, align 4"
+    , "  store i32 %k, ptr %s, align 4"
+    , "  br label %head"
+    , "head:"
+    , "  %i = phi i32 [ 0, %entry ], [ %next, %head ]"
+    , "  %v = load volatile i32, ptr %s, align 4"
+    , "  %next = add i32 %i, %v"
+    , "  %c = icmp slt i32 %next, %n"
+    , "  br i1 %c, label %head, label %done"
+    , "done:"
+    , "  ret i32 %next"
+    , "}"
+    ]
+
+-- | A symbol defined as an @i32@ and read as an @i64@.
+readWider :: Text
+readWider =
+  T.unlines
+    [ "@scale = internal global i32 3, align 4"
+    , "define i64 @f(i32 %n) {"
+    , "entry:"
+    , "  br label %head"
+    , "head:"
+    , "  %i = phi i32 [ 0, %entry ], [ %next, %body ]"
+    , "  %c = icmp slt i32 %i, %n"
+    , "  br i1 %c, label %body, label %done"
+    , "body:"
+    , "  %s = load i64, ptr @scale, align 4"
+    , "  %next = add i32 %i, 1"
+    , "  br label %head"
+    , "done:"
+    , "  ret i64 0"
+    , "}"
+    ]
+
+-- | A symbol given @align 1@ and read at @align 4@.
+readOveraligned :: Text
+readOveraligned =
+  T.unlines
+    [ "@scale = internal global i32 3, align 1"
+    , "define i32 @f(i32 %n) {"
+    , "entry:"
+    , "  br label %head"
+    , "head:"
+    , "  %i = phi i32 [ 0, %entry ], [ %next, %body ]"
+    , "  %c = icmp slt i32 %i, %n"
+    , "  br i1 %c, label %body, label %done"
+    , "body:"
+    , "  %s = load i32, ptr @scale, align 4"
+    , "  %next = add i32 %i, 1"
+    , "  br label %head"
+    , "done:"
+    , "  ret i32 %i"
     , "}"
     ]
 

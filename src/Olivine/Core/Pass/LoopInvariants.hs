@@ -48,17 +48,49 @@
 -- undefine the program it costs everything, so integer division is not hoisted
 -- — dividing by zero is undefined behaviour rather than poison, and running it
 -- where the program would not have is inventing that behaviour rather than
--- collecting on it.  Hoisting a division out of the header, which the loop
--- runs whenever it is entered at all, is sound and is a refinement for later.
+-- collecting on it.  A division standing where the loop is certain to run it
+-- could come out on exactly the terms a load does below, 'alwaysReached' being
+-- the whole of what it would need; it is left declined outright until a program
+-- turns up that wants it.
 --
--- __Memory is not hoisted.__  A load reads what memory holds, and a store or a
--- call anywhere in the loop may change it.  Saying otherwise takes aliasing,
--- which "Olivine.Core.Alias" now answers and this pass does not yet ask:
--- hoisting a load means asking it of every store and call in the loop rather
--- than of the instructions between two accesses, and then dealing with the same
--- must-execute question a division raises, a load being able to fault where a
--- division divides by zero.  A loop-invariant load is the single biggest thing
--- this pass leaves on the table, and no longer for want of the analysis.
+-- __A load comes out when the loop cannot change what it reads.__  What a load
+-- answers is not a function of its operands but of what memory holds at the
+-- address they name, so a pointer the loop never assigns is not enough: a store
+-- or a call anywhere in the loop may leave something else there.  Which ones
+-- could is "Olivine.Core.Alias", asked here of every store in the body, and for
+-- a call asked as whether the address is one a callee has any way to name.  It
+-- is the question "Olivine.Core.Pass.Redundancies" asks of the instructions
+-- between two accesses, asked of a whole loop body instead.
+--
+-- __And when running it early cannot fault.__  A load is the first thing this
+-- pass moves that can undefine a program by being run where the program would
+-- not have run it.  Two answers rather than one, because they are different
+-- facts:
+--
+-- * /The loop runs it anyway./  An instruction in the header runs whenever the
+--   loop is entered at all, and every edge into the header goes through the
+--   preheader, so moving it there moves it past nothing — nothing except a call
+--   above it in the header, which may not come back.  The loads and divisions
+--   above it may fault, and those are passed over: a program that faults there
+--   is undefined already, and refining one that is undefined is allowed.
+--
+-- * /Or the storage is there whatever the program does./  A load of a whole
+--   symbol reads storage the program has for as long as it is running, so it
+--   cannot fault wherever it is run.  Whole is the word: the type loaded has to
+--   be the type the symbol was defined with, since without a data layout
+--   nothing here knows whether any other type fits inside it, and the alignment
+--   asked for has to be one the symbol was given, an access at an alignment the
+--   storage does not have being undefined like any other.  An @extern_weak@
+--   symbol may be absent and is declined; an alias is not answered for at all,
+--   being a second name for storage this does not follow to.
+--
+-- What that leaves is the shape a front end writes most often: a load through a
+-- pointer the function was handed, in a body the loop may never reach.  Knowing
+-- that one is safe means knowing the pointer is good for as many bytes as the
+-- load reads, which is dereferenceability and wants sizes.  The other way to it
+-- is to rotate the loop first, which makes the body the header and so makes the
+-- must-execute answer above the one that fires — and that is a pass to write
+-- rather than an analysis to want.
 --
 -- __The copies come out first.__  An operand is rarely the value it stands
 -- for.  Promotion replaces a load of a slot with a copy of the local the slot
@@ -95,22 +127,49 @@ module Olivine.Core.Pass.LoopInvariants
   , hoistable
   ) where
 
+import Data.List (inits)
+import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (mapMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 
+import Olivine.Core.Alias (Objects, mayAlias, objectsIn, reachableByCall)
 import Olivine.Core.Instruction
 import Olivine.Core.Loops (Loop (..), loopsOf)
 import Olivine.Core.Program
-import Olivine.Syntax.Instruction (Binary (..), BinaryOp (..))
+import Olivine.Syntax.Ast qualified as Syntax
+import Olivine.Syntax.Global (Global (..))
+import Olivine.Syntax.Instruction (Binary (..), BinaryOp (..), Load (..), Store (..))
+import Olivine.Syntax.Linkage (GlobalAttribute (..), Linkage (..))
+import Olivine.Syntax.Name (Name)
+import Olivine.Syntax.Value (TypedValue (..), Value (..))
 
 hoistLoopInvariants :: Program -> Program
 hoistLoopInvariants program =
   program {programEntries = map entry (programEntries program)}
   where
-    entry (EFunction f) = EFunction (settle (rounds f) f)
+    -- What the module's symbols name, which is what says whether a load of one
+    -- can be run where the program would not have run it.  Read once for the
+    -- program: no pass makes or unmakes a global, and this one moves
+    -- instructions between blocks of one function.
+    globals = globalVariables program
+
+    entry (EFunction f) = EFunction (settle globals (rounds f) f)
     entry retained = retained
+
+-- | The module's global variables by name.
+--
+-- Variables and nothing else.  A function is not storage to read from, and an
+-- alias names storage this does not follow to — the type written on an alias is
+-- the type it is given rather than the type of what is behind it — so neither
+-- answers what 'alwaysReadable' asks.
+globalVariables :: Program -> Map Name Global
+globalVariables program =
+  Map.fromList
+    [ (globalName g, g)
+    | ERetained (Syntax.EGlobal g) <- programEntries program
+    ]
 
 -- | As many hoists as there can be: one instruction leaves one loop each time,
 -- and this is how many of those there are to begin with.
@@ -123,24 +182,31 @@ rounds f =
     , Set.member (blockLabel b) (loopBody loop)
     ]
 
-settle :: Int -> Function -> Function
-settle remaining f
+settle :: Map Name Global -> Int -> Function -> Function
+settle globals remaining f
   | remaining <= 0 = f
-  | otherwise = case candidates f of
+  | otherwise = case candidates globals f of
       [] -> f
       (loop, preheader, moving) : _ ->
-        settle (remaining - 1) (hoistFrom f loop preheader moving)
+        settle globals (remaining - 1) (hoistFrom f loop preheader moving)
 
 -- | The loops with something to take out of them, innermost first, each with
 -- where what comes out of it goes.
-candidates :: Function -> [(Loop, Preheader, [Instruction])]
-candidates f =
+candidates :: Map Name Global -> Function -> [(Loop, Preheader, [Instruction])]
+candidates globals f =
   [ (loop, preheader, moving)
   | loop <- loopsOf f
   , Just preheader <- [preheaderFor f loop]
-  , let moving = invariantIn f loop
+  , let moving = invariantIn globals objects f loop
   , not (null moving)
   ]
+  where
+    -- What the function's own pointers point into, which every question about
+    -- memory below is asked of.  Read once for the function rather than once
+    -- per loop: hoisting moves instructions between blocks, and what a pointer
+    -- points into is not a fact about where the instruction computing it
+    -- stands.
+    objects = objectsIn f
 
 -- | Where a loop's hoisted instructions are put.
 data Preheader
@@ -185,14 +251,15 @@ preheaderFor f loop
 -- Everything collected in one round is independent of everything else in it: an
 -- instruction reading what another one in the loop assigns is not invariant
 -- yet, so nothing here reads anything else here, and the order they are
--- appended in cannot matter.
-invariantIn :: Function -> Loop -> [Instruction]
-invariantIn f loop =
+-- appended in cannot matter.  Two loads are independent of each other in the
+-- stronger sense as well, neither writing anything the other could read.
+invariantIn :: Map Name Global -> Objects -> Function -> Loop -> [Instruction]
+invariantIn globals objects f loop =
   [ i
   | b <- functionBlocks f
   , Set.member (blockLabel b) (loopBody loop)
-  , i <- blockInstructions b
-  , hoistable (instructionOperation i)
+  , (above, i) <- zip (inits (blockInstructions b)) (blockInstructions b)
+  , movable (blockLabel b) above (instructionOperation i)
   , Just result <- [instructionResult i]
   , Set.member result once
   , not (any (`Set.member` assigned) (localsUsedBy (instructionOperation i)))
@@ -200,6 +267,35 @@ invariantIn f loop =
   where
     once = writtenOnce f
     assigned = assignedIn f loop
+
+    -- Every instruction the loop runs, which is what a load has to be safe
+    -- against all of.
+    inside =
+      [ instructionOperation i
+      | b <- functionBlocks f
+      , Set.member (blockLabel b) (loopBody loop)
+      , i <- blockInstructions b
+      ]
+
+    -- Whether an instruction may be moved out, given where in the loop it
+    -- stands.  Only a load reads the position: for everything else the answer
+    -- is a fact about the operation alone, which is 'hoistable'.
+    movable label above operation = case operation of
+      OLoad l ->
+        not (loadVolatile l)
+          && not (changed (typedValue (loadPointer l)))
+          && (alwaysReached loop label above || alwaysReadable globals l)
+      _ -> hoistable operation
+
+    -- Whether anything the loop runs can write what a load of this address
+    -- reads.  A volatile store is a store: what makes it volatile is that the
+    -- write must happen, which is the opposite of a reason to pass over it.
+    changed pointer =
+      any (mayAlias objects pointer) stored
+        || (calling && reachableByCall objects pointer)
+
+    stored = [typedValue (storePointer s) | OStore s <- inside]
+    calling = not (null [() | OCall _ <- inside])
 
 -- | Every local the loop assigns, which is exactly what is not invariant in
 -- it.
@@ -283,7 +379,7 @@ hoistFrom f loop preheader moving = case preheader of
       | otherwise = b
 
 -- | Whether an operation may be computed before a loop that would have
--- computed it inside.
+-- computed it inside, judged by what the operation is and nothing else.
 --
 -- Two questions at once, and an operation has to answer both: that it leaves
 -- the same value behind whenever its operands are the same, and that running
@@ -291,6 +387,11 @@ hoistFrom f loop preheader moving = case preheader of
 -- out case by case with no catch-all, so that an operation added to the grammar
 -- later fails to compile here rather than being quietly taken for one that can
 -- be moved.
+--
+-- A load answers the first question in neither direction here, since what it
+-- answers depends on what the loop does to memory and on where in the loop it
+-- stands; 'invariantIn' asks it there, and this says only that nothing about a
+-- load on its own settles it.
 hoistable :: Operation operand -> Bool
 hoistable operation = case operation of
   -- A copy saves nothing by being made earlier — reconstruction removes every
@@ -309,7 +410,8 @@ hoistable operation = case operation of
   OAlloca _ -> False
   -- The answer is whatever memory holds, and a store or a call in the loop may
   -- change that.  Nor is the pointer necessarily one that can be read at all
-  -- when the loop is not entered.
+  -- when the loop is not entered.  Both are asked in 'invariantIn', which is
+  -- where the loop is to ask them of.
   OLoad _ -> False
   -- Writes memory, so moving it changes when the write happens.
   OStore _ -> False
@@ -326,6 +428,90 @@ hoistable operation = case operation of
   -- one that runs off the end of its object is poison rather than a fault.
   OOffset _ -> True
   OField _ -> True
+
+-- | Whether the loop runs an instruction whenever it is entered at all.
+--
+-- In the header, since every block of the body is reached through it and no
+-- other block of the body is reached at all on a turn that goes straight back
+-- out.  And with nothing above it in the header that control may not come back
+-- from, which is a call: the preheader runs and then the header runs from the
+-- top, so an instruction with a call above it is one the loop may be entered
+-- without ever reaching.
+--
+-- What is above it may fault instead of returning — a load through a bad
+-- pointer, a division by zero — and that is passed over rather than answered
+-- for.  Faulting there is undefined behaviour, so the program had none to
+-- preserve from that point on, and a refinement of a program that is undefined
+-- is any program at all.
+alwaysReached :: Loop -> Label -> [Instruction] -> Bool
+alwaysReached loop label above =
+  label == loopHeader loop && all (returns . instructionOperation) above
+
+-- | Whether control certainly reaches the instruction after this one.
+--
+-- A call may not come back — it may throw, it may exit, it may not finish —
+-- and nothing else in the grammar has anywhere to go but on.  Written out case
+-- by case with no catch-all for the reason 'hoistable' is: an operation added
+-- later that can end the function has to be looked at here rather than be taken
+-- for one that cannot.
+returns :: Operation operand -> Bool
+returns operation = case operation of
+  OCall _ -> False
+  OAssign _ -> True
+  OBinary _ -> True
+  OUnary _ -> True
+  OICmp _ -> True
+  OFCmp _ -> True
+  OConvert _ -> True
+  OSelect _ -> True
+  OExtractElement _ -> True
+  OInsertElement _ -> True
+  OShuffleVector _ -> True
+  OAlloca _ -> True
+  -- These can fault, which is not the same as not returning: a program that
+  -- faults is undefined from there on, and this is asked in order to say what a
+  -- program that is defined does.
+  OLoad _ -> True
+  OStore _ -> True
+  OOffset _ -> True
+  OField _ -> True
+
+-- | Whether a load can be run wherever it is put, for what it reads rather
+-- than for where it stands.
+--
+-- The whole of a symbol, and only that.  Storage a symbol names is there for as
+-- long as the program is running, so reading it cannot fault; what has to be
+-- established is that the load reads that storage and no more of the address
+-- space than that.
+--
+-- The type settles it, since the core has no data layout to compare sizes
+-- with: a load at the type the symbol was defined with reads exactly the
+-- symbol.  Any other type may be larger, and @i64@ read from a symbol defined
+-- as @i32@ is two symbols' worth of address at best.  A step from the symbol is
+-- declined for the same reason — the pointer here has to be the symbol itself,
+-- since where an index lands within an object is what a layout would say.
+--
+-- The alignment likewise, and it is a real question rather than a formality:
+-- an access at an alignment the storage does not have is undefined, so a load
+-- written @align 8@ of a symbol given @align 4@ is undefined when it runs, and
+-- running it where it would not have run is inventing that.  Both have to say
+-- what they are for this to compare them; where either is silent the answer is
+-- the type's natural alignment, which is a size again.
+alwaysReadable :: Map Name Global -> Load (TypedValue Local) -> Bool
+alwaysReadable globals l = case typedValue (loadPointer l) of
+  VGlobal name
+    | Just g <- Map.lookup name globals ->
+        globalType g == loadType l
+          -- The one linkage that says the symbol may not be there when the
+          -- program runs: an @extern_weak@ name the linker does not resolve is
+          -- null, and reading it is what this exists to avoid.
+          && globalLinkage g /= Just LinkExternWeak
+          && aligned g
+  _ -> False
+  where
+    aligned g = case (loadAlignment l, [n | GAAlign n <- globalAttributes g]) of
+      (Just wanted, [given]) -> wanted <= given
+      _ -> False
 
 -- | Whether an opcode undefines the program on operands it can be given.
 --
