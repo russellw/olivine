@@ -40,6 +40,38 @@ promotionTests =
             slots (escaping "ret ptr %a") @?>= 0
         , testCase "a slot offset into" $
             slots (escaping "%p = getelementptr inbounds i32, ptr %a, i64 1") @?>= 0
+        , -- A step of zero names the address it steps from, so an access
+          -- through one is an access to the slot.  This is the shape a front
+          -- end writes for the first element of an array or the first member
+          -- of a union, and it used to stop the slot going at all.
+          testCase "a slot reached through a step of zero" $
+            slots (stepped "getelementptr inbounds i32, ptr %a, i64 0") @?>= 1
+        , -- Field zero of a struct begins where the struct begins, packed or
+          -- not, which is a fact about no type's size.
+          testCase "a slot reached through field zero" $
+            slots (stepped "getelementptr inbounds { i32, i8 }, ptr %a, i32 0, i32 0") @?>= 1
+        , -- Where the later field is is what a data layout says and nothing
+          -- here reads one.
+          testCase "a slot reached through a later field" $
+            slots (stepped "getelementptr inbounds { i8, i32 }, ptr %a, i32 0, i32 1") @?>= 0
+        , -- What reads the step reads the slot, an escape as much as any
+          -- other: the address got out under another name.
+          testCase "a slot whose step of zero is passed to a call" $
+            slots
+              ( T.unlines
+                  [ "declare void @g(ptr)"
+                  , "define i32 @f(i32 %v) {"
+                  , "entry:"
+                  , "  %a = alloca i32, align 4"
+                  , "  %p = getelementptr inbounds i32, ptr %a, i64 0"
+                  , "  store i32 %v, ptr %p, align 4"
+                  , "  %r = load i32, ptr %p, align 4"
+                  , "  call void @g(ptr %p)"
+                  , "  ret i32 %r"
+                  , "}"
+                  ]
+              )
+              @?>= 0
         , testCase "a slot compared" $
             slots (escaping "%c = icmp eq ptr %a, null") @?>= 0
         , testCase "a slot selected between" $
@@ -224,6 +256,12 @@ promotionTests =
                   ]
               )
               @?>= [[], ["assign", "assign"]]
+        , -- The step named an address, and there is no longer an address to
+          -- name: the allocation, the store and the load are the three
+          -- assignments, and the step is gone.
+          testCase "a step of zero goes with the slot" $
+            shapes (stepped "getelementptr inbounds i32, ptr %a, i64 0")
+              @?>= ["assign", "assign", "assign"]
         , testCase "a slot that may not go is left alone" $
             shapes (escaping "call void @g(ptr %a)")
               @?>= ["alloca", "store", "load", "other"]
@@ -262,6 +300,20 @@ promotionTests =
         , "  store i32 7, ptr %a, align 4"
         , "  %r = load i32, ptr %a, align 4"
         , "  " <> extra
+        , "  ret i32 %r"
+        , "}"
+        ]
+
+    -- One slot, accessed through whatever the step names rather than through
+    -- the allocation's own local.
+    stepped step =
+      T.unlines
+        [ "define i32 @f(i32 %v) {"
+        , "entry:"
+        , "  %a = alloca i32, align 4"
+        , "  %p = " <> step
+        , "  store i32 %v, ptr %p, align 4"
+        , "  %r = load i32, ptr %p, align 4"
         , "  ret i32 %r"
         , "}"
         ]

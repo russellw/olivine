@@ -94,6 +94,10 @@ promoteIn order f
   where
     promoted = promotableIn order f
 
+    -- What each local that is a step of zero names, which is how an access
+    -- written through one is seen to be an access to the slot.
+    rooted = rootOf (zeroSteps f)
+
     -- Where the names the conversions assign to start.  A conversion cannot
     -- write to the local the load named, since that local is what the rest of
     -- the function reads and a local an instruction writes is a local nothing
@@ -105,10 +109,13 @@ promoteIn order f
       let (n', made) = mapAccumL instruction n (blockInstructions b)
        in (n', b {blockInstructions = concat made})
 
-    -- The three shapes an access to a promoted slot takes, and nothing else
-    -- can be one: the accesses are what 'promotableIn' enumerated to decide
-    -- the slot was promotable, so a use of one reached here is a load, a
-    -- store, or the allocation itself.
+    -- The four shapes an instruction naming a promoted slot takes, and nothing
+    -- else can be one: the accesses are what 'promotableIn' enumerated to
+    -- decide the slot was promotable, so what is reached here is a load, a
+    -- store, the allocation itself, or a step of zero on the way to one of
+    -- them.  The step goes: it named an address, there is no longer an address
+    -- to name, and what read its result was an access this rewrote or another
+    -- step this dropped — anything else would have been an escape.
     instruction n i = case instructionOperation i of
       OAlloca _
         | Just slot <- instructionResult i
@@ -123,6 +130,11 @@ promoteIn order f
         , Just t <- Map.lookup slot promoted
         , Just result <- instructionResult i ->
             reinterpreting n (TypedValue t (VLocal slot)) (loadType l) (assigning result)
+      operation
+        | Just result <- instructionResult i
+        , _ : _ <- steppingFrom operation
+        , Map.member (rooted result) promoted ->
+            (n, [])
       _ -> (n, [i])
       where
         -- The metadata stays with the instruction it was attached to, as it
@@ -145,7 +157,7 @@ promoteIn order f
                   Nothing -> (m, [], value)
            in (m', made <> [finish final])
 
-    slotOf (TypedValue _ (VLocal n)) | Map.member n promoted = Just n
+    slotOf (TypedValue _ (VLocal n)) | Map.member (rooted n) promoted = Just (rooted n)
     slotOf _ = Nothing
 
 -- | Write a chain of conversions out as instructions, and say what the last
@@ -207,11 +219,13 @@ reinterpretation order from to
 --   something else there.
 --
 -- * The local is read only as the address a plain load reads or a plain store
---   writes.  Anything else — passed to a call, returned, offset into,
---   compared, stored somewhere — is the address escaping to code that could
---   reach the storage by other means than the accesses counted here.  A
---   volatile access counts as an escape too, since the point of one is that it
---   happens, and an assignment does not happen anywhere.
+--   writes, or as the address a step of zero steps from — which is the same
+--   address, so what reads that is reading this.  Anything else — passed to a
+--   call, returned, stepped somewhere else, compared, stored somewhere — is
+--   the address escaping to code that could reach the storage by other means
+--   than the accesses counted here.  A volatile access counts as an escape
+--   too, since the point of one is that it happens, and an assignment does not
+--   happen anywhere.
 --
 -- * The accesses agree on what the slot holds, which 'heldType' decides: they
 --   are all at the allocated type, or they are all at types a value can be
@@ -232,6 +246,8 @@ promotableIn order f =
   where
     instructions = [i | b <- functionBlocks f, i <- blockInstructions b]
 
+    rooted = rootOf (zeroSteps f)
+
     single a =
       not (allocaInalloca a) && case allocaElementCount a of
         Nothing -> True
@@ -243,24 +259,34 @@ promotableIn order f =
       Map.fromListWith (+) [(slot, 1) | Just slot <- map instructionResult instructions]
 
     -- Every local read anywhere other than as an address loaded from or
-    -- stored to.  A terminator reads no address in that sense, so everything
-    -- it names is here.
+    -- stored to, said as the local whose address that is.  A terminator reads
+    -- no address in that sense, so everything it names is here.
     escaping :: Set Local
     escaping =
       Set.fromList
-        ( concatMap escapingFrom instructions
-            <> [ local
-               | b <- functionBlocks f
-               , local <- localsUsedBy (terminatorTransfer (blockTerminator b))
-               ]
+        ( map rooted
+            ( concatMap escapingFrom instructions
+                <> [ local
+                   | b <- functionBlocks f
+                   , local <- localsUsedBy (terminatorTransfer (blockTerminator b))
+                   ]
+            )
         )
 
     -- Written as a difference rather than by case, so that a slot appearing
     -- twice in one instruction is counted twice: @store ptr %a, ptr %a@ puts
     -- a slot's own address in it, and the value operand is an escape although
     -- the pointer operand is not.
+    --
+    -- A step of zero reads its pointer as an address, like an access, and
+    -- unlike an access it also names one: whatever reads its result is the
+    -- escape or the access, and 'rooted' is what says the two are about the
+    -- same storage.
     escapingFrom i =
-      foldr delete (localsUsedBy (instructionOperation i)) (addressedBy i)
+      foldr
+        delete
+        (localsUsedBy (instructionOperation i))
+        (addressedBy i <> steppingFrom (instructionOperation i))
 
     -- What each slot is accessed at, and which way round.  Gathered in one
     -- walk keyed by slot rather than looked up per candidate, since a function
@@ -273,7 +299,7 @@ promotableIn order f =
     accesses =
       Map.fromListWith
         (<>)
-        [ (slot, [access])
+        [ (rooted slot, [access])
         | i <- instructions
         , slot <- addressedBy i
         , access <- accessOf (instructionOperation i)
@@ -339,3 +365,56 @@ addressedBy i = case instructionOperation i of
   where
     pointer (TypedValue _ (VLocal n)) = [n]
     pointer _ = []
+
+-- | The pointer a step of zero steps from, which is the address the step
+-- names.
+--
+-- @getelementptr T, ptr %p, i64 0@ is @%p@ whatever @T@ is, and field zero of
+-- a struct begins where the struct begins whether or not it is packed.  Both
+-- are true without knowing any type's size, which is why they are here and why
+-- no other step is: the address of field one is where the data layout comes
+-- in, and nothing reads that — see "Olivine.Core.Layout".
+--
+-- A front end writes a step of zero wherever a program names the first element
+-- of an array or the first member of a union, and until this was here the slot
+-- behind one could not be promoted at all: @u.b[0]@ read the storage by an
+-- address the pass could not tell from any other.
+steppingFrom :: Operation (TypedValue Local) -> [Local]
+steppingFrom operation = case operation of
+  OOffset o | TypedValue _ (VInteger 0) <- offsetIndex o -> pointer (offsetPointer o)
+  OField x | fieldIndex x == 0 -> pointer (fieldPointer x)
+  _ -> []
+  where
+    pointer (TypedValue _ (VLocal n)) = [n]
+    pointer _ = []
+
+-- | Which local each local that is a step of zero names the address of.
+--
+-- Only where the stepping local is assigned once, since otherwise what it
+-- names depends on how it was reached, and this map answers without asking
+-- where.
+zeroSteps :: Function -> Map Local Local
+zeroSteps f =
+  Map.fromList
+    [ (result, from)
+    | Instruction (Just result) operation _ <- instructions
+    , Map.findWithDefault (0 :: Int) result definitions == 1
+    , from <- steppingFrom operation
+    ]
+  where
+    instructions = [i | b <- functionBlocks f, i <- blockInstructions b]
+
+    definitions =
+      Map.fromListWith (+) [(result, 1) | Just result <- map instructionResult instructions]
+
+-- | What a local finally names, following the steps of zero.
+--
+-- Bounded by how many there are rather than run to the end, since two steps
+-- may name each other — a chain that long has been round a cycle, which
+-- nothing a program means can contain and which this must not hang on.
+rootOf :: Map Local Local -> Local -> Local
+rootOf steps = walk (Map.size steps)
+  where
+    walk :: Int -> Local -> Local
+    walk 0 local = local
+    walk fuel local = maybe local (walk (fuel - 1)) (Map.lookup local steps)
