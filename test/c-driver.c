@@ -58,6 +58,12 @@ int square_b(const struct pair*); int written_then_read(struct pair*,int);
 int separate_slots(int); int both_ways(struct pair*); int around_call(struct pair*);
 int confined_across_call(int); int through_the_store(struct pair*,struct pair*);
 int repeated(const struct pair*,int); int accumulated(const struct pair*,int*,int);
+/* bytes.c */
+void scale_apart(int*restrict,const int*restrict,int,const int*restrict);
+void scale_together(int*,const int*,int,const int*);
+unsigned checksum(const unsigned char*,int); int span(const signed char*,int);
+unsigned char low_bits(unsigned); short folded_down(int,int);
+int length(const char*); void copy_bytes(char*restrict,const char*restrict);
 static int twice(int x){return x*2;}
 static int plus(int a,int b){return a+b;}
 #ifdef HELLO
@@ -183,6 +189,26 @@ int main(void){
       /* And with the written address inside the struct being read. */
       cell.b = 5;
       for(int n=0;n<=3;n++) printf("%d ", accumulated(&cell,&cell.b,n)); printf("\n"); } }
+#endif
+#ifdef BYTES
+  { int in[8], out[8], k = 3;
+    for(int i=0;i<8;i++) in[i]=i*3-5;
+    scale_apart(out,in,8,&k); for(int i=0;i<8;i++) printf("%d ", out[i]); printf("\n");
+    /* The same loop with nothing promised, called once with the scale apart
+       from what is written and once with the scale inside it, where every
+       iteration reads what the last one wrote. */
+    for(int i=0;i<8;i++) out[i]=0;
+    scale_together(out,in,8,&k); for(int i=0;i<8;i++) printf("%d ", out[i]); printf("\n");
+    for(int i=0;i<8;i++) out[i]=2;
+    scale_together(out,in,8,out); for(int i=0;i<8;i++) printf("%d ", out[i]); printf("\n");
+    { unsigned char bs[9]; for(int i=0;i<9;i++) bs[i]=(unsigned char)(i*29+1);
+      printf("%u %u\n", checksum(bs,9), checksum(bs,0)); }
+    { signed char ss[7] = {0,-128,127,3,-4,50,-50};
+      printf("%d %d\n", span(ss,7), span(ss,1)); }
+    for(unsigned u=0;u<0x30000u;u=u*11+7) printf("%u ", (unsigned)low_bits(u)); printf("\n");
+    for(int a=-3;a<=3;a++) printf("%d ", (int)folded_down(a*10000,a+300)); printf("\n");
+    { char buf[16]; const char *src = "hello, corpus";
+      copy_bytes(buf,src); printf("%d %d %s\n", length(src), length(buf), buf); } }
 #endif
 #ifdef LINKAGE
   printf("%d %d %d\n", real_answer(), aliased_answer(), weak_count + tentative);

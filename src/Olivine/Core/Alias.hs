@@ -45,6 +45,16 @@
 -- not local to the instruction being asked about, and the one that makes
 -- knowledge of a slot survive a call.
 --
+-- __What a parameter points at is partly the caller's business.__  Two of the
+-- answers here are not about anything written in the body: an argument was
+-- computed before the call began, so it cannot point into storage this call
+-- allocated; and a parameter written @noalias@ — which is where a @restrict@
+-- in the source ends up — is promised not to reach what anything else in the
+-- function reaches.  Both are read off the signature rather than the
+-- instructions, and both were settled by asking LLVM what it concludes about
+-- the same pairs rather than by reading the LangRef's definition of \"based
+-- on\".
+--
 -- __Two globals are not distinguished.__  Distinct @alloca@s are distinct
 -- objects, and no symbol names stack storage, so those cases are settled.  Two
 -- global names are not: an alias gives a second name to one object, and two
@@ -78,6 +88,8 @@ import Numeric.Natural (Natural)
 import Olivine.Core.Instruction
 import Olivine.Core.Layout (Layout, allocSize, fieldOffset, storeSize)
 import Olivine.Core.Program
+import Olivine.Syntax.Attribute (ParamAttribute (..))
+import Olivine.Syntax.Function qualified as Syntax
 import Olivine.Syntax.Instruction (Alloca (..), Convert (..), Load (..), Store (..))
 import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Type (Type)
@@ -160,6 +172,13 @@ data Objects = Objects
     -- that hold one value everywhere in it and so the only ones a distance can
     -- be measured from.  See 'Base'.
     fixed :: Set Local
+  , -- | The parameters written @noalias@, which is @restrict@ where a front
+    -- end put it.
+    --
+    -- The one thing here the function's own body does not say: what a
+    -- parameter may point at is a fact about every caller, and this is the
+    -- caller's promise about it written down where the callee can read it.
+    apart :: Set Local
   , -- | How to measure a step and an access, where the module says.
     --
     -- Nothing is not a special case anywhere below: it makes every offset and
@@ -170,7 +189,8 @@ data Objects = Objects
 
 -- | Read a function's pointers.
 objectsIn :: Maybe Layout -> Function -> Objects
-objectsIn layout f = Objects definitions (leakingIn f definitions) unassigned layout
+objectsIn layout f =
+  Objects definitions (leakingIn f definitions) unassigned promised layout
   where
     definitions = definitionsIn f
 
@@ -178,6 +198,20 @@ objectsIn layout f = Objects definitions (leakingIn f definitions) unassigned la
       Set.fromList (functionParameters f)
         `Set.difference` Set.fromList
           [result | i <- instructionsIn f, Just result <- [instructionResult i]]
+
+    -- The signature keeps its parameters in the order written and so does
+    -- 'functionParameters', which is what lets one be read by the other: the
+    -- attributes are in the signature and the local the body calls it by is
+    -- not.
+    promised =
+      Set.fromList
+        [ local
+        | (local, p) <-
+            zip
+              (functionParameters f)
+              (Syntax.signatureParameters (functionSignature f))
+        , PANoAlias `elem` Syntax.parameterAttributes p
+        ]
 
 -- | What each local assigned in exactly one place is assigned by.
 --
@@ -414,15 +448,23 @@ mayAlias objects p q =
       -- question.
       (x, y) | x == y -> overlapping a b
       (InObject x, InObject y) -> not (distinct x y)
-      -- A parameter may be a pointer to anything the caller had, which is
-      -- everything the caller could name.
-      (InObject x, AtLocal _) -> escaped objects x
-      (AtLocal _, InObject y) -> escaped objects y
-      (AtLocal _, AtLocal _) -> True
+      -- A parameter points at what the caller had, and what that can be is
+      -- decided by when it was computed and by what the caller promised.
+      (InObject x, AtLocal n) -> handedIn objects n x
+      (AtLocal n, InObject y) -> handedIn objects n y
+      (AtLocal n, AtLocal m) -> not (promisedApart objects n m)
 
     -- What a region measured from a pointer this could not follow can be:
     -- anything, unless the other one is storage nothing outside these accesses
     -- has a way to name.
+    --
+    -- A @noalias@ promise says nothing here, although LLVM's own answer to the
+    -- same pair is that it does.  The promise is about pointers not /based on/
+    -- the parameter, and what this walk stopped at may be based on it: a
+    -- @select@ between it and something else, or a local two branches assign,
+    -- is exactly a pointer the promise covers rather than one it excludes.
+    -- Telling those from a pointer read out of memory is the walk being able
+    -- to say why it stopped, which it cannot.
     strange a = case regionBase a of
       InObject object -> escaped objects object
       AtLocal _ -> True
@@ -449,6 +491,44 @@ mayAlias objects p q =
         mine <- toInteger <$> storeSize layout (accessType p)
         theirs <- toInteger <$> storeSize layout (accessType q)
         pure (here < there + theirs && there < here + mine)
+
+-- | Whether a pointer handed to this function can point into this storage.
+--
+-- An argument is computed by the caller before the call begins, so it cannot
+-- point into storage this call allocated however far that storage's address
+-- afterwards travels: a recursive call is handed a pointer into the frame that
+-- made it, and this function's own @alloca@ belongs to this frame.  The
+-- exception is @inalloca@, which is not storage the function owns but the
+-- memory the caller built the arguments in, and which the caller therefore
+-- names already.
+--
+-- A symbol is the other way round.  Everything outside the function can name
+-- one, so an ordinary parameter may well point at it, and it takes the
+-- @noalias@ promise to say otherwise — the promise being that what is reached
+-- through the parameter is not reached any other way, and a symbol written by
+-- name is another way.
+handedIn :: Objects -> Local -> Object -> Bool
+handedIn objects parameter object = case object of
+  OnStack slot -> case Map.lookup slot (definedBy objects) of
+    Just (OAlloca a) -> allocaInalloca a
+    -- Not something this can look at, so not something to claim about.
+    _ -> True
+  InGlobal _ -> not (Set.member parameter (apart objects))
+
+-- | Whether two parameters are promised to point into different storage.
+--
+-- One @noalias@ is enough: the promise is that nothing reached through this
+-- parameter is reached other than through it, and the other parameter is
+-- another way to reach it whether or not it carries a promise of its own.
+--
+-- Two accesses measured from /one/ parameter are of course the same storage,
+-- and are settled by the offsets before this is asked.  It says so again
+-- because the alternative is a soundness bug that depends on the order of the
+-- cases above.
+promisedApart :: Objects -> Local -> Local -> Bool
+promisedApart objects p q =
+  p /= q
+    && (Set.member p (apart objects) || Set.member q (apart objects))
 
 -- | Whether a call can reach the storage a pointer points into.
 --

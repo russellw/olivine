@@ -295,10 +295,11 @@ redundancyTests =
           -- anywhere.
           testCase "a slot whose address stayed put, and a stranger" $ do
             (objects, [x]) <- aliasingIn confinedSlot
+            (_, [q]) <- strangersIn confinedSlot
             assertEqual
               "cannot be the same storage"
               False
-              (mayAlias objects (reading (VLocal x)) (reading (VLocal (Local 0))))
+              (mayAlias objects (reading (VLocal x)) (reading (VLocal q)))
         , testCase "and no call can reach it either" $ do
             (objects, [x]) <- aliasingIn confinedSlot
             assertEqual "having no way to name it" False (reachableByCall objects (VLocal x))
@@ -306,13 +307,84 @@ redundancyTests =
           -- callee could read it back.
           testCase "a slot whose address was stored somewhere" $ do
             (objects, [x]) <- aliasingIn handedOver
+            (_, [q]) <- strangersIn handedOver
             assertEqual
               "may be any pointer at all"
               True
-              (mayAlias objects (reading (VLocal x)) (reading (VLocal (Local 0))))
+              (mayAlias objects (reading (VLocal x)) (reading (VLocal q)))
         , testCase "and a call may reach it" $ do
             (objects, [x]) <- aliasingIn handedOver
             assertEqual "the address being out there" True (reachableByCall objects (VLocal x))
+        , -- But not by way of a parameter, whatever the address did afterwards.
+          -- An argument is computed before the call it is an argument to, so
+          -- there was no such slot to point at when the caller worked it out.
+          -- LLVM answers the same: @opt -passes=gvn@ takes a load across a
+          -- store through a parameter to storage the function allocated and
+          -- whose address it stored somewhere first.
+          testCase "and yet a parameter cannot be pointing at it" $ do
+            (objects, [x]) <- aliasingIn handedOver
+            assertEqual
+              "the argument being older than the slot"
+              False
+              (mayAlias objects (reading (VLocal x)) (reading (VLocal (Local 0))))
+        , -- Argument memory is the exception, being the caller's rather than
+          -- this function's however it is written.
+          testCase "unless the slot is where the arguments were built" $ do
+            (objects, [x]) <- aliasingIn inallocaSlot
+            assertEqual
+              "which the caller names already"
+              True
+              (mayAlias objects (reading (VLocal x)) (reading (VLocal (Local 0))))
+        ]
+    , testGroup
+        "what the caller promised"
+        [ -- Two parameters and one promise, which is enough: what is reached
+          -- through a noalias parameter is not reached any other way, and the
+          -- other parameter is another way.
+          testCase "a noalias parameter and another parameter" $ do
+            (objects, _) <- aliasingIn promisedApartSource
+            assertEqual
+              "which the promise keeps apart"
+              False
+              (mayAlias objects (reading (VLocal (Local 0))) (reading (VLocal (Local 1))))
+        , testCase "and the same two without the promise" $ do
+            (objects, _) <- aliasingIn nothingPromised
+            assertEqual
+              "which may be one pointer"
+              True
+              (mayAlias objects (reading (VLocal (Local 0))) (reading (VLocal (Local 1))))
+        , -- A symbol is a name everything outside the function can use, so it
+          -- is one of the other ways the promise is about.
+          testCase "a noalias parameter and a symbol" $ do
+            (objects, _) <- aliasingIn promisedApartSource
+            assertEqual
+              "which the promise keeps apart as well"
+              False
+              (mayAlias objects (reading (VLocal (Local 0))) (reading (VGlobal (Name Bare "g"))))
+        , testCase "and a plain parameter and a symbol" $ do
+            (objects, _) <- aliasingIn nothingPromised
+            assertEqual
+              "which may well be where it points"
+              True
+              (mayAlias objects (reading (VLocal (Local 0))) (reading (VGlobal (Name Bare "g"))))
+        , -- The promise is about other ways of reaching the storage, not about
+          -- the parameter itself: two accesses off one of them are two
+          -- accesses to one thing, and only the offsets say whether they meet.
+          testCase "one noalias parameter twice over" $ do
+            (objects, _) <- aliasingIn promisedApartSource
+            assertEqual
+              "which is the same storage either way"
+              True
+              (mayAlias objects (reading (VLocal (Local 0))) (reading (VLocal (Local 0))))
+        , -- And it says nothing about a pointer this cannot follow, which may
+          -- be a select or a phi that the promise covers rather than excludes.
+          testCase "a noalias parameter and a stranger" $ do
+            (objects, _) <- aliasingIn promisedApartSource
+            (_, [q]) <- strangersIn promisedApartSource
+            assertEqual
+              "there being no saying what it was derived from"
+              True
+              (mayAlias objects (reading (VLocal (Local 0))) (reading (VLocal q)))
         ]
     , testGroup
         "which bytes an access touches"
@@ -466,6 +538,30 @@ aliasingIn source = do
         , [ slot
           | b <- functionBlocks f
           , Instruction (Just slot) (OAlloca _) _ <- blockInstructions b
+          ]
+        )
+
+-- | What a function says about its pointers, and the locals its loads of
+-- pointers assign to, in the order written.
+--
+-- A pointer read out of memory is what a stranger is: 'regionOf' stops at it
+-- and reports having stopped, which is the case the answers about strangers
+-- are answers about.  A parameter used to serve for one in these tests and no
+-- longer can, where an argument may point being something the analysis now
+-- says something about.
+strangersIn :: Text -> IO (Objects, [Local])
+strangersIn source = do
+  parsed <- expectParse "test" source
+  let program = lower parsed
+  case functionsIn program of
+    [] -> assertFailure "no function lowered"
+    f : _ ->
+      pure
+        ( objectsIn (layoutOf program) f
+        , [ result
+          | b <- functionBlocks f
+          , Instruction (Just result) (OLoad l) _ <- blockInstructions b
+          , TPointer _ <- [loadType l]
           ]
         )
 
@@ -1011,15 +1107,20 @@ intoFields =
 
 -- | A slot read and written and nothing else, beside a pointer that arrived
 -- from somewhere this function cannot see.
+--
+-- The pointer is read out of memory rather than being the parameter, because
+-- where a parameter may point is something the analysis now has an opinion
+-- about and a stranger is precisely a pointer it has none about.
 confinedSlot :: Text
 confinedSlot =
   T.unlines
     [ "define i32 @f(ptr %p) {"
     , "entry:"
     , "  %x = alloca i32, align 4"
+    , "  %q = load ptr, ptr %p, align 8"
     , "  store i32 1, ptr %x, align 4"
     , "  %a = load i32, ptr %x, align 4"
-    , "  %b = load i32, ptr %p, align 4"
+    , "  %b = load i32, ptr %q, align 4"
     , "  %s = add i32 %a, %b"
     , "  ret i32 %s"
     , "}"
@@ -1033,7 +1134,47 @@ handedOver =
     , "entry:"
     , "  %x = alloca i32, align 4"
     , "  store ptr %x, ptr %p, align 8"
+    , "  %q = load ptr, ptr %p, align 8"
     , "  %a = load i32, ptr %x, align 4"
+    , "  ret i32 %a"
+    , "}"
+    ]
+
+-- | Storage that is not the function's own however it is written: @inalloca@
+-- names the memory the caller built the arguments in.
+inallocaSlot :: Text
+inallocaSlot =
+  T.unlines
+    [ "define i32 @f(ptr %p) {"
+    , "entry:"
+    , "  %x = alloca inalloca i32, align 4"
+    , "  %a = load i32, ptr %x, align 4"
+    , "  ret i32 %a"
+    , "}"
+    ]
+
+-- | Two pointers the caller promised are not the same one, and a symbol
+-- beside them.
+promisedApartSource :: Text
+promisedApartSource =
+  T.unlines
+    [ "@g = global i32 0"
+    , "define i32 @f(ptr noalias %p, ptr %q) {"
+    , "entry:"
+    , "  %r = load ptr, ptr %q, align 8"
+    , "  %a = load i32, ptr %p, align 4"
+    , "  ret i32 %a"
+    , "}"
+    ]
+
+-- | The same function with nothing promised about either pointer.
+nothingPromised :: Text
+nothingPromised =
+  T.unlines
+    [ "@g = global i32 0"
+    , "define i32 @f(ptr %p, ptr %q) {"
+    , "entry:"
+    , "  %a = load i32, ptr %p, align 4"
     , "  ret i32 %a"
     , "}"
     ]
