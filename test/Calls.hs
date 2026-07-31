@@ -151,6 +151,37 @@ emitted =
             )
         )
     )
+  , -- An operand bundle, which stands after the attributes.  This is the one
+    -- clang writes without being asked: an alignment a program promised, hung
+    -- on an assumption that says nothing by itself.
+    ( "  call void @llvm.assume(i1 true) [ \"align\"(ptr %p, i64 16) ]"
+    , Nothing
+    , OCall
+        (call TVoid (VGlobal (Name Bare "llvm.assume")))
+          { callArguments = [argument (TInteger 1) [] (VBoolean True)]
+          , callBundles =
+              [ bundle
+                  "align"
+                  [ TypedValue (TPointer Nothing) (VLocal (Name Bare "p"))
+                  , TypedValue (TInteger 64) (VInteger 16)
+                  ]
+              ]
+          }
+    )
+  , -- Several of them, one holding nothing at all, and a group reference
+    -- before them: the attributes come first and LLVM's parser refuses the
+    -- other order.
+    ( "  call void @g() #0 [ \"deopt\"(i32 %a), \"foo\"() ]"
+    , Nothing
+    , OCall
+        (call TVoid (VGlobal (Name Bare "g")))
+          { callAttributes = [AIGroup 0]
+          , callBundles =
+              [ bundle "deopt" [TypedValue (TInteger 32) (VLocal (Name Bare "a"))]
+              , bundle "foo" []
+              ]
+          }
+    )
   , -- All four words, in the one order LLVM's parser takes them.
     ( "  call void asm sideeffect alignstack inteldialect unwind \"nop\", \"\"()"
     , Nothing
@@ -190,13 +221,18 @@ emitted =
         , callCallee = TypedValue (TPointer Nothing) callee
         , callArguments = []
         , callAttributes = []
+        , callBundles = []
         }
+
+    bundle tag operands = OperandBundle {bundleTag = tag, bundleOperands = operands}
 
 -- | Not modelled, or malformed.  Each must leave its line opaque.
 rejected :: [Text]
 rejected =
-  [ -- Operand bundles are not modelled.
-    "  call void @g() [ \"deopt\"() ]"
+  [ -- An empty bracket pair, which LLVM's parser refuses outright: an operand
+    -- bundle set must not be empty.  There is nothing for it to parse to, the
+    -- list being empty exactly when the brackets are not written.
+    "  call void @g() [ ]"
   , -- The four words of an inline assembly callee are written in one order,
     -- and LLVM's parser refuses any other; so does this, which is why the line
     -- is left as it stands rather than read into a shape LLVM cannot write.

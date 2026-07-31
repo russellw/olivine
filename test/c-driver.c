@@ -97,6 +97,11 @@ int barrier_sum(const int*,int,const int*); int through_slot(int);
 int hidden(int,int); int each_time(int,int); int both_kinds(int);
 int jumps_when_zero(int); int swapped_or_low(int);
 int counted_jumps(const int*,int); int held_and_jumped(int);
+/* assume.c */
+int sum_aligned(const int*,int); int sum_plain(const int*,int);
+int sum_each(const int*,int); void scale_aligned(int*,const int*,int,int);
+int dot_aligned(const int*,const int*,int); int halved(int);
+int through_call(const int*,int); int local_aligned(int);
 /* except.cpp -- C++, so these are the extern "C" names it exports */
 extern int cleanups_run;
 int caught_value(int); int caught_anything(int); int cleanup_on_both(int);
@@ -331,6 +336,23 @@ int main(void){
     printf("\n");
     { static const int values[7] = {1,2,-3,4,5,-6,7};
       for(int n=0;n<=7;n++) printf("%d ", skipping(values,n,0)); printf("\n"); } }
+#endif
+#ifdef ASSUME
+  /* Aligned to what the file promises, since a promise the caller breaks is
+     undefined and the two builds would be free to disagree about it. */
+  { _Alignas(16) int in[16], out[16];
+    for(int i=0;i<16;i++) in[i]=i*5-9;
+    for(int n=0;n<=16;n+=4)
+      printf("%d %d %d ", sum_aligned(in,n), sum_plain(in,n), sum_each(in,n));
+    printf("\n");
+    for(int k=-2;k<=2;k++) {
+      scale_aligned(out,in,16,k);
+      printf("%d ", sum_plain(out,16)); }
+    printf("\n");
+    for(int n=0;n<=16;n+=4) printf("%d ", dot_aligned(in,in,n)); printf("\n");
+    for(int x=1;x<=64;x*=3) printf("%d ", halved(x)); printf("\n");
+    for(int n=0;n<=16;n+=8) printf("%d ", through_call(in,n)); printf("\n");
+    for(int n=0;n<=3;n++) printf("%d ", local_aligned(n)); printf("\n"); }
 #endif
 #ifdef LINKAGE
   printf("%d %d %d\n", real_answer(), aliased_answer(), weak_count + tentative);

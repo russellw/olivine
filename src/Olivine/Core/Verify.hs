@@ -452,17 +452,22 @@ misplacedAsm operands' =
 --
 -- Written by naming the operands that are kept rather than by dropping the
 -- callee, so that a call gaining an operand does not silently become a place
--- assembly may be written.
+-- assembly may be written.  It gained one — what its bundles carry — and this
+-- is where that is said.
 besideTheCallee :: Operation operand -> [operand]
 besideTheCallee operation = case operation of
-  OCall c -> map argumentValue (callArguments c)
+  OCall c -> besideTheCalleeOf c
   _ -> toList operation
 
 -- | The same of a transfer, two of which are calls that end their block.
 besideTheCalleeIn :: Transfer operand -> [operand]
 besideTheCalleeIn transfer = case callIn transfer of
-  Just c -> map argumentValue (callArguments c)
+  Just c -> besideTheCalleeOf c
   Nothing -> toList transfer
+
+besideTheCalleeOf :: Call operand -> [operand]
+besideTheCalleeOf c =
+  map argumentValue (callArguments c) <> concatMap toList (callBundles c)
 
 -- | What an operation demands of its operands.
 --

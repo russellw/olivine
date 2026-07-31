@@ -100,6 +100,10 @@ tailRecursionTests =
           -- and finds work rather than a return.
           testCase "work done in the block the call branches to" $ leftAlone working
         , testCase "a call marked notail" $ leftAlone (marked "notail")
+        , -- Assigning the arguments to the parameters says what the arguments
+          -- said and nothing about what the call carried beside them, so the
+          -- bundle would go out with the call.
+          testCase "a self call carrying an operand bundle" $ leftAlone carrying
         , testCase "a variadic function" $ leftAlone variadic
         , testCase "a call with the wrong number of arguments" $ leftAlone miscounted
         , testCase "a parameter passed byval" $ leftAlone byval
@@ -478,6 +482,25 @@ forwarded =
     , "  %r = call i32 @f(i32 %m)"
     , "  br label %done"
     , "done:"
+    , "  ret i32 %r"
+    , "}"
+    ]
+
+-- | The same self call with an operand bundle on it.  The branch that would
+-- replace the call binds the arguments and nothing else, so what the bundle
+-- named would simply be gone.
+carrying :: Text
+carrying =
+  T.unlines
+    [ "define i32 @f(i32 %n) {"
+    , "entry:"
+    , "  %c = icmp eq i32 %n, 0"
+    , "  br i1 %c, label %base, label %step"
+    , "base:"
+    , "  ret i32 0"
+    , "step:"
+    , "  %m = sub i32 %n, 1"
+    , "  %r = call i32 @f(i32 %m) [ \"deopt\"(i32 %n) ]"
     , "  ret i32 %r"
     , "}"
     ]

@@ -154,11 +154,17 @@ sites f =
 -- call, which is what @opt -passes=tailcallelim@ takes it for.  @musttail@ is
 -- not refused: it promises the call will not grow the stack, and a call that is
 -- not made at all keeps that promise the only way it can be kept absolutely.
+--
+-- An operand bundle is refused, as it is at an inlining site and for the same
+-- reason: assigning the arguments to the parameters says what the arguments
+-- said and nothing about what the call carried beside them, so the bundle
+-- would go out with the call.  See 'bundled'.
 itself :: Signature -> Call (TypedValue Local) -> Bool
 itself signature call =
   named (typedValue (callCallee call))
     && callTail call /= Just NoTail
     && isNothing (callAddrSpace call)
+    && not (bundled call)
     && callCallingConvention call == signatureCallingConvention signature
     && callType call == signatureReturnType signature
     && map (typedValueType . argumentValue) (callArguments call) == parameterTypes

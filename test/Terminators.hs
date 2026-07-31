@@ -171,6 +171,7 @@ emitted =
                           (TypedValue (TInteger 32) (VLocal (Name Bare "x")))
                       ]
                   , callAttributes = []
+                  , callBundles = []
                   }
             , invokeNormal = Name Bare "ok"
             , invokeUnwind = Name Bare "bad"
@@ -232,6 +233,7 @@ emitted =
                           (TypedValue (TInteger 32) (VLocal (Name Bare "x")))
                       ]
                   , callAttributes = []
+                  , callBundles = []
                   }
             , callBrFallthrough = Name Bare "ok"
             , callBrIndirect = [Name Bare "a", Name Bare "b"]
@@ -239,6 +241,67 @@ emitted =
       , ORet (Just (TypedValue (TInteger 32) (VLocal (Name Bare "r"))))
       , ORet (Just (TypedValue (TInteger 32) (VInteger 1)))
       , ORet (Just (TypedValue (TInteger 32) (VInteger 2)))
+      ]
+    )
+  , -- A bundle on the one instruction that writes brackets of its own.  They
+    -- stand in different places — a bundle before the @to@, the destinations
+    -- after it — and the parser tells them apart by what follows the bracket
+    -- rather than by which of the two it happens to try first.
+    ( "callbr carrying an operand bundle"
+    , T.unlines
+        [ "define void @f(i32 %x) {"
+        , "  callbr void asm \"jmp ${1:l}\", \"r,!i\"(i32 %x) [ \"foo\"(i32 %x) ]"
+        , "          to label %ok [label %a]"
+        , ""
+        , "ok:                                               ; preds = %0"
+        , "  ret void"
+        , ""
+        , "a:                                                ; preds = %0"
+        , "  ret void"
+        , "}"
+        ]
+    , [ OCallBr
+          CallBr
+            { callBrCall =
+                Call
+                  { callTail = Nothing
+                  , callFlags = []
+                  , callCallingConvention = Nothing
+                  , callReturnAttributes = []
+                  , callAddrSpace = Nothing
+                  , callType = TVoid
+                  , callCallee =
+                      TypedValue
+                        (TPointer Nothing)
+                        ( VAsm
+                            InlineAsm
+                              { asmSideEffect = False
+                              , asmAlignStack = False
+                              , asmIntelDialect = False
+                              , asmUnwind = False
+                              , asmTemplate = "jmp ${1:l}"
+                              , asmConstraints = "r,!i"
+                              }
+                        )
+                  , callArguments =
+                      [ Argument
+                          []
+                          (TypedValue (TInteger 32) (VLocal (Name Bare "x")))
+                      ]
+                  , callAttributes = []
+                  , callBundles =
+                      [ OperandBundle
+                          { bundleTag = "foo"
+                          , bundleOperands =
+                              [TypedValue (TInteger 32) (VLocal (Name Bare "x"))]
+                          }
+                      ]
+                  }
+            , callBrFallthrough = Name Bare "ok"
+            , callBrIndirect = [Name Bare "a"]
+            }
+      , ORet Nothing
+      , ORet Nothing
       ]
     )
   , -- The same with nothing to jump to and nothing to assign.  LLVM writes
@@ -278,6 +341,7 @@ emitted =
                         )
                   , callArguments = []
                   , callAttributes = []
+                  , callBundles = []
                   }
             , callBrFallthrough = Name Bare "ok"
             , callBrIndirect = []

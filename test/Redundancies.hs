@@ -1331,6 +1331,7 @@ call' =
         (TypedValue (TPointer Nothing) (VGlobal (Name Bare "tick")))
         []
         []
+        []
     )
 
 assignment :: Operation (TypedValue Local)

@@ -49,7 +49,9 @@ module Olivine.Syntax.Instruction
   , ShuffleVector (..)
   , Phi (..)
   , Call (..)
+  , OperandBundle (..)
   , callOf
+  , bundled
   , TailKind (..)
   , Invoke (..)
   , CallBr (..)
@@ -444,11 +446,10 @@ data Phi operand = Phi
   }
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
--- | @[tail] call [flags] [cconv] [ret attrs] \<ty\> \<callee\>(\<args\>) [attrs]@.
+-- | @[tail] call [flags] [cconv] [ret attrs] \<ty\> \<callee\>(\<args\>) [attrs] [bundles]@.
 --
--- Operand bundles are not modelled; a call carrying one stays opaque.  The
--- two calls that also branch, @invoke@ and @callbr@, hold one of these rather
--- than spelling a call again.
+-- The two calls that also branch, @invoke@ and @callbr@, hold one of these
+-- rather than spelling a call again.
 data Call operand = Call
   { callTail :: Maybe TailKind
   , callFlags :: [InstructionFlag]
@@ -472,6 +473,44 @@ data Call operand = Call
     callCallee :: operand
   , callArguments :: [Argument operand]
   , callAttributes :: [AttributeItem]
+  , -- | What the call carries beside its arguments, which LLVM writes after
+    -- the attributes and before the metadata attachment.
+    --
+    -- Empty for almost every call, and a list rather than a @Maybe@ of a
+    -- non-empty one because that is what it is: LLVM's parser refuses @[ ]@,
+    -- so the brackets are written exactly when there is something between
+    -- them, which is what the printer does with an empty list here.
+    callBundles :: [OperandBundle operand]
+  }
+  deriving (Eq, Show, Functor, Foldable, Traversable)
+
+-- | @"tag"(\<operands\>)@, one of the bracketed list a call may carry.
+--
+-- A bundle is a tag naming something the call is bound up with and the values
+-- that go with it: @[ "align"(ptr %p, i64 16) ]@ on an @llvm.assume@ is the
+-- alignment a front end promised, @[ "deopt"(...) ]@ is the state a JIT would
+-- rebuild a frame from, @[ "funclet"(token %t) ]@ is which handler a call
+-- stands inside.  What any given tag means is between the producer and the
+-- consumer of the module; LLVM models only that the call is bound to these
+-- values, and so does this.
+--
+-- __The tag is not read.__  It is held as the text between the quotes, escapes
+-- undecoded, the way an assembly template is, because Olivine decides nothing
+-- by it: 'Olivine.Core.Instruction.bundled' answers the one question the
+-- passes ask, and it asks whether there is a bundle at all.  Knowing the tag
+-- would only be worth having in order to trust a call more than the cautious
+-- answer, and see there for why the cautious answer is the one taken.
+--
+-- __The operands are operands.__  They stand in the record as the parameter
+-- like every other operand slot, so escape analysis sees a pointer let out
+-- here, renaming rewrites a local named here, and neither had to be told about
+-- bundles.  LLVM writes them as plain typed values — its parser refuses a
+-- parameter attribute in this position, which is the difference between this
+-- and an 'Argument'.
+data OperandBundle operand = OperandBundle
+  { bundleTag :: Text
+  , -- | Possibly none: @"foo"()@ is a tag alone and LLVM accepts it.
+    bundleOperands :: [operand]
   }
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
@@ -534,6 +573,28 @@ data CallBr operand = CallBr
 -- two that end their block — and everything asking what a call promises, what
 -- it hands over or what it gives back has to reach all three.  Asking it here
 -- once is what stops the fourth from being missed.
+-- | Whether the call carries anything beside its arguments.
+--
+-- __A bundle is read as making the call promise nothing.__  LLVM's rule is
+-- that a bundle it does not recognize defeats what the callee's attributes
+-- say, and the two halves of that were asked of @opt@ rather than read:
+-- @-passes=dce@ leaves a @memory(none) nounwind willreturn@ call whose result
+-- nothing reads standing when a bundle is on it, @-passes=early-cse@ stops
+-- merging two identical ones, @-passes=licm@ stops hoisting one out of a loop,
+-- and @-passes=inline@ refuses the call site outright.  With a tag it does
+-- know — @deopt@ — every one of those fires again.
+--
+-- Olivine draws no such line, and taking a bundle for the cautious answer
+-- whatever its tag costs it almost nothing: no pass here reads a memory effect
+-- off a callee, so a call is already something that may do anything, may be
+-- asked twice for different answers, and may not be dropped unread.  The two
+-- places that do trust a call are the ones that would carry it somewhere
+-- else — inlining, which copies the callee's body over the site and would
+-- leave the bundle nowhere to be, and tail recursion, which turns the call
+-- into assignments and a branch and would drop it.  Both ask this.
+bundled :: Call operand -> Bool
+bundled = not . null . callBundles
+
 callOf :: Operation operand -> Maybe (Call operand)
 callOf operation = case operation of
   OCall c -> Just c

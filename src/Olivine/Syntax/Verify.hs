@@ -726,12 +726,13 @@ isPhi _ = False
 -- | Every operand of an operation except the one that may be inline assembly.
 --
 -- A call is the whole of the exception: its callee is where an @asm@ belongs,
--- and its arguments are operands like any other.  Written by naming what is
--- kept rather than by dropping what is not, so a call gaining an operand
--- cannot silently become a place assembly may be written.
+-- and its arguments — and whatever its bundles carry — are operands like any
+-- other.  Written by naming what is kept rather than by dropping what is not,
+-- so a call gaining an operand cannot silently become a place assembly may be
+-- written; the bundles are here because it did gain one.
 besideTheCallee :: Operation operand -> [operand]
 besideTheCallee operation = case callOf operation of
-  Just c -> map argumentValue (callArguments c)
+  Just c -> map argumentValue (callArguments c) <> concatMap toList (callBundles c)
   Nothing -> toList operation
 
 isPhiInstruction :: Instruction -> Bool

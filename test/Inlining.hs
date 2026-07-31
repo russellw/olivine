@@ -116,6 +116,11 @@ inliningTests =
           -- told to leave alone.
           testCase "noinline written on the call" $
             callsTo "g" (small <> noinlineCaller) @?>= 1
+        , -- What the site carried beside its arguments was carried by the
+          -- call, and the call is what stops existing.  @opt -passes=inline@
+          -- refuses one it takes whole without the bundle.
+          testCase "a call carrying an operand bundle" $
+            callsTo "g" (small <> bundleCaller) @?>= 1
         , testCase "a calling convention the callee does not use" $
             callsTo "g" (small <> conventionCaller) @?>= 1
         , testCase "an argument passed byval" $
@@ -506,6 +511,18 @@ tailCaller kind =
     [ "define i32 @f(i32 %n) {"
     , "entry:"
     , "  %r = " <> kind <> " call i32 @g(i32 %n)"
+    , "  ret i32 %r"
+    , "}"
+    ]
+
+-- | A call with something hung on it beside its arguments, which the copied
+-- body would have nowhere to put.
+bundleCaller :: Text
+bundleCaller =
+  T.unlines
+    [ "define i32 @f(i32 %n) {"
+    , "entry:"
+    , "  %r = call i32 @g(i32 %n) [ \"deopt\"(i32 %n) ]"
     , "  ret i32 %r"
     , "}"
     ]

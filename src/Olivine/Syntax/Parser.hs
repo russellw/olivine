@@ -1062,6 +1062,7 @@ pCallBody tailKind = do
   callee <- pValue
   arguments <- symbol "(" *> (pArgument `sepBy` symbol ",") <* symbol ")"
   attributes <- many pAttributeItem
+  bundles <- pOperandBundles
   pure
     Call
       { callTail = tailKind
@@ -1075,7 +1076,32 @@ pCallBody tailKind = do
         callCallee = TypedValue (TPointer Nothing) callee
       , callArguments = arguments
       , callAttributes = attributes
+      , callBundles = bundles
       }
+
+-- | @[ "tag"(\<operands\>), "tag"() ]@ after a call's attributes, or nothing.
+--
+-- The brackets are only taken when a tag follows the first of them, because a
+-- @callbr@ writes its indirect destinations between brackets too — and while
+-- those stand after the @to@ and so could not be reached from here, taking a
+-- @[@ on sight would make that a fact about the order two parsers happen to be
+-- written in.  A quoted string after it cannot be anything else.
+--
+-- LLVM refuses an empty bracket pair (@operand bundle set must not be empty@),
+-- which is why none is the empty list and not a pair of brackets holding
+-- nothing: there is no third thing to represent.
+pOperandBundles :: Parser [OperandBundle (TypedValue Name)]
+pOperandBundles =
+  option [] $ do
+    _ <- try (symbol "[" <* lookAhead (char '"'))
+    bundles <- pOperandBundle `sepBy` symbol ","
+    _ <- symbol "]"
+    pure bundles
+  where
+    pOperandBundle = do
+      tag <- pQuoted <* hspace
+      operands <- symbol "(" *> (pTypedValue `sepBy` symbol ",") <* symbol ")"
+      pure OperandBundle {bundleTag = tag, bundleOperands = operands}
 
 -- * Exceptions
 

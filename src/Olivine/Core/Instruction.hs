@@ -46,6 +46,7 @@ module Olivine.Core.Instruction
   , resultOf
   , reassign
   , callIn
+  , bundled
   , localsUsedBy
   , globalsUsedBy
   , lifetimeMarked
@@ -84,6 +85,7 @@ import Olivine.Syntax.Instruction
   , ShuffleVector (..)
   , Store (..)
   , Unary (..)
+  , bundled
   )
 import Olivine.Syntax.Name (Name, nameText)
 import Olivine.Syntax.Type (Packedness (..), Type (..), elementOf, insideOf, resolveNamed)

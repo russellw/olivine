@@ -261,10 +261,17 @@ data Site = Site
 -- @tail@ is not among these.  It says the callee does not see the caller's
 -- stack, which is a fact about the callee that stays true wherever its body is
 -- written, and the marker simply has nowhere to go afterwards.
+--
+-- An operand bundle is refused because there is nowhere for it to go: what the
+-- site carried beside its arguments was carried by the call, and the call is
+-- what stops existing here.  A body copied in with the bundle dropped is the
+-- program without whatever the bundle said, and there is no telling what that
+-- was — see 'bundled'.  @opt -passes=inline@ refuses one too.
 callable :: World -> Call (TypedValue Local) -> Bool
 callable world call =
   callTail call /= Just MustTail
     && isNothing (callAddrSpace call)
+    && not (bundled call)
     && FANoInline `notElem` resolve (worldPromises world) (callAttributes call)
     && not (any (any copied . argumentAttributes) (callArguments call))
 

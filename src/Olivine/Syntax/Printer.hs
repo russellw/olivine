@@ -485,7 +485,26 @@ renderCall c =
     , T.intercalate ", " (map renderArgument (callArguments c))
     , ")"
     , T.concat [" " <> renderAttributeItem a | a <- callAttributes c]
+    , renderOperandBundles (callBundles c)
     ]
+
+-- | @ [ "tag"(\<operands\>), "tag"() ]@, or nothing at all when there are none.
+--
+-- LLVM puts a space inside each bracket and none inside the parentheses, which
+-- is what it prints and so what is written back.
+renderOperandBundles :: [OperandBundle (TypedValue Name)] -> Text
+renderOperandBundles [] = ""
+renderOperandBundles bundles =
+  " [ " <> T.intercalate ", " (map renderOperandBundle bundles) <> " ]"
+  where
+    renderOperandBundle b =
+      T.concat
+        [ "\""
+        , bundleTag b
+        , "\"("
+        , T.intercalate ", " (map renderTypedValue (bundleOperands b))
+        , ")"
+        ]
 
 renderTailKind :: TailKind -> Text
 renderTailKind Tail = "tail"
