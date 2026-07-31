@@ -62,6 +62,7 @@ import Olivine.Syntax.Ast qualified as Syntax
 import Olivine.Syntax.Function (FunctionClause (..), Parameter (..), Signature (..))
 import Olivine.Syntax.Instruction
   ( Alloca (..)
+  , Argument (..)
   , AtomicLoad (..)
   , AtomicRmw (..)
   , AtomicStore (..)
@@ -85,7 +86,13 @@ import Olivine.Syntax.Instruction
 import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Printer (renderInstructionFlag, renderName, renderType)
 import Olivine.Syntax.Type (Type (..), elementOf, insideOf, resolveNamed)
-import Olivine.Syntax.Value (CastOp (..), TypedValue (..), Value (..), isConstant)
+import Olivine.Syntax.Value
+  ( CastOp (..)
+  , TypedValue (..)
+  , Value (..)
+  , holdsAsm
+  , isConstant
+  )
 import Olivine.Syntax.Verify (symbolsDefinedBy)
 
 -- | Something wrong, and where it is.
@@ -192,6 +199,10 @@ data Complaint
     SizeDiffers Type Type
   | -- | A flag on an operation that may not carry it.
     FlagNotAllowed InstructionFlag
+  | -- | Inline assembly standing anywhere but as what a call calls.  Nothing
+    -- read back can hold one elsewhere, LLVM's parser taking it in that one
+    -- position, so this is a complaint about a pass.
+    AsmNotCallee
   deriving (Eq, Show)
 
 -- | What an operand had to be.
@@ -348,6 +359,7 @@ verifyFunction types layout symbols f =
                ]
             <> shape types layout operation
             <> flagged types produced operation
+            <> misplacedAsm (besideTheCallee operation)
         )
       where
         operation = instructionOperation i
@@ -364,6 +376,7 @@ verifyFunction types layout symbols f =
                , entry `elem` targetsOf t
                ]
             <> control types (signatureReturnType signature) transfer
+            <> misplacedAsm (besideTheCalleeIn transfer)
         )
       where
         t = blockTerminator b
@@ -420,6 +433,31 @@ verifyFunction types layout symbols f =
                , produced /= TVoid
                ]
         )
+
+-- | Inline assembly among operands none of which may be any.
+--
+-- Split from what selects those operands so that the rule is stated once and
+-- the two selections — an operation's, a transfer's — say only which operands
+-- they are asking about.
+misplacedAsm :: [TypedValue local] -> [Complaint]
+misplacedAsm operands' =
+  [AsmNotCallee | operand <- operands', holdsAsm (typedValue operand)]
+
+-- | Every operand of an operation except the one that may be assembly.
+--
+-- Written by naming the operands that are kept rather than by dropping the
+-- callee, so that a call gaining an operand does not silently become a place
+-- assembly may be written.
+besideTheCallee :: Operation operand -> [operand]
+besideTheCallee operation = case operation of
+  OCall c -> map argumentValue (callArguments c)
+  _ -> toList operation
+
+-- | The same of a transfer, an @invoke@ being a call that ends its block.
+besideTheCalleeIn :: Transfer operand -> [operand]
+besideTheCalleeIn transfer = case transfer of
+  Invoke _ c _ _ -> map argumentValue (callArguments c)
+  _ -> toList transfer
 
 -- | What an operation demands of its operands.
 --
@@ -784,6 +822,7 @@ renderComplaint complaint = case complaint of
     renderType t <> " has no field " <> T.pack (show index)
   FlagNotAllowed flag ->
     renderInstructionFlag flag <> ", which this operation may not carry"
+  AsmNotCallee -> "inline assembly somewhere other than as a callee"
   SizeDiffers source target ->
     "a bitcast from "
       <> renderType source

@@ -256,6 +256,19 @@ structureTests =
           , "}"
           ]
           [CaseNotConstant]
+    , -- Inline assembly is what a call calls and not a value to be handed
+      -- about.  Given back rather than called is the one misplacing that can
+      -- be written down at all: everywhere else an operand stands, a comma
+      -- follows it, and the constraints take that comma.  LLVM's parser reads
+      -- none of these, so what this catches is a pass.
+      testCase "inline assembly given back rather than called" $
+        expect
+          ["define ptr @f() {", "  ret ptr asm \"nop\", \"\"", "}"]
+          [AsmNotCallee]
+    , testCase "inline assembly as the callee is not a complaint" $
+        expect
+          ["define void @f() {", "  call void asm \"nop\", \"\"()", "  ret void", "}"]
+          []
     ]
 
 -- * Where a phi stands and what it is entered from

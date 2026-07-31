@@ -70,7 +70,13 @@ import Olivine.Syntax.Metadata (MetadataOperand (..))
 import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Printer (renderLinkage, renderName, renderParamAttribute)
 import Olivine.Syntax.Type (Type (..))
-import Olivine.Syntax.Value (TypedValue (..), Value (..), globalsIn, isConstant)
+import Olivine.Syntax.Value
+  ( TypedValue (..)
+  , Value (..)
+  , globalsIn
+  , holdsAsm
+  , isConstant
+  )
 
 -- | Something wrong, and where it is.
 data Problem = Problem
@@ -222,6 +228,11 @@ data Complaint
     PhiEntryUnexpected Name
   | -- | A @switch@ case that is not a compile-time constant.
     CaseNotConstant
+  | -- | Inline assembly written somewhere other than the callee of a call.
+    -- It is what a call calls, not a value that can be passed about: LLVM's
+    -- parser reads one nowhere else, so this catches a pass rather than a
+    -- module.
+    AsmNotCallee
   deriving (Eq, Show)
 
 -- | Every problem in a module, in the order the module is written.
@@ -625,6 +636,10 @@ definition known d =
                | OInvoke v <- [operation]
                , a <- returnAttributes (callReturnAttributes (invokeCall v))
                ]
+            <> [ AsmNotCallee
+               | operand <- besideTheCallee operation
+               , holdsAsm (typedValue operand)
+               ]
             <> exceptional bi b ii operation
             <> reading bi ii operation
             <> symbols
@@ -701,6 +716,20 @@ data Point
 isPhi :: Operation operand -> Bool
 isPhi (OPhi _) = True
 isPhi _ = False
+
+-- | Every operand of an operation except the one that may be inline assembly.
+--
+-- A call is the whole of the exception: its callee is where an @asm@ belongs,
+-- and its arguments are operands like any other.  Written by naming what is
+-- kept rather than by dropping what is not, so a call gaining an operand
+-- cannot silently become a place assembly may be written.
+besideTheCallee :: Operation operand -> [operand]
+besideTheCallee operation = case operation of
+  OCall c -> arguments c
+  OInvoke v -> arguments (invokeCall v)
+  _ -> toList operation
+  where
+    arguments = map argumentValue . callArguments
 
 isPhiInstruction :: Instruction -> Bool
 isPhiInstruction (IOperation _ operation _) = isPhi operation
@@ -812,6 +841,7 @@ renderComplaint complaint = case complaint of
   PhiEntryUnexpected label ->
     "a value from %" <> renderName label <> ", which does not branch here"
   CaseNotConstant -> "a switch case that is not a constant"
+  AsmNotCallee -> "inline assembly somewhere other than as a callee"
 
 number :: Int -> Text
 number = T.pack . show

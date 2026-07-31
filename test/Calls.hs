@@ -117,8 +117,68 @@ emitted =
           { callCallingConvention = Just FastCC
           }
     )
+  , -- Inline assembly, which stands where a callee stands and is read as one:
+    -- the compiler barrier a C program writes, clobbers and all.
+    ( "  call void asm sideeffect \"\", \"~{memory},~{dirflag},~{fpsr},~{flags}\"()"
+    , Nothing
+    , OCall
+        ( call
+            TVoid
+            (VAsm (asm "") {asmSideEffect = True, asmConstraints = "~{memory},~{dirflag},~{fpsr},~{flags}"})
+        )
+    )
+  , -- One taking an operand and giving a result back, and with no side effect
+    -- claimed: everything it does, the constraints say.
+    ( "  %r = call i32 asm \"nop\", \"=r,r\"(i32 %a)"
+    , Just (Name Bare "r")
+    , OCall
+        (call (TInteger 32) (VAsm (asm "nop") {asmConstraints = "=r,r"}))
+          { callArguments = [argument (TInteger 32) [] (VLocal (Name Bare "a"))]
+          }
+    )
+  , -- Two results, which is a struct returned in registers, and an escape in
+    -- the template left as the text that was written.
+    ( "  %r = call { i32, i32 } asm sideeffect \"rdtsc\\09$0\", \"={ax},={dx}\"()"
+    , Just (Name Bare "r")
+    , OCall
+        ( call
+            (TStruct Unpacked [TInteger 32, TInteger 32])
+            ( VAsm
+                (asm "rdtsc\\09$0")
+                  { asmSideEffect = True
+                  , asmConstraints = "={ax},={dx}"
+                  }
+            )
+        )
+    )
+  , -- All four words, in the one order LLVM's parser takes them.
+    ( "  call void asm sideeffect alignstack inteldialect unwind \"nop\", \"\"()"
+    , Nothing
+    , OCall
+        ( call
+            TVoid
+            ( VAsm
+                (asm "nop")
+                  { asmSideEffect = True
+                  , asmAlignStack = True
+                  , asmIntelDialect = True
+                  , asmUnwind = True
+                  }
+            )
+        )
+    )
   ]
   where
+    asm template =
+      InlineAsm
+        { asmSideEffect = False
+        , asmAlignStack = False
+        , asmIntelDialect = False
+        , asmUnwind = False
+        , asmTemplate = template
+        , asmConstraints = ""
+        }
+
     call t callee =
       Call
         { callTail = Nothing
@@ -135,10 +195,12 @@ emitted =
 -- | Not modelled, or malformed.  Each must leave its line opaque.
 rejected :: [Text]
 rejected =
-  [ -- Inline assembly is not modelled.
-    "  call void asm sideeffect \"nop\", \"\"()"
-  , -- Nor are operand bundles.
+  [ -- Operand bundles are not modelled.
     "  call void @g() [ \"deopt\"() ]"
+  , -- The four words of an inline assembly callee are written in one order,
+    -- and LLVM's parser refuses any other; so does this, which is why the line
+    -- is left as it stands rather than read into a shape LLVM cannot write.
+    "  call void asm alignstack sideeffect \"nop\", \"\"()"
   , -- Malformed.
     "  call void @g("
   , "  call @g()"

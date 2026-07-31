@@ -848,6 +848,20 @@ renderValue (VStruct Unpacked fields) = renderStructFields fields
 renderValue (VStruct Packed fields) =
   "<" <> renderStructFields fields <> ">"
 renderValue (VGlobal name) = "@" <> renderName name
+renderValue (VAsm a) =
+  T.concat
+    [ "asm"
+    , word " sideeffect" (asmSideEffect a)
+    , word " alignstack" (asmAlignStack a)
+    , word " inteldialect" (asmIntelDialect a)
+    , word " unwind" (asmUnwind a)
+    , " "
+    , quoted (asmTemplate a)
+    , ", "
+    , quoted (asmConstraints a)
+    ]
+  where
+    word text present = if present then text else ""
 renderValue (VCast op value target) =
   renderCastOp op
     <> " ("

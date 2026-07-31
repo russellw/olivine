@@ -1604,6 +1604,7 @@ pValue =
     , pGetElementPtrValue
     , pCastValue
     , pSplatValue
+    , pAsmValue
     , VGlobal <$> pGlobalName
     , pArrayValue
     , pAngleValue
@@ -1617,6 +1618,40 @@ pTypedValue = TypedValue <$> pType <*> pValue
 
 pStringValue :: Parser (Value Name)
 pStringValue = VString <$> try (char 'c' *> pQuoted) <* hspace
+
+-- | @asm [sideeffect] [alignstack] [inteldialect] [unwind] "template",
+-- "constraints"@.
+--
+-- Read wherever an operand is read, although only a callee may be one: this
+-- grammar admits what it cannot verify everywhere else too, and the position
+-- is 'Olivine.Syntax.Verify.verifyModule's to judge.
+--
+-- The four words are taken in the order written because LLVM's parser fixes
+-- it — @asm alignstack sideeffect@ is a parse error there, so a module being
+-- read back cannot hold one and nothing is lost by refusing it here.
+pAsmValue :: Parser (Value Name)
+pAsmValue = do
+  keyword "asm"
+  sideEffect <- flag "sideeffect"
+  alignStack <- flag "alignstack"
+  intelDialect <- flag "inteldialect"
+  unwind <- flag "unwind"
+  template <- pQuoted <* hspace
+  symbol ","
+  constraints <- pQuoted <* hspace
+  pure
+    ( VAsm
+        InlineAsm
+          { asmSideEffect = sideEffect
+          , asmAlignStack = alignStack
+          , asmIntelDialect = intelDialect
+          , asmUnwind = unwind
+          , asmTemplate = template
+          , asmConstraints = constraints
+          }
+    )
+  where
+    flag word = option False (True <$ keyword word)
 
 pArrayValue :: Parser (Value Name)
 pArrayValue =

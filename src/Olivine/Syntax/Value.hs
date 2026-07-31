@@ -15,10 +15,12 @@
 module Olivine.Syntax.Value
   ( Value (..)
   , TypedValue (..)
+  , InlineAsm (..)
   , CastOp (..)
   , GepFlag (..)
   , isConstant
   , globalsIn
+  , holdsAsm
   ) where
 
 import Data.Text (Text)
@@ -74,11 +76,50 @@ data Value local
   | -- | @%x@, naming a local.  In the core representation these will have
     -- addresses and be reassignable; here it is simply what was written.
     VLocal local
+  | -- | @asm sideeffect "rdtsc", "={ax},={dx}"@, a run of machine
+    -- instructions written in the source where a function would otherwise
+    -- stand.
+    --
+    -- A value, because that is what LLVM makes it: it appears in the callee
+    -- position of a call and nowhere else, which is a rule about where it may
+    -- be written rather than a reason to hold it apart from the operand it
+    -- stands in.  Holding it here is what lets a call keep one callee slot,
+    -- so everything asking what a call calls asks it in one place, and what
+    -- an @invoke@ calls needs no second answer.  That it appears nowhere else
+    -- is 'Olivine.Syntax.Verify.verifyModule's to say.
+    VAsm InlineAsm
   | -- | @ptrtoint (ptr \@g to i64)@ and the other surviving casts.
     VCast CastOp (TypedValue local) Type
   | -- | @getelementptr inbounds (i8, ptr \@g, i64 8)@.  The 'Type' is the
     -- source element type; the operands are the pointer and the indices.
     VGetElementPtr [GepFlag] Type [TypedValue local]
+  deriving (Eq, Show)
+
+-- | The template a piece of inline assembly is written as, the constraints
+-- saying how its operands and results reach it, and the four words LLVM lets
+-- stand between the keyword and the template.
+--
+-- The template and the constraints are held as the text that was written,
+-- escapes undecoded, for the reason a float literal is: this layer's business
+-- is to give back what it read, and neither string means anything to the
+-- optimizer — what the machine instructions do is exactly what it does not
+-- know.
+--
+-- Four fields rather than a list of flags because LLVM's parser fixes their
+-- order and refuses any other: @sideeffect alignstack inteldialect unwind@,
+-- each optional, none repeatable.  A list would be able to say things the
+-- grammar cannot, and the printer would have to sort it back.
+data InlineAsm = InlineAsm
+  { -- | That it does something the constraints do not describe, and so may
+    -- not be removed when nothing reads its result.
+    asmSideEffect :: Bool
+  , asmAlignStack :: Bool
+  , asmIntelDialect :: Bool
+  , -- | That it may throw, which is what an @invoke@ of one needs.
+    asmUnwind :: Bool
+  , asmTemplate :: Text
+  , asmConstraints :: Text
+  }
   deriving (Eq, Show)
 
 -- | An operand written together with its type, which is how operands appear
@@ -144,6 +185,10 @@ data GepFlag
 -- are constant exactly when everything inside them is.
 isConstant :: Value local -> Bool
 isConstant (VLocal _) = False
+-- Not a constant in LLVM's hierarchy either, and the answer matters: this is
+-- what keeps inline assembly out of an initializer and out of a @switch@
+-- case, and what stops the folder treating a callee as a value it knows.
+isConstant (VAsm _) = False
 isConstant (VArray elements) = all (isConstant . typedValue) elements
 isConstant (VVector elements) = all (isConstant . typedValue) elements
 isConstant (VSplat element) = isConstant (typedValue element)
@@ -178,3 +223,23 @@ globalsIn value = case value of
   _ -> []
   where
     inside = globalsIn . typedValue
+
+-- | Whether a value is inline assembly, or has some written inside it.
+--
+-- Recursive for the reason 'globalsIn' is, and asked for the opposite reason:
+-- a verifier wants to know that no operand but a callee holds one.  LLVM's own
+-- parser will not read an @asm@ anywhere else at all, so nothing this reads
+-- back can have one nested; what the recursion covers is a pass putting one
+-- where it does not belong, which is exactly what a verifier is for.
+holdsAsm :: Value local -> Bool
+holdsAsm value = case value of
+  VAsm _ -> True
+  VArray elements -> any inside elements
+  VVector elements -> any inside elements
+  VSplat element -> inside element
+  VStruct _ fields -> any inside fields
+  VCast _ operand _ -> inside operand
+  VGetElementPtr _ _ operands -> any inside operands
+  _ -> False
+  where
+    inside = holdsAsm . typedValue

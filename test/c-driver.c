@@ -86,6 +86,10 @@ int length(const char*); void copy_bytes(char*restrict,const char*restrict);
 /* setjmp.c */
 extern int landings;
 int over(const int*,int); int with_helper(int); int depth(int);
+/* asm.c */
+int swapped(int); int swapped_twice(int); int reread(int*);
+int barrier_sum(const int*,int,const int*); int through_slot(int);
+int hidden(int,int); int each_time(int,int); int both_kinds(int);
 /* except.cpp -- C++, so these are the extern "C" names it exports */
 extern int cleanups_run;
 int caught_value(int); int caught_anything(int); int cleanup_on_both(int);
@@ -289,6 +293,18 @@ int main(void){
     printf("%d\n", cleanups_run);
     { static const int values[6] = {1,2,-3,4,-5,6};
       for(int n=0;n<=6;n++) printf("%d ", summed(values,n)); printf("\n"); } }
+#endif
+#ifdef ASM
+  { for(int x=1;x<=0x01020304;x=x*37+11)
+      printf("%d %d ", swapped(x), swapped_twice(x)); printf("\n");
+    { int cell = 5; printf("%d ", reread(&cell)); }
+    { int in[8], k = -3;
+      for(int i=0;i<8;i++) in[i]=i*3-5;
+      printf("%d ", barrier_sum(in,8,&k)); printf("%d\n", barrier_sum(in,0,&k)); }
+    for(int x=-3;x<=3;x++)
+      printf("%d %d %d ", through_slot(x), hidden(x,x*2), both_kinds(x));
+    printf("\n");
+    for(int n=-1;n<=4;n++) printf("%d ", each_time(0x00010203,n)); printf("\n"); }
 #endif
 #ifdef LINKAGE
   printf("%d %d %d\n", real_answer(), aliased_answer(), weak_count + tentative);
