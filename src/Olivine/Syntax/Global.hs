@@ -21,6 +21,7 @@ module Olivine.Syntax.Global
 import Data.Text (Text)
 import Numeric.Natural (Natural)
 
+import Olivine.Syntax.Instruction (MetadataAttachment)
 import Olivine.Syntax.Linkage
 import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Value (Value)
@@ -43,6 +44,17 @@ data Global = Global
   , -- | The clauses following the initializer, written with commas between
     -- them.
     globalAttributes :: [GlobalAttribute]
+  , -- | The metadata attached to the global itself, @!dbg !0@ and its
+    -- relatives.  A global compiled with @-g@ carries one naming a
+    -- @DIGlobalVariableExpression@, and every global in such a module does.
+    --
+    -- It stands in the same comma-separated list as 'globalAttributes' and is
+    -- held apart from it because it is a different construct — the third
+    -- place LLVM allows an attachment, after an instruction and a function.
+    -- LLVM writes the attachments after the clauses whichever order they were
+    -- read in, so they are written back that way rather than where they
+    -- stood.
+    globalMetadata :: [MetadataAttachment]
   }
   deriving (Eq, Show)
 

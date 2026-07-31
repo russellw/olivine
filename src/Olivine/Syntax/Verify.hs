@@ -304,6 +304,7 @@ global known g =
     -- global i32@ says the storage is somewhere else.
     <> linkageOf (globalLinkage g) (if isJust initializer then Defined else Declared)
     <> concatMap (clause known (globalName g)) (globalAttributes g)
+    <> concatMap (nodeReference known . attachmentNode) (globalMetadata g)
     <> symbols known (foldMap globalsIn initializer)
   where
     initializer = globalInitializer g

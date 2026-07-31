@@ -171,7 +171,14 @@ pGlobal = do
   mutability <- pMutability
   t <- pType
   initializer <- optional pValue
-  attributes <- many (symbol "," *> pGlobalAttribute)
+  -- The clauses and the attachments share one comma-separated list.  LLVM
+  -- writes the attachments after the clauses and accepts them interleaved, so
+  -- the list is read as either at each position and sorted out afterwards.
+  trailing <-
+    many
+      ( symbol ","
+          *> ((Left <$> pGlobalAttribute) <|> (Right <$> pMetadataAttachment))
+      )
   endOfLine
   pure $
     EGlobal
@@ -188,7 +195,8 @@ pGlobal = do
         , globalMutability = mutability
         , globalType = t
         , globalInitializer = initializer
-        , globalAttributes = attributes
+        , globalAttributes = [a | Left a <- trailing]
+        , globalMetadata = [a | Right a <- trailing]
         }
 
 -- | @\@name = [modifiers] alias|ifunc \<T\>, \<target\>@.

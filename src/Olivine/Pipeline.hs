@@ -27,6 +27,7 @@ import Olivine.Core.Pass.Split (splitAggregates)
 import Olivine.Core.Program (Program)
 import Olivine.Core.Raise (raise)
 import Olivine.Syntax.Ast (Module)
+import Olivine.Syntax.Debug (stripDebugInfo)
 
 data Pass = Pass
   { passName :: String
@@ -188,8 +189,15 @@ optimize = raise . snd . last . stages
 -- broken was broken by one particular pass, and the only way to say which is
 -- to look in between; a pass being a pure function from program to program is
 -- what makes the intermediate results there to be looked at.
+-- The debug information goes before the lowering rather than in a pass of its
+-- own, because it is not an optimization and there is no point in the
+-- pipeline at which keeping it would have been useful.  A pass is a function
+-- from program to program and this is a function from module to module: what
+-- it takes out lives in the syntax layer, where a metadata node is an entry
+-- and an attachment is a field, and the core carries both through untouched.
+-- See "Olivine.Syntax.Debug" for what goes and what stays.
 stages :: Module -> [(String, Program)]
-stages m = scanl step ("as read", lower m) passes
+stages m = scanl step ("as read", lower (stripDebugInfo m)) passes
   where
     step (_, program) pass = ("after " <> passName pass, runPass pass program)
 

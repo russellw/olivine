@@ -35,6 +35,7 @@ library
                       Olivine.Syntax.Parser
                       Olivine.Syntax.Printer
                       Olivine.Syntax.Verify
+                      Olivine.Syntax.Debug
                       Olivine.Core.Alias
                       Olivine.Core.Instruction
                       Olivine.Core.Program
@@ -81,6 +82,7 @@ test-suite olivine-test
     hs-source-dirs:   test
     main-is:          Main.hs
     other-modules:    Corpus
+                      Debug
                       Layout
                       Invariants
                       RoundTrip

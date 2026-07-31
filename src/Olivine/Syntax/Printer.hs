@@ -721,6 +721,10 @@ renderGlobal :: Global -> Text
 renderGlobal g =
   T.unwords (["@" <> renderName (globalName g), "="] <> modifiers <> body)
     <> T.concat [", " <> renderGlobalAttribute a | a <- globalAttributes g]
+    <> T.concat
+      [ ", !" <> renderName name <> " !" <> showText node
+      | MetadataAttachment name node <- globalMetadata g
+      ]
   where
     modifiers =
       catMaybes

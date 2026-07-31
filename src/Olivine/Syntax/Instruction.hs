@@ -702,7 +702,10 @@ data GetElementPtr operand = GetElementPtr
 -- | @!dbg !5@, @!llvm.loop !6@ and the like, following an instruction.
 --
 -- Debug locations arrive through here on the same footing as @!tbaa@ and
--- @!llvm.loop@, which is what makes carrying them cost nothing extra.
+-- @!llvm.loop@, which is what makes reading them cost nothing extra.  They do
+-- not survive being read: "Olivine.Syntax.Debug" takes off every attachment
+-- naming a node it removes, which is why that question is asked about the
+-- node and not about the name in this field.
 data MetadataAttachment = MetadataAttachment
   { attachmentName :: Name
   , attachmentNode :: Natural

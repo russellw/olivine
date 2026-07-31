@@ -10,6 +10,7 @@ import ControlFlow (controlFlowTests)
 import Core (coreTests)
 import DeadCode (deadCodeTests)
 import DeadSymbols (deadSymbolTests)
+import Debug (debugTests)
 import Folding (foldingTests)
 import Declares (declareTests)
 import Definitions (definitionTests)
@@ -42,4 +43,4 @@ main = do
   defaultMain $
     testGroup
       "olivine"
-      ([typeTests, globalTests, comdatTests, indirectTests, declareTests, attributeTests, metadataTests, terminatorTests, memoryTests, arithmeticTests, callTests, phiTests, vectorTests, deadCodeTests, deadSymbolTests, foldingTests, controlFlowTests, promotionTests, splitTests, inliningTests, redundancyTests, rotationTests, ifConversionTests, invariantTests, offsetTests, layoutTests, headerSyntaxTests] <> discovered)
+      ([typeTests, globalTests, comdatTests, indirectTests, declareTests, attributeTests, metadataTests, debugTests, terminatorTests, memoryTests, arithmeticTests, callTests, phiTests, vectorTests, deadCodeTests, deadSymbolTests, foldingTests, controlFlowTests, promotionTests, splitTests, inliningTests, redundancyTests, rotationTests, ifConversionTests, invariantTests, offsetTests, layoutTests, headerSyntaxTests] <> discovered)

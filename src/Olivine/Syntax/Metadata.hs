@@ -4,8 +4,14 @@
 -- point at it.  The specialized debug nodes — @!DILocation(line: 1, ...)@ and
 -- the thirty-odd others — are a family of their own, each with its own set of
 -- named fields, and a module compiled without @-g@ contains none of them.  A
--- line carrying one stays opaque, so debug information is the gap this leaves
--- open.
+-- line carrying one stays opaque.
+--
+-- Nothing needs to read them, because none of them survives being read:
+-- "Olivine.Syntax.Debug" takes the debug information out of every module,
+-- and recognizing a specialized node is recognizing the @!DI@ its line
+-- begins with.  The one part of it that could not wait for a later step is
+-- the debug /records/ in a body, since an unread line there takes the whole
+-- function; those are dropped as they are read, see @pDebugRecord@.
 module Olivine.Syntax.Metadata
   ( MetadataOperand (..)
   , Distinctness (..)
