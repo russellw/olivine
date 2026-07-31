@@ -28,6 +28,23 @@
 -- lead to blocks with one predecessor, which is exactly what block merging
 -- takes away.  That is why this runs before it and not after.
 --
+-- __A @setjmp@ stays in the function that wrote it.__  This is the one rule
+-- here that is about what the rest of the optimizer is allowed to do rather
+-- than about what this pass can express.  A call that returns twice comes back
+-- a second time with the frame as @longjmp@ left it, and the licence every
+-- language gives for that is scoped to the function holding the call: C says
+-- the local variables of /that/ function have indeterminate values afterwards
+-- unless they are @volatile@, and says nothing about anybody else's.  That
+-- licence is what lets "Olivine.Core.Pass.Promote" put such a function's slots
+-- in locals at all — LLVM promotes them too, which was checked by asking
+-- @opt -passes=mem2reg@ rather than by reading the LangRef.  Copying the body
+-- into a caller would carry the @setjmp@ into a function whose locals were
+-- never covered, and every promotion, reordering and reuse the caller has
+-- already been given becomes a guess about storage a @longjmp@ can rewind.  So
+-- a body holding such a call is not copyable, which is what LLVM's inliner
+-- does and what @opt -passes=inline@ confirms on a body it would otherwise
+-- take whole.
+--
 -- __Debug information is carried, not corrected.__  An instruction copied out
 -- of the callee keeps the attachments it was written with, which after
 -- inlining describe a position in a function the instruction is no longer in.
@@ -58,7 +75,7 @@ import Olivine.Syntax.Attribute
   , FunctionAttribute (..)
   , ParamAttribute (..)
   )
-import Olivine.Syntax.Function (Parameter (..), Signature (..))
+import Olivine.Syntax.Function (Definition (..), Parameter (..), Signature (..))
 import Olivine.Syntax.Instruction
   ( Alloca (..)
   , Argument (..)
@@ -129,24 +146,56 @@ data World = World
     -- direct calls: @f@ calling @g@ calling @f@ is a cycle no single edge
     -- looks like.
     worldReaches :: Map Text (Set Text)
+  , -- | What each symbol the module names promises about itself, groups
+    -- resolved: every @declare@ and every @define@, whether or not the
+    -- definition lowered.
+    --
+    -- 'worldBodies' cannot answer this.  It holds what was lowered, and the
+    -- callees whose promises decide anything here are mostly declarations —
+    -- @setjmp@ above all, which is the whole reason this field exists.  A
+    -- declaration is retained syntax, so the only place its @returns_twice@
+    -- is written down is the signature LLVM printed it in.
+    worldPromises :: Map Text [FunctionAttribute]
   }
 
 worldOf :: Program -> World
 worldOf program =
   World
     { worldBodies = bodies
-    , worldGroups =
-        Map.fromList
-          [ (n, toList attributes)
-          | ERetained (Syntax.EAttributeGroup n attributes) <- programEntries program
-          ]
+    , worldGroups = groups
     , worldReaches = closure (Map.map (Set.fromList . directCalls) bodies)
+    , worldPromises =
+        Map.fromList
+          [ (nameText (signatureName s), resolve groups (signatureAttributes s))
+          | s <- signatures
+          ]
     }
   where
     bodies =
       Map.fromList
         [ (nameText (signatureName (functionSignature f)), f)
         | EFunction f <- programEntries program
+        ]
+
+    groups =
+      Map.fromList
+        [ (n, toList attributes)
+        | ERetained (Syntax.EAttributeGroup n attributes) <- programEntries program
+        ]
+
+    -- Every header the module writes, from all three places one can be: a
+    -- declaration, a definition the lowering took, and a definition it did
+    -- not and which is carried through as syntax.  The last is not a corner
+    -- case — a definition holding one line nothing models is retained entire,
+    -- and it is still a callee somebody may be about to copy a call to.
+    signatures =
+      concat
+        [ case e of
+            EFunction f -> [functionSignature f]
+            ERetained (Syntax.EDeclare s) -> [s]
+            ERetained (Syntax.EDefine d) -> [definitionSignature d]
+            ERetained _ -> []
+        | e <- programEntries program
         ]
 
 -- | The symbols a function calls directly.
@@ -250,7 +299,7 @@ callable :: World -> Call (TypedValue Local) -> Bool
 callable world call =
   callTail call /= Just MustTail
     && isNothing (callAddrSpace call)
-    && FANoInline `notElem` resolve world (callAttributes call)
+    && FANoInline `notElem` resolve (worldGroups world) (callAttributes call)
     && not (any (any copied . argumentAttributes) (callArguments call))
 
 -- | Whether the call site and the callee fit together closely enough that
@@ -301,6 +350,7 @@ copyable world callee =
     && not (any (`elem` attributes) [FANoInline, FAOptNone, FAReturnsTwice, FANaked])
     && not (any indirect (functionBlocks callee))
     && not (any unwinding (functionBlocks callee))
+    && not (any (returnsTwice world) (callsIn callee))
   where
     signature = functionSignature callee
     attributes = attributesOf world signature
@@ -321,6 +371,44 @@ copyable world callee =
     pad i = case instructionOperation i of
       OLandingPad _ -> True
       _ -> False
+
+-- | Whether a call may come back more than once — @setjmp@ and its relatives.
+--
+-- Asked of the call site and of the callee alike, because either may carry the
+-- attribute and LLVM reads both: clang writes it in a group on the call
+-- (@call i32 \@_setjmp(ptr \@env) #3@, with @#3 = { nounwind returns_twice }@)
+-- and also on the @declare@, and hand-written IR routinely has only the
+-- declaration.  Confirmed by giving @opt -passes=inline@ each spelling
+-- separately; each on its own is enough to stop it.
+--
+-- Only a direct call can be asked the second question.  A call through a
+-- pointer is not refused for it — LLVM does not refuse one either — since
+-- nothing about the pointer says what it points at, and the front end that
+-- knows puts the attribute on the site.
+returnsTwice :: World -> Call (TypedValue Local) -> Bool
+returnsTwice world call =
+  FAReturnsTwice `elem` resolve (worldGroups world) (callAttributes call)
+    || case typedValue (callCallee call) of
+      VGlobal name ->
+        FAReturnsTwice
+          `elem` Map.findWithDefault [] (nameText name) (worldPromises world)
+      _ -> False
+
+-- | Every call a body makes, the ones standing where a branch stands
+-- included.
+--
+-- An @invoke@ is a call, and a body holding one is already refused as
+-- unwinding — but that is a separate fact about a separate construct, and the
+-- plan for landing pads is to stop refusing them.  Reading both here means
+-- the returns-twice rule does not quietly stop holding on the day it does.
+callsIn :: Function -> [Call (TypedValue Local)]
+callsIn f =
+  [ call
+  | b <- functionBlocks f
+  , call <-
+      [c | i <- blockInstructions b, OCall c <- [instructionOperation i]]
+        <> [c | Invoke _ c _ _ <- [terminatorTransfer (blockTerminator b)]]
+  ]
 
 -- | Whether the definition here might not be the one that runs.
 --
@@ -376,7 +464,7 @@ bodySize f = sum [1 + length (blockInstructions b) | b <- functionBlocks f]
 
 -- | What a function's attributes actually say, groups resolved.
 attributesOf :: World -> Signature -> [FunctionAttribute]
-attributesOf world = resolve world . signatureAttributes
+attributesOf world = resolve (worldGroups world) . signatureAttributes
 
 -- | An attribute slot with its group references followed through.
 --
@@ -385,10 +473,13 @@ attributesOf world = resolve world . signatureAttributes
 -- @noinline@ and @optnone@ in a group and points every function at @-O0@ at
 -- it, so a pass reading only what is spelled on the function would see none of
 -- them and inline the lot.
-resolve :: World -> [AttributeItem] -> [FunctionAttribute]
-resolve world = concatMap item
+--
+-- Takes the group map rather than the 'World' because 'worldOf' has to call it
+-- while building one.
+resolve :: Map Natural [FunctionAttribute] -> [AttributeItem] -> [FunctionAttribute]
+resolve groups = concatMap item
   where
-    item (AIGroup n) = Map.findWithDefault [] n (worldGroups world)
+    item (AIGroup n) = Map.findWithDefault [] n groups
     item (AIAttribute a) = [a]
 
 -- | The callee's allocations, if every one of them can be moved to the

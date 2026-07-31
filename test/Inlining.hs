@@ -58,6 +58,26 @@ inliningTests =
             callsTo "g" (attributed "optnone noinline" small <> caller) @?>= 1
         , testCase "a body marked returns_twice" $
             callsTo "g" (attributed "returns_twice" small <> caller) @?>= 1
+        , -- Not the callee's own attribute but one it calls through: a
+          -- @setjmp@ has to stay in the function that wrote it, because the
+          -- licence to hold that function's locals in registers across the
+          -- second return is scoped to it and the caller was never given one.
+          -- Either end may carry the attribute, and both are asked.
+          testCase "a body calling a function declared returns_twice" $
+            callsTo "g" (jumping "returns_twice" "" <> caller) @?>= 1
+        , testCase "a body calling one with returns_twice on the call" $
+            callsTo "g" (jumping "" "returns_twice" <> caller) @?>= 1
+        , -- What clang actually writes: the attribute reaches the call site
+          -- through a group, as everything else does at -O0.
+          testCase "returns_twice written in a group on the call" $
+            callsTo
+              "g"
+              (jumping "" "#0" <> caller <> "attributes #0 = { nounwind returns_twice }\n")
+              @?>= 1
+        , -- The control.  The same body calling the same declaration, with
+          -- nothing saying it comes back twice, is copied like any other.
+          testCase "a body calling an ordinary declared function" $
+            callsTo "g" (jumping "" "" <> caller) @?>= 0
         , -- The attributes that decide this are nearly always written in a
           -- group rather than on the function, which is how clang emits
           -- noinline and optnone at -O0.
@@ -316,6 +336,26 @@ byvalCallee =
     , "  ret i32 %r"
     , "}"
     ]
+
+-- | A callee that calls @setjmp@, with the attribute written where the
+-- argument puts it: on the declaration, on the call site, in neither.
+--
+-- Two instructions like 'small', so nothing but the attribute can be what
+-- refuses it, and the same body with both arguments empty is the control.
+jumping :: Text -> Text -> Text
+jumping onDeclaration onCall =
+  T.unlines
+    [ "@env = global [64 x i64] zeroinitializer, align 16"
+    , "define i32 @g(i32 %x) {"
+    , "entry:"
+    , "  %r = call i32 @setjmp(ptr @env)" <> spaced onCall
+    , "  ret i32 %r"
+    , "}"
+    , "declare i32 @setjmp(ptr)" <> spaced onDeclaration
+    ]
+  where
+    spaced "" = ""
+    spaced attribute = " " <> attribute
 
 grouped :: Text
 grouped =

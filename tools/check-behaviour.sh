@@ -23,7 +23,8 @@ for pair in "arith ARITH" "branch BRANCH" "loop LOOP" "memops MEMOPS" "hello HEL
             "escape ESCAPE" "jumps JUMPS" "unions UNIONS" "indirect INDIRECT" \
             "linkage LINKAGE" "hoist HOIST" "reload RELOAD" \
             "rotate ROTATE" "pick PICK" "values VALUES" "atomics ATOMICS" \
-            "bytes BYTES" "fields FIELDS" "except EXCEPT -lstdc++"; do
+            "bytes BYTES" "fields FIELDS" "setjmp SETJMP" \
+            "except EXCEPT -lstdc++"; do
     set -- $pair
     base=$1
     macro=$2

@@ -55,6 +55,20 @@
 -- mask, or, and write back.  That is expressible and is not obviously worth
 -- it: it turns one instruction into three, and buys the surrounding stores and
 -- loads only where the slot becomes promotable because of it.
+--
+-- __A function that calls @setjmp@ is promoted like any other.__  It looks as
+-- though it should not be: control arrives at the call a second time with the
+-- frame as @longjmp@ left it, so a slot written in between holds the written
+-- value and a local standing for it does not.  The answer is that this is the
+-- one thing every language says out loud — C makes such a function's own
+-- non-@volatile@ locals indeterminate after the second return, which is
+-- exactly the licence to hold them in a local here, and a program wanting the
+-- written value has to say @volatile@, which this pass already refuses to
+-- touch.  Checked against LLVM rather than reasoned from: @opt -passes=mem2reg@
+-- promotes both slots of a @setjmp@ function and @-O2@ forwards a store across
+-- the call.  What that licence does /not/ cover is anybody else's locals,
+-- which is why "Olivine.Core.Pass.Inline" will not copy such a body into a
+-- caller.
 module Olivine.Core.Pass.Promote
   ( promoteMemory
   , promotableIn

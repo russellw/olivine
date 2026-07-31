@@ -83,6 +83,9 @@ void scale_together(int*,const int*,int,const int*);
 unsigned checksum(const unsigned char*,int); int span(const signed char*,int);
 unsigned char low_bits(unsigned); short folded_down(int,int);
 int length(const char*); void copy_bytes(char*restrict,const char*restrict);
+/* setjmp.c */
+extern int landings;
+int over(const int*,int); int with_helper(int); int depth(int);
 /* except.cpp -- C++, so these are the extern "C" names it exports */
 extern int cleanups_run;
 int caught_value(int); int caught_anything(int); int cleanup_on_both(int);
@@ -265,6 +268,17 @@ int main(void){
     for(int x=-2;x<=2;x++) printf("%d ", diagonal(x,x*x)); printf("\n");
     { struct corner c = make_corner(6,-7); printf("%d %d\n", c.x, c.y); }
     for(int i=0;i<5;i++) printf("%d ", tag_at(100,i)); printf("\n"); }
+#endif
+#ifdef SETJMP
+  { static const int xs[7] = {0,1,2,3,1,4,2};
+    /* Every prefix, so the loop in over() is entered a different number of
+       times before the first longjmp and after it. */
+    for(int n=0;n<=7;n++) printf("%d ", over(xs,n)); printf("\n");
+    /* Counted rather than printed as it happens, like the cleanups above: the
+       question is how many second returns there were. */
+    printf("%d\n", landings);
+    for(int n=-2;n<=6;n++) printf("%d ", with_helper(n)); printf("\n");
+    for(int n=0;n<=5;n++) printf("%d ", depth(n)); printf("\n"); }
 #endif
 #ifdef EXCEPT
   { for(int x=-3;x<=3;x++)
