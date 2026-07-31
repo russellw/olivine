@@ -58,6 +58,17 @@ splitTests =
             slots (holding ("  call void @g(ptr %a)" : both)) @?>= 0
         , testCase "the address of a field passed to a call" $
             slots (holding (both <> ["  call void @g(ptr %p)"])) @?>= 0
+        , -- The call every front end above @-O0@ writes round a local
+          -- aggregate, and the one that is not a pointer getting out: a marker
+          -- neither follows the address nor keeps it.  Refusing these left
+          -- every struct in the newer half of the corpus in memory.
+          testCase "a slot bracketed by lifetime markers" $
+            slots (holding ([started "%a"] <> both <> [ended "%a"])) @?>= 1
+        , -- A member bracketed rather than the struct around it.  Where the
+          -- bracket stands says nothing about what may be split, so these go
+          -- after the accesses like every other line a case adds.
+          testCase "the address of a field bracketed" $
+            slots (holding (both <> [started "%q", ended "%q"])) @?>= 1
         , testCase "the address of a field returned" $
             slots escapingByReturn @?>= 0
         , testCase "the address of a field compared" $
@@ -126,6 +137,12 @@ splitTests =
           -- nothing.
           testCase "a struct inside a struct is split twice" $
             allocated nested @?>= [TInteger 32]
+        , -- Nothing is left naming the whole, because there is no longer a
+          -- whole to name: what a marker said is where a stack slot may be
+          -- reused, and the slot it said it about has just become several.
+          testCase "the markers go with the slot they bracketed" $
+            shapes (holding ([started "%a"] <> both <> [ended "%a"]))
+              @?>= ["alloca", "alloca", "store", "load"]
         , testCase "a slot the pass will not take is left as it was" $
             shapes (holding ("  %w = load %s, ptr %a, align 4" : both))
               @?>= ["alloca", "load", "field", "store", "field", "load"]
@@ -160,6 +177,9 @@ splitTests =
       , "  %r = load i32, ptr %q, align 4"
       ]
 
+    started pointer = "  call void @llvm.lifetime.start.p0(i64 8, ptr " <> pointer <> ")"
+    ended pointer = "  call void @llvm.lifetime.end.p0(i64 8, ptr " <> pointer <> ")"
+
     holding body = surrounding "  %a = alloca %s, align 4" body
 
     allocating what = surrounding ("  %a = " <> what) both
@@ -169,6 +189,8 @@ splitTests =
         ( [ "%s = type { i32, i32 }"
           , "%t = type { i32, i8 }"
           , "declare void @g(ptr)"
+          , "declare void @llvm.lifetime.start.p0(i64 immarg, ptr captures(none))"
+          , "declare void @llvm.lifetime.end.p0(i64 immarg, ptr captures(none))"
           , "define i32 @f(i32 %v) {"
           , "entry:"
           , allocation

@@ -145,12 +145,23 @@ splitIn types f
     -- The allocation being split comes first, because a slot whose first field
     -- is reached by its own address is renamed to that field's slot and would
     -- otherwise be read here as an instruction to drop.
-    instruction i = case instructionResult i of
-      Just slot
-        | Just aggregate <- Map.lookup slot aggregates ->
-            allocations i slot aggregate
-      Just result | Map.member result renaming -> []
-      _ -> [substituted i]
+    instruction i
+      -- A marker on an object that is about to be several.  Substituting would
+      -- leave it naming one field where it meant the whole, and there is no
+      -- honest rewriting of it: what it said is where a stack slot may be
+      -- reused, and this pass has just replaced the slot it said it about.
+      -- Dropping it costs a back end the chance to overlap that storage with
+      -- something else and costs nothing here, markers being what a pass may
+      -- believe rather than something it must keep.
+      | Just marked <- lifetimeMarked (instructionOperation i)
+      , Map.member marked aggregates || Map.member marked renaming =
+          []
+      | otherwise = case instructionResult i of
+          Just slot
+            | Just aggregate <- Map.lookup slot aggregates ->
+                allocations i slot aggregate
+          Just result | Map.member result renaming -> []
+          _ -> [substituted i]
 
     substituted i =
       i {instructionOperation = fmap (fmap renamed) (instructionOperation i)}
@@ -235,7 +246,7 @@ splittableIn types f =
       -- the uses below names the slot exactly once, so the two numbers agree
       -- when every use of it is one of them and not otherwise.
       not (null taken)
-    , length taken == Map.findWithDefault 0 slot uses
+    , length taken + length (bracketing slot) == Map.findWithDefault 0 slot uses
     ]
   where
     instructions = [i | b <- functionBlocks f, i <- blockInstructions b]
@@ -300,12 +311,31 @@ splittableIn types f =
                 , TStruct _ fields <- resolveNamed types t
                 , Just inner <- fields !? fieldIndex x ->
                     contains (fuel - 1) inner result
-              _ -> False
+              -- A field's own address bracketed, which a front end writes
+              -- where a member outlives less of the function than the struct
+              -- around it.  The same answer as for the whole slot above.
+              operation -> lifetimeMarked operation == Just pointer
 
         at accessed = resolveNamed types accessed == resolveNamed types t
 
     names local (TypedValue _ (VLocal n)) = n == local
     names _ _ = False
+
+    -- The lifetime markers naming a local, which are uses of it that say
+    -- nothing about any field and are not escapes either.  Counted rather than
+    -- accounted for, since the whole of what they mark is the whole of what is
+    -- about to stop being one object: the rewrite drops them, as it must —
+    -- after the split there is no local for one to name.
+    --
+    -- Whether a slot bracketed this way is worth splitting is not in question.
+    -- It is what a front end writes for every local aggregate at any level
+    -- above @-O0@, so refusing them left every struct in the newer half of the
+    -- corpus in memory.
+    bracketing local =
+      [ i
+      | i <- usesOf local
+      , lifetimeMarked (instructionOperation i) == Just local
+      ]
 
     -- Whether an instruction names a local in one place only, so that a
     -- pointer standing in an address position and somewhere else besides is

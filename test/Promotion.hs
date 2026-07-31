@@ -38,6 +38,22 @@ promotionTests =
             slots (escaping "call void @g(ptr %a)") @?>= 0
         , testCase "a slot returned" $
             slots (escaping "ret ptr %a") @?>= 0
+        , -- The exception among calls, and the one every optimizing front end
+          -- writes: a lifetime marker is handed the address and neither
+          -- follows it nor keeps it, which is what @captures(none)@ on the
+          -- declaration says.  Before this the bracket a front end puts round
+          -- every local above @-O0@ left the slot in memory.
+          testCase "a slot bracketed by lifetime markers" $
+            slots (bracketed "llvm.lifetime" "%a") @?>= 1
+        , -- The marker names the step and the step names the slot, so what is
+          -- marked is the storage the slot is.
+          testCase "a slot whose step of zero is bracketed" $
+            slots (bracketed "llvm.lifetime" "%p") @?>= 1
+        , -- The reserved prefix is the whole of the test and the word is none
+          -- of it.  A function anybody could define is a function that could
+          -- do anything with what it is handed.
+          testCase "a slot passed to something else called lifetime" $
+            slots (bracketed "lifetime" "%a") @?>= 0
         , testCase "a slot offset into" $
             slots (escaping "%p = getelementptr inbounds i32, ptr %a, i64 1") @?>= 0
         , -- A step of zero names the address it steps from, so an access
@@ -262,6 +278,13 @@ promotionTests =
           testCase "a step of zero goes with the slot" $
             shapes (stepped "getelementptr inbounds i32, ptr %a, i64 0")
               @?>= ["assign", "assign", "assign"]
+        , -- The markers go with the storage they marked.  What they said is
+          -- where an object's contents begin and end being anyone's business,
+          -- and a local has no such span: it holds the poison the allocation
+          -- became until something assigns to it.
+          testCase "the markers go with the slot" $
+            shapes (bracketed "llvm.lifetime" "%a")
+              @?>= ["assign", "assign", "assign"]
         , testCase "a slot that may not go is left alone" $
             shapes (escaping "call void @g(ptr %a)")
               @?>= ["alloca", "store", "load", "other"]
@@ -300,6 +323,26 @@ promotionTests =
         , "  store i32 7, ptr %a, align 4"
         , "  %r = load i32, ptr %a, align 4"
         , "  " <> extra
+        , "  ret i32 %r"
+        , "}"
+        ]
+
+    -- One slot bracketed the way a front end above @-O0@ brackets a local.
+    -- Both the symbol called and the address it is handed are the caller's
+    -- choice: what makes a marker a marker is the name, and what it marks may
+    -- be said as the slot or as a step of zero off it.
+    bracketed callee pointer =
+      T.unlines
+        [ "declare void @" <> callee <> ".start.p0(i64 immarg, ptr captures(none))"
+        , "declare void @" <> callee <> ".end.p0(i64 immarg, ptr captures(none))"
+        , "define i32 @f(i32 %v) {"
+        , "entry:"
+        , "  %a = alloca i32, align 4"
+        , "  %p = getelementptr inbounds i32, ptr %a, i64 0"
+        , "  call void @" <> callee <> ".start.p0(i64 4, ptr " <> pointer <> ")"
+        , "  store i32 %v, ptr %a, align 4"
+        , "  %r = load i32, ptr %a, align 4"
+        , "  call void @" <> callee <> ".end.p0(i64 4, ptr " <> pointer <> ")"
         , "  ret i32 %r"
         , "}"
         ]

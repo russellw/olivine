@@ -309,6 +309,14 @@ leakingIn f definitions = settle (Set.fromList (concatMap directly instructions 
     dereferenced operation = case operation of
       OLoad l -> local (loadPointer l)
       OStore s -> local (storePointer s)
+      -- Not dereferenced at all, but in the same position for this purpose: a
+      -- lifetime marker is handed an address it neither follows nor keeps, so
+      -- the storage behind it is no more reachable from elsewhere afterwards
+      -- than before.  Promotion takes these away where it can; what is left
+      -- here is the slots it could not promote, which are the aggregates and
+      -- the arrays, and those are exactly the ones with anything to gain from
+      -- being known unreached by a call.
+      _ | Just marked <- lifetimeMarked operation -> [marked]
       -- A catch-all, unlike the enumerations a pass decides by, because the
       -- answer it gives for an operation added later is that the operation lets
       -- its operands out of sight — which is the cautious answer and stays

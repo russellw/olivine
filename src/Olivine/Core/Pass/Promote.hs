@@ -75,6 +75,7 @@ module Olivine.Core.Pass.Promote
   ) where
 
 import Control.Monad (guard)
+import Data.Foldable (toList)
 import Data.List (delete, mapAccumL)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
@@ -148,6 +149,16 @@ promoteIn order f
         | Just result <- instructionResult i
         , _ : _ <- steppingFrom operation
         , Map.member (rooted result) promoted ->
+            (n, [])
+      -- A marker on storage that is no longer storage.  What it said was where
+      -- the object's contents begin and end being anyone's business, and a
+      -- local has no such span: it holds poison from the allocation the
+      -- assignment replaced until something assigns to it.  LLVM's mem2reg
+      -- deletes them for the same reason, which @opt -passes=mem2reg@ was
+      -- asked to confirm on a slot bracketed by a pair.
+      operation
+        | Just marked <- lifetimeMarked operation
+        , Map.member (rooted marked) promoted ->
             (n, [])
       _ -> (n, [i])
       where
@@ -296,11 +307,19 @@ promotableIn order f =
     -- unlike an access it also names one: whatever reads its result is the
     -- escape or the access, and 'rooted' is what says the two are about the
     -- same storage.
+    --
+    -- A lifetime marker names an address and does nothing with it, so it is
+    -- subtracted here as well although it is a call, and the rewrite below
+    -- drops it.  What it would otherwise say is that the address reached a
+    -- call, which is the one thing that stops a slot being promoted at all.
     escapingFrom i =
       foldr
         delete
         (localsUsedBy (instructionOperation i))
-        (addressedBy i <> steppingFrom (instructionOperation i))
+        ( addressedBy i
+            <> steppingFrom (instructionOperation i)
+            <> toList (lifetimeMarked (instructionOperation i))
+        )
 
     -- What each slot is accessed at, and which way round.  Gathered in one
     -- walk keyed by slot rather than looked up per candidate, since a function

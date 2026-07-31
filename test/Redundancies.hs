@@ -217,6 +217,17 @@ redundancyTests =
           testCase "across a call that was given the address" $ do
             answered <- assignmentsIn escapedSlot
             assertEqual "nothing is answered" [] answered
+        , -- Except where the callee is a lifetime marker, which is handed the
+          -- address and does nothing with it.  A slot bracketed this way is a
+          -- slot whose address never left, so a stranger's call in between
+          -- writes nothing anyone here can see.  The locals are %x %a %b %s as
+          -- 0 to 3, the markers assigning to nothing.
+          testCase "though not across a marker that was given it" $ do
+            answered <- assignmentsIn markedSlot
+            assertEqual
+              "the second load reads the first"
+              [(Local 2, VLocal (Local 1))]
+              answered
         , -- An atomic is where a write by another thread becomes visible, so
           -- what a load of storage this function let out of its sight read
           -- before one is not what it reads after.  A fence names no address
@@ -935,6 +946,27 @@ fencedConfinedSlot =
     , "  fence seq_cst"
     , "  %b = load i32, ptr %x, align 4"
     , "  %s = add i32 %a, %b"
+    , "  ret i32 %s"
+    , "}"
+    ]
+
+-- | A slot bracketed by lifetime markers, read either side of a call that was
+-- not given its address.
+markedSlot :: Text
+markedSlot =
+  T.unlines
+    [ "declare void @llvm.lifetime.start.p0(i64 immarg, ptr captures(none))"
+    , "declare void @llvm.lifetime.end.p0(i64 immarg, ptr captures(none))"
+    , "declare void @noise()"
+    , "define i32 @f() {"
+    , "entry:"
+    , "  %x = alloca i32, align 4"
+    , "  call void @llvm.lifetime.start.p0(i64 4, ptr %x)"
+    , "  %a = load i32, ptr %x, align 4"
+    , "  call void @noise()"
+    , "  %b = load i32, ptr %x, align 4"
+    , "  %s = add i32 %a, %b"
+    , "  call void @llvm.lifetime.end.p0(i64 4, ptr %x)"
     , "  ret i32 %s"
     , "}"
     ]

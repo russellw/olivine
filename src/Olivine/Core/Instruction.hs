@@ -46,16 +46,19 @@ module Olivine.Core.Instruction
   , resultOf
   , localsUsedBy
   , globalsUsedBy
+  , lifetimeMarked
   , resultType
   , speculatable
   ) where
 
 import Data.Foldable (toList)
 import Data.Map.Strict (Map)
+import Data.Text qualified as T
 import Numeric.Natural (Natural)
 
 import Olivine.Syntax.Instruction
   ( Alloca (..)
+  , Argument (..)
   , AtomicLoad (..)
   , AtomicRmw (..)
   , AtomicStore (..)
@@ -80,9 +83,9 @@ import Olivine.Syntax.Instruction
   , Store (..)
   , Unary (..)
   )
-import Olivine.Syntax.Name (Name)
+import Olivine.Syntax.Name (Name, nameText)
 import Olivine.Syntax.Type (Packedness (..), Type (..), elementOf, insideOf, resolveNamed)
-import Olivine.Syntax.Value (GepFlag, TypedValue (..), globalsIn)
+import Olivine.Syntax.Value (GepFlag, TypedValue (..), Value (..), globalsIn)
 
 -- | What an instruction assigns to, and what an operand names when it names
 -- something the function computed.
@@ -323,6 +326,37 @@ localsUsedBy = concatMap toList . toList
 -- operand being the type parameter.
 globalsUsedBy :: Foldable f => f (TypedValue local) -> [Name]
 globalsUsedBy = concatMap (globalsIn . typedValue) . toList
+
+-- | The storage a lifetime marker marks, where the operation is one.
+--
+-- @call void \@llvm.lifetime.start.p0(i64 4, ptr %s)@ says the object at @%s@
+-- holds nothing anyone put there until here, and the matching @end@ says it
+-- holds nothing anyone can read after there.  Both exist so that a back end
+-- can give two objects one stack slot, and neither is a use of the address in
+-- any sense a pass here cares about: the intrinsic dereferences nothing, keeps
+-- nothing, and is declared @captures(none)@ to say so.  A pass reading a call
+-- as a call therefore has to be told, or every slot a front end brackets this
+-- way looks like a slot whose address got out — which is what @-O1@ output
+-- looked like before this was here, since @-O0@ emits no markers and the
+-- corpus had nothing else.
+--
+-- The pointer is the last argument, which is where it stands in both the form
+-- carrying a size and the form without one.
+--
+-- Naming the callee is the whole of the test.  @llvm.@ is a reserved prefix,
+-- so nothing else can be called this, and the suffix is the address space the
+-- pointer is mangled with.
+lifetimeMarked :: Operation (TypedValue local) -> Maybe local
+lifetimeMarked operation = case operation of
+  OCall call
+    | VGlobal name <- typedValue (callCallee call)
+    , any (marks (nameText name)) ["llvm.lifetime.start", "llvm.lifetime.end"]
+    , _ : _ <- callArguments call
+    , TypedValue _ (VLocal p) <- argumentValue (last (callArguments call)) ->
+        Just p
+  _ -> Nothing
+  where
+    marks called base = called == base || T.isPrefixOf (base <> ".") called
 
 -- | What an operation leaves in the local it assigns to, 'TVoid' when it
 -- leaves nothing.
