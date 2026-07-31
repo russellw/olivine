@@ -37,6 +37,7 @@ library
                       Olivine.Syntax.Verify
                       Olivine.Syntax.Debug
                       Olivine.Core.Alias
+                      Olivine.Core.Effects
                       Olivine.Core.Instruction
                       Olivine.Core.Program
                       Olivine.Core.Phi
@@ -111,6 +112,7 @@ test-suite olivine-test
                       ControlFlow
                       DeadCode
                       DeadSymbols
+                      Effects
                       Folding
                       IfConversion
                       Redundancies

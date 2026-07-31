@@ -18,6 +18,7 @@ import Olivine.Core.Alias
 import Olivine.Core.Instruction
 import Olivine.Core.Layout (layoutOf)
 import Olivine.Core.Lower (lower)
+import Olivine.Core.Effects (Behaviour (..), anything, nothing)
 import Olivine.Core.Pass.Redundancies (eliminateRedundancies, shareable)
 import Olivine.Core.Pass.Promote (promoteMemory)
 import Olivine.Core.Program
@@ -473,24 +474,36 @@ redundancyTests =
         ]
     , testGroup
         "what may be shared at all"
-        [ testCase "arithmetic" $ shareable (binary OpAdd) @?= True
-        , testCase "a comparison" $ shareable comparison @?= True
-        , testCase "a conversion" $ shareable conversion @?= True
-        , testCase "a pointer step" $ shareable step @?= True
-        , testCase "a field selection" $ shareable field @?= True
+        [ testCase "arithmetic" $ shareable opaque (binary OpAdd) @?= True
+        , testCase "a comparison" $ shareable opaque comparison @?= True
+        , testCase "a conversion" $ shareable opaque conversion @?= True
+        , testCase "a pointer step" $ shareable opaque step @?= True
+        , testCase "a field selection" $ shareable opaque field @?= True
         , -- Dividing by zero is poison rather than a fault, so a division is
-          -- as shareable as an addition: two of them with the same operands
+          -- as shareable opaque as an addition: two of them with the same operands
           -- are poison together or a number together.
-          testCase "division" $ shareable (binary OpSDiv) @?= True
+          testCase "division" $ shareable opaque (binary OpSDiv) @?= True
         , -- Fresh storage each time, so two allocations are two objects.
-          testCase "an allocation" $ shareable allocation @?= False
-        , testCase "a load" $ shareable load' @?= False
-        , testCase "a store" $ shareable store' @?= False
-        , -- Nothing here can tell whether a call answers the same thing
-          -- twice, or what it does on the way to answering.
-          testCase "a call" $ shareable call' @?= False
+          testCase "an allocation" $ shareable opaque allocation @?= False
+        , testCase "a load" $ shareable opaque load' @?= False
+        , testCase "a store" $ shareable opaque store' @?= False
+        , -- A call nothing is known about may answer differently each time it
+          -- is asked, and may do anything on the way to answering.
+          testCase "a call" $ shareable opaque call' @?= False
+        , -- One the whole program says touches no memory answers out of its
+          -- arguments alone, so two written the same way are one computation.
+          -- Throwing and not returning are no objection: the second run is
+          -- reached only when the first came back.
+          testCase "a call that touches nothing" $
+            shareable (const nothing) call' @?= True
+        , testCase "a call that may throw" $
+            shareable (const nothing {mayUnwind = True}) call' @?= True
+        , testCase "a call that reads memory" $
+            shareable (const nothing {readsMemory = True}) call' @?= False
+        , testCase "a call that writes memory" $
+            shareable (const nothing {writesMemory = True}) call' @?= False
         , -- Already the value it holds; there is no computation to repeat.
-          testCase "an assignment" $ shareable assignment @?= False
+          testCase "an assignment" $ shareable opaque assignment @?= False
         ]
     ]
 
@@ -1292,7 +1305,12 @@ allocating =
     ]
 
 -- Operations at the core's own operand type, for 'shareable', which reads
--- nothing but which operation it is.
+-- nothing but which operation it is and what the program says its calls do.
+
+-- | A call this knows nothing about, which is what every case here but the
+-- ones about calls is written against.
+opaque :: Call (TypedValue Local) -> Behaviour
+opaque = const anything
 
 binary :: BinaryOp -> Operation (TypedValue Local)
 binary op = OBinary (Binary op [] (word 1) (word 2))

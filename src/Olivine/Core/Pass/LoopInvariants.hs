@@ -57,9 +57,18 @@
 -- address they name, so a pointer the loop never assigns is not enough: a store
 -- or a call anywhere in the loop may leave something else there.  Which ones
 -- could is "Olivine.Core.Alias", asked here of every store in the body, and for
--- a call asked as whether the address is one a callee has any way to name.  It
+-- a call asked as whether the address is one a callee has any way to name — of
+-- the calls that write at all, which is "Olivine.Core.Effects" answering.  It
 -- is the question "Olivine.Core.Pass.Redundancies" asks of the instructions
 -- between two accesses, asked of a whole loop body instead.
+--
+-- __And a call comes out on the same terms a load does.__  One that touches no
+-- memory answers out of its arguments, so arguments the loop does not assign
+-- make it the same answer every turn; what it takes beyond that is
+-- 'alwaysReached', because a body this optimizer can read may do something
+-- undefined on arguments the loop would never have handed it.  That is the
+-- division's case above, settled the other way because here there is a program
+-- that wants it.
 --
 -- __And when running it early cannot fault.__  A load is the first thing this
 -- pass moves that can undefine a program by being run where the program would
@@ -135,13 +144,14 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 
 import Olivine.Core.Alias (Access (..), Objects, mayAlias, objectsIn, reachableByCall)
+import Olivine.Core.Effects (Behaviour (..), Effects, behaviourOf, effectsOf)
 import Olivine.Core.Layout (Layout, alignmentOf, layoutOf, storeSize)
 import Olivine.Core.Instruction
 import Olivine.Core.Loops (Loop (..), Preheader, enterThrough, loopsOf, preheaderFor)
 import Olivine.Core.Program
 import Olivine.Syntax.Ast qualified as Syntax
 import Olivine.Syntax.Global (Global (..))
-import Olivine.Syntax.Instruction (Load (..), Store (..))
+import Olivine.Syntax.Instruction (Call, Load (..), Store (..))
 import Olivine.Syntax.Linkage (GlobalAttribute (..), Linkage (..))
 import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Value (TypedValue (..), Value (..))
@@ -161,7 +171,12 @@ hoistLoopInvariants program =
     -- program, being a fact about the target rather than about a function.
     layout = layoutOf program
 
-    entry (EFunction f) = EFunction (settle globals layout (rounds f) f)
+    -- And what each call in the module does, which is what says whether a
+    -- call in a body is a wall the loads behind it have to stay behind, or a
+    -- computation that can come out of the loop like any other.
+    effects = effectsOf program
+
+    entry (EFunction f) = EFunction (settle globals layout effects (rounds f) f)
     entry retained = retained
 
 -- | The module's global variables by name.
@@ -188,23 +203,27 @@ rounds f =
     , Set.member (blockLabel b) (loopBody loop)
     ]
 
-settle :: Map Name Global -> Maybe Layout -> Int -> Function -> Function
-settle globals layout remaining f
+settle :: Map Name Global -> Maybe Layout -> Effects -> Int -> Function -> Function
+settle globals layout effects remaining f
   | remaining <= 0 = f
-  | otherwise = case candidates globals layout f of
+  | otherwise = case candidates globals layout effects f of
       [] -> f
       (loop, preheader, moving) : _ ->
-        settle globals layout (remaining - 1) (hoistFrom f loop preheader moving)
+        settle globals layout effects (remaining - 1) (hoistFrom f loop preheader moving)
 
 -- | The loops with something to take out of them, innermost first, each with
 -- where what comes out of it goes.
 candidates ::
-  Map Name Global -> Maybe Layout -> Function -> [(Loop, Preheader, [Instruction])]
-candidates globals layout f =
+  Map Name Global ->
+  Maybe Layout ->
+  Effects ->
+  Function ->
+  [(Loop, Preheader, [Instruction])]
+candidates globals layout effects f =
   [ (loop, preheader, moving)
   | loop <- loopsOf f
   , Just preheader <- [preheaderFor f loop]
-  , let moving = invariantIn globals layout objects f loop
+  , let moving = invariantIn globals layout effects objects f loop
   , not (null moving)
   ]
   where
@@ -223,8 +242,14 @@ candidates globals layout f =
 -- appended in cannot matter.  Two loads are independent of each other in the
 -- stronger sense as well, neither writing anything the other could read.
 invariantIn ::
-  Map Name Global -> Maybe Layout -> Objects -> Function -> Loop -> [Instruction]
-invariantIn globals layout objects f loop =
+  Map Name Global ->
+  Maybe Layout ->
+  Effects ->
+  Objects ->
+  Function ->
+  Loop ->
+  [Instruction]
+invariantIn globals layout effects objects f loop =
   [ i
   | b <- functionBlocks f
   , Set.member (blockLabel b) (loopBody loop)
@@ -237,6 +262,7 @@ invariantIn globals layout objects f loop =
   where
     once = writtenOnce f
     assigned = assignedIn f loop
+    made = behaviourOf effects
 
     -- Every operation the loop runs, which is what a load has to be safe
     -- against all of.
@@ -257,13 +283,33 @@ invariantIn globals layout objects f loop =
            ]
 
     -- Whether an instruction may be moved out, given where in the loop it
-    -- stands.  Only a load reads the position: for everything else the answer
-    -- is a fact about the operation alone, which is 'speculatable'.
+    -- stands.  A load and a call read the position; for everything else the
+    -- answer is a fact about the operation alone, which is 'speculatable'.
     movable label above operation = case operation of
       OLoad l ->
         not (loadVolatile l)
           && not (changed (Access (typedValue (loadPointer l)) (loadType l)))
-          && (alwaysReached loop label above || alwaysReadable globals layout l)
+          && (alwaysReached made loop label above || alwaysReadable globals layout l)
+      -- A call that touches no memory answers out of its arguments, and
+      -- arguments the loop does not assign are the same arguments every turn,
+      -- so the answer is the same every turn.  What it takes beyond that is
+      -- that the loop was going to make the call anyway: unlike arithmetic, a
+      -- body this optimizer can read may still do something undefined on
+      -- arguments the loop would never have handed it, and running it where
+      -- the program would not have is what 'speculatable' means and what LLVM
+      -- keeps a separate attribute for.  So the call has to stand where the
+      -- loop is certain to reach it — which after rotation is the ordinary
+      -- case, see the loop rotation pass — and it has to come back, since
+      -- moving one that throws or never returns above the loop's own work
+      -- would let the program's writes happen in another order or not at all.
+      OCall call ->
+        not (readsMemory behaviour)
+          && not (writesMemory behaviour)
+          && not (mayUnwind behaviour)
+          && not (mayNotReturn behaviour)
+          && alwaysReached made loop label above
+        where
+          behaviour = made call
       _ -> speculatable operation
 
     -- Whether anything the loop runs can write what a load of this address
@@ -279,14 +325,14 @@ invariantIn globals layout objects f loop =
       [ Access (typedValue (storePointer s)) (typedValueType (storeValue s))
       | OStore s <- inside
       ]
-    -- A call may write anything it can name, and an atomic is where a write
-    -- by another thread becomes visible, which reaches just as far.  Either of
-    -- them in the body and a load of storage this function let out of its
-    -- sight has to stay in the loop.
+    -- A call that writes may write anything it can name, and an atomic is
+    -- where a write by another thread becomes visible, which reaches just as
+    -- far.  Either of them in the body and a load of storage this function let
+    -- out of its sight has to stay in the loop.
     calling = any strangers inside
 
     strangers operation = case operation of
-      OCall _ -> True
+      OCall call -> writesMemory (made call)
       OAtomicLoad _ -> True
       OAtomicStore _ -> True
       OAtomicRmw _ -> True
@@ -358,29 +404,37 @@ hoistFrom f loop preheader moving =
 -- In the header, since every block of the body is reached through it and no
 -- other block of the body is reached at all on a turn that goes straight back
 -- out.  And with nothing above it in the header that control may not come back
--- from, which is a call: the preheader runs and then the header runs from the
--- top, so an instruction with a call above it is one the loop may be entered
--- without ever reaching.
+-- from, which is a call the program cannot say comes back: the preheader runs
+-- and then the header runs from the top, so an instruction with such a call
+-- above it is one the loop may be entered without ever reaching.
 --
 -- What is above it may fault instead of returning — a load through a bad
 -- pointer, a division by zero — and that is passed over rather than answered
 -- for.  Faulting there is undefined behaviour, so the program had none to
 -- preserve from that point on, and a refinement of a program that is undefined
 -- is any program at all.
-alwaysReached :: Loop -> Label -> [Instruction] -> Bool
-alwaysReached loop label above =
-  label == loopHeader loop && all (returns . instructionOperation) above
+alwaysReached ::
+  (Call (TypedValue Local) -> Behaviour) -> Loop -> Label -> [Instruction] -> Bool
+alwaysReached made loop label above =
+  label == loopHeader loop && all (returns made . instructionOperation) above
 
 -- | Whether control certainly reaches the instruction after this one.
 --
 -- A call may not come back — it may throw, it may exit, it may not finish —
--- and nothing else in the grammar has anywhere to go but on.  Written out case
--- by case with no catch-all for the reason 'speculatable' is: an operation added
+-- unless what the whole program says about the callee rules all three out, and
+-- nothing else in the grammar has anywhere to go but on.  Written out case by
+-- case with no catch-all for the reason 'speculatable' is: an operation added
 -- later that can end the function has to be looked at here rather than be taken
 -- for one that cannot.
-returns :: Operation operand -> Bool
-returns operation = case operation of
-  OCall _ -> False
+returns ::
+  (Call (TypedValue local) -> Behaviour) -> Operation (TypedValue local) -> Bool
+returns made operation = case operation of
+  -- A call the program says comes back and does not throw is one control
+  -- carries on past, which is what makes an instruction below it in a header
+  -- still an instruction the loop is certain to run.
+  OCall call -> not (mayNotReturn behaviour) && not (mayUnwind behaviour)
+    where
+      behaviour = made call
   OAssign _ -> True
   OBinary _ -> True
   OUnary _ -> True

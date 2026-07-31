@@ -51,6 +51,13 @@ int gcd_of(int,int); int alternate(int,int,int); int steps(int,int);
 void walk_down(int*,int); int buffered(int,int); int via_local(int,const int*);
 int product_to(int); int forwards(int); int bounced(int);
 int skipping(const int*,int,int);
+/* effects.c */
+int twice_over(int,int); int across_call(const int*,int,int);
+int in_loop(const int*,int,int,int); int unused_result(int,int);
+int writer_twice(int); int across_writer(const int*,int); int unused_writer(int);
+int reader_twice(const int*); int reader_across_write(int*,int);
+int unused_loop(int,int); int unused_recursion(int); int loop_of_loops(int,int,int);
+extern int written_total;
 /* linkage.c */
 int real_answer(void); int aliased_answer(void); int hidden_helper(int);
 int never_inlined(int); int uses_them(int);
@@ -353,6 +360,25 @@ int main(void){
     for(int x=1;x<=64;x*=3) printf("%d ", halved(x)); printf("\n");
     for(int n=0;n<=16;n+=8) printf("%d ", through_call(in,n)); printf("\n");
     for(int n=0;n<=3;n++) printf("%d ", local_aligned(n)); printf("\n"); }
+#endif
+#ifdef EFFECTS
+  /* The writers are printed with what they wrote, since what must not be
+     shared or dropped is the writing rather than the answer. */
+  { int cells[6] = {2,-3,5,7,-11,13};
+    for(int a=-2;a<=2;a++) for(int b=-1;b<=1;b++)
+      printf("%d %d ", twice_over(a,b), unused_result(a,b));
+    printf("\n");
+    for(int n=0;n<=6;n++)
+      printf("%d %d ", across_call(cells,n,3), in_loop(cells,n,2,n));
+    printf("\n");
+    for(int v=0;v<=4;v++)
+      printf("%d %d %d %d ", writer_twice(v), across_writer(cells,v),
+             unused_writer(v), written_total);
+    printf("\n");
+    printf("%d %d\n", reader_twice(cells), reader_across_write(cells,9));
+    for(int n=0;n<=4;n++)
+      printf("%d %d %d ", unused_loop(n,1), unused_recursion(n), loop_of_loops(n,2,3));
+    printf("\n"); }
 #endif
 #ifdef LINKAGE
   printf("%d %d %d\n", real_answer(), aliased_answer(), weak_count + tentative);

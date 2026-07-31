@@ -5,10 +5,13 @@
 -- writes memory, a call may do anything, and neither is dead however unread
 -- its result.
 --
--- What may go is judged by 'removableWhenUnused', which is deliberately
--- cautious.  It says nothing about calls, so no call is ever removed, even
--- one to a function that plainly does nothing — proving that is a question
--- about the whole program and this pass looks at one function at a time.
+-- What may go is judged by 'removableWhenUnused', which is cautious about
+-- everything it cannot ask about.  A call it can ask about: what the whole
+-- program says the callee does is "Olivine.Core.Effects", and a call that
+-- writes no memory, always comes back and never throws is a computation like
+-- any other once nothing reads its result.  That is exactly LLVM's own line —
+-- @opt -passes=dce@ was given the same call with each of the three promises
+-- missing in turn and keeps it every time.
 module Olivine.Core.Pass.DeadCode
   ( eliminateDeadCode
   , removableWhenUnused
@@ -17,35 +20,42 @@ module Olivine.Core.Pass.DeadCode
 import Data.Set (Set)
 import Data.Set qualified as Set
 
+import Olivine.Core.Effects (Behaviour (..), Effects, behaviourOf, effectsOf)
 import Olivine.Core.Instruction
 import Olivine.Core.Program
-import Olivine.Syntax.Instruction (Load (..))
+import Olivine.Syntax.Instruction (Call (..), Load (..))
+import Olivine.Syntax.Value (TypedValue)
 
 eliminateDeadCode :: Program -> Program
 eliminateDeadCode program =
   program {programEntries = map entry (programEntries program)}
   where
-    entry (EFunction f) = EFunction (settle f)
+    -- What each call in the module does, read once for the whole program:
+    -- every function is asked about every call it makes, and what a callee
+    -- does is not a fact about the caller being looked at.
+    effects = effectsOf program
+    entry (EFunction f) = EFunction (settle effects f)
     entry retained = retained
 
 -- | Removing one instruction can leave another with nothing reading it, so
 -- this runs until a sweep finds nothing.
-settle :: Function -> Function
-settle f
+settle :: Effects -> Function -> Function
+settle effects f
   | swept == f = f
-  | otherwise = settle swept
+  | otherwise = settle effects swept
   where
-    swept = sweep f
+    swept = sweep effects f
 
-sweep :: Function -> Function
-sweep f = f {functionBlocks = map prune (functionBlocks f)}
+sweep :: Effects -> Function -> Function
+sweep effects f = f {functionBlocks = map prune (functionBlocks f)}
   where
     used = usedIn f
     prune b = b {blockInstructions = filter keep (blockInstructions b)}
     keep i = case instructionResult i of
       Nothing -> True
       Just name ->
-        name `Set.member` used || not (removableWhenUnused (instructionOperation i))
+        name `Set.member` used
+          || not (removableWhenUnused (behaviourOf effects) (instructionOperation i))
 
 -- | Every local the function reads.
 usedIn :: Function -> Set Local
@@ -62,12 +72,20 @@ usedIn f =
            ]
     )
 
--- | Whether an operation can be dropped when nothing reads its result.
+-- | Whether an operation can be dropped when nothing reads its result, given
+-- what the program says the calls in it do.
 --
--- A store writes memory and a call may do anything, so neither is dead
--- however unread its result.  There is no case for a terminator, because a
--- terminator is not one of these: it is a 'Transfer', in a slot of its own,
--- and nothing can hand one to this.
+-- A store writes memory, so it is not dead however unread its result.  There
+-- is no case for a terminator, because a terminator is not one of these: it is
+-- a 'Transfer', in a slot of its own, and nothing can hand one to this — which
+-- is also why a call standing where a branch stands is never removed here,
+-- however little it does.
+--
+-- __A call goes when all three of its promises hold.__  Writing no memory is
+-- not enough on its own: a call that never comes back is what the rest of the
+-- function stands behind, and one that throws is a way out of the function
+-- that the program can see the effects of.  Reading memory is no reason to
+-- keep it, a read leaving nothing behind.
 --
 -- The rest may go, including division, which is arithmetic that can divide by
 -- zero — LLVM makes that undefined rather than a fault to be preserved, so an
@@ -75,10 +93,16 @@ usedIn f =
 -- reading through a pointer that cannot be read is undefined in the same way,
 -- but only when it is not volatile: a volatile load is a side effect that
 -- happens to return something.
-removableWhenUnused :: Operation local -> Bool
-removableWhenUnused operation = case operation of
+removableWhenUnused ::
+  (Call (TypedValue local) -> Behaviour) -> Operation (TypedValue local) -> Bool
+removableWhenUnused made operation = case operation of
   OStore _ -> False
-  OCall _ -> False
+  OCall call ->
+    not (writesMemory behaviour)
+      && not (mayUnwind behaviour)
+      && not (mayNotReturn behaviour)
+    where
+      behaviour = made call
   OLoad l -> not (loadVolatile l)
   -- An atomic is an ordering as much as an access, and an ordering nothing
   -- reads is not an ordering nothing does: another thread reads it.  That

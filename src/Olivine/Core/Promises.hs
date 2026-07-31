@@ -20,6 +20,7 @@
 module Olivine.Core.Promises
   ( Promises
   , promisesOf
+  , promisedNames
   , resolve
   , attributesOf
   , returnsTwiceIn
@@ -88,6 +89,15 @@ promisesOf program =
             ERetained _ -> []
         | e <- programEntries program
         ]
+
+-- | What every symbol the module names promises, groups resolved.
+--
+-- The whole map rather than a lookup, because the one caller wanting it —
+-- "Olivine.Core.Effects" — starts by reading the promises of everything and
+-- then settles them against the bodies, and asking name by name would mean
+-- knowing the names first.
+promisedNames :: Promises -> [(Text, [FunctionAttribute])]
+promisedNames = Map.toList . promiseSymbols
 
 -- | An attribute slot with its group references followed through.
 --

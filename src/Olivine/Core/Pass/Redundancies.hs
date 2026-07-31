@@ -60,9 +60,12 @@
 --
 -- __What invalidates it is a question about pointers, and lives elsewhere.__
 -- A store writes the address it names and, for all this can tell, every
--- address that might be the same one; a call writes anything it can reach.
--- Which addresses those are is "Olivine.Core.Alias", worked out once per
--- function and asked here.  The precision that matters most is the one about
+-- address that might be the same one; a call that writes at all writes
+-- anything it can reach.  Which addresses those are is "Olivine.Core.Alias",
+-- worked out once per function and asked here; whether the call writes at all
+-- is "Olivine.Core.Effects", worked out once for the program.  A call that
+-- writes nothing invalidates nothing, and one that touches no memory at all is
+-- an expression like any other and shared like one.  The precision that matters most is the one about
 -- calls: a slot whose address never left this function's own accesses is
 -- storage no callee can name, so what is known about it survives a call, and
 -- without that a load in any loop containing a call would be recomputed.
@@ -157,11 +160,12 @@ import Data.Maybe (mapMaybe)
 import Data.Set qualified as Set
 
 import Olivine.Core.Alias (Access (..), mayAlias, objectsIn, reachableByCall)
+import Olivine.Core.Effects (Behaviour (..), Effects, behaviourOf, effectsOf)
 import Olivine.Core.Layout (Layout, layoutOf)
 import Olivine.Core.Blocks (predecessorsOf, reversePostorder)
 import Olivine.Core.Instruction
 import Olivine.Core.Program
-import Olivine.Syntax.Instruction (Load (..), Store (..))
+import Olivine.Syntax.Instruction (Call, Load (..), Store (..))
 import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Type (Type)
 import Olivine.Syntax.Value (TypedValue (..), Value (..))
@@ -175,7 +179,11 @@ eliminateRedundancies program =
     -- tells one field of a struct from another when a store to one is asked
     -- whether it wrote what a load of the other reads.
     layout = layoutOf program
-    entry (EFunction f) = EFunction (eliminateIn types layout f)
+    -- And what each call does, which is what says whether a call is a wall
+    -- that everything known about memory stops at, or a computation like the
+    -- rest.
+    effects = effectsOf program
+    entry (EFunction f) = EFunction (eliminateIn types layout effects f)
     entry retained = retained
 
 -- | What is known at a point in a function.
@@ -240,9 +248,10 @@ contentAccess content = Access (contentAddress content) (contentType content)
 nothingKnown :: Known
 nothingKnown = Known Map.empty Map.empty []
 
-eliminateIn :: Map Name Type -> Maybe Layout -> Function -> Function
-eliminateIn types layout f = f {functionBlocks = map rewrite (functionBlocks f)}
+eliminateIn :: Map Name Type -> Maybe Layout -> Effects -> Function -> Function
+eliminateIn types layout effects f = f {functionBlocks = map rewrite (functionBlocks f)}
   where
+    made = behaviourOf effects
     blocks = functionBlocks f
     order = reversePostorder f
     -- What the function's own pointers point into, which every question about
@@ -271,17 +280,21 @@ eliminateIn types layout f = f {functionBlocks = map rewrite (functionBlocks f)}
     -- the two calls is what the last instruction left.
     --
     -- An invoke and a callbr are calls standing where a branch stands, and a
-    -- call may write anything a stranger can reach — assembly as much as a
-    -- function, since nothing here reads a template.  What is known on the way
-    -- out has to say so, or the successors — the landing pad among them —
-    -- answer a load from a fact the call has already made false.
+    -- call that writes may write anything a stranger can reach — assembly as
+    -- much as a function, since nothing here reads a template.  What is known
+    -- on the way out has to say so, or the successors — the landing pad among
+    -- them — answer a load from a fact the call has already made false.
     leaving :: Terminator -> Known -> Known
     leaving t known = case callIn (terminatorTransfer t) of
-      Just _ ->
-        (maybe id kill (resultOf t) known)
+      Just call ->
+        assigned
           { contents =
-              filter (not . reachableByCall objects . contentAddress) (contents known)
+              if writesMemory (made call)
+                then filter (not . reachableByCall objects . contentAddress) (contents known)
+                else contents known
           }
+        where
+          assigned = maybe id kill (resultOf t) known
       Nothing -> known
 
     -- What is known on the way into each reachable block and on the way out of
@@ -359,7 +372,7 @@ eliminateIn types layout f = f {functionBlocks = map rewrite (functionBlocks f)}
 
         -- A local holding what this computes.
         computed = do
-          guard (shareable operation)
+          guard (shareable made operation)
           (_, holder, t) <- lookupExpression operation known
           pure (TypedValue t (VLocal holder))
 
@@ -387,7 +400,7 @@ eliminateIn types layout f = f {functionBlocks = map rewrite (functionBlocks f)}
             -- one was a copy of, which resolving the operand has already made
             -- it say.
             | OAssign value <- operation -> noted result (typedValue value) remaining
-            | shareable operation
+            | shareable made operation
             , -- An expression that reads the local it assigns to is not
               -- available after it.  @%a := add %a, 1@ leaves %a holding what
               -- the expression meant before it ran, and the expression now
@@ -419,8 +432,11 @@ eliminateIn types layout f = f {functionBlocks = map rewrite (functionBlocks f)}
                   (typedValue (storePointer s))
                   (typedValueType (storeValue s))
                   (typedValue (storeValue s))
-          -- Whatever it does to memory, it does it to memory it can name.
-          OCall _ -> byStrangers known'
+          -- Whatever it does to memory, it does it to memory it can name — and
+          -- a call the program says writes nothing does nothing to it at all.
+          OCall call
+            | writesMemory (made call) -> byStrangers known'
+            | otherwise -> known'
           -- And an atomic is where what another thread did to memory becomes
           -- visible here, which reaches exactly as far: everything this
           -- function let out of its sight, and nothing that stayed in it,
@@ -477,18 +493,27 @@ eliminateIn types layout f = f {functionBlocks = map rewrite (functionBlocks f)}
           | otherwise = known' {contents = content : contents known'}
 
 -- | Whether two runs of an operation with the same operands leave the same
--- value behind.
+-- value behind, given what the program says the calls in it do.
 --
 -- Written out case by case with no catch-all, so that an operation added to
 -- the grammar later fails to compile here rather than being quietly taken for
 -- one whose answer can be reused.
-shareable :: Operation operand -> Bool
-shareable operation = case operation of
+shareable ::
+  (Call (TypedValue local) -> Behaviour) -> Operation (TypedValue local) -> Bool
+shareable made operation = case operation of
   -- Already an assignment of the value it holds; there is no computation to
   -- do twice.  What it is a copy of is noted rather than shared.
   OAssign _ -> False
-  -- May do anything, and may answer differently each time it is asked.
-  OCall _ -> False
+  -- A call that neither reads nor writes memory answers out of its arguments
+  -- alone, so two of them written the same way are one computation.  Nothing
+  -- else about it matters: one that throws or that never comes back is one the
+  -- second run is never reached from, so the value the first left is the value
+  -- anything reading this can only ever see.  That is LLVM's line as well —
+  -- @opt -passes=early-cse@ merges two @memory(none)@ calls carrying no other
+  -- promise.
+  OCall call -> not (readsMemory behaviour) && not (writesMemory behaviour)
+    where
+      behaviour = made call
   -- Fresh storage each time, so two allocations are two objects however alike
   -- the instructions asking for them.
   OAlloca _ -> False

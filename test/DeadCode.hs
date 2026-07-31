@@ -9,6 +9,7 @@ import Test.Tasty.HUnit
 import Corpus (expectParse)
 import Olivine.Core.Lower (lower)
 import Olivine.Core.Instruction
+import Olivine.Core.Effects (Behaviour (..), anything, nothing)
 import Olivine.Core.Pass.DeadCode (eliminateDeadCode, removableWhenUnused)
 import Olivine.Core.Program
 import Olivine.Syntax.Instruction hiding (Operation (..))
@@ -45,25 +46,40 @@ deadCodeTests =
           results
     , testGroup
         "what may go when nothing reads it"
-        [ testCase "arithmetic" $ removableWhenUnused (binary OpAdd) @?= True
+        [ testCase "arithmetic" $ removableWhenUnused opaque (binary OpAdd) @?= True
         , -- Dividing by zero is undefined in LLVM rather than a fault to be
           -- kept, so an unread division is as dead as an unread addition.
-          testCase "division" $ removableWhenUnused (binary OpSDiv) @?= True
-        , testCase "a plain load" $ removableWhenUnused (load False) @?= True
+          testCase "division" $ removableWhenUnused opaque (binary OpSDiv) @?= True
+        , testCase "a plain load" $ removableWhenUnused opaque (load False) @?= True
         , -- A volatile load is a side effect that happens to return a value.
-          testCase "a volatile load" $ removableWhenUnused (load True) @?= False
-        , testCase "a store" $ removableWhenUnused store' @?= False
-        , -- Nothing here can tell whether a call does anything, so none goes.
-          testCase "a call" $ removableWhenUnused call' @?= False
+          testCase "a volatile load" $ removableWhenUnused opaque (load True) @?= False
+        , testCase "a store" $ removableWhenUnused opaque store' @?= False
+        , -- A call nothing is known about may do anything, so it stays.
+          testCase "a call" $ removableWhenUnused opaque call' @?= False
+        , -- One the whole program says writes nothing, always comes back and
+          -- never throws is a computation like any other once its result is
+          -- unread.  All three are needed: a call that throws is a way out of
+          -- the function, and one that never returns is what the rest of the
+          -- function stands behind.
+          testCase "a call that does nothing" $
+            removableWhenUnused (const nothing) call' @?= True
+        , testCase "a call that only reads" $
+            removableWhenUnused (const nothing {readsMemory = True}) call' @?= True
+        , testCase "a call that writes" $
+            removableWhenUnused (const nothing {writesMemory = True}) call' @?= False
+        , testCase "a call that may throw" $
+            removableWhenUnused (const nothing {mayUnwind = True}) call' @?= False
+        , testCase "a call that may not return" $
+            removableWhenUnused (const nothing {mayNotReturn = True}) call' @?= False
         , -- An atomic is an ordering as much as an access, and an ordering
           -- nothing here reads is one another thread reads.  That holds of
           -- the read as much as of the write, which is what makes an unread
           -- atomic load different from an unread plain one.
-          testCase "an atomic load" $ removableWhenUnused atomicLoad' @?= False
-        , testCase "a read modify write" $ removableWhenUnused atomicRmw' @?= False
-        , testCase "a compare and exchange" $ removableWhenUnused cmpXchg' @?= False
+          testCase "an atomic load" $ removableWhenUnused opaque atomicLoad' @?= False
+        , testCase "a read modify write" $ removableWhenUnused opaque atomicRmw' @?= False
+        , testCase "a compare and exchange" $ removableWhenUnused opaque cmpXchg' @?= False
         , -- Which is the whole of what a fence is.
-          testCase "a fence" $ removableWhenUnused fence' @?= False
+          testCase "a fence" $ removableWhenUnused opaque fence' @?= False
           -- There were two more here, asking that a return and a branch are
           -- never removable.  Neither can be asked now: a terminator is a
           -- 'Transfer' and this takes an 'Operation', so handing it one does
@@ -71,6 +87,10 @@ deadCodeTests =
         ]
     ]
   where
+    -- What every one of these was written against: a call this knows nothing
+    -- about.
+    opaque = const anything
+
     binary op =
       OBinary
         Binary
