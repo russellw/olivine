@@ -60,8 +60,9 @@ accepted =
 
 -- | Text that must leave the line opaque rather than be parsed as some prefix
 -- of itself.  The specialized debug nodes are the boundary of what is
--- modelled, and the reason a module compiled with @-g@ would still be mostly
--- opaque.
+-- modelled.  Leaving one opaque costs nothing — it is a construct standing on
+-- its own line, like any other the grammar has not reached — where the same
+-- text inside a body would have cost the function; see 'recordTests'.
 rejected :: [Text]
 rejected =
   [ "!0 = !DILocation(line: 1, column: 2, scope: !3)"
@@ -84,7 +85,69 @@ metadataTests =
         "rejected"
         [testCase (T.unpack line) (staysOpaque line) | line <- rejected]
     , fieldTests
+    , recordTests
     ]
+
+-- | The debug records a body carries, which are read and dropped.
+--
+-- This is the one thing Olivine discards rather than carries, and the reason
+-- is that it could not honour either alternative: a record names an alloca,
+-- so counting it as a use would make every slot it names unpromotable, and
+-- carrying it without counting it would leave it naming a slot that a pass
+-- had taken.  Not reading it at all is what the measurement objected to —
+-- one unread line takes the definition whole, so with @-g@ nothing was
+-- optimized at all.
+--
+-- The positions are separate cases because they reach the rule by different
+-- routes: the layout before the first instruction of a block, and the layout
+-- after each one.
+recordTests :: TestTree
+recordTests =
+  testGroup
+    "debug records"
+    [ testGroup
+        "every spelling is dropped"
+        [ dropped "declare" "    #dbg_declare(ptr %1, !18, !DIExpression(), !19)"
+        , dropped "value" "    #dbg_value(i32 %0, !18, !DIExpression(), !19)"
+        , dropped "label" "    #dbg_label(!18, !19)"
+        , -- Assignment tracking, whose record carries two expressions and a
+          -- second address.
+          dropped
+            "assign"
+            "    #dbg_assign(i32 %0, !18, !DIExpression(), !20, ptr %1, !DIExpression(), !19)"
+        ]
+    , testCase "one standing before the first instruction of a block" $
+        body
+          ["  br label %2", "", "2:", "    #dbg_label(!18, !19)", "  ret void"]
+          ["  br label %2", "", "2:", "  ret void"]
+    , testCase "one standing last in a body" $
+        body ["  ret void", "    #dbg_label(!18, !19)"] ["  ret void"]
+    , testCase "several running together" $
+        body
+          [ "    #dbg_declare(ptr %1, !18, !DIExpression(), !19)"
+          , "    #dbg_declare(ptr %1, !20, !DIExpression(), !21)"
+          , "  ret void"
+          ]
+          ["  ret void"]
+    , -- A record is not the only debug information written where an
+      -- instruction goes.  Assignment tracking also puts !DIAssignID beside
+      -- !tbaa in the attachment list, where it is an attachment like any
+      -- other and is carried like one.
+      testCase "an attachment that names a debug node is still carried" $
+        body
+          ["  store i32 0, ptr %1, align 4, !dbg !74, !DIAssignID !80", "  ret void"]
+          ["  store i32 0, ptr %1, align 4, !dbg !74, !DIAssignID !80", "  ret void"]
+    ]
+  where
+    dropped name record = testCase name (body [record, "  ret void"] ["  ret void"])
+
+-- | Parse a function with the given body and state what its body comes back as.
+body :: [Text] -> [Text] -> Assertion
+body written expected = do
+  parsed <- expectParse "<inline>" (T.unlines (wrap written))
+  renderModule parsed @?= T.unlines (wrap expected)
+  where
+    wrap lines' = ["define void @f() {", "  %1 = alloca i32, align 4"] <> lines' <> ["}"]
 
 roundTrips :: Text -> Assertion
 roundTrips line = do

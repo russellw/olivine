@@ -625,7 +625,35 @@ pBlockBody = pBodyLayout *> many (pInstruction <* pBodyLayout)
 
 -- | Any number of body lines that hold no instruction.
 pBodyLayout :: Parser ()
-pBodyLayout = skipMany (try pBlankLine <|> pCommentLine)
+pBodyLayout = skipMany (choice [try pBlankLine, pCommentLine, pDebugRecord])
+
+-- | @#dbg_declare(ptr %3, !18, !DIExpression(), !19)@, and its siblings
+-- @#dbg_value@, @#dbg_assign@ and @#dbg_label@.  LLVM 19 and later write
+-- these records where earlier versions called @llvm.dbg.*@ intrinsics.
+--
+-- They are read and dropped, which is the one place Olivine discards
+-- something the input carried.  Neither other course was open.  A record
+-- names an alloca, so counting it among that slot's uses would make every
+-- slot a front end describes one promotion can never take — the whole point
+-- of the record is to name storage that is about to stop existing.  Carrying
+-- it without counting it is worse: it would go on naming a slot after the
+-- slot was gone.
+--
+-- Dropping them is not a loss of debug information beyond what the pipeline
+-- was already delivering.  Inlining copies a callee's @!dbg@ into the caller,
+-- where its scope is the wrong subprogram; @llvm-as@ answers that with
+-- @ignoring invalid debug info@ and discards every attachment in the module.
+-- Records are what an unread line costs, and an unread line costs the
+-- function: with @-g@ the corpus came back essentially as it went in.
+--
+-- A record is one line, so it is consumed as one.  Nothing inside it needs
+-- reading, and matching its parentheses would only find new ways to be wrong
+-- about the node grammar it contains.
+pDebugRecord :: Parser ()
+pDebugRecord =
+  try (hspace *> void (string "#dbg_"))
+    *> void (takeWhileP (Just "debug record") (/= '\n'))
+    *> void (optional eol)
 
 -- | A line whose whole content is a comment.
 pCommentLine :: Parser ()
