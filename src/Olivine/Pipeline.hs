@@ -24,6 +24,7 @@ import Olivine.Core.Pass.LoopRotation (rotateLoops)
 import Olivine.Core.Pass.Promote (promoteMemory)
 import Olivine.Core.Pass.Redundancies (eliminateRedundancies)
 import Olivine.Core.Pass.Split (splitAggregates)
+import Olivine.Core.Pass.TailRecursion (eliminateTailRecursion)
 import Olivine.Core.Program (Program)
 import Olivine.Core.Raise (raise)
 import Olivine.Syntax.Ast (Module)
@@ -71,6 +72,16 @@ passes :: [Pass]
 -- what puts a caller's constant into a callee's arithmetic, and promotion is
 -- what makes a value that travelled through a slot into an operand at all, so
 -- both of those give this more to work on than the source had.
+--
+-- Tail recursion next, because what it makes is a loop and everything below
+-- here that knows about loops is below here.  It comes after inlining, which is
+-- what can put a call to @f@ in @f@ by copying in a body that made one, and
+-- after promotion, which is what turns the slot a front end returns through
+-- into the assignments this has to read the call's result through: at @-O0@ the
+-- value goes call, store, load, @ret@, and only the middle two of those go away.
+-- Folding first buys nothing in particular and costs nothing either; what it
+-- would cost to run this later is the whole of what the loop passes do with the
+-- loop it makes.
 --
 -- Loop rotation after those and before the rest, because what it does for the
 -- passes below it is change the shape of a loop rather than anything in it.  It
@@ -165,6 +176,7 @@ passes =
   , Pass "memory promotion" promoteMemory
   , Pass "inlining" inlineCalls
   , Pass "folding" foldOperations
+  , Pass "tail recursion" eliminateTailRecursion
   , Pass "loop rotation" rotateLoops
   , Pass "control flow" simplifyControlFlow
   , Pass "if conversion" convertBranches

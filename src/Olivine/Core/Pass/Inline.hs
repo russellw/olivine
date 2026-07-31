@@ -73,31 +73,24 @@ module Olivine.Core.Pass.Inline
   , sizeThreshold
   ) where
 
-import Data.Foldable (toList)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (isJust, isNothing, mapMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
-import Numeric.Natural (Natural)
 
 import Olivine.Core.Instruction
 import Olivine.Core.Program
-import Olivine.Syntax.Ast qualified as Syntax
-import Olivine.Syntax.Attribute
-  ( AttributeItem (..)
-  , FunctionAttribute (..)
-  , ParamAttribute (..)
-  )
-import Olivine.Syntax.Function (Definition (..), Parameter (..), Signature (..))
+import Olivine.Core.Promises
+import Olivine.Syntax.Attribute (FunctionAttribute (..))
+import Olivine.Syntax.Function (Parameter (..), Signature (..))
 import Olivine.Syntax.Instruction
   ( Alloca (..)
   , Argument (..)
   , Call (..)
   , TailKind (..)
   )
-import Olivine.Syntax.Linkage (Linkage (..))
 import Olivine.Syntax.Name (Name (..))
 import Olivine.Syntax.Type (Arity (..), Type (..))
 import Olivine.Syntax.Value (TypedValue (..), Value (..))
@@ -150,66 +143,33 @@ data World = World
     -- @\@f@ and @\@"f"@ are one symbol and the quoting is a fact about the
     -- writing rather than about what is called.
     worldBodies :: Map Text Function
-  , -- | @attributes #0 = { ... }@, so that a signature referring to a group
-    -- can be asked what it actually says.  Most of what decides inlining is
-    -- written this way: clang puts @noinline@ and @optnone@ in a group and
-    -- every function at @-O0@ points at it.
-    worldGroups :: Map Natural [FunctionAttribute]
   , -- | Which functions each one can reach by calling, transitively.  This is
     -- what refuses recursion, and it has to be the closure rather than the
     -- direct calls: @f@ calling @g@ calling @f@ is a cycle no single edge
     -- looks like.
     worldReaches :: Map Text (Set Text)
-  , -- | What each symbol the module names promises about itself, groups
-    -- resolved: every @declare@ and every @define@, whether or not the
-    -- definition lowered.
+  , -- | What each symbol the module names promises about itself.
     --
     -- 'worldBodies' cannot answer this.  It holds what was lowered, and the
     -- callees whose promises decide anything here are mostly declarations —
-    -- @setjmp@ above all, which is the whole reason this field exists.  A
-    -- declaration is retained syntax, so the only place its @returns_twice@
-    -- is written down is the signature LLVM printed it in.
-    worldPromises :: Map Text [FunctionAttribute]
+    -- @setjmp@ above all.  Reading them is "Olivine.Core.Promises", which is
+    -- where it lives now that tail recursion elimination asks the same
+    -- questions of the same attributes.
+    worldPromises :: Promises
   }
 
 worldOf :: Program -> World
 worldOf program =
   World
     { worldBodies = bodies
-    , worldGroups = groups
     , worldReaches = closure (Map.map (Set.fromList . directCalls) bodies)
-    , worldPromises =
-        Map.fromList
-          [ (nameText (signatureName s), resolve groups (signatureAttributes s))
-          | s <- signatures
-          ]
+    , worldPromises = promisesOf program
     }
   where
     bodies =
       Map.fromList
         [ (nameText (signatureName (functionSignature f)), f)
         | EFunction f <- programEntries program
-        ]
-
-    groups =
-      Map.fromList
-        [ (n, toList attributes)
-        | ERetained (Syntax.EAttributeGroup n attributes) <- programEntries program
-        ]
-
-    -- Every header the module writes, from all three places one can be: a
-    -- declaration, a definition the lowering took, and a definition it did
-    -- not and which is carried through as syntax.  The last is not a corner
-    -- case — a definition holding one line nothing models is retained entire,
-    -- and it is still a callee somebody may be about to copy a call to.
-    signatures =
-      concat
-        [ case e of
-            EFunction f -> [functionSignature f]
-            ERetained (Syntax.EDeclare s) -> [s]
-            ERetained (Syntax.EDefine d) -> [definitionSignature d]
-            ERetained _ -> []
-        | e <- programEntries program
         ]
 
 -- | The symbols a function calls directly.
@@ -305,7 +265,7 @@ callable :: World -> Call (TypedValue Local) -> Bool
 callable world call =
   callTail call /= Just MustTail
     && isNothing (callAddrSpace call)
-    && FANoInline `notElem` resolve (worldGroups world) (callAttributes call)
+    && FANoInline `notElem` resolve (worldPromises world) (callAttributes call)
     && not (any (any copied . argumentAttributes) (callArguments call))
 
 -- | Whether the call site and the callee fit together closely enough that
@@ -332,22 +292,6 @@ agrees call result callee =
   where
     signature = functionSignature callee
 
--- | Whether an attribute says the argument is passed by making a copy of what
--- it points at.
---
--- These are the ones inlining cannot honour by binding a local to the value:
--- @byval@ means the callee gets its own copy of the pointee and may write to
--- it freely, so replacing the call without materializing that copy would let
--- the body write the caller's object. The others are the same promise made by
--- other ABI machinery.
-copied :: ParamAttribute -> Bool
-copied attribute = case attribute of
-  PAByVal _ -> True
-  PAByRef _ -> True
-  PAPreallocated _ -> True
-  PAInAlloca _ -> True
-  _ -> False
-
 -- | Whether the body may be copied out of the function it is written in.
 --
 -- @optnone@ is not among the attributes refused here; the module header says
@@ -359,10 +303,10 @@ copyable world callee =
     && not (any (`elem` attributes) [FANoInline, FAReturnsTwice, FANaked])
     && not (any indirect (functionBlocks callee))
     && not (any unwinding (functionBlocks callee))
-    && not (any (returnsTwice world) (callsIn callee))
+    && not (returnsTwiceIn (worldPromises world) callee)
   where
     signature = functionSignature callee
-    attributes = attributesOf world signature
+    attributes = attributesOf (worldPromises world) signature
     indirect b = case terminatorTransfer (blockTerminator b) of
       IndirectBr _ _ -> True
       _ -> False
@@ -380,64 +324,6 @@ copyable world callee =
     pad i = case instructionOperation i of
       OLandingPad _ -> True
       _ -> False
-
--- | Whether a call may come back more than once — @setjmp@ and its relatives.
---
--- Asked of the call site and of the callee alike, because either may carry the
--- attribute and LLVM reads both: clang writes it in a group on the call
--- (@call i32 \@_setjmp(ptr \@env) #3@, with @#3 = { nounwind returns_twice }@)
--- and also on the @declare@, and hand-written IR routinely has only the
--- declaration.  Confirmed by giving @opt -passes=inline@ each spelling
--- separately; each on its own is enough to stop it.
---
--- Only a direct call can be asked the second question.  A call through a
--- pointer is not refused for it — LLVM does not refuse one either — since
--- nothing about the pointer says what it points at, and the front end that
--- knows puts the attribute on the site.
-returnsTwice :: World -> Call (TypedValue Local) -> Bool
-returnsTwice world call =
-  FAReturnsTwice `elem` resolve (worldGroups world) (callAttributes call)
-    || case typedValue (callCallee call) of
-      VGlobal name ->
-        FAReturnsTwice
-          `elem` Map.findWithDefault [] (nameText name) (worldPromises world)
-      _ -> False
-
--- | Every call a body makes, the ones standing where a branch stands
--- included.
---
--- An @invoke@ is a call, and a body holding one is already refused as
--- unwinding — but that is a separate fact about a separate construct, and the
--- plan for landing pads is to stop refusing them.  Reading every kind here
--- means the returns-twice rule does not quietly stop holding on the day it
--- does.
-callsIn :: Function -> [Call (TypedValue Local)]
-callsIn f =
-  [ call
-  | b <- functionBlocks f
-  , call <-
-      [c | i <- blockInstructions b, OCall c <- [instructionOperation i]]
-        <> [c | Just c <- [callIn (terminatorTransfer (blockTerminator b))]]
-  ]
-
--- | Whether the definition here might not be the one that runs.
---
--- A @weak@ or @linkonce@ definition is one candidate among several and the
--- linker picks; copying its body inlines a function the program may never
--- call. The @_odr@ forms are exempt because that is what the suffix promises —
--- every candidate has the same body, so any of them is the right one.
---
--- Symbol interposition at load time is deliberately not treated as making a
--- definition uncertain. It would make almost every external function
--- uninlinable in a shared library, and it is the behaviour clang itself
--- assumes: @-fno-semantic-interposition@ is its default.
-interposable :: Maybe Linkage -> Bool
-interposable linkage = case linkage of
-  Just LinkWeak -> True
-  Just LinkLinkOnce -> True
-  Just LinkCommon -> True
-  Just LinkExternWeak -> True
-  _ -> False
 
 -- | Whether a function can call its way back to itself.
 --
@@ -461,7 +347,7 @@ recursive world callee =
 -- | Whether a body small enough to copy, or one asked for regardless.
 worthCopying :: World -> Function -> Bool
 worthCopying world callee =
-  FAAlwaysInline `elem` attributesOf world (functionSignature callee)
+  FAAlwaysInline `elem` attributesOf (worldPromises world) (functionSignature callee)
     || bodySize callee <= sizeThreshold
 
 -- | How much code a function is, in instructions.
@@ -471,26 +357,6 @@ worthCopying world callee =
 -- branches between them are what inlining will leave behind.
 bodySize :: Function -> Int
 bodySize f = sum [1 + length (blockInstructions b) | b <- functionBlocks f]
-
--- | What a function's attributes actually say, groups resolved.
-attributesOf :: World -> Signature -> [FunctionAttribute]
-attributesOf world = resolve (worldGroups world) . signatureAttributes
-
--- | An attribute slot with its group references followed through.
---
--- A function and a call site have the same slot, and nearly everything that
--- decides inlining arrives through it rather than written out: clang puts
--- @noinline@ and @optnone@ in a group and points every function at @-O0@ at
--- it, so a pass reading only what is spelled on the function would see none of
--- them and inline the lot.
---
--- Takes the group map rather than the 'World' because 'worldOf' has to call it
--- while building one.
-resolve :: Map Natural [FunctionAttribute] -> [AttributeItem] -> [FunctionAttribute]
-resolve groups = concatMap item
-  where
-    item (AIGroup n) = Map.findWithDefault [] n groups
-    item (AIAttribute a) = [a]
 
 -- | The callee's allocations, if every one of them can be moved to the
 -- caller's entry block, and nothing otherwise.

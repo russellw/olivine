@@ -30,6 +30,7 @@ import Rotation (rotationTests)
 import Split (splitTests)
 import RoundTrip (roundTripTests)
 import Structure (headerSyntaxTests, structureTests)
+import TailRecursion (tailRecursionTests)
 import SyntaxVerify (syntaxVerifyTests)
 import Terminators (terminatorTests)
 import Types (typeTests)
@@ -43,4 +44,4 @@ main = do
   defaultMain $
     testGroup
       "olivine"
-      ([typeTests, globalTests, comdatTests, indirectTests, declareTests, attributeTests, metadataTests, debugTests, terminatorTests, memoryTests, arithmeticTests, callTests, phiTests, vectorTests, deadCodeTests, deadSymbolTests, foldingTests, controlFlowTests, promotionTests, splitTests, inliningTests, redundancyTests, rotationTests, ifConversionTests, invariantTests, offsetTests, layoutTests, headerSyntaxTests] <> discovered)
+      ([typeTests, globalTests, comdatTests, indirectTests, declareTests, attributeTests, metadataTests, debugTests, terminatorTests, memoryTests, arithmeticTests, callTests, phiTests, vectorTests, deadCodeTests, deadSymbolTests, foldingTests, controlFlowTests, promotionTests, splitTests, inliningTests, redundancyTests, rotationTests, tailRecursionTests, ifConversionTests, invariantTests, offsetTests, layoutTests, headerSyntaxTests] <> discovered)

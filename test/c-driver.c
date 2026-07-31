@@ -46,6 +46,11 @@ int tickets_taken(void); void reset_tickets(void); int countdown(int);
 /* indirect.c */
 int dispatch(int,int,int); int fib(int); int gcd(int,int); int parity(int);
 int apply_twice(int(*)(int,int),int,int);
+/* tail.c */
+int gcd_of(int,int); int alternate(int,int,int); int steps(int,int);
+void walk_down(int*,int); int buffered(int,int); int via_local(int,const int*);
+int product_to(int); int forwards(int); int bounced(int);
+int skipping(const int*,int,int);
 /* linkage.c */
 int real_answer(void); int aliased_answer(void); int hidden_helper(int);
 int never_inlined(int); int uses_them(int);
@@ -314,6 +319,18 @@ int main(void){
     { int in[8];
       for(int i=0;i<8;i++) in[i]=i*3-7;
       for(int n=0;n<=8;n++) printf("%d ", counted_jumps(in,n)); printf("\n"); } }
+#endif
+#ifdef TAIL
+  { for(int a=1;a<=30;a+=7) for(int b=0;b<=12;b+=5) printf("%d ", gcd_of(a,b)); printf("\n");
+    for(int n=0;n<=5;n++) printf("%d ", alternate(3,8,n)); printf("\n");
+    for(int n=0;n<=20;n++) printf("%d ", steps(n,0)); printf("\n");
+    { int cell = 0; walk_down(&cell,10); printf("%d\n", cell); }
+    for(int n=0;n<=8;n++) printf("%d ", buffered(n,0)); printf("\n");
+    for(int n=0;n<=4;n++) printf("%d ", via_local(n,0)); printf("\n");
+    for(int n=0;n<=6;n++) printf("%d %d %d ", product_to(n), forwards(n), bounced(n));
+    printf("\n");
+    { static const int values[7] = {1,2,-3,4,5,-6,7};
+      for(int n=0;n<=7;n++) printf("%d ", skipping(values,n,0)); printf("\n"); } }
 #endif
 #ifdef LINKAGE
   printf("%d %d %d\n", real_answer(), aliased_answer(), weak_count + tentative);
