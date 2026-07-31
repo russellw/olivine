@@ -150,7 +150,7 @@ renderEntry (EComdat name selection) =
   "$" <> renderName name <> " = comdat " <> renderSelection selection
 renderEntry (EGlobal g) = renderGlobal g
 renderEntry (EIndirect s) = renderIndirect s
-renderEntry (EDeclare s) = "declare " <> renderSignature s
+renderEntry (EDeclare s) = "declare " <> renderSignature Leading s
 renderEntry (EDefine d) = renderDefinition d
 renderEntry (EAttributeGroup n attributes) =
   "attributes #" <> showText n <> " = " <> renderAttributeGroupBody attributes
@@ -171,7 +171,7 @@ renderEntry (EOpaque t) = t
 renderDefinition :: Definition -> Text
 renderDefinition d =
   T.intercalate "\n" $
-    ("define " <> renderSignature (definitionSignature d) <> " {")
+    ("define " <> renderSignature Trailing (definitionSignature d) <> " {")
       : concat (zipWith renderBasicBlock [0 :: Int ..] (definitionBlocks d))
       <> ["}"]
 
@@ -612,10 +612,11 @@ renderAttributeItem :: AttributeItem -> Text
 renderAttributeItem (AIGroup n) = "#" <> showText n
 renderAttributeItem (AIAttribute a) = renderFunctionAttribute OnFunction a
 
-renderSignature :: Signature -> Text
-renderSignature s =
+renderSignature :: AttachmentPosition -> Signature -> Text
+renderSignature position s =
   T.unwords $
-    modifiers
+    leading
+      <> modifiers
       <> map renderParamAttribute (signatureReturnAttributes s)
       <> [renderType (signatureReturnType s)]
       <> ["@" <> renderName (signatureName s) <> "(" <> parameters <> ")"]
@@ -642,9 +643,14 @@ renderSignature s =
         -- The clauses a global writes commas between, a function does not.
         <> map renderGlobalAttribute (signatureClauses s)
         <> map renderFunctionClause (signatureFunctionClauses s)
-        <> [ "!" <> renderName name <> " !" <> showText node
-           | MetadataAttachment name node <- signatureMetadata s
-           ]
+        <> trailingAttachments
+    (leading, trailingAttachments) = case position of
+      Leading -> (attachments, [])
+      Trailing -> ([], attachments)
+    attachments =
+      [ "!" <> renderName name <> " !" <> showText node
+      | MetadataAttachment name node <- signatureMetadata s
+      ]
 
 renderFunctionClause :: FunctionClause -> Text
 renderFunctionClause (FCGarbageCollector name) = "gc \"" <> name <> "\""

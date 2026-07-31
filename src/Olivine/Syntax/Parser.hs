@@ -318,12 +318,18 @@ pDeclare :: Parser Entry
 pDeclare = do
   hspace
   keyword "declare"
-  EDeclare <$> pSignature <* endOfLine
+  EDeclare <$> pSignature Leading <* endOfLine
 
 -- | Everything from the linkage to the attribute groups: the whole of a
 -- declaration, and the header of a definition once those arrive.
-pSignature :: Parser Signature
-pSignature = do
+--
+-- The attachments are the one part the two do not share a position for, so
+-- the caller says which it is reading; see 'AttachmentPosition'.
+pSignature :: AttachmentPosition -> Parser Signature
+pSignature position = do
+  leading <- case position of
+    Leading -> many pMetadataAttachment
+    Trailing -> pure []
   linkage <- optional pLinkage
   preemption <- optional pPreemption
   visibility <- optional pVisibility
@@ -338,7 +344,9 @@ pSignature = do
   attributes <- many pAttributeItem
   clauses <- many pGlobalAttribute
   functionClauses <- many pFunctionClause
-  attachments <- many pMetadataAttachment
+  trailing <- case position of
+    Leading -> pure []
+    Trailing -> many pMetadataAttachment
   pure
     Signature
       { signatureLinkage = linkage
@@ -356,7 +364,7 @@ pSignature = do
       , signatureAttributes = attributes
       , signatureClauses = clauses
       , signatureFunctionClauses = functionClauses
-      , signatureMetadata = attachments
+      , signatureMetadata = leading <> trailing
       }
 
 -- | The header clauses no global variable has.
@@ -584,7 +592,7 @@ pDefine :: Parser Entry
 pDefine = do
   hspace
   keyword "define"
-  signature <- pSignature
+  signature <- pSignature Trailing
   symbol "{"
   endOfLine
   blocks <- pBasicBlocks

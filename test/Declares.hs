@@ -122,7 +122,59 @@ declareTests =
         "rejected"
         [testCase (T.unpack line) (staysOpaque line) | line <- rejected]
     , fieldTests
+    , attachmentTests
     ]
+
+-- | Where a declaration's own metadata attachment stands.
+--
+-- It is not in 'emitted' because a line carrying one cannot be checked by
+-- itself: the node it names has to exist for @llvm-as@ to take the module,
+-- and 'roundTrips' reads one entry.  Checked a whole module at a time
+-- instead, and by the same rule — @opt -S@ echoes each of these back
+-- character for character.  A @!dbg@ was checked separately, since it must
+-- name a @DISubprogram@ in a module carrying a compile unit or LLVM discards
+-- the debug information rather than echoing it; with one, the @malloc@ line
+-- clang writes under @-g@ comes back exactly as clang wrote it.
+--
+-- The position is the whole of what is being pinned here.  A definition
+-- writes its attachments last, after the attribute groups and the clauses; a
+-- declaration writes them first, before the return type, and LLVM's parser
+-- refuses the other order outright rather than complaining about it.  Every
+-- function clang declares under @-g@ carries one, so reading only the
+-- definition's position left @malloc@ and @free@ as unread lines in any
+-- module compiled with it.
+attachmentTests :: TestTree
+attachmentTests =
+  testGroup
+    "a declaration's attachment"
+    [ testCase "stands before the return type" $
+        module' ["declare !kind !0 void @f()", "", "!0 = !{}"]
+    , testCase "before the return attributes as well" $
+        module'
+          [ "declare !kind !0 noalias noundef ptr @malloc(i64 noundef) local_unnamed_addr"
+          , ""
+          , "!0 = !{}"
+          ]
+    , -- The two nodes differ because LLVM uniques metadata: two empty tuples
+      -- are one node, and the second attachment would come back naming the
+      -- first.
+      testCase "more than one of them" $
+        module' ["declare !kind !0 !other !1 void @f()", "", "!0 = !{}", "!1 = !{i32 1}"]
+    , -- A definition's stay where a definition writes them, which is the
+      -- other end of the header.
+      testCase "a definition writes its own last" $
+        module' ["define void @f() !kind !0 {", "  ret void", "}", "", "!0 = !{}"]
+    , -- The order LLVM refuses is a parse error there and an unread line
+      -- here, which is this layer's way of saying the same thing.
+      testCase "the other order is not read at all" $
+        staysOpaque "declare void @f() !kind !0"
+    ]
+
+-- | A whole module that must come back exactly as written.
+module' :: [Text] -> Assertion
+module' written = do
+  parsed <- expectParse "<inline>" (T.unlines written)
+  renderModule parsed @?= T.unlines written
 
 -- | The declaration itself must come back as written.
 --

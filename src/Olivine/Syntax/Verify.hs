@@ -147,9 +147,16 @@ data Complaint
   | -- | A @comdat@ clause on a @declare@, which defines nothing to put in a
     -- group.
     ComdatOnDeclaration
-  | -- | A @personality@ or an attachment on a @declare@.  LLVM takes @gc@ and
-    -- @prefix@ there and refuses these two, both of them saying something
-    -- about a body that is not present.
+  | -- | A @personality@ on a @declare@.  LLVM takes @gc@ and @prefix@ there
+    -- and refuses this one, which says what an unwinder should do about a
+    -- body that is not present.
+    --
+    -- An attachment was once judged here too, and wrongly: a declaration does
+    -- carry one, and every declaration clang writes under @-g@ does.  What
+    -- misled the rule was asking about @declare void \@f() !dbg !3@, which
+    -- LLVM refuses as a parse error rather than as a complaint — the
+    -- attachment on a declaration goes before the return type, not after the
+    -- parameters.  See 'Olivine.Syntax.Function.AttachmentPosition'.
     ClauseOnDeclaration
   | -- | A @prefix@, @prologue@ or @personality@ given something that is not a
     -- compile-time constant.  There is nothing else it could be: the header
@@ -319,7 +326,6 @@ declaration :: Known -> Signature -> [Complaint]
 declaration known signature =
   [ComdatOnDeclaration | GAComdat _ <- signatureClauses signature]
     <> [ClauseOnDeclaration | FCPersonality _ <- signatureFunctionClauses signature]
-    <> [ClauseOnDeclaration | not (null (signatureMetadata signature))]
     <> linkageOf (signatureLinkage signature) Declared
     <> header known signature
 
@@ -777,7 +783,7 @@ renderComplaint complaint = case complaint of
   ResolverNotSymbol -> "an ifunc resolving through something that is not a symbol"
   ComdatOnDeclaration -> "a comdat on a declaration, which defines nothing to put in one"
   ClauseOnDeclaration ->
-    "a personality or an attachment on a declaration, which has no body for either to describe"
+    "a personality on a declaration, which has no body for it to describe"
   ClauseNotConstant -> "a clause given something that is not a constant"
   LandingPadEmpty -> "a landing pad with neither a clause nor a cleanup"
   LandingPadNotFirst -> "a landing pad standing after an instruction that is not a phi"

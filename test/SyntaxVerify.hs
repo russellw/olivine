@@ -170,10 +170,14 @@ retainedTests =
         expect
           ["declare void @f() personality ptr null"]
           [ClauseOnDeclaration]
-    , testCase "an attachment on a declaration" $
+    , -- A declaration does carry an attachment, and every one clang writes
+      -- under -g does.  It stands before the return type; the spelling that
+      -- puts it after the parameters is not a declaration LLVM complains
+      -- about but one it cannot parse, so it never reaches here.
+      testCase "an attachment on a declaration" $
         expect
-          ["declare void @f() !kind !0", "!0 = !{}"]
-          [ClauseOnDeclaration]
+          ["declare !dbg !0 void @f()", "!0 = !{}"]
+          []
     , testCase "the clauses a declaration may carry" $
         expect ["declare void @f() gc \"shadow-stack\" prefix i32 7"] []
     , testCase "a personality that is not a constant" $

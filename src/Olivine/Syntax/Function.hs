@@ -4,6 +4,7 @@
 -- definition, so it is kept separate from either and shared by both.
 module Olivine.Syntax.Function
   ( Signature (..)
+  , AttachmentPosition (..)
   , FunctionClause (..)
   , Parameter (..)
   , Definition (..)
@@ -58,13 +59,33 @@ data Signature = Signature
     -- and one rule reads the header of either.
     signatureFunctionClauses :: [FunctionClause]
   , -- | The metadata attached to the function itself, @!dbg !10@ and its
-    -- relatives, which follow every other clause.
+    -- relatives.
     --
     -- The same shape as an instruction's attachments, because it is the same
-    -- construct in the other place LLVM allows one.  A declaration may not
-    -- carry any, which is again the verifier's judgement and not this type's.
+    -- construct in the other place LLVM allows one.  Where it is written
+    -- depends on which keyword introduced the signature; see
+    -- 'AttachmentPosition'.
     signatureMetadata :: [MetadataAttachment]
   }
+  deriving (Eq, Show)
+
+-- | Where a function's own attachments stand, which is the one place a
+-- declaration and a definition's header are not the same production.
+--
+-- On a definition they follow every other clause, at the end of the header:
+-- @define void \@f() #0 !dbg !10 {@.  On a declaration they stand first,
+-- immediately after the keyword: @declare !dbg !27 noalias ptr \@malloc(i64)@,
+-- which is what clang writes for every declared function under @-g@.
+--
+-- The other spelling is not a declaration the verifier should complain about,
+-- it is not a declaration at all: @llvm-as@ answers
+-- @declare void \@f() !dbg !3@ with @expected '=' here@, having finished
+-- reading the declaration before the attachment.  So the position is the
+-- grammar's and a signature read in the wrong one falls to an opaque line,
+-- the same as any other text this layer cannot read.
+data AttachmentPosition
+  = Leading
+  | Trailing
   deriving (Eq, Show)
 
 -- | A clause a function may carry and a global variable may not.
