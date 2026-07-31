@@ -45,6 +45,21 @@
 -- does and what @opt -passes=inline@ confirms on a body it would otherwise
 -- take whole.
 --
+-- __@noinline@ is obeyed and @optnone@ is not.__  They arrive together — the
+-- verifier rejects @optnone@ without @noinline@, which @llvm-as@ confirms — so
+-- nothing in the input distinguishes a function somebody marked from every
+-- function in a module clang compiled at @-O0@, where the pair is a level
+-- marker stamped on a group every function points at.  What separates them is
+-- what they ask for.  @noinline@ asks that this body not be copied elsewhere,
+-- which is a request about the one thing this pass does, and a body that reads
+-- its own return address or is patched at run time means it: the class is
+-- @returns_twice@ and @naked@, refused just below on their own merits.
+-- @optnone@ asks that the function stay debuggable, and that is a promise
+-- Olivine cannot keep — debug info is carried across passes but not
+-- maintained, and no other pass asks about the attribute, so an @optnone@
+-- function is promoted, rotated and folded like any other.  Obeying it in the
+-- inliner alone would buy the appearance of the promise and not the promise.
+--
 -- __Debug information is carried, not corrected.__  An instruction copied out
 -- of the callee keeps the attachments it was written with, which after
 -- inlining describe a position in a function the instruction is no longer in.
@@ -112,8 +127,7 @@ inlineCalls program =
   where
     world = worldOf program
 
-    entry (EFunction f)
-      | receptive world f = EFunction (settle world f)
+    entry (EFunction f) = EFunction (settle world f)
     entry e = e
 
 -- | Inline one call, then look again.
@@ -222,14 +236,6 @@ closure graph
     grown = Map.map step graph
     step reached =
       foldl' Set.union reached (mapMaybe (`Map.lookup` graph) (Set.toList reached))
-
--- | Whether a function may be inlined into at all.
---
--- @optnone@ says not to optimize this function, and inlining into it is
--- optimizing it.  @noinline@ on a caller is not this question — it says not to
--- copy this function elsewhere, which is 'copyable'.
-receptive :: World -> Function -> Bool
-receptive world f = FAOptNone `notElem` attributesOf world (functionSignature f)
 
 -- | Every call in a function that should be replaced by the body it names.
 sites :: World -> Function -> [Site]
@@ -343,11 +349,14 @@ copied attribute = case attribute of
   _ -> False
 
 -- | Whether the body may be copied out of the function it is written in.
+--
+-- @optnone@ is not among the attributes refused here; the module header says
+-- why.
 copyable :: World -> Function -> Bool
 copyable world callee =
   isJust (entryLabel callee)
     && not (interposable (signatureLinkage signature))
-    && not (any (`elem` attributes) [FANoInline, FAOptNone, FAReturnsTwice, FANaked])
+    && not (any (`elem` attributes) [FANoInline, FAReturnsTwice, FANaked])
     && not (any indirect (functionBlocks callee))
     && not (any unwinding (functionBlocks callee))
     && not (any (returnsTwice world) (callsIn callee))

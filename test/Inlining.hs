@@ -54,7 +54,11 @@ inliningTests =
             callsTo "g" (attributed "alwaysinline" large <> caller) @?>= 0
         , testCase "a body marked noinline" $
             callsTo "g" (attributed "noinline" small <> caller) @?>= 1
-        , testCase "a body marked optnone" $
+        , -- @optnone@ never arrives alone: the verifier requires @noinline@
+          -- beside it, which @llvm-as@ confirms.  So what refuses this body is
+          -- the line above, and there is no legal module in which a callee's
+          -- @optnone@ decides anything by itself.
+          testCase "a body marked optnone" $
             callsTo "g" (attributed "optnone noinline" small <> caller) @?>= 1
         , testCase "a body marked returns_twice" $
             callsTo "g" (attributed "returns_twice" small <> caller) @?>= 1
@@ -83,10 +87,13 @@ inliningTests =
           -- noinline and optnone at -O0.
           testCase "noinline written in an attribute group" $
             callsTo "g" (grouped <> caller <> "attributes #0 = { noinline }\n") @?>= 1
-        , -- Not what the callee says: what the caller says about being
-          -- optimized at all.
+        , -- Inlined into like any other function.  @optnone@ asks that this
+          -- one stay debuggable, which is a promise Olivine does not keep —
+          -- no other pass asks about the attribute either — and the @noinline@
+          -- the verifier requires beside it is about copying this body
+          -- elsewhere, not about what may be copied into it.
           testCase "a caller marked optnone" $
-            callsTo "g" (small <> attributed "optnone noinline" caller) @?>= 1
+            callsTo "g" (small <> attributed "optnone noinline" caller) @?>= 0
         , testCase "a function only declared" $
             callsTo "g" ("declare i32 @g(i32)\n" <> caller) @?>= 1
         , testCase "a call through a pointer" $
