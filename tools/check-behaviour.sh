@@ -29,7 +29,7 @@ for pair in "arith ARITH" "branch BRANCH" "loop LOOP" "memops MEMOPS" "hello HEL
     base=$1
     macro=$2
     shift 2
-    for level in O0 O1 O2; do
+    for level in O0 O1 O2 raw; do
         name="$base-$level.ll"
         "$olivine" "test/data/$name" -o "$work/$name"
         "$CLANG" "-D$macro" -w test/c-driver.c "test/data/$name" "$@" -o "$work/before" 2>/dev/null
