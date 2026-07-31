@@ -6,8 +6,9 @@
 -- @x & -1@ — or the two operands may be the same value, and then the answer is
 -- an operand or a constant that has nothing to do with what the operand holds.
 -- Or what produced an operand may be known, and then a conversion of a
--- conversion is one conversion or none at all, and a conversion cut back and
--- masked is the mask by itself.
+-- conversion is one conversion or none at all, a conversion cut back and
+-- masked is the mask by itself, and two operands that are copies of one local
+-- are the same value however differently they are spelled.
 --
 -- A folded instruction becomes an assignment of the value it computes.  The
 -- core has assignment and LLVM does not, which is what makes that possible;
@@ -381,11 +382,58 @@ producing produced = go
 -- back is what reading a bit field comes to once the slot holding it is
 -- promoted.
 foldThrough ::
+  Eq local =>
   Producer local ->
   Operation (TypedValue local) ->
   Maybe (Operation (TypedValue local))
 foldThrough produced operation =
-  throughConversion produced operation <|> throughMask produced operation
+  throughConversion produced operation
+    <|> throughMask produced operation
+    <|> throughCopies produced operation
+
+-- | An operation on two operands that are copies of one local, which the rules
+-- for two operands that are the same value then answer.
+--
+-- Those rules ask whether the operands are equal, and after promotion they
+-- rarely are however plainly the source said so: @b - b@ arrives as two loads
+-- of one slot, which promotion makes two copies of one local, and two copies
+-- are two locals.  This is that gap and nothing wider — the operands are made
+-- to agree only where knowing they are one value settles the operation, so an
+-- operation that would merely have its operand respelled is left alone.
+--
+-- Only the operand is rewritten and never the operand list at large, which is
+-- the same line 'sweep' draws: resolving copy chains into operands would be a
+-- second place that has to keep them right, and "Olivine.Core.Ssa" takes every
+-- copy away on the way out.
+throughCopies ::
+  Eq local =>
+  Producer local ->
+  Operation (TypedValue local) ->
+  Maybe (Operation (TypedValue local))
+throughCopies produced operation = do
+  equalized <- case operation of
+    OBinary b -> do
+      right <- agreed (binaryLeft b) (binaryRight b)
+      pure (OBinary b {binaryRight = right})
+    OICmp c -> do
+      right <- agreed (compareLeft c) (compareRight c)
+      pure (OICmp c {compareRight = right})
+    _ -> Nothing
+  OAssign <$> foldOperation equalized
+  where
+    -- The left operand written in place of the right, where the two name one
+    -- value by way of the copies between them.
+    agreed left right = do
+      VLocal l <- Just (typedValue left)
+      VLocal r <- Just (typedValue right)
+      if l /= r && origin l == origin r then Just left else Nothing
+
+    -- What a local ultimately names: a copy is what it copies.  The walk
+    -- terminates for the reason 'producing''s does, being the same walk read
+    -- for the name it ends at rather than the operation.
+    origin name = case produced name of
+      Just (OAssign (TypedValue _ (VLocal copied))) -> origin copied
+      _ -> name
 
 -- | A conversion of a conversion, which is one conversion in whichever
 -- direction the two widths ask for, or the original value where they cancel.

@@ -311,6 +311,28 @@ foldingTests =
           testCase "sign extended rather than zeroed" $
             combining CastSExt OpAnd 32 16 32 (cut 16) (narrow 16 7) @?= Nothing
         ]
+    , testGroup
+        "two operands that are copies of one local"
+        [ -- What @b - b@ comes to once the slot holding @b@ is promoted: two
+          -- loads of one slot are two copies of one local, and two copies are
+          -- two locals however plainly the source said they were one value.
+          testCase "a subtraction of a value from itself" $
+            copies (OBinary (over OpSub "p" "q")) @?= Just (OAssign (int 0))
+        , testCase "an and of a value with itself" $
+            copies (OBinary (over OpAnd "p" "q")) @?= Just (OAssign (local "p"))
+        , testCase "an equality between a value and itself" $
+            copies (OICmp (compared IEq "p" "q")) @?= Just (OAssign (bool True))
+        , -- One a copy of the local and one a copy of something else.
+          testCase "operands that are copies of different locals" $
+            copies (OBinary (over OpSub "p" "r")) @?= Nothing
+        , -- The rule is for what settles an operation and not for respelling an
+          -- operand: nothing about @p + q@ follows from the two being one
+          -- value, so it is left as it stands.
+          testCase "an operation knowing they are one value does not settle" $
+            copies (OBinary (over OpAdd "p" "q")) @?= Nothing
+        , testCase "nothing known about either operand" $
+            copies (OBinary (over OpSub "s" "t")) @?= Nothing
+        ]
     ]
   where
     int n = TypedValue (TInteger 32) (VInteger n)
@@ -329,6 +351,31 @@ foldingTests =
               , compareRight = local "x"
               }
         )
+    -- An operation over two locals, asked where @%p@ and @%q@ are copies of
+    -- @%b@ and @%r@ is a copy of something else.  @%s@ and @%t@ are locals
+    -- nothing is known about.
+    copies =
+      foldThrough
+        ( \name -> case name of
+            Name Bare "p" -> Just (OAssign (local "b"))
+            Name Bare "q" -> Just (OAssign (local "b"))
+            Name Bare "r" -> Just (OAssign (local "c"))
+            _ -> Nothing
+        )
+    over op left right =
+      Binary
+        { binaryOp = op
+        , binaryFlags = []
+        , binaryLeft = local left
+        , binaryRight = local right
+        }
+    compared predicate left right =
+      Compare
+        { compareFlags = []
+        , comparePredicate = predicate
+        , compareLeft = local left
+        , compareRight = local right
+        }
     -- A conversion from one width to another, over @%x@.
     cast op from to =
       Convert
