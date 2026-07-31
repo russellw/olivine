@@ -452,6 +452,7 @@ startsWithTerminator =
                     , "indirectbr "
                     , "unreachable"
                     , "invoke "
+                    , "callbr "
                     , "resume "
                     ]
 

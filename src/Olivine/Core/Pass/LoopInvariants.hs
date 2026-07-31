@@ -242,8 +242,8 @@ invariantIn globals layout objects f loop =
     -- against all of.
     --
     -- The calls among them include the ones standing where a branch stands: an
-    -- invoke is a call, and a load taken out of a loop whose body may call
-    -- anything is a load moved above a write it cannot see.
+    -- invoke and a callbr are calls, and a load taken out of a loop whose body
+    -- may call anything is a load moved above a write it cannot see.
     inside =
       [ instructionOperation i
       | b <- functionBlocks f
@@ -253,7 +253,7 @@ invariantIn globals layout objects f loop =
         <> [ OCall call
            | b <- functionBlocks f
            , Set.member (blockLabel b) (loopBody loop)
-           , Invoke _ call _ _ <- [terminatorTransfer (blockTerminator b)]
+           , Just call <- [callIn (terminatorTransfer (blockTerminator b))]
            ]
 
     -- Whether an instruction may be moved out, given where in the loop it
@@ -304,9 +304,9 @@ assignedIn f loop =
       , i <- blockInstructions b
       , Just result <- [instructionResult i]
       ]
-        -- A terminator assigns to something too, now that one of them is a
-        -- call.  A computation reading what an invoke in the body left is not
-        -- invariant, however invariant the rest of it looks.
+        -- A terminator assigns to something too, now that two of them are
+        -- calls.  A computation reading what an invoke or a callbr in the body
+        -- left is not invariant, however invariant the rest of it looks.
         <> mapMaybe (resultOf . blockTerminator) inLoop
     )
   where

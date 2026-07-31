@@ -108,6 +108,94 @@ define dso_local i32 @both_kinds(i32 noundef %0) local_unnamed_addr #2 {
   ret i32 %5
 }
 
+; Function Attrs: nounwind uwtable
+define dso_local range(i32 0, 2) i32 @jumps_when_zero(i32 noundef %0) local_unnamed_addr #2 {
+  callbr void asm sideeffect "testl $0, $0; je ${1:l}", "r,!i,~{cc},~{dirflag},~{fpsr},~{flags}"(i32 %0) #4
+          to label %3 [label %2], !srcloc !21
+
+2:                                                ; preds = %1
+  br label %3
+
+3:                                                ; preds = %1, %2
+  %4 = phi i32 [ 0, %2 ], [ 1, %1 ]
+  ret i32 %4
+}
+
+; Function Attrs: nofree nosync nounwind memory(none) uwtable
+define dso_local i32 @swapped_or_low(i32 noundef %0) local_unnamed_addr #0 {
+  %2 = callbr i32 asm "bswapl $0; testl $0, $0; js ${2:l}", "=r,0,!i,~{cc},~{dirflag},~{fpsr},~{flags}"(i32 %0) #3
+          to label %5 [label %3], !srcloc !22
+
+3:                                                ; preds = %1
+  %4 = ashr i32 %2, 24
+  br label %5
+
+5:                                                ; preds = %1, %3
+  %6 = phi i32 [ %4, %3 ], [ %2, %1 ]
+  ret i32 %6
+}
+
+; Function Attrs: nounwind uwtable
+define dso_local i32 @counted_jumps(ptr noundef readonly captures(none) %0, i32 noundef %1) local_unnamed_addr #2 {
+  %3 = icmp sgt i32 %1, 0
+  br i1 %3, label %4, label %6
+
+4:                                                ; preds = %2
+  %5 = zext nneg i32 %1 to i64
+  br label %8
+
+6:                                                ; preds = %19, %2
+  %7 = phi i32 [ 0, %2 ], [ %20, %19 ]
+  ret i32 %7
+
+8:                                                ; preds = %4, %19
+  %9 = phi i64 [ 0, %4 ], [ %21, %19 ]
+  %10 = phi i32 [ 0, %4 ], [ %20, %19 ]
+  %11 = getelementptr inbounds nuw i32, ptr %0, i64 %9
+  %12 = load i32, ptr %11, align 4, !tbaa !8
+  callbr void asm sideeffect "cmpl $$0, $0; jl ${1:l}", "r,!i,~{cc},~{dirflag},~{fpsr},~{flags}"(i32 %12) #4
+          to label %13 [label %16], !srcloc !23
+
+13:                                               ; preds = %8
+  %14 = load i32, ptr %11, align 4, !tbaa !8
+  %15 = add nsw i32 %14, %10
+  br label %19
+
+16:                                               ; preds = %8
+  %17 = load i32, ptr %11, align 4, !tbaa !8
+  %18 = sub nsw i32 %10, %17
+  br label %19
+
+19:                                               ; preds = %16, %13
+  %20 = phi i32 [ %15, %13 ], [ %18, %16 ]
+  %21 = add nuw nsw i64 %9, 1
+  %22 = icmp eq i64 %21, %5
+  br i1 %22, label %6, label %8, !llvm.loop !24
+}
+
+; Function Attrs: nounwind uwtable
+define dso_local i32 @held_and_jumped(i32 noundef %0) local_unnamed_addr #2 {
+  %2 = alloca i32, align 4
+  call void @llvm.lifetime.start.p0(i64 4, ptr nonnull %2) #4
+  store i32 %0, ptr %2, align 4, !tbaa !8
+  callbr void asm "addl $$7, $0; jns ${2:l}", "=*m,*m,!i,~{cc},~{dirflag},~{fpsr},~{flags}"(ptr nonnull elementtype(i32) %2, ptr nonnull elementtype(i32) %2) #4
+          to label %3 [label %6], !srcloc !25
+
+3:                                                ; preds = %1
+  %4 = load i32, ptr %2, align 4, !tbaa !8
+  %5 = sub nsw i32 0, %4
+  br label %8
+
+6:                                                ; preds = %1
+  %7 = load i32, ptr %2, align 4, !tbaa !8
+  br label %8
+
+8:                                                ; preds = %6, %3
+  %9 = phi i32 [ %5, %3 ], [ %7, %6 ]
+  call void @llvm.lifetime.end.p0(i64 4, ptr nonnull %2) #4
+  ret i32 %9
+}
+
 attributes #0 = { nofree nosync nounwind memory(none) uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #1 = { mustprogress nocallback nofree nosync nounwind willreturn memory(argmem: readwrite) }
 attributes #2 = { nounwind uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
@@ -122,19 +210,24 @@ attributes #4 = { nounwind }
 !2 = !{i32 7, !"PIE Level", i32 2}
 !3 = !{i32 7, !"uwtable", i32 2}
 !4 = !{!"Ubuntu clang version 21.1.8 (6ubuntu1)"}
-!5 = !{i64 1081}
-!6 = !{i64 1382}
-!7 = !{i64 1425}
+!5 = !{i64 1244}
+!6 = !{i64 1545}
+!7 = !{i64 1588}
 !8 = !{!9, !9, i64 0}
 !9 = !{!"int", !10, i64 0}
 !10 = !{!"omnipotent char", !11, i64 0}
 !11 = !{!"Simple C/C++ TBAA"}
-!12 = !{i64 1681}
-!13 = !{i64 2069}
+!12 = !{i64 1844}
+!13 = !{i64 2232}
 !14 = distinct !{!14, !15, !16}
 !15 = !{!"llvm.loop.mustprogress"}
 !16 = !{!"llvm.loop.unroll.disable"}
-!17 = !{i64 2279}
-!18 = !{i64 2594}
-!19 = !{i64 3395}
-!20 = !{i64 3686}
+!17 = !{i64 2442}
+!18 = !{i64 2757}
+!19 = !{i64 3558}
+!20 = !{i64 3849}
+!21 = !{i64 4328}
+!22 = !{i64 4728}
+!23 = !{i64 5327}
+!24 = distinct !{!24, !15, !16}
+!25 = !{i64 5749}

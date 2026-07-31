@@ -22,6 +22,7 @@ import Olivine.Core.Lower (lower)
 import Olivine.Core.Pass.Inline (bodySize, inlineCalls, sizeThreshold)
 import Olivine.Core.Program
 import Olivine.Core.Raise (raise)
+import Olivine.Core.Verify (renderProblem, verify)
 import Olivine.Pipeline (optimize)
 import Olivine.Syntax.Function (Signature (..))
 import Olivine.Syntax.Instruction (Call (..))
@@ -161,6 +162,13 @@ inliningTests =
         , -- Nothing of the callee's numbering may survive into the caller's.
           testCase "two calls to one function in one block" $
             callsTo "g" (small <> twiceCaller) @?>= 0
+        , -- Including what a terminator assigns.  A @callbr@ names its result
+          -- where it stands, which is not an operand and which the renumbering
+          -- reaches only because it asks about it separately; two copies of a
+          -- body holding one otherwise assign the same local twice, and the
+          -- verifier is what says so.
+          testCase "a callee whose terminator assigns, copied twice" $
+            complaintsIn (branchingAsm <> twiceCaller) @?>= []
         ]
     , testGroup
         "the size a body is judged by"
@@ -406,6 +414,22 @@ constantCaller =
     , "}"
     ]
 
+-- | A callee that ends its entry block in assembly that branches, so that what
+-- it assigns is assigned by the terminator rather than by an instruction.
+branchingAsm :: Text
+branchingAsm =
+  T.unlines
+    [ "define i32 @g(i32 %x) {"
+    , "entry:"
+    , "  %r = callbr i32 asm sideeffect \"bswapl $0\", \"=r,0,!i,~{cc}\"(i32 %x)"
+    , "          to label %fall [label %out]"
+    , "fall:"
+    , "  ret i32 %r"
+    , "out:"
+    , "  ret i32 0"
+    , "}"
+    ]
+
 twiceCaller :: Text
 twiceCaller =
   T.unlines
@@ -549,6 +573,16 @@ callsIn program =
   , i <- blockInstructions b
   , OCall call <- [instructionOperation i]
   ]
+
+-- | What the core verifier finds in what inlining produced.
+--
+-- The other cases ask what the copy says; this one asks whether it is a
+-- program at all, which is the shape a renumbering that missed something
+-- takes.
+complaintsIn :: Text -> IO [Text]
+complaintsIn source = do
+  program <- inlineCalls . lower <$> expectParse "<inline>" source
+  pure (map renderProblem (verify program))
 
 -- | How many allocations stand in @\@f@'s entry block.
 allocasInEntry :: Text -> IO Int

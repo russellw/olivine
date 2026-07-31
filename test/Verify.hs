@@ -28,6 +28,7 @@ import Olivine.Syntax.Ast qualified as Syntax
 import Olivine.Syntax.Instruction
   ( Binary (..)
   , BinaryOp (..)
+  , Call (..)
   , InstructionFlag (..)
   , Load (..)
   )
@@ -142,6 +143,15 @@ referenceTests =
           storing
           (atBlock 0 (atInstruction 0 (\i -> i {instructionResult = Just (Local 9)})))
           [ResultOfVoid]
+    , -- What a callbr calls has to be assembly.  Nothing else can reach the
+      -- destinations it names, and LLVM's verifier refuses the rest; a call to
+      -- a function is what the damage puts there because that is the one thing
+      -- LLVM's parser will read in the position and its verifier then rejects.
+      testCase "a callbr calling something that is not assembly" $
+        expect
+          jumping
+          (atBlock 0 (atTerminator (onCallBr calledElsewhere)))
+          [CallBrNotAsm]
     ]
 
 -- * What the types say
@@ -298,6 +308,19 @@ unread =
   , "}"
   ]
 
+-- | Assembly that branches, and a function for the damage to point it at.
+jumping :: [Text]
+jumping =
+  [ "declare void @g()"
+  , ""
+  , "define void @f() {"
+  , "  callbr void asm \"nop\", \"\"()"
+  , "          to label %a []"
+  , "a:"
+  , "  ret void"
+  , "}"
+  ]
+
 branching :: [Text]
 branching =
   [ "define i32 @f(i1 %c) {"
@@ -430,6 +453,18 @@ onCases change t = case terminatorTransfer t of
 -- the two halves a pass can rewrite one of.
 retyped :: Type -> TypedValue local -> TypedValue local
 retyped t value = value {typedValueType = t}
+
+onCallBr ::
+  (Call (TypedValue Local) -> Call (TypedValue Local)) -> Terminator -> Terminator
+onCallBr change t = case terminatorTransfer t of
+  CallBr result call fallthrough indirect ->
+    t {terminatorTransfer = CallBr result (change call) fallthrough indirect}
+  _ -> t
+
+-- | Call a function rather than the assembly that was written.
+calledElsewhere :: Call (TypedValue Local) -> Call (TypedValue Local)
+calledElsewhere call =
+  call {callCallee = TypedValue (TPointer Nothing) (VGlobal (Name Bare "g"))}
 
 named :: local -> TypedValue local -> TypedValue local
 named local value = value {typedValue = VLocal local}

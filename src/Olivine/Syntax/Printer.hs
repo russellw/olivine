@@ -327,6 +327,19 @@ renderOperation (OInvoke i) =
       , renderLabel (invokeUnwind i)
       ]
   ]
+-- The destinations go on a line of their own like an invoke's, the indirect
+-- ones between brackets however many there are.  LLVM writes the brackets
+-- even when they hold nothing.
+renderOperation (OCallBr c) =
+  [ "callbr " <> renderCall (callBrCall c)
+  , T.concat
+      [ "        to "
+      , renderLabel (callBrFallthrough c)
+      , " ["
+      , T.intercalate ", " (map renderLabel (callBrIndirect c))
+      , "]"
+      ]
+  ]
 renderOperation (OLandingPad p) =
   ("landingpad " <> renderType (landingPadType p))
     : ["        cleanup" | landingPadCleanup p]

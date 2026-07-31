@@ -203,6 +203,10 @@ data Complaint
     -- read back can hold one elsewhere, LLVM's parser taking it in that one
     -- position, so this is a complaint about a pass.
     AsmNotCallee
+  | -- | A @callbr@ calling something that is not inline assembly.  It is the
+    -- construct assembly branches with, and LLVM's verifier refuses one that
+    -- calls anything else: @Callbr is currently only used for asm-goto@.
+    CallBrNotAsm
   deriving (Eq, Show)
 
 -- | What an operand had to be.
@@ -423,12 +427,13 @@ verifyFunction types layout symbols f =
                , let produced = resultType types (instructionOperation i)
                , produced /= TVoid
                ]
-            -- What an invoke leaves is defined where the terminator stands,
-            -- which is the one place a definition is not an instruction.
+            -- What a call standing where a branch stands leaves is defined at
+            -- the terminator, which is the one place a definition is not an
+            -- instruction.
             <> [ (local, produced)
                | b <- blocks
                , Just local <- [resultOf (blockTerminator b)]
-               , Invoke _ call _ _ <- [terminatorTransfer (blockTerminator b)]
+               , Just call <- [callIn (terminatorTransfer (blockTerminator b))]
                , let produced = resultType types (OCall call)
                , produced /= TVoid
                ]
@@ -453,11 +458,11 @@ besideTheCallee operation = case operation of
   OCall c -> map argumentValue (callArguments c)
   _ -> toList operation
 
--- | The same of a transfer, an @invoke@ being a call that ends its block.
+-- | The same of a transfer, two of which are calls that end their block.
 besideTheCalleeIn :: Transfer operand -> [operand]
-besideTheCalleeIn transfer = case transfer of
-  Invoke _ c _ _ -> map argumentValue (callArguments c)
-  _ -> toList transfer
+besideTheCalleeIn transfer = case callIn transfer of
+  Just c -> map argumentValue (callArguments c)
+  Nothing -> toList transfer
 
 -- | What an operation demands of its operands.
 --
@@ -624,6 +629,12 @@ control types returns transfer = case transfer of
   -- destinations, which are the graph's business and checked with the rest of
   -- it.
   Invoke _ call _ _ -> needs APointer (callCallee call)
+  -- The same, and one thing more: what a @callbr@ calls has to be assembly.
+  -- Nothing else can reach the destinations it names, and LLVM's verifier
+  -- says so — @Callbr is currently only used for asm-goto@.
+  CallBr _ call _ _ ->
+    needs APointer (callCallee call)
+      <> [CallBrNotAsm | not (holdsAsm (typedValue (callCallee call)))]
   -- Whatever the personality routine wants, which is not a thing the grammar
   -- knows: LLVM asks only that a function with one of these have a personality.
   Resume _ -> []
@@ -823,6 +834,7 @@ renderComplaint complaint = case complaint of
   FlagNotAllowed flag ->
     renderInstructionFlag flag <> ", which this operation may not carry"
   AsmNotCallee -> "inline assembly somewhere other than as a callee"
+  CallBrNotAsm -> "a callbr calling something that is not inline assembly"
   SizeDiffers source target ->
     "a bitcast from "
       <> renderType source

@@ -99,9 +99,9 @@ number signature written blocks =
 
     (_, blockNames, resultNames) =
       foldl' takeBlock (afterParameters, [], []) blocks
-    -- The terminator's result is last because the terminator is: an invoke
-    -- assigns where it stands, and LLVM numbers what a function leaves unnamed
-    -- in the order it is written.
+    -- The terminator's result is last because the terminator is: an invoke or
+    -- a callbr assigns where it stands, and LLVM numbers what a function
+    -- leaves unnamed in the order it is written.
     takeBlock (n, names, results) b =
       let assigned =
             map phiLocal (joinedPhis b)
@@ -278,6 +278,8 @@ raiseTransfer numbering written = case fmap (localName numbering) <$> written of
   -- 'instructionResult'.
   Invoke _ call normal unwind ->
     Syntax.OInvoke (Syntax.Invoke call (label normal) (label unwind))
+  CallBr _ call fallthrough indirect ->
+    Syntax.OCallBr (Syntax.CallBr call (label fallthrough) (map label indirect))
   Resume value -> Syntax.OResume value
   where
     label = blockLabelName numbering

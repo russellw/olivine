@@ -212,9 +212,10 @@ lowerOperation locals written = do
     Syntax.OIndirectBr _ _ -> Nothing
     Syntax.OUnreachable -> Nothing
     Syntax.OLandingPad p -> Just (OLandingPad p)
-    -- Both are terminators, which 'split' takes off the end before this is
-    -- reached, the way it does for every other transfer.
+    -- All three are terminators, which 'split' takes off the end before this
+    -- is reached, the way it does for every other transfer.
     Syntax.OInvoke _ -> Nothing
+    Syntax.OCallBr _ -> Nothing
     Syntax.OResume _ -> Nothing
 
 -- * Taking a getelementptr apart
@@ -359,6 +360,10 @@ lowerTransfer labels locals result written = do
       Invoke result (Syntax.invokeCall i)
         <$> target (Syntax.invokeNormal i)
         <*> target (Syntax.invokeUnwind i)
+    Syntax.OCallBr c ->
+      CallBr result (Syntax.callBrCall c)
+        <$> target (Syntax.callBrFallthrough c)
+        <*> traverse target (Syntax.callBrIndirect c)
     Syntax.OResume value -> Just (Resume value)
     _ -> Nothing
 
@@ -374,9 +379,10 @@ split ::
   [Syntax.Instruction] ->
   Maybe ([Syntax.Instruction], Terminator)
 split labels locals body = case reverse body of
-  -- A terminator names a result only where it is an invoke, and there it must:
-  -- what the call left is read in the block it returns to.  Whether the name
-  -- belongs on this terminator at all is the verifier's, not this rule's.
+  -- A terminator names a result only where it is one of the two calls, and
+  -- there it must: what the call left is read in the blocks it goes on to.
+  -- Whether the name belongs on this terminator at all is the verifier's, not
+  -- this rule's.
   Syntax.IOperation result operation metadata : rest
     | isTerminator operation
     , all modelled rest -> do

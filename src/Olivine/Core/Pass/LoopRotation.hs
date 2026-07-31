@@ -50,6 +50,10 @@
 -- nothing — reconstruction is where they go — and what is left in each block is
 -- one instruction defining one local, as LLVM will want it back.
 --
+-- The terminator is the exception, being copied whole and having nowhere to put
+-- an assignment after it.  So a header ending in a call — an @invoke@ or a
+-- @callbr@, which assign where they stand — is left alone rather than rotated.
+--
 -- __What it costs.__  A second copy of the test in the function, which is what
 -- every compiler pays for this and the reason LLVM caps the size of a header it
 -- will rotate.  Nothing here caps it: the copy is one per loop rather than one
@@ -100,7 +104,7 @@ module Olivine.Core.Pass.LoopRotation
   ) where
 
 import Data.Map.Strict (Map)
-import Data.Maybe (mapMaybe)
+import Data.Maybe (isNothing, mapMaybe)
 import Data.Set qualified as Set
 
 import Olivine.Core.Blocks (predecessorsOf)
@@ -197,6 +201,13 @@ rotatable f =
   [ (loop, preheader, header)
   | loop <- loopsOf f
   , header <- [b | b <- functionBlocks f, blockLabel b == loopHeader loop]
+  , -- The header's terminator is copied as it stands, and a call standing
+    -- where a branch stands may not be.  What it assigns would be written in
+    -- two places by something that is not an assignment, which is exactly what
+    -- the rule above forbids and what 'namedApart' exists to avoid for the
+    -- instructions; and a @callbr@ copied is the assembly written twice, which
+    -- nothing may do however many times it runs.
+    isNothing (callIn (terminatorTransfer (blockTerminator header)))
   , -- There is a test in it, and one way on if the test says to go on.
     leaves loop header
   , [_] <- [staying loop header]

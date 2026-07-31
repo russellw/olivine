@@ -233,6 +233,12 @@ data Complaint
     -- parser reads one nowhere else, so this catches a pass rather than a
     -- module.
     AsmNotCallee
+  | -- | A @callbr@ calling something that is not inline assembly.  LLVM's
+    -- parser reads one — a @callbr@ of a function parses — and its verifier
+    -- then refuses it: @Callbr is currently only used for asm-goto@.  The
+    -- construct exists for assembly that branches, and nothing else has a way
+    -- to reach the destinations it names.
+    CallBrNotAsm
   deriving (Eq, Show)
 
 -- | Every problem in a module, in the order the module is written.
@@ -629,16 +635,16 @@ definition known d =
                ]
             <> incoming bi operation
             <> [ a
-               | OCall c <- [operation]
+               | Just c <- [callOf operation]
                , a <- returnAttributes (callReturnAttributes c)
-               ]
-            <> [ a
-               | OInvoke v <- [operation]
-               , a <- returnAttributes (callReturnAttributes (invokeCall v))
                ]
             <> [ AsmNotCallee
                | operand <- besideTheCallee operation
                , holdsAsm (typedValue operand)
+               ]
+            <> [ CallBrNotAsm
+               | OCallBr c <- [operation]
+               , not (holdsAsm (typedValue (callCallee (callBrCall c))))
                ]
             <> exceptional bi b ii operation
             <> reading bi ii operation
@@ -724,12 +730,9 @@ isPhi _ = False
 -- kept rather than by dropping what is not, so a call gaining an operand
 -- cannot silently become a place assembly may be written.
 besideTheCallee :: Operation operand -> [operand]
-besideTheCallee operation = case operation of
-  OCall c -> arguments c
-  OInvoke v -> arguments (invokeCall v)
-  _ -> toList operation
-  where
-    arguments = map argumentValue . callArguments
+besideTheCallee operation = case callOf operation of
+  Just c -> map argumentValue (callArguments c)
+  Nothing -> toList operation
 
 isPhiInstruction :: Instruction -> Bool
 isPhiInstruction (IOperation _ operation _) = isPhi operation
@@ -743,6 +746,8 @@ isPhiInstruction (IOpaque _) = False
 -- of the return type written alone, which is what that field holds.
 producesValue :: Operation operand -> Bool
 producesValue operation = case operation of
+  -- The three calls, whatever they do about control afterwards.
+  _ | Just c <- callOf operation -> returns (callType c) /= TVoid
   ORet _ -> False
   OBr _ -> False
   OCondBr{} -> False
@@ -754,8 +759,6 @@ producesValue operation = case operation of
   -- however it is ordered, and a fence does not touch memory at all.
   OAtomicStore _ -> False
   OFence _ -> False
-  OCall c -> returns (callType c) /= TVoid
-  OInvoke i -> returns (callType (invokeCall i)) /= TVoid
   OResume _ -> False
   _ -> True
   where
@@ -842,6 +845,7 @@ renderComplaint complaint = case complaint of
     "a value from %" <> renderName label <> ", which does not branch here"
   CaseNotConstant -> "a switch case that is not a constant"
   AsmNotCallee -> "inline assembly somewhere other than as a callee"
+  CallBrNotAsm -> "a callbr calling something that is not inline assembly"
 
 number :: Int -> Text
 number = T.pack . show

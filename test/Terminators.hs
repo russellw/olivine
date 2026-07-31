@@ -183,6 +183,108 @@ emitted =
           )
       ]
     )
+  , -- Assembly that branches, with a result and two labels to jump to.  The
+    -- template names them by position — @${2:l}@ is the first of the two,
+    -- the operand before them being the input — which is why the destinations
+    -- are a list and stay in the order written.
+    ( "callbr"
+    , T.unlines
+        [ "define i32 @f(i32 %x) {"
+        , "  %r = callbr i32 asm sideeffect \"bswapl $0; jmp ${2:l}\", \"=r,0,!i,!i\"(i32 %x)"
+        , "          to label %ok [label %a, label %b]"
+        , ""
+        , "ok:                                               ; preds = %0"
+        , "  ret i32 %r"
+        , ""
+        , "a:                                                ; preds = %0"
+        , "  ret i32 1"
+        , ""
+        , "b:                                                ; preds = %0"
+        , "  ret i32 2"
+        , "}"
+        ]
+    , [ OCallBr
+          CallBr
+            { callBrCall =
+                Call
+                  { callTail = Nothing
+                  , callFlags = []
+                  , callCallingConvention = Nothing
+                  , callReturnAttributes = []
+                  , callAddrSpace = Nothing
+                  , callType = TInteger 32
+                  , callCallee =
+                      TypedValue
+                        (TPointer Nothing)
+                        ( VAsm
+                            InlineAsm
+                              { asmSideEffect = True
+                              , asmAlignStack = False
+                              , asmIntelDialect = False
+                              , asmUnwind = False
+                              , asmTemplate = "bswapl $0; jmp ${2:l}"
+                              , asmConstraints = "=r,0,!i,!i"
+                              }
+                        )
+                  , callArguments =
+                      [ Argument
+                          []
+                          (TypedValue (TInteger 32) (VLocal (Name Bare "x")))
+                      ]
+                  , callAttributes = []
+                  }
+            , callBrFallthrough = Name Bare "ok"
+            , callBrIndirect = [Name Bare "a", Name Bare "b"]
+            }
+      , ORet (Just (TypedValue (TInteger 32) (VLocal (Name Bare "r"))))
+      , ORet (Just (TypedValue (TInteger 32) (VInteger 1)))
+      , ORet (Just (TypedValue (TInteger 32) (VInteger 2)))
+      ]
+    )
+  , -- The same with nothing to jump to and nothing to assign.  LLVM writes
+    -- the brackets whether or not they hold anything, and accepts them empty.
+    ( "callbr with no indirect destinations"
+    , T.unlines
+        [ "define void @g() {"
+        , "  callbr void asm \"\", \"\"()"
+        , "          to label %ok []"
+        , ""
+        , "ok:                                               ; preds = %0"
+        , "  ret void"
+        , "}"
+        ]
+    , [ OCallBr
+          CallBr
+            { callBrCall =
+                Call
+                  { callTail = Nothing
+                  , callFlags = []
+                  , callCallingConvention = Nothing
+                  , callReturnAttributes = []
+                  , callAddrSpace = Nothing
+                  , callType = TVoid
+                  , callCallee =
+                      TypedValue
+                        (TPointer Nothing)
+                        ( VAsm
+                            InlineAsm
+                              { asmSideEffect = False
+                              , asmAlignStack = False
+                              , asmIntelDialect = False
+                              , asmUnwind = False
+                              , asmTemplate = ""
+                              , asmConstraints = ""
+                              }
+                        )
+                  , callArguments = []
+                  , callAttributes = []
+                  }
+            , callBrFallthrough = Name Bare "ok"
+            , callBrIndirect = []
+            }
+      , ORet Nothing
+      ]
+    )
   ]
 
 -- | Metadata attached to a terminator, which is how debug locations will
@@ -226,8 +328,7 @@ attached =
 -- a definition.
 rejected :: [Text]
 rejected =
-  [ "  callbr void asm \"\", \"\"() to label %a []"
-  , "  catchret from %c to label %a"
+  [ "  catchret from %c to label %a"
   , "  cleanupret from %c unwind label %a"
   , -- Malformed rather than unmodelled.
     "  ret i32"

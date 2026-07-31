@@ -90,6 +90,8 @@ int over(const int*,int); int with_helper(int); int depth(int);
 int swapped(int); int swapped_twice(int); int reread(int*);
 int barrier_sum(const int*,int,const int*); int through_slot(int);
 int hidden(int,int); int each_time(int,int); int both_kinds(int);
+int jumps_when_zero(int); int swapped_or_low(int);
+int counted_jumps(const int*,int); int held_and_jumped(int);
 /* except.cpp -- C++, so these are the extern "C" names it exports */
 extern int cleanups_run;
 int caught_value(int); int caught_anything(int); int cleanup_on_both(int);
@@ -304,7 +306,14 @@ int main(void){
     for(int x=-3;x<=3;x++)
       printf("%d %d %d ", through_slot(x), hidden(x,x*2), both_kinds(x));
     printf("\n");
-    for(int n=-1;n<=4;n++) printf("%d ", each_time(0x00010203,n)); printf("\n"); }
+    for(int n=-1;n<=4;n++) printf("%d ", each_time(0x00010203,n)); printf("\n");
+    /* The asm goto half: each x takes a different way out of the assembly. */
+    for(int x=-2;x<=2;x++)
+      printf("%d %d %d ", jumps_when_zero(x), swapped_or_low(x), held_and_jumped(x));
+    printf("\n");
+    { int in[8];
+      for(int i=0;i<8;i++) in[i]=i*3-7;
+      for(int n=0;n<=8;n++) printf("%d ", counted_jumps(in,n)); printf("\n"); } }
 #endif
 #ifdef LINKAGE
   printf("%d %d %d\n", real_answer(), aliased_answer(), weak_count + tentative);

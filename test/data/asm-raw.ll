@@ -236,6 +236,163 @@ define dso_local i32 @both_kinds(i32 noundef %0) #0 {
   ret i32 %10
 }
 
+; Function Attrs: nounwind uwtable
+define dso_local i32 @jumps_when_zero(i32 noundef %0) #0 {
+  %2 = alloca i32, align 4
+  %3 = alloca i32, align 4
+  store i32 %0, ptr %3, align 4, !tbaa !5
+  %4 = load i32, ptr %3, align 4, !tbaa !5
+  callbr void asm sideeffect "testl $0, $0; je ${1:l}", "r,!i,~{cc},~{dirflag},~{fpsr},~{flags}"(i32 %4) #2
+          to label %5 [label %6], !srcloc !25
+
+5:                                                ; preds = %1
+  store i32 1, ptr %2, align 4
+  br label %7
+
+6:                                                ; preds = %1
+  store i32 0, ptr %2, align 4
+  br label %7
+
+7:                                                ; preds = %6, %5
+  %8 = load i32, ptr %2, align 4
+  ret i32 %8
+}
+
+; Function Attrs: nounwind uwtable
+define dso_local i32 @swapped_or_low(i32 noundef %0) #0 {
+  %2 = alloca i32, align 4
+  %3 = alloca i32, align 4
+  %4 = alloca i32, align 4
+  %5 = alloca i32, align 4
+  store i32 %0, ptr %3, align 4, !tbaa !5
+  call void @llvm.lifetime.start.p0(i64 4, ptr %4) #2
+  %6 = load i32, ptr %3, align 4, !tbaa !5
+  %7 = callbr i32 asm "bswapl $0; testl $0, $0; js ${2:l}", "=r,0,!i,~{cc},~{dirflag},~{fpsr},~{flags}"(i32 %6) #3
+          to label %8 [label %10], !srcloc !26
+
+8:                                                ; preds = %1
+  store i32 %7, ptr %4, align 4, !tbaa !5
+  %9 = load i32, ptr %4, align 4, !tbaa !5
+  store i32 %9, ptr %2, align 4
+  store i32 1, ptr %5, align 4
+  br label %14
+
+10:                                               ; preds = %1
+  store i32 %7, ptr %4, align 4, !tbaa !5
+  br label %11
+
+11:                                               ; preds = %10
+  %12 = load i32, ptr %4, align 4, !tbaa !5
+  %13 = ashr i32 %12, 24
+  store i32 %13, ptr %2, align 4
+  store i32 1, ptr %5, align 4
+  br label %14
+
+14:                                               ; preds = %11, %8
+  call void @llvm.lifetime.end.p0(i64 4, ptr %4) #2
+  %15 = load i32, ptr %2, align 4
+  ret i32 %15
+}
+
+; Function Attrs: nounwind uwtable
+define dso_local i32 @counted_jumps(ptr noundef %0, i32 noundef %1) #0 {
+  %3 = alloca ptr, align 8
+  %4 = alloca i32, align 4
+  %5 = alloca i32, align 4
+  %6 = alloca i32, align 4
+  store ptr %0, ptr %3, align 8, !tbaa !12
+  store i32 %1, ptr %4, align 4, !tbaa !5
+  call void @llvm.lifetime.start.p0(i64 4, ptr %5) #2
+  store i32 0, ptr %5, align 4, !tbaa !5
+  call void @llvm.lifetime.start.p0(i64 4, ptr %6) #2
+  store i32 0, ptr %6, align 4, !tbaa !5
+  br label %7
+
+7:                                                ; preds = %34, %2
+  %8 = load i32, ptr %6, align 4, !tbaa !5
+  %9 = load i32, ptr %4, align 4, !tbaa !5
+  %10 = icmp slt i32 %8, %9
+  br i1 %10, label %12, label %11
+
+11:                                               ; preds = %7
+  call void @llvm.lifetime.end.p0(i64 4, ptr %6) #2
+  br label %37
+
+12:                                               ; preds = %7
+  %13 = load ptr, ptr %3, align 8, !tbaa !12
+  %14 = load i32, ptr %6, align 4, !tbaa !5
+  %15 = sext i32 %14 to i64
+  %16 = getelementptr inbounds i32, ptr %13, i64 %15
+  %17 = load i32, ptr %16, align 4, !tbaa !5
+  callbr void asm sideeffect "cmpl $$0, $0; jl ${1:l}", "r,!i,~{cc},~{dirflag},~{fpsr},~{flags}"(i32 %17) #2
+          to label %18 [label %26], !srcloc !27
+
+18:                                               ; preds = %12
+  %19 = load ptr, ptr %3, align 8, !tbaa !12
+  %20 = load i32, ptr %6, align 4, !tbaa !5
+  %21 = sext i32 %20 to i64
+  %22 = getelementptr inbounds i32, ptr %19, i64 %21
+  %23 = load i32, ptr %22, align 4, !tbaa !5
+  %24 = load i32, ptr %5, align 4, !tbaa !5
+  %25 = add nsw i32 %24, %23
+  store i32 %25, ptr %5, align 4, !tbaa !5
+  br label %34
+
+26:                                               ; preds = %12
+  %27 = load ptr, ptr %3, align 8, !tbaa !12
+  %28 = load i32, ptr %6, align 4, !tbaa !5
+  %29 = sext i32 %28 to i64
+  %30 = getelementptr inbounds i32, ptr %27, i64 %29
+  %31 = load i32, ptr %30, align 4, !tbaa !5
+  %32 = load i32, ptr %5, align 4, !tbaa !5
+  %33 = sub nsw i32 %32, %31
+  store i32 %33, ptr %5, align 4, !tbaa !5
+  br label %34
+
+34:                                               ; preds = %26, %18
+  %35 = load i32, ptr %6, align 4, !tbaa !5
+  %36 = add nsw i32 %35, 1
+  store i32 %36, ptr %6, align 4, !tbaa !5
+  br label %7, !llvm.loop !28
+
+37:                                               ; preds = %11
+  %38 = load i32, ptr %5, align 4, !tbaa !5
+  call void @llvm.lifetime.end.p0(i64 4, ptr %5) #2
+  ret i32 %38
+}
+
+; Function Attrs: nounwind uwtable
+define dso_local i32 @held_and_jumped(i32 noundef %0) #0 {
+  %2 = alloca i32, align 4
+  %3 = alloca i32, align 4
+  %4 = alloca i32, align 4
+  %5 = alloca i32, align 4
+  store i32 %0, ptr %3, align 4, !tbaa !5
+  call void @llvm.lifetime.start.p0(i64 4, ptr %4) #2
+  %6 = load i32, ptr %3, align 4, !tbaa !5
+  store i32 %6, ptr %4, align 4, !tbaa !5
+  callbr void asm "addl $$7, $0; jns ${2:l}", "=*m,*m,!i,~{cc},~{dirflag},~{fpsr},~{flags}"(ptr elementtype(i32) %4, ptr elementtype(i32) %4) #2
+          to label %7 [label %10], !srcloc !29
+
+7:                                                ; preds = %1
+  %8 = load i32, ptr %4, align 4, !tbaa !5
+  %9 = sub nsw i32 0, %8
+  store i32 %9, ptr %2, align 4
+  store i32 1, ptr %5, align 4
+  br label %12
+
+10:                                               ; preds = %1
+  %11 = load i32, ptr %4, align 4, !tbaa !5
+  store i32 %11, ptr %2, align 4
+  store i32 1, ptr %5, align 4
+  br label %12
+
+12:                                               ; preds = %10, %7
+  call void @llvm.lifetime.end.p0(i64 4, ptr %4) #2
+  %13 = load i32, ptr %2, align 4
+  ret i32 %13
+}
+
 attributes #0 = { nounwind uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #1 = { nocallback nofree nosync nounwind willreturn memory(argmem: readwrite) }
 attributes #2 = { nounwind }
@@ -253,19 +410,24 @@ attributes #3 = { nounwind memory(none) }
 !6 = !{!"int", !7, i64 0}
 !7 = !{!"omnipotent char", !8, i64 0}
 !8 = !{!"Simple C/C++ TBAA"}
-!9 = !{i64 1081}
-!10 = !{i64 1382}
-!11 = !{i64 1425}
+!9 = !{i64 1244}
+!10 = !{i64 1545}
+!11 = !{i64 1588}
 !12 = !{!13, !13, i64 0}
 !13 = !{!"p1 int", !14, i64 0}
 !14 = !{!"any pointer", !7, i64 0}
-!15 = !{i64 1681}
-!16 = !{i64 2069}
+!15 = !{i64 1844}
+!16 = !{i64 2232}
 !17 = distinct !{!17, !18, !19}
 !18 = !{!"llvm.loop.mustprogress"}
 !19 = !{!"llvm.loop.unroll.disable"}
-!20 = !{i64 2279}
-!21 = !{i64 2594}
-!22 = !{i64 3395}
+!20 = !{i64 2442}
+!21 = !{i64 2757}
+!22 = !{i64 3558}
 !23 = distinct !{!23, !18, !19}
-!24 = !{i64 3686}
+!24 = !{i64 3849}
+!25 = !{i64 4328}
+!26 = !{i64 4728}
+!27 = !{i64 5327}
+!28 = distinct !{!28, !18, !19}
+!29 = !{i64 5749}

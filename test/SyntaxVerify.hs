@@ -269,6 +269,30 @@ structureTests =
         expect
           ["define void @f() {", "  call void asm \"nop\", \"\"()", "  ret void", "}"]
           []
+    , -- The other half of the rule, read from the callbr's end: LLVM's parser
+      -- takes a callbr of a function and its verifier then refuses it, which
+      -- is where this wording comes from.
+      testCase "a callbr calling a function rather than assembly" $
+        expect
+          [ "define void @f() {"
+          , "  callbr void @h()"
+          , "          to label %a []"
+          , "a:"
+          , "  ret void"
+          , "}"
+          , "declare void @h()"
+          ]
+          [CallBrNotAsm]
+    , testCase "a callbr calling assembly is not a complaint" $
+        expect
+          [ "define void @f() {"
+          , "  callbr void asm \"nop\", \"\"()"
+          , "          to label %a []"
+          , "a:"
+          , "  ret void"
+          , "}"
+          ]
+          []
     ]
 
 -- * Where a phi stands and what it is entered from

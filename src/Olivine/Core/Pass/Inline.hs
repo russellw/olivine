@@ -408,15 +408,16 @@ returnsTwice world call =
 --
 -- An @invoke@ is a call, and a body holding one is already refused as
 -- unwinding — but that is a separate fact about a separate construct, and the
--- plan for landing pads is to stop refusing them.  Reading both here means
--- the returns-twice rule does not quietly stop holding on the day it does.
+-- plan for landing pads is to stop refusing them.  Reading every kind here
+-- means the returns-twice rule does not quietly stop holding on the day it
+-- does.
 callsIn :: Function -> [Call (TypedValue Local)]
 callsIn f =
   [ call
   | b <- functionBlocks f
   , call <-
       [c | i <- blockInstructions b, OCall c <- [instructionOperation i]]
-        <> [c | Invoke _ c _ _ <- [terminatorTransfer (blockTerminator b)]]
+        <> [c | Just c <- [callIn (terminatorTransfer (blockTerminator b))]]
   ]
 
 -- | Whether the definition here might not be the one that runs.
@@ -639,5 +640,10 @@ splice caller site = caller {functionBlocks = hoist (concatMap place (functionBl
 
     renumberOperand = fmap shiftLocal
 
+    -- All three walks over a terminator, because a body copied into a caller
+    -- is renumbered whole: the operands, the destinations, and — where the
+    -- terminator is one of the two calls — the local it assigns, which is not
+    -- an operand and which 'fmap' therefore does not reach.
     renumberTerminator t =
-      retarget shiftLabel t {terminatorTransfer = fmap renumberOperand (terminatorTransfer t)}
+      reassign shiftLocal $
+        retarget shiftLabel t {terminatorTransfer = fmap renumberOperand (terminatorTransfer t)}

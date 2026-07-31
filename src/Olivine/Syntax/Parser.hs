@@ -735,6 +735,7 @@ pOperation =
     , pPhi
     , pCall
     , pInvoke
+    , pCallBr
     , pLandingPad
     , OResume <$> (keyword "resume" *> pTypedValue)
     , pConvert
@@ -1093,6 +1094,25 @@ pInvoke = do
   verticalSpace
   keyword "unwind"
   OInvoke . Invoke call normal <$> pLabelOperand
+
+-- | @callbr ... to label %fallthrough [label %a, label %b]@, which LLVM
+-- writes over two lines the way it writes an @invoke@.
+--
+-- The bracketed list is read across line breaks like a switch's cases, and is
+-- allowed to be empty, which LLVM's parser and verifier both accept.
+pCallBr :: Parser (Operation (TypedValue Name))
+pCallBr = do
+  keyword "callbr"
+  call <- pCallBody Nothing
+  verticalSpace
+  keyword "to"
+  fallthrough <- pLabelOperand
+  verticalSpace
+  symbol "["
+  indirect <- pLabelOperand `sepBy` (verticalSpace *> symbol ",")
+  verticalSpace
+  symbol "]"
+  pure (OCallBr (CallBr call fallthrough indirect))
 
 -- | @landingpad \<ty\> [cleanup] \<clause\>*@, one clause to a line.
 --

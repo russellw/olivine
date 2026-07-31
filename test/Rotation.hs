@@ -103,6 +103,11 @@ rotationTests =
         , -- Two ways on into the body and no single block for the loop to be
           -- entered at instead.
           testCase "a header with two ways on into the loop" $ leftAlone forking
+        , -- The terminator is copied as it stands, and a call standing where a
+          -- branch stands may not be: the assembly would run in two places and
+          -- what it assigns would be written by two things that are not
+          -- assignments.
+          testCase "a header ending in assembly that branches" $ leftAlone jumping
         , -- The block in front of the header would be in front of where the
           -- function starts.
           testCase "a loop the function starts at" $ leftAlone leading
@@ -303,6 +308,31 @@ breaking =
     , "  br i1 %g, label %head, label %done"
     , "done:"
     , "  ret i32 0"
+    , "}"
+    ]
+
+-- | A loop whose header ends in assembly that branches.
+--
+-- Everything else about it asks to be rotated: the header decides whether to
+-- leave, there is one way on into the body, and the latch decides nothing.
+-- What stops it is that the terminator would be copied — the assembly written
+-- twice, and what it assigns written by two things that are not assignments.
+jumping :: Text
+jumping =
+  T.unlines
+    [ "define i32 @f(i32 %n) {"
+    , "entry:"
+    , "  br label %head"
+    , "head:"
+    , "  %i = phi i32 [ 0, %entry ], [ %next, %body ]"
+    , "  %next = add i32 %i, 1"
+    , "  callbr void asm sideeffect \"testl $0, $0; jne ${1:l}\", \"r,!i,~{cc}\"(i32 %next)"
+    , "          to label %body [label %done]"
+    , "body:"
+    , "  %z = mul i32 %next, %n"
+    , "  br label %head"
+    , "done:"
+    , "  ret i32 %next"
     , "}"
     ]
 

@@ -44,6 +44,8 @@ module Olivine.Core.Instruction
   , targetsOf
   , retarget
   , resultOf
+  , reassign
+  , callIn
   , localsUsedBy
   , globalsUsedBy
   , lifetimeMarked
@@ -249,6 +251,21 @@ data Transfer operand
     -- destination may read it, which the verifier checks because the
     -- dominance rule alone would allow it.
     Invoke (Maybe Local) (Call operand) Label Label
+  | -- | Assembly that branches: what it assigns, the call itself, where
+    -- control goes when the assembly falls out the bottom, and every label it
+    -- may jump to instead.
+    --
+    -- The other call that ends its block, and unlike an @invoke@ what it
+    -- assigns is readable along every edge — the assembly ran and produced it
+    -- whichever way it left.
+    --
+    -- __The indirect destinations keep their order and their repetitions.__
+    -- The assembly names them by position, so they are retargeted like any
+    -- other edge but never reordered, and one written twice is two edges and
+    -- stays two.  Nothing may put a copy of one of these in a second place
+    -- either: the copies would be two runs of the assembly where the program
+    -- wrote one, and a template that defines a label defines it twice.
+    CallBr (Maybe Local) (Call operand) Label [Label]
   | -- | Carry on unwinding with what the landing pad was handed.
     Resume operand
   deriving (Eq, Show, Functor, Foldable, Traversable)
@@ -268,6 +285,7 @@ targetsOf = go . terminatorTransfer
     go (IndirectBr _ targets) = targets
     go Unreachable = []
     go (Invoke _ _ normal unwind) = [normal, unwind]
+    go (CallBr _ _ fallthrough indirect) = fallthrough : indirect
     go (Resume _) = []
 
 -- | Send every branch somewhere else.
@@ -288,18 +306,24 @@ retarget f t = t {terminatorTransfer = go (terminatorTransfer t)}
     go Unreachable = Unreachable
     go (Invoke result call normal unwind) =
       Invoke result call (f normal) (f unwind)
+    -- Every destination goes through, the repeated ones included: the
+    -- assembly names them by position, so a list one shorter names something
+    -- else by the same template.
+    go (CallBr result call fallthrough indirect) =
+      CallBr result call (f fallthrough) (map f indirect)
     go (Resume value) = Resume value
 
--- | What a terminator assigns, which only an @invoke@ does.
+-- | What a terminator assigns, which only the two calls do.
 --
 -- The counterpart of 'Olivine.Core.Program.blockInstructions' answering
 -- 'instructionResult': anything asking what a function defines has to ask it
--- of the terminators too, now that one of them defines something.  Written out
+-- of the terminators too, now that two of them define something.  Written out
 -- case by case for the reason 'targetsOf' is.
 resultOf :: Terminator -> Maybe Local
 resultOf = go . terminatorTransfer
   where
     go (Invoke result _ _ _) = result
+    go (CallBr result _ _ _) = result
     go (Ret _) = Nothing
     go (Br _) = Nothing
     go (CondBr _ _ _) = Nothing
@@ -307,6 +331,48 @@ resultOf = go . terminatorTransfer
     go (IndirectBr _ _) = Nothing
     go Unreachable = Nothing
     go (Resume _) = Nothing
+
+-- | Rename what a terminator assigns.
+--
+-- The third of the walks, beside 'fmap' over the operands and 'retarget' over
+-- the destinations, and here for the same reason they are separate: what a
+-- terminator assigns is not an operand and 'fmap' does not reach it, so
+-- anything renaming the locals of a whole function has to say so here.  The
+-- inliner is what wants it — a body copied into a caller has its locals
+-- renumbered, and a result standing on a terminator is one of them.
+reassign :: (Local -> Local) -> Terminator -> Terminator
+reassign f t = t {terminatorTransfer = go (terminatorTransfer t)}
+  where
+    go (Invoke result call normal unwind) =
+      Invoke (f <$> result) call normal unwind
+    go (CallBr result call fallthrough indirect) =
+      CallBr (f <$> result) call fallthrough indirect
+    go transfer@(Ret _) = transfer
+    go transfer@(Br _) = transfer
+    go transfer@(CondBr _ _ _) = transfer
+    go transfer@(Switch _ _ _) = transfer
+    go transfer@(IndirectBr _ _) = transfer
+    go transfer@Unreachable = transfer
+    go transfer@(Resume _) = transfer
+
+-- | The call a transfer makes, where it makes one.
+--
+-- Two of them are calls that end their block, and everything asking what the
+-- calls in a function are — what they may write, what they promise, whether
+-- one may come back twice — has to reach both.  Asking it here once is what
+-- stops a third from being missed, and is why this is written out case by
+-- case rather than with a catch-all.
+callIn :: Transfer operand -> Maybe (Call operand)
+callIn transfer = case transfer of
+  Invoke _ call _ _ -> Just call
+  CallBr _ call _ _ -> Just call
+  Ret _ -> Nothing
+  Br _ -> Nothing
+  CondBr _ _ _ -> Nothing
+  Switch _ _ _ -> Nothing
+  IndirectBr _ _ -> Nothing
+  Unreachable -> Nothing
+  Resume _ -> Nothing
 
 -- | The locals something reads, however deeply they are written.
 --

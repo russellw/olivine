@@ -85,7 +85,8 @@ data Value local
     -- be written rather than a reason to hold it apart from the operand it
     -- stands in.  Holding it here is what lets a call keep one callee slot,
     -- so everything asking what a call calls asks it in one place, and what
-    -- an @invoke@ calls needs no second answer.  That it appears nowhere else
+    -- an @invoke@ or a @callbr@ calls needs no second answer — the last of
+    -- those being a call that has to hold one.  That it appears nowhere else
     -- is 'Olivine.Syntax.Verify.verifyModule's to say.
     VAsm InlineAsm
   | -- | @ptrtoint (ptr \@g to i64)@ and the other surviving casts.

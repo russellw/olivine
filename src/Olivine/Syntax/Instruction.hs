@@ -49,8 +49,10 @@ module Olivine.Syntax.Instruction
   , ShuffleVector (..)
   , Phi (..)
   , Call (..)
+  , callOf
   , TailKind (..)
   , Invoke (..)
+  , CallBr (..)
   , LandingPad (..)
   , LandingPadClause (..)
   , Argument (..)
@@ -94,10 +96,10 @@ data Instruction
 
 -- | What an instruction does.
 --
--- Of the terminators, only the ones that are purely control flow.  @invoke@
--- and @callbr@ are calls that happen to branch, and belong with @call@;
--- @resume@ and the @catch@ and @cleanup@ family belong with exception
--- handling.  Both wait for those, and a block ending in one stays opaque.
+-- Of the terminators, all but the @catch@ and @cleanup@ family, which belongs
+-- with exception handling and waits for it; a block ending in one of those
+-- stays opaque.  @invoke@ and @callbr@ are calls that happen to branch, and
+-- are written here with @call@ rather than with the branches.
 --
 -- __A destination is a 'Name', because that is what was written.__  This
 -- grammar reads LLVM back and writes it out, so everything it says is spelled
@@ -149,6 +151,9 @@ data Operation operand
   | -- | @invoke@: a call that says where to go when it returns and where to
     -- go when it throws.
     OInvoke (Invoke operand)
+  | -- | @callbr@: assembly that says where to go when it falls out the bottom
+    -- and every label it may jump to instead.
+    OCallBr (CallBr operand)
   | -- | @landingpad \<ty\> [cleanup] \<clause\>*@, which begins the block an
     -- @invoke@ throws to and says what it is prepared to handle.
     OLandingPad (LandingPad operand)
@@ -195,6 +200,7 @@ isTerminator (OInsertValue _) = False
 isTerminator (OPhi _) = False
 isTerminator (OCall _) = False
 isTerminator (OInvoke _) = True
+isTerminator (OCallBr _) = True
 isTerminator (OLandingPad _) = False
 isTerminator (OResume _) = True
 isTerminator (OAlloca _) = False
@@ -222,6 +228,7 @@ destinationsOf operation = case operation of
   OSwitch _ fallback cases -> fallback : map snd cases
   OIndirectBr _ destinations -> destinations
   OInvoke i -> [invokeNormal i, invokeUnwind i]
+  OCallBr c -> callBrFallthrough c : callBrIndirect c
   _ -> []
 
 -- | A binary operation: an opcode, its flags, and the operands.
@@ -439,9 +446,9 @@ data Phi operand = Phi
 
 -- | @[tail] call [flags] [cconv] [ret attrs] \<ty\> \<callee\>(\<args\>) [attrs]@.
 --
--- Inline assembly and operand bundles are not modelled; a call carrying
--- either stays opaque.  @invoke@ and @callbr@, which are calls that also
--- branch, are still to come.
+-- Operand bundles are not modelled; a call carrying one stays opaque.  The
+-- two calls that also branch, @invoke@ and @callbr@, hold one of these rather
+-- than spelling a call again.
 data Call operand = Call
   { callTail :: Maybe TailKind
   , callFlags :: [InstructionFlag]
@@ -491,6 +498,48 @@ data Invoke operand = Invoke
     invokeUnwind :: Name
   }
   deriving (Eq, Show, Functor, Foldable, Traversable)
+
+-- | @[result =] callbr ... to label %fallthrough [label %a, label %b]@.
+--
+-- Assembly that branches: the template is handed a label for each of the
+-- indirect destinations, jumps to whichever of them it decides on, and
+-- otherwise falls out the bottom to the fallthrough.  That the callee is
+-- assembly and not a function is LLVM's rule rather than this type's — its
+-- verifier says @Callbr is currently only used for asm-goto@ — so the call is
+-- a 'Call' like any other and 'Olivine.Syntax.Value.holdsAsm' is what asks.
+--
+-- __The indirect destinations are a list and stay in the order written.__
+-- They are operands of the assembly, which names one by its position in the
+-- whole operand list: in @asm "jne ${1:l}", "r,!i"@ the label written is the
+-- one after the input.  So reordering them, or dropping one for being written
+-- twice, means something else by the same template.  Sending one somewhere
+-- else is another matter and is what retargeting a branch has always been.  A
+-- block written twice is two edges here as everywhere, and LLVM accepts one —
+-- checked by @llvm-as@ on a @callbr@ naming one block for both of its @!i@
+-- constraints.
+data CallBr operand = CallBr
+  { callBrCall :: Call operand
+  , -- | Where control goes when the assembly falls out the bottom.
+    callBrFallthrough :: Name
+  , -- | Every label the assembly may jump to instead, in the order the
+    -- constraints name them.  LLVM writes them between brackets and accepts
+    -- an empty list, which is assembly that says it may branch and does not.
+    callBrIndirect :: [Name]
+  }
+  deriving (Eq, Show, Functor, Foldable, Traversable)
+
+-- | The call an operation makes, where it makes one.
+--
+-- Three operations are calls — one that returns to the next instruction and
+-- two that end their block — and everything asking what a call promises, what
+-- it hands over or what it gives back has to reach all three.  Asking it here
+-- once is what stops the fourth from being missed.
+callOf :: Operation operand -> Maybe (Call operand)
+callOf operation = case operation of
+  OCall c -> Just c
+  OInvoke i -> Just (invokeCall i)
+  OCallBr c -> Just (callBrCall c)
+  _ -> Nothing
 
 -- | @landingpad \<ty\> [cleanup] \<clause\>*@.
 --

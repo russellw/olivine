@@ -268,20 +268,21 @@ eliminateIn types layout f = f {functionBlocks = map rewrite (functionBlocks f)}
         (after, instructions) = mapAccumL instruction incoming (blockInstructions block)
 
     -- What the terminator itself leaves known, which for every one of them but
-    -- an invoke is what the last instruction left.
+    -- the two calls is what the last instruction left.
     --
-    -- An invoke is a call standing where a branch stands, and a call may write
-    -- anything a stranger can reach.  What is known on the way out has to say
-    -- so, or the successors — the landing pad among them — answer a load from
-    -- a fact the call has already made false.
+    -- An invoke and a callbr are calls standing where a branch stands, and a
+    -- call may write anything a stranger can reach — assembly as much as a
+    -- function, since nothing here reads a template.  What is known on the way
+    -- out has to say so, or the successors — the landing pad among them —
+    -- answer a load from a fact the call has already made false.
     leaving :: Terminator -> Known -> Known
-    leaving t known = case terminatorTransfer t of
-      Invoke result _ _ _ ->
-        (maybe id kill result known)
+    leaving t known = case callIn (terminatorTransfer t) of
+      Just _ ->
+        (maybe id kill (resultOf t) known)
           { contents =
               filter (not . reachableByCall objects . contentAddress) (contents known)
           }
-      _ -> known
+      Nothing -> known
 
     -- What is known on the way into each reachable block and on the way out of
     -- it, once the rounds have stopped changing them.
