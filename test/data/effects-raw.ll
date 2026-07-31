@@ -342,40 +342,6 @@ define internal i32 @weigh(i32 noundef %0, i32 noundef %1) #1 {
 }
 
 ; Function Attrs: nounwind uwtable
-define dso_local i32 @unused_recursion(i32 noundef %0) #0 {
-  %2 = alloca i32, align 4
-  store i32 %0, ptr %2, align 4, !tbaa !5
-  %3 = load i32, ptr %2, align 4, !tbaa !5
-  %4 = call i32 @chain(i32 noundef %3)
-  %5 = load i32, ptr %2, align 4, !tbaa !5
-  ret i32 %5
-}
-
-; Function Attrs: noinline nounwind uwtable
-define internal i32 @chain(i32 noundef %0) #1 {
-  %2 = alloca i32, align 4
-  store i32 %0, ptr %2, align 4, !tbaa !5
-  %3 = load i32, ptr %2, align 4, !tbaa !5
-  %4 = icmp sle i32 %3, 0
-  br i1 %4, label %5, label %6
-
-5:                                                ; preds = %1
-  br label %12
-
-6:                                                ; preds = %1
-  %7 = load i32, ptr %2, align 4, !tbaa !5
-  %8 = load i32, ptr %2, align 4, !tbaa !5
-  %9 = sub nsw i32 %8, 1
-  %10 = call i32 @chain(i32 noundef %9)
-  %11 = add nsw i32 %7, %10
-  br label %12
-
-12:                                               ; preds = %6, %5
-  %13 = phi i32 [ 0, %5 ], [ %11, %6 ]
-  ret i32 %13
-}
-
-; Function Attrs: nounwind uwtable
 define dso_local i32 @loop_of_loops(i32 noundef %0, i32 noundef %1, i32 noundef %2) #0 {
   %4 = alloca i32, align 4
   %5 = alloca i32, align 4
@@ -422,6 +388,121 @@ define dso_local i32 @loop_of_loops(i32 noundef %0, i32 noundef %1, i32 noundef 
   ret i32 %24
 }
 
+; Function Attrs: nounwind uwtable
+define dso_local i32 @unused_spin(i32 noundef %0) #0 {
+  %2 = alloca i32, align 4
+  store i32 %0, ptr %2, align 4, !tbaa !5
+  %3 = load i32, ptr %2, align 4, !tbaa !5
+  %4 = call i32 @settle(i32 noundef %3)
+  %5 = load i32, ptr %2, align 4, !tbaa !5
+  ret i32 %5
+}
+
+; Function Attrs: noinline nounwind uwtable
+define internal i32 @settle(i32 noundef %0) #1 {
+  %2 = alloca i32, align 4
+  %3 = alloca i32, align 4
+  store i32 %0, ptr %2, align 4, !tbaa !5
+  call void @llvm.lifetime.start.p0(i64 4, ptr %3) #3
+  store i32 0, ptr %3, align 4, !tbaa !5
+  br label %4
+
+4:                                                ; preds = %12, %1
+  %5 = load i32, ptr %2, align 4, !tbaa !5
+  %6 = load i32, ptr %3, align 4, !tbaa !5
+  %7 = add nsw i32 %6, %5
+  store i32 %7, ptr %3, align 4, !tbaa !5
+  %8 = load i32, ptr %3, align 4, !tbaa !5
+  %9 = icmp sgt i32 %8, 100
+  br i1 %9, label %10, label %12
+
+10:                                               ; preds = %4
+  %11 = load i32, ptr %3, align 4, !tbaa !5
+  call void @llvm.lifetime.end.p0(i64 4, ptr %3) #3
+  ret i32 %11
+
+12:                                               ; preds = %4
+  br label %4, !llvm.loop !17
+}
+
+; Function Attrs: nounwind uwtable
+define dso_local i32 @loop_of_spins(i32 noundef %0, i32 noundef %1) #0 {
+  %3 = alloca i32, align 4
+  %4 = alloca i32, align 4
+  %5 = alloca i32, align 4
+  %6 = alloca i32, align 4
+  store i32 %0, ptr %3, align 4, !tbaa !5
+  store i32 %1, ptr %4, align 4, !tbaa !5
+  call void @llvm.lifetime.start.p0(i64 4, ptr %5) #3
+  store i32 0, ptr %5, align 4, !tbaa !5
+  call void @llvm.lifetime.start.p0(i64 4, ptr %6) #3
+  store i32 0, ptr %6, align 4, !tbaa !5
+  br label %7
+
+7:                                                ; preds = %17, %2
+  %8 = load i32, ptr %6, align 4, !tbaa !5
+  %9 = load i32, ptr %3, align 4, !tbaa !5
+  %10 = icmp slt i32 %8, %9
+  br i1 %10, label %12, label %11
+
+11:                                               ; preds = %7
+  call void @llvm.lifetime.end.p0(i64 4, ptr %6) #3
+  br label %20
+
+12:                                               ; preds = %7
+  %13 = load i32, ptr %4, align 4, !tbaa !5
+  %14 = call i32 @settle(i32 noundef %13)
+  %15 = load i32, ptr %5, align 4, !tbaa !5
+  %16 = add nsw i32 %15, %14
+  store i32 %16, ptr %5, align 4, !tbaa !5
+  br label %17
+
+17:                                               ; preds = %12
+  %18 = load i32, ptr %6, align 4, !tbaa !5
+  %19 = add nsw i32 %18, 1
+  store i32 %19, ptr %6, align 4, !tbaa !5
+  br label %7, !llvm.loop !18
+
+20:                                               ; preds = %11
+  %21 = load i32, ptr %5, align 4, !tbaa !5
+  call void @llvm.lifetime.end.p0(i64 4, ptr %5) #3
+  ret i32 %21
+}
+
+; Function Attrs: nounwind uwtable
+define dso_local i32 @unused_recursion(i32 noundef %0) #0 {
+  %2 = alloca i32, align 4
+  store i32 %0, ptr %2, align 4, !tbaa !5
+  %3 = load i32, ptr %2, align 4, !tbaa !5
+  %4 = call i32 @chain(i32 noundef %3)
+  %5 = load i32, ptr %2, align 4, !tbaa !5
+  ret i32 %5
+}
+
+; Function Attrs: noinline nounwind uwtable
+define internal i32 @chain(i32 noundef %0) #1 {
+  %2 = alloca i32, align 4
+  store i32 %0, ptr %2, align 4, !tbaa !5
+  %3 = load i32, ptr %2, align 4, !tbaa !5
+  %4 = icmp sle i32 %3, 0
+  br i1 %4, label %5, label %6
+
+5:                                                ; preds = %1
+  br label %12
+
+6:                                                ; preds = %1
+  %7 = load i32, ptr %2, align 4, !tbaa !5
+  %8 = load i32, ptr %2, align 4, !tbaa !5
+  %9 = sub nsw i32 %8, 1
+  %10 = call i32 @chain(i32 noundef %9)
+  %11 = add nsw i32 %7, %10
+  br label %12
+
+12:                                               ; preds = %6, %5
+  %13 = phi i32 [ 0, %5 ], [ %11, %6 ]
+  ret i32 %13
+}
+
 attributes #0 = { nounwind uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #1 = { noinline nounwind uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #2 = { nocallback nofree nosync nounwind willreturn memory(argmem: readwrite) }
@@ -447,3 +528,5 @@ attributes #3 = { nounwind }
 !14 = !{!"llvm.loop.unroll.disable"}
 !15 = distinct !{!15, !13, !14}
 !16 = distinct !{!16, !13, !14}
+!17 = distinct !{!17, !14}
+!18 = distinct !{!18, !13, !14}

@@ -46,6 +46,7 @@ library
                       Olivine.Core.Blocks
                       Olivine.Core.Layout
                       Olivine.Core.Loops
+                      Olivine.Core.Metadata
                       Olivine.Core.Promises
                       Olivine.Core.Pass.Redundancies
                       Olivine.Core.Pass.Fold

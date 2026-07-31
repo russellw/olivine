@@ -90,6 +90,35 @@ effectTests =
             (mayNotReturn <$> behaviourIn (counting "mustprogress")) >>= (@?= False)
         , testCase "a loop that writes, in a function promising progress" $
             (mayNotReturn <$> behaviourIn (spinning "mustprogress")) >>= (@?= True)
+        , -- The C spelling.  The language promises progress for a loop whose
+          -- controlling expression is not a constant rather than for every
+          -- loop a function has, so the promise is written a loop at a time:
+          -- on the branch that closes it, as a node naming the node the marker
+          -- is in.
+          testCase "a loop promising progress on its own back edge" $
+            (mayNotReturn <$> behaviourIn (promising "llvm.loop.mustprogress")) >>= (@?= False)
+        , -- The node is where the unrolling hints are written too, and reading
+          -- one of those as a promise would be reading any node as any promise.
+          testCase "a loop whose node says something else" $
+            (mayNotReturn <$> behaviourIn (promising "llvm.loop.unroll.disable")) >>= (@?= True)
+        , testCase "a loop that writes, promising progress on its back edge" $
+            (mayNotReturn <$> behaviourIn (promisingWhileWriting "llvm.loop.mustprogress"))
+              >>= (@?= True)
+        , -- A branch that is not a way round the loop says nothing about
+          -- whether it ends, and a reader that took any attachment in the body
+          -- for the loop's own would believe an inner loop's promise about an
+          -- outer loop.
+          testCase "the promise on the branch into the loop" $
+            (mayNotReturn <$> behaviourIn (promisingElsewhere "llvm.loop.mustprogress"))
+              >>= (@?= True)
+        , -- Which is not a hypothetical: every branch of an inner loop is a
+          -- branch of the loop around it, so the promise the inner one carries
+          -- is inside the outer one's body and belongs to neither the outer
+          -- loop nor the question being asked about it.
+          testCase "an inner loop promising, inside one that does not" $
+            (mayNotReturn <$> behaviourIn (nested attached "")) >>= (@?= True)
+        , testCase "both of them promising" $
+            (mayNotReturn <$> behaviourIn (nested attached attached)) >>= (@?= False)
         , testCase "a function that can reach itself" $
             (mayNotReturn <$> behaviourIn recursive) >>= (@?= True)
         , -- Neither of them writes anything, and neither of them is known to
@@ -184,24 +213,49 @@ asking'' attributes parameter body ret =
     ]
 
 counting :: Text -> Text
-counting attributes = looping attributes "  %s = add i32 %n, 1"
+counting attributes = looping attributes step "" "" []
 
 spinning :: Text -> Text
-spinning attributes =
-  looping attributes (T.unlines ["  store i32 %n, ptr @counter", "  %s = add i32 %n, 1"])
+spinning attributes = looping attributes (T.unlines [written, step]) "" "" []
 
-looping :: Text -> Text -> Text
-looping attributes work =
-  module'
-    [ "@counter = global i32 0"
-    , "define internal i32 @callee(i32 %0) " <> attributes <> " {"
+-- | The counting loop with the promise written where C writes it: a node the
+-- branch closing the loop names, holding a node that holds the marker.
+promising :: Text -> Text
+promising marker = looping "" step "" attached (nodes marker)
+
+-- | The same promise, on the branch into the loop rather than the one that
+-- closes it.  Nothing is promised about a loop by a branch that is not a way
+-- round it.
+promisingElsewhere :: Text -> Text
+promisingElsewhere marker = looping "" step attached "" (nodes marker)
+
+-- | And on the closing branch of a loop that writes every time round, where
+-- what is promised is not that it ends.
+promisingWhileWriting :: Text -> Text
+promisingWhileWriting marker =
+  looping "" (T.unlines [written, step]) "" attached (nodes marker)
+
+-- | A loop inside a loop, with whatever each of them promises on its own back
+-- edge.  Both count the same way, so what is being read is which branch the
+-- promise is written on rather than what the loop does.
+nested :: Text -> Text -> Text
+nested inner outer =
+  module''
+    [ "define internal i32 @callee(i32 %0) {"
     , "entry:"
-    , "  br label %head"
-    , "head:"
-    , "  %n = phi i32 [ 0, %entry ], [ %s, %head ]"
-    , work
+    , "  br label %outer"
+    , "outer:"
+    , "  %n = phi i32 [ 0, %entry ], [ %s, %next ]"
+    , "  br label %inner"
+    , "inner:"
+    , "  %m = phi i32 [ 0, %outer ], [ %t, %inner ]"
+    , "  %t = add i32 %m, 1"
+    , "  %ic = icmp slt i32 %t, %0"
+    , "  br i1 %ic, label %inner, label %next" <> inner
+    , "next:"
+    , "  %s = add i32 %n, 1"
     , "  %c = icmp slt i32 %s, %0"
-    , "  br i1 %c, label %head, label %done"
+    , "  br i1 %c, label %outer, label %done" <> outer
     , "done:"
     , "  ret i32 %n"
     , "}"
@@ -209,6 +263,40 @@ looping attributes work =
     , "  %r = call i32 @callee(i32 %0)"
     , "  ret i32 %r"
     ]
+    (nodes "llvm.loop.mustprogress")
+
+step :: Text
+step = "  %s = add i32 %n, 1"
+
+written :: Text
+written = "  store i32 %n, ptr @counter"
+
+attached :: Text
+attached = ", !llvm.loop !0"
+
+nodes :: Text -> [Text]
+nodes marker = ["!0 = distinct !{!0, !1}", "!1 = !{!\"" <> marker <> "\"}"]
+
+looping :: Text -> Text -> Text -> Text -> [Text] -> Text
+looping attributes work entering closing trailing =
+  module''
+    [ "@counter = global i32 0"
+    , "define internal i32 @callee(i32 %0) " <> attributes <> " {"
+    , "entry:"
+    , "  br label %head" <> entering
+    , "head:"
+    , "  %n = phi i32 [ 0, %entry ], [ %s, %head ]"
+    , work
+    , "  %c = icmp slt i32 %s, %0"
+    , "  br i1 %c, label %head, label %done" <> closing
+    , "done:"
+    , "  ret i32 %n"
+    , "}"
+    , "define i32 @asks(i32 %0) {"
+    , "  %r = call i32 @callee(i32 %0)"
+    , "  ret i32 %r"
+    ]
+    trailing
 
 recursive :: Text
 recursive =
@@ -292,4 +380,8 @@ bundle =
 
 -- | The lines of a module, with the last function closed.
 module' :: [Text] -> Text
-module' ls = T.unlines (ls <> ["}"])
+module' ls = module'' ls []
+
+-- | The same, with metadata nodes written after it.
+module'' :: [Text] -> [Text] -> Text
+module'' ls trailing = T.unlines (ls <> ["}"] <> trailing)

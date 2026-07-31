@@ -42,17 +42,30 @@ __attribute__((noinline)) static int record(int v) {
   return written_total;
 }
 
-/* Pure, and may not come back: C promises progress only for the loop, and the
-   promise is written on the loop rather than on the function, which is not
-   something this reads.  So this is the pure function calls to which stay
-   where they are.  */
+/* Pure, and it comes back, though nothing about the function says so: C
+   promises progress for a loop whose controlling expression is not a constant,
+   and clang writes that promise on the loop rather than on the function.  So
+   this is the pure function whose promise has to be read off its own back
+   edge — !llvm.loop.mustprogress, one node further down than the node the
+   branch names.  */
 __attribute__((noinline)) static int weigh(int a, int b) {
   int s = 0;
   for (int i = 0; i < 8; i++) s += (a ^ (b + i)) * (i + 3);
   return s;
 }
 
-/* Pure, and may not come back for the other reason: it can reach itself.  */
+/* Pure, and may not come back: the controlling expression here is a constant,
+   which is exactly where C stops promising, so clang writes no progress on
+   this loop and there is nothing to read.  A call to it stays where it is.  */
+__attribute__((noinline)) static int settle(int a) {
+  int s = 0;
+  for (;;) {
+    s += a;
+    if (s > 100) return s;
+  }
+}
+
+/* Pure, and may not come back for the third reason: it can reach itself.  */
 __attribute__((noinline)) static int chain(int n) { return n <= 0 ? 0 : n + chain(n - 1); }
 
 /* One computation written twice.  */
@@ -105,20 +118,36 @@ int reader_across_write(int *p, int v) {
   return first + first_two(p);
 }
 
-/* Pure, unread, and it may never come back: neither may go.  */
+/* Pure, unread, and it does come back: the call goes, on a promise written a
+   node away from the branch that closes the loop it is in.  */
 int unused_loop(int a, int b) {
   weigh(a, b);
   return a + b;
 }
 
-int unused_recursion(int n) {
-  chain(n);
-  return n;
-}
-
-/* And the loop that must keep making the call, for the same reason.  */
+/* And the loop that need not keep making it: once is what n of them come
+   to.  */
 int loop_of_loops(int n, int a, int b) {
   int s = 0;
   for (int i = 0; i < n; i++) s += weigh(a, b);
   return s;
+}
+
+/* The same two where nothing promised anything, which must stay as written:
+   the call that may not come back is not unread, and the loop must keep
+   making it.  */
+int unused_spin(int a) {
+  settle(a);
+  return a;
+}
+
+int loop_of_spins(int n, int a) {
+  int s = 0;
+  for (int i = 0; i < n; i++) s += settle(a);
+  return s;
+}
+
+int unused_recursion(int n) {
+  chain(n);
+  return n;
 }

@@ -194,11 +194,6 @@ define internal fastcc i32 @weigh(i32 noundef %0, i32 noundef %1) unnamed_addr #
 }
 
 ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
-define dso_local noundef i32 @unused_recursion(i32 noundef returned %0) local_unnamed_addr #0 {
-  ret i32 %0
-}
-
-; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
 define dso_local i32 @loop_of_loops(i32 noundef %0, i32 noundef %1, i32 noundef %2) local_unnamed_addr #0 {
   %4 = icmp sgt i32 %0, 0
   br i1 %4, label %5, label %8
@@ -213,8 +208,48 @@ define dso_local i32 @loop_of_loops(i32 noundef %0, i32 noundef %1, i32 noundef 
   ret i32 %9
 }
 
+; Function Attrs: nofree norecurse nosync nounwind memory(none) uwtable
+define dso_local noundef i32 @unused_spin(i32 noundef returned %0) local_unnamed_addr #8 {
+  %2 = tail call fastcc i32 @settle(i32 noundef %0)
+  ret i32 %0
+}
+
+; Function Attrs: nofree noinline norecurse nosync nounwind memory(none) uwtable
+define internal fastcc range(i32 101, -2147483648) i32 @settle(i32 noundef %0) unnamed_addr #9 {
+  br label %2
+
+2:                                                ; preds = %2, %1
+  %3 = phi i32 [ 0, %1 ], [ %4, %2 ]
+  %4 = add nsw i32 %3, %0
+  %5 = icmp sgt i32 %4, 100
+  br i1 %5, label %6, label %2
+
+6:                                                ; preds = %2
+  ret i32 %4
+}
+
+; Function Attrs: nofree norecurse nosync nounwind memory(none) uwtable
+define dso_local range(i32 0, -2147483648) i32 @loop_of_spins(i32 noundef %0, i32 noundef %1) local_unnamed_addr #8 {
+  %3 = icmp sgt i32 %0, 0
+  br i1 %3, label %4, label %7
+
+4:                                                ; preds = %2
+  %5 = tail call fastcc i32 @settle(i32 noundef %1)
+  %6 = mul i32 %5, %0
+  br label %7
+
+7:                                                ; preds = %4, %2
+  %8 = phi i32 [ 0, %2 ], [ %6, %4 ]
+  ret i32 %8
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+define dso_local noundef i32 @unused_recursion(i32 noundef returned %0) local_unnamed_addr #0 {
+  ret i32 %0
+}
+
 ; Function Attrs: nocallback nofree nosync nounwind speculatable willreturn memory(none)
-declare i32 @llvm.vector.reduce.add.v4i32(<4 x i32>) #8
+declare i32 @llvm.vector.reduce.add.v4i32(<4 x i32>) #10
 
 attributes #0 = { mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #1 = { mustprogress nofree noinline norecurse nosync nounwind willreturn memory(none) uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
@@ -224,7 +259,9 @@ attributes #4 = { mustprogress nofree norecurse nosync nounwind willreturn memor
 attributes #5 = { mustprogress nofree noinline norecurse nosync nounwind willreturn memory(readwrite, argmem: none, inaccessiblemem: none) uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #6 = { mustprogress nofree noinline norecurse nosync nounwind willreturn memory(argmem: read) uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #7 = { mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: readwrite) uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
-attributes #8 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }
+attributes #8 = { nofree norecurse nosync nounwind memory(none) uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
+attributes #9 = { nofree noinline norecurse nosync nounwind memory(none) uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
+attributes #10 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }
 
 !llvm.module.flags = !{!0, !1, !2, !3}
 !llvm.ident = !{!4}

@@ -145,6 +145,56 @@ define internal fastcc i32 @weigh(i32 noundef %0, i32 noundef %1) unnamed_addr #
   br i1 %13, label %3, label %4, !llvm.loop !12
 }
 
+; Function Attrs: nofree norecurse nosync nounwind memory(none) uwtable
+define dso_local i32 @loop_of_loops(i32 noundef %0, i32 noundef %1, i32 noundef %2) local_unnamed_addr #8 {
+  %4 = icmp sgt i32 %0, 0
+  br i1 %4, label %5, label %8
+
+5:                                                ; preds = %3
+  %6 = tail call fastcc i32 @weigh(i32 noundef %1, i32 noundef %2)
+  %7 = mul i32 %6, %0
+  br label %8
+
+8:                                                ; preds = %5, %3
+  %9 = phi i32 [ 0, %3 ], [ %7, %5 ]
+  ret i32 %9
+}
+
+; Function Attrs: nofree norecurse nosync nounwind memory(none) uwtable
+define dso_local noundef i32 @unused_spin(i32 noundef returned %0) local_unnamed_addr #8 {
+  %2 = tail call fastcc i32 @settle(i32 noundef %0)
+  ret i32 %0
+}
+
+; Function Attrs: nofree noinline norecurse nosync nounwind memory(none) uwtable
+define internal fastcc range(i32 101, -2147483648) i32 @settle(i32 noundef %0) unnamed_addr #9 {
+  br label %2
+
+2:                                                ; preds = %2, %1
+  %3 = phi i32 [ 0, %1 ], [ %4, %2 ]
+  %4 = add nsw i32 %3, %0
+  %5 = icmp sgt i32 %4, 100
+  br i1 %5, label %6, label %2, !llvm.loop !13
+
+6:                                                ; preds = %2
+  ret i32 %4
+}
+
+; Function Attrs: nofree norecurse nosync nounwind memory(none) uwtable
+define dso_local range(i32 0, -2147483648) i32 @loop_of_spins(i32 noundef %0, i32 noundef %1) local_unnamed_addr #8 {
+  %3 = icmp sgt i32 %0, 0
+  br i1 %3, label %4, label %7
+
+4:                                                ; preds = %2
+  %5 = tail call fastcc i32 @settle(i32 noundef %1)
+  %6 = mul i32 %5, %0
+  br label %7
+
+7:                                                ; preds = %4, %2
+  %8 = phi i32 [ 0, %2 ], [ %6, %4 ]
+  ret i32 %8
+}
+
 ; Function Attrs: nofree nosync nounwind memory(none) uwtable
 define dso_local noundef i32 @unused_recursion(i32 noundef returned %0) local_unnamed_addr #10 {
   %2 = tail call fastcc i32 @chain(i32 noundef %0)
@@ -169,21 +219,6 @@ define internal fastcc range(i32 0, -2147483648) i32 @chain(i32 noundef %0) unna
 9:                                                ; preds = %2
   %10 = add nuw nsw i32 %3, 0
   ret i32 %10
-}
-
-; Function Attrs: nofree norecurse nosync nounwind memory(none) uwtable
-define dso_local i32 @loop_of_loops(i32 noundef %0, i32 noundef %1, i32 noundef %2) local_unnamed_addr #8 {
-  %4 = icmp sgt i32 %0, 0
-  br i1 %4, label %5, label %8
-
-5:                                                ; preds = %3
-  %6 = tail call fastcc i32 @weigh(i32 noundef %1, i32 noundef %2)
-  %7 = mul i32 %6, %0
-  br label %8
-
-8:                                                ; preds = %5, %3
-  %9 = phi i32 [ 0, %3 ], [ %7, %5 ]
-  ret i32 %9
 }
 
 attributes #0 = { mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
@@ -215,3 +250,4 @@ attributes #11 = { nofree noinline nosync nounwind memory(none) uwtable "min-leg
 !10 = !{!"llvm.loop.mustprogress"}
 !11 = !{!"llvm.loop.unroll.disable"}
 !12 = distinct !{!12, !10, !11}
+!13 = distinct !{!13, !11}

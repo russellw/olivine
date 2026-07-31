@@ -312,40 +312,6 @@ define internal i32 @weigh(i32 noundef %0, i32 noundef %1) #0 {
 }
 
 ; Function Attrs: noinline nounwind optnone uwtable
-define dso_local i32 @unused_recursion(i32 noundef %0) #0 {
-  %2 = alloca i32, align 4
-  store i32 %0, ptr %2, align 4
-  %3 = load i32, ptr %2, align 4
-  %4 = call i32 @chain(i32 noundef %3)
-  %5 = load i32, ptr %2, align 4
-  ret i32 %5
-}
-
-; Function Attrs: noinline nounwind optnone uwtable
-define internal i32 @chain(i32 noundef %0) #0 {
-  %2 = alloca i32, align 4
-  store i32 %0, ptr %2, align 4
-  %3 = load i32, ptr %2, align 4
-  %4 = icmp sle i32 %3, 0
-  br i1 %4, label %5, label %6
-
-5:                                                ; preds = %1
-  br label %12
-
-6:                                                ; preds = %1
-  %7 = load i32, ptr %2, align 4
-  %8 = load i32, ptr %2, align 4
-  %9 = sub nsw i32 %8, 1
-  %10 = call i32 @chain(i32 noundef %9)
-  %11 = add nsw i32 %7, %10
-  br label %12
-
-12:                                               ; preds = %6, %5
-  %13 = phi i32 [ 0, %5 ], [ %11, %6 ]
-  ret i32 %13
-}
-
-; Function Attrs: noinline nounwind optnone uwtable
 define dso_local i32 @loop_of_loops(i32 noundef %0, i32 noundef %1, i32 noundef %2) #0 {
   %4 = alloca i32, align 4
   %5 = alloca i32, align 4
@@ -385,6 +351,112 @@ define dso_local i32 @loop_of_loops(i32 noundef %0, i32 noundef %1, i32 noundef 
   ret i32 %23
 }
 
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local i32 @unused_spin(i32 noundef %0) #0 {
+  %2 = alloca i32, align 4
+  store i32 %0, ptr %2, align 4
+  %3 = load i32, ptr %2, align 4
+  %4 = call i32 @settle(i32 noundef %3)
+  %5 = load i32, ptr %2, align 4
+  ret i32 %5
+}
+
+; Function Attrs: noinline nounwind optnone uwtable
+define internal i32 @settle(i32 noundef %0) #0 {
+  %2 = alloca i32, align 4
+  %3 = alloca i32, align 4
+  store i32 %0, ptr %2, align 4
+  store i32 0, ptr %3, align 4
+  br label %4
+
+4:                                                ; preds = %12, %1
+  %5 = load i32, ptr %2, align 4
+  %6 = load i32, ptr %3, align 4
+  %7 = add nsw i32 %6, %5
+  store i32 %7, ptr %3, align 4
+  %8 = load i32, ptr %3, align 4
+  %9 = icmp sgt i32 %8, 100
+  br i1 %9, label %10, label %12
+
+10:                                               ; preds = %4
+  %11 = load i32, ptr %3, align 4
+  ret i32 %11
+
+12:                                               ; preds = %4
+  br label %4
+}
+
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local i32 @loop_of_spins(i32 noundef %0, i32 noundef %1) #0 {
+  %3 = alloca i32, align 4
+  %4 = alloca i32, align 4
+  %5 = alloca i32, align 4
+  %6 = alloca i32, align 4
+  store i32 %0, ptr %3, align 4
+  store i32 %1, ptr %4, align 4
+  store i32 0, ptr %5, align 4
+  store i32 0, ptr %6, align 4
+  br label %7
+
+7:                                                ; preds = %16, %2
+  %8 = load i32, ptr %6, align 4
+  %9 = load i32, ptr %3, align 4
+  %10 = icmp slt i32 %8, %9
+  br i1 %10, label %11, label %19
+
+11:                                               ; preds = %7
+  %12 = load i32, ptr %4, align 4
+  %13 = call i32 @settle(i32 noundef %12)
+  %14 = load i32, ptr %5, align 4
+  %15 = add nsw i32 %14, %13
+  store i32 %15, ptr %5, align 4
+  br label %16
+
+16:                                               ; preds = %11
+  %17 = load i32, ptr %6, align 4
+  %18 = add nsw i32 %17, 1
+  store i32 %18, ptr %6, align 4
+  br label %7, !llvm.loop !10
+
+19:                                               ; preds = %7
+  %20 = load i32, ptr %5, align 4
+  ret i32 %20
+}
+
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local i32 @unused_recursion(i32 noundef %0) #0 {
+  %2 = alloca i32, align 4
+  store i32 %0, ptr %2, align 4
+  %3 = load i32, ptr %2, align 4
+  %4 = call i32 @chain(i32 noundef %3)
+  %5 = load i32, ptr %2, align 4
+  ret i32 %5
+}
+
+; Function Attrs: noinline nounwind optnone uwtable
+define internal i32 @chain(i32 noundef %0) #0 {
+  %2 = alloca i32, align 4
+  store i32 %0, ptr %2, align 4
+  %3 = load i32, ptr %2, align 4
+  %4 = icmp sle i32 %3, 0
+  br i1 %4, label %5, label %6
+
+5:                                                ; preds = %1
+  br label %12
+
+6:                                                ; preds = %1
+  %7 = load i32, ptr %2, align 4
+  %8 = load i32, ptr %2, align 4
+  %9 = sub nsw i32 %8, 1
+  %10 = call i32 @chain(i32 noundef %9)
+  %11 = add nsw i32 %7, %10
+  br label %12
+
+12:                                               ; preds = %6, %5
+  %13 = phi i32 [ 0, %5 ], [ %11, %6 ]
+  ret i32 %13
+}
+
 attributes #0 = { noinline nounwind optnone uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 
 !llvm.module.flags = !{!0, !1, !2, !3, !4}
@@ -400,3 +472,4 @@ attributes #0 = { noinline nounwind optnone uwtable "frame-pointer"="all" "min-l
 !7 = !{!"llvm.loop.mustprogress"}
 !8 = distinct !{!8, !7}
 !9 = distinct !{!9, !7}
+!10 = distinct !{!10, !7}

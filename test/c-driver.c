@@ -57,6 +57,7 @@ int in_loop(const int*,int,int,int); int unused_result(int,int);
 int writer_twice(int); int across_writer(const int*,int); int unused_writer(int);
 int reader_twice(const int*); int reader_across_write(int*,int);
 int unused_loop(int,int); int unused_recursion(int); int loop_of_loops(int,int,int);
+int unused_spin(int); int loop_of_spins(int,int);
 extern int written_total;
 /* linkage.c */
 int real_answer(void); int aliased_answer(void); int hidden_helper(int);
@@ -378,6 +379,11 @@ int main(void){
     printf("%d %d\n", reader_twice(cells), reader_across_write(cells,9));
     for(int n=0;n<=4;n++)
       printf("%d %d %d ", unused_loop(n,1), unused_recursion(n), loop_of_loops(n,2,3));
+    printf("\n");
+    /* The spinning one is only called where it comes back at all: it adds its
+       argument until the sum passes a hundred, so a step of nothing is a step
+       nothing takes. */
+    for(int a=1;a<=3;a++) printf("%d %d ", unused_spin(a), loop_of_spins(2,a));
     printf("\n"); }
 #endif
 #ifdef LINKAGE

@@ -49,6 +49,18 @@ rotationTests =
               , (Label 3, [])
               ]
               edges
+        , -- What a loop says about itself is written on the branch that closes
+          -- it, and this is the pass that moves that branch: afterwards the
+          -- header is the last block of the loop and its own branch is the one
+          -- that decides to go round again.  The copy made above the loop must
+          -- not have it — that copy decides whether the loop is entered at all
+          -- and is no part of it.
+          testCase "the loop's node moves to the branch that now closes it" $ do
+            f <- rotatedFunction (counted' ", !llvm.loop !0")
+            assertEqual
+              "the header's branch carries it and no other does"
+              [0, 1, 0, 0]
+              (map (length . terminatorMetadata . blockTerminator) (functionBlocks f))
         , -- The bill the copy pays: a local written in two places has to be
           -- written by an assignment in both of them, since that is the only
           -- reassignment "Olivine.Core.Ssa" can put a phi back for.
@@ -205,7 +217,11 @@ assignedTwice f =
     isCopy _ = False
 
 counted :: Text
-counted =
+counted = counted' ""
+
+-- | The same loop, with something attached to the branch that closes it.
+counted' :: Text -> Text
+counted' closing =
   T.unlines
     [ "define i32 @f(i32 %n) {"
     , "entry:"
@@ -216,10 +232,12 @@ counted =
     , "  br i1 %c, label %body, label %done"
     , "body:"
     , "  %next = add i32 %i, 1"
-    , "  br label %head"
+    , "  br label %head" <> closing
     , "done:"
     , "  ret i32 %i"
     , "}"
+    , "!0 = distinct !{!0, !1}"
+    , "!1 = !{!\"llvm.loop.mustprogress\"}"
     ]
 
 -- | The same loop, entered from a branch, so no block above it is one the copy

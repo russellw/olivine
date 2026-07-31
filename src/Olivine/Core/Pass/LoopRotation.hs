@@ -103,6 +103,7 @@ module Olivine.Core.Pass.LoopRotation
   ( rotateLoops
   ) where
 
+import Data.List (nub)
 import Data.Map.Strict (Map)
 import Data.Maybe (isNothing, mapMaybe)
 import Data.Set qualified as Set
@@ -110,6 +111,7 @@ import Data.Set qualified as Set
 import Olivine.Core.Blocks (predecessorsOf)
 import Olivine.Core.Instruction
 import Olivine.Core.Loops (Loop (..), Preheader, enterThrough, loopsOf, preheaderFor)
+import Olivine.Core.Metadata (named)
 import Olivine.Core.Program
 import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Type (Type)
@@ -167,10 +169,56 @@ rotate types f loop preheader header =
     left = f {functionBlocks = map apart (functionBlocks f)}
     apart b
       | blockLabel b == blockLabel header =
-          b {blockInstructions = namedApart types (Local next) (blockInstructions b)}
+          b
+            { blockInstructions = namedApart types (Local next) (blockInstructions b)
+            , blockTerminator = closing (blockTerminator b)
+            }
+      | Set.member (blockLabel b) (loopBody loop)
+      , loopHeader loop `elem` targetsOf (blockTerminator b) =
+          b {blockTerminator = strip (blockTerminator b)}
       | otherwise = b
 
     made = namedApart types (Local (next + written)) (blockInstructions header)
+
+    -- What a loop says about itself is written on the branch that closes it,
+    -- and this moves that branch.  Before the rotation the loop is closed by
+    -- the blocks branching to the header; after it the header is the last
+    -- block of the loop, since everything that reached it still does and the
+    -- way in now goes past it.  So @!llvm.loop@ comes off the old back edges
+    -- and goes on the header's own branch, which is where the next reader of
+    -- it will look.  LLVM's own rotation does the same, and for the same
+    -- reason: a node left on a branch that no longer closes anything is a
+    -- promise about a loop nobody can find.
+    --
+    -- The copy of the header made in front of the loop does not get it.  That
+    -- copy decides whether the loop is entered and is not part of it, and it
+    -- is built from the terminator as it was rather than from this one.
+    --
+    -- A header already carrying one is a header that closes a loop outside
+    -- this one, and an instruction may not carry two nodes of a name.  The
+    -- outer loop's is the one already where it belongs, so the inner loop's is
+    -- dropped rather than moved: a loop whose promise is lost is a loop
+    -- nothing may be concluded about, which is the safe way for this to be
+    -- wrong.
+    closing t
+      | any loopNode (terminatorMetadata t) = t
+      | otherwise = t {terminatorMetadata = terminatorMetadata t <> nub carried}
+
+    -- What the branches that close the loop now say, which is what the header
+    -- is about to say instead.  Two of them saying the same thing is one node
+    -- named twice, not two nodes.
+    carried =
+      [ a
+      | b <- functionBlocks f
+      , Set.member (blockLabel b) (loopBody loop)
+      , loopHeader loop `elem` targetsOf (blockTerminator b)
+      , a <- terminatorMetadata (blockTerminator b)
+      , loopNode a
+      ]
+
+    strip t = t {terminatorMetadata = filter (not . loopNode) (terminatorMetadata t)}
+
+    loopNode = named "llvm.loop"
 
 -- | Instructions rewritten to assign a local of their own, each followed by an
 -- assignment of it to the local it assigned before.

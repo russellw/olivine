@@ -60,9 +60,11 @@ import Data.Text (Text)
 import Data.Text qualified as T
 
 import Olivine.Core.Alias (objectsIn, reachableByCall)
+import Olivine.Core.Blocks (predecessorsOf)
 import Olivine.Core.Instruction
 import Olivine.Core.Layout (Layout, layoutOf)
-import Olivine.Core.Loops (loopsOf)
+import Olivine.Core.Loops (Loop (..), loopsOf)
+import Olivine.Core.Metadata (Metadata, attachmentSays, metadataOf)
 import Olivine.Core.Program
 import Olivine.Core.Promises
   ( Promises
@@ -153,6 +155,7 @@ effectsOf program = Effects promises (settle initial)
   where
     promises = promisesOf program
     layout = layoutOf program
+    metadata = metadataOf program
 
     -- The bodies whose contents may be believed.  A weak definition is one
     -- candidate among several and the linker picks, so what /this/ body does is
@@ -189,7 +192,7 @@ effectsOf program = Effects promises (settle initial)
     -- What each body says for itself, read once rather than once a round: the
     -- accesses it makes, the loops it holds and the calls it makes are the
     -- same in every round, and only what the callees do changes.
-    read' = Map.map (bodyOf layout promises) bodies
+    read' = Map.map (bodyOf layout promises metadata) bodies
 
     initial = Map.map (const nothing) bodies
 
@@ -257,9 +260,9 @@ closure graph
 data Body = Body
   { bodyOwn :: Behaviour
   , bodyCalls :: [Call (TypedValue Local)]
-  , -- | Whether it holds a loop, and whether a loop of it that writes nothing
-    -- has to end.  Together they say whether the body has a way of not coming
-    -- back that is not a call — see 'spinning'.
+  , -- | Whether it holds a loop, and whether every loop of it that writes
+    -- nothing has to end.  Together they say whether the body has a way of not
+    -- coming back that is not a call — see 'spinning'.
     bodyLoops :: Bool
   , bodyProgress :: Bool
   }
@@ -269,17 +272,87 @@ data Body = Body
 -- Written as a fold over everything the function holds rather than as a search
 -- for the first thing that does something, because all four questions are
 -- asked at once and an early answer to one is no answer to the others.
-bodyOf :: Maybe Layout -> Promises -> Function -> Body
-bodyOf layout promises f =
+bodyOf :: Maybe Layout -> Promises -> Metadata -> Function -> Body
+bodyOf layout promises metadata f =
   Body
     { bodyOwn =
         foldl' also nothing (map operation (operationsIn f) <> map transfer (transfersIn f))
     , bodyCalls = callsIn f
-    , bodyLoops = not (null (loopsOf f))
-    , bodyProgress =
-        FAMustProgress `elem` resolve promises (signatureAttributes (functionSignature f))
+    , bodyLoops = not (null loops)
+    , bodyProgress = stamped || all ending loops
     }
   where
+    loops = loopsOf f
+    blocks = functionBlocks f
+
+    -- What the whole function promises, which covers every loop in it at once.
+    -- That is the C++ spelling: clang writes @mustprogress@ on the function
+    -- because the language guarantees progress for every loop it has.
+    stamped = FAMustProgress `elem` resolve promises (signatureAttributes (functionSignature f))
+
+    -- What one loop promises for itself.  C guarantees progress only for a
+    -- loop whose controlling expression is not a constant, so clang has to say
+    -- it a loop at a time, and it says it by hanging
+    -- @!llvm.loop.mustprogress@ off the @!llvm.loop@ node the branch closing
+    -- the loop names.  Every edge that closes the loop has to say it: they are
+    -- the several ways round one loop, and a way round that promises nothing
+    -- is a way round that may be taken for ever.  A loop with no back edge is
+    -- not one this could be asked of, and answering 'False' for it is the
+    -- answer that costs nothing.
+    ending loop = case latches loop of
+      [] -> False
+      closing -> all (deciding loop Set.empty) closing
+
+    latches loop =
+      [ b
+      | b <- blocks
+      , Set.member (blockLabel b) (loopBody loop)
+      , loopHeader loop `elem` targetsOf (blockTerminator b)
+      ]
+
+    -- Where a loop says it for itself is the branch that decides to go round
+    -- again.  For LLVM that is the latch's own terminator and nothing else.
+    -- Here it may be one block further back: a phi becomes copies on the edges
+    -- reaching it, an edge that cannot take them gets a block of its own, and
+    -- a loop whose header carries a phi therefore ends in a block that holds
+    -- copies and goes nowhere but back.  The branch that chose to come that
+    -- way is the one that was written down, so the walk steps back through
+    -- such a block and stops at anything else.
+    deciding loop seen b
+      | not (own loop (blockLabel b)) = False
+      | progressing b = True
+      | Set.member (blockLabel b) seen = False
+      | Br _ <- terminatorTransfer (blockTerminator b)
+      , all copied (blockInstructions b)
+      , [above] <- predecessorsOf blocks (blockLabel b)
+      , [chose] <- [c | c <- blocks, blockLabel c == above] =
+          deciding loop (Set.insert (blockLabel b) seen) chose
+      | otherwise = False
+
+    -- A block this loop holds and no smaller loop does.  Every branch of a
+    -- loop inside this one is a branch of this one too, and what an inner loop
+    -- promises about itself says nothing about the loop around it — reading it
+    -- as if it did would be reading a bounded inner loop as a promise that the
+    -- outer one ends.
+    own loop label =
+      Set.member label (loopBody loop)
+        && not
+          ( any
+              (\inner -> Set.isProperSubsetOf (loopBody inner) (loopBody loop) && Set.member label (loopBody inner))
+              loops
+          )
+
+    copied i = case instructionOperation i of
+      OAssign _ -> True
+      _ -> False
+
+    progressing b =
+      attachmentSays
+        metadata
+        "llvm.loop"
+        "llvm.loop.mustprogress"
+        (terminatorMetadata (blockTerminator b))
+
     -- What the function's own pointers point into, which is what tells a write
     -- to its own frame from a write anything else can see.
     objects = objectsIn layout f
@@ -367,25 +440,23 @@ doing promises callee body =
     -- A loop is the way of not coming back that a body wears on its face.
     -- Recursion is the other, and is settled by the caller of this.
     --
-    -- __Unless the function is @mustprogress@__, which says a loop of it that
-    -- has no effect anybody can observe must end — that being what a language
-    -- guaranteeing forward progress gives the compiler, and what clang stamps
-    -- on a C++ function.  So a function that writes nothing and promises
-    -- progress comes back from its loops.  Asking whether the /loop/ writes
-    -- rather than whether the function does would be sharper and wants the
+    -- __Unless progress is promised__, which says a loop that has no effect
+    -- anybody can observe must end — that being what a language guaranteeing
+    -- forward progress gives the compiler.  So a body that writes nothing and
+    -- whose every loop is promised to end comes back from them.  Which loops
+    -- are promised is 'bodyProgress', and the promise is written in either of
+    -- two places depending on the language.  Asking whether the /loop/ writes
+    -- rather than whether the body does would be sharper still and wants the
     -- write attributed to a block; asking it of the whole body is the cautious
     -- side of the same question.  @opt -passes=function-attrs@ was asked and
     -- draws the line in the same place: it gives a @mustprogress@ counting
     -- loop @willreturn@, and gives a @mustprogress@ loop that stores for ever
     -- @noreturn@ instead.
     --
-    -- __What is not read is the per-loop form.__  C guarantees progress only
-    -- for a loop whose condition is not constant, so clang writes
-    -- @!llvm.loop.mustprogress@ on the loop's own branch rather than
-    -- @mustprogress@ on the function, and reading that means resolving a
-    -- metadata node and matching it to a back edge.  Until that is done a C
-    -- function holding a loop is a function that may not return, which costs
-    -- nothing but what the two places asking would have made of it.
+    -- A volatile access is why the write is the thing asked about and reads
+    -- are not: a loop that spins reading a volatile address makes progress
+    -- every time round, and it is 'operation' that turns such a read into a
+    -- write so that this question comes out the cautious way.
     spinning behaviour
       | not (bodyLoops body) = behaviour
       | bodyProgress body && not (writesMemory behaviour) = behaviour
