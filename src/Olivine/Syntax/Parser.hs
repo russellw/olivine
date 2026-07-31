@@ -906,11 +906,14 @@ pExtractElement = do
         , extractElementIndex = index
         }
 
+-- | @extractvalue \<ty\> \<agg\>, \<idx\>, ...@.  The indices run to the end of
+-- the instruction, so a comma is taken only when an index follows it; see
+-- 'pPhi' for what happens when it is not.
 pExtractValue :: Parser (Operation (TypedValue Name))
 pExtractValue = do
   keyword "extractvalue"
   aggregate <- pTypedValue
-  indices <- some (symbol "," *> pNatural)
+  indices <- some (try (symbol "," *> pNatural))
   pure $
     OExtractValue
       ExtractValue
@@ -918,13 +921,15 @@ pExtractValue = do
         , extractValueIndices = indices
         }
 
+-- | @insertvalue \<ty\> \<agg\>, \<ty\> \<value\>, \<idx\>, ...@, whose indices
+-- end the instruction the way 'pExtractValue' 's do.
 pInsertValue :: Parser (Operation (TypedValue Name))
 pInsertValue = do
   keyword "insertvalue"
   aggregate <- pTypedValue
   symbol ","
   value <- pTypedValue
-  indices <- some (symbol "," *> pNatural)
+  indices <- some (try (symbol "," *> pNatural))
   pure $
     OInsertValue
       InsertValue
@@ -966,12 +971,18 @@ pShuffleVector = do
         }
 
 -- | @phi [flags] \<ty\> [ \<value\>, %pred ], ...@.
+--
+-- The list runs to the end of the instruction, where a metadata attachment
+-- also begins with a comma, so a comma may only be taken once an edge is
+-- known to follow it.  Taking it first and failing at the @!@ fails the phi,
+-- and the instruction falls back to opaque, which takes the whole definition
+-- with it — every @-g@ function holding a phi, as it turned out.
 pPhi :: Parser (Operation (TypedValue Name))
 pPhi = do
   keyword "phi"
   flags <- many pInstructionFlag
   t <- pType
-  incoming <- pIncoming t `sepBy1` symbol ","
+  incoming <- (:) <$> pIncoming t <*> many (try (symbol "," *> pIncoming t))
   pure (OPhi Phi {phiFlags = flags, phiType = t, phiIncoming = incoming})
   where
     -- The predecessor is written as a plain local name, without the label

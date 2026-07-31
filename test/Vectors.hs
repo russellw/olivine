@@ -184,6 +184,27 @@ emitted =
     pair = TStruct Unpacked [TInteger 32, TInteger 32]
     nested = TStruct Unpacked [TInteger 32, pair]
 
+-- | Metadata after the last index, which ends the instruction the way a phi's
+-- last edge does: both lists are comma-separated and both are followed by
+-- attachments that are too, so the comma cannot be spent before what comes
+-- after it has been read.
+attached :: [(Text, [MetadataAttachment])]
+attached =
+  [ ( "  %r = extractvalue { i32, i32 } %s, 0, !olivine.a !0"
+    , [MetadataAttachment (Name Bare "olivine.a") 0]
+    )
+  , ( "  %r = insertvalue { i32, i32 } %s, i32 %a, 1, !olivine.a !0"
+    , [MetadataAttachment (Name Bare "olivine.a") 0]
+    )
+  , -- A path of more than one index, so that the attachment follows a comma
+    -- that an index has already followed once.
+    ( "  %r = extractvalue { i32, { i32, i32 } } %n, 1, 0, !olivine.a !0, !olivine.b !1"
+    , [ MetadataAttachment (Name Bare "olivine.a") 0
+      , MetadataAttachment (Name Bare "olivine.b") 1
+      ]
+    )
+  ]
+
 -- | Malformed, and so left opaque.
 rejected :: [Text]
 rejected =
@@ -196,6 +217,8 @@ rejected =
     -- fewest it can say it in.
     "  %r = extractvalue { i32, i32 } %s"
   , "  %r = insertvalue { i32, i32 } %s, i32 %a"
+  , -- A comma with neither an index nor an attachment after it.
+    "  %r = extractvalue { i32, i32 } %s, 0,"
   ]
 
 vectorTests :: TestTree
@@ -208,6 +231,14 @@ vectorTests =
     , testGroup
         "parsed shape"
         [testCase (name line) (parsesTo line operation) | (line, operation) <- emitted]
+    , testGroup
+        "metadata after the last index"
+        [ testCase (name line) (attachmentsOf line attachments)
+        | (line, attachments) <- attached
+        ]
+    , testGroup
+        "metadata after the last index round trips"
+        [testCase (name line) (roundTripsWithNodes line) | (line, _) <- attached]
     , testGroup
         "malformed or unmodelled stays opaque"
         [testCase (name line) (staysOpaque line) | line <- rejected]
@@ -241,10 +272,28 @@ roundTrips line = do
   parsed <- expectParse "<inline>" source
   renderModule parsed @?= source
 
+-- | The nodes an attachment names, which a module carrying attachments has to
+-- define.
+withNodes :: Text -> Text
+withNodes source = source <> T.unlines ["", "!0 = !{i32 0}", "!1 = !{i32 1}"]
+
+roundTripsWithNodes :: Text -> Assertion
+roundTripsWithNodes line = do
+  let source = withNodes (inFunction line)
+  parsed <- expectParse "<inline>" source
+  renderModule parsed @?= source
+
 parsesTo :: Text -> Operation (TypedValue Name) -> Assertion
 parsesTo line operation = do
   instructions <- instructionsIn (inFunction line)
   take 1 instructions @?= [IOperation (Just (Name Bare "r")) operation []]
+
+attachmentsOf :: Text -> [MetadataAttachment] -> Assertion
+attachmentsOf line expected = do
+  instructions <- instructionsIn (withNodes (inFunction line))
+  case instructions of
+    IOperation _ _ attachments : _ -> attachments @?= expected
+    other -> assertFailure ("expected an operation, got " <> show other)
 
 staysOpaque :: Text -> Assertion
 staysOpaque line = do

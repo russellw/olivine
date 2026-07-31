@@ -94,6 +94,33 @@ emitted =
           , phiIncoming = [(TypedValue t value, from) | (value, from) <- incoming]
           }
 
+-- | Metadata after the last edge, which is how a debug location arrives on a
+-- phi and what every @-g@ function holding one hangs on.
+--
+-- The edges and the attachments are both comma-separated and the second list
+-- follows the first, so this is the one place in the instruction where what a
+-- comma introduces cannot be told until the thing after it has been read.
+--
+-- The kinds are custom ones, as in "Terminators": two attachments can then be
+-- checked without dragging in what the verifier demands of the kinds it
+-- knows, and the two nodes differ because uniqued nodes that agree are the
+-- same node.
+attached :: [(Text, [MetadataAttachment])]
+attached =
+  [ ( "  %r = phi i32 [ %x, %b1 ], [ %y, %b2 ], !olivine.a !0"
+    , [MetadataAttachment (Name Bare "olivine.a") 0]
+    )
+  , ( "  %r = phi i32 [ %x, %b1 ], [ %y, %b2 ], !olivine.a !0, !olivine.b !1"
+    , [ MetadataAttachment (Name Bare "olivine.a") 0
+      , MetadataAttachment (Name Bare "olivine.b") 1
+      ]
+    )
+  , -- One edge, so that the attachment follows the only entry there is.
+    ( "  %r = phi i32 [ %x, %b1 ], !olivine.a !0"
+    , [MetadataAttachment (Name Bare "olivine.a") 0]
+    )
+  ]
+
 -- | Malformed, and so left opaque.
 rejected :: [Text]
 rejected =
@@ -103,6 +130,10 @@ rejected =
   , "  %r = phi [ %x, %b1 ]"
   , -- A branch target takes the label keyword; a phi predecessor does not.
     "  %r = phi i32 [ %x, label %b1 ]"
+  , -- A comma with neither an edge nor an attachment after it.  Reading the
+    -- edges stops before it, and nothing else takes it, so the line is not an
+    -- instruction rather than being an instruction with something ignored.
+    "  %r = phi i32 [ %x, %b1 ],"
   ]
 
 phiTests :: TestTree
@@ -115,6 +146,14 @@ phiTests =
     , testGroup
         "parsed shape"
         [testCase (name line) (parsesTo line operation) | (line, operation) <- emitted]
+    , testGroup
+        "metadata after the last edge"
+        [ testCase (name line) (attachmentsOf line attachments)
+        | (line, attachments) <- attached
+        ]
+    , testGroup
+        "metadata after the last edge round trips"
+        [testCase (name line) (roundTripsWithNodes line) | (line, _) <- attached]
     , testGroup
         "malformed stays opaque"
         [testCase (name line) (staysOpaque line) | line <- rejected]
@@ -154,6 +193,17 @@ roundTrips line = do
   parsed <- expectParse "<inline>" source
   renderModule parsed @?= source
 
+-- | The nodes an attachment names, which a module carrying attachments has to
+-- define.
+withNodes :: Text -> Text
+withNodes source = source <> T.unlines ["", "!0 = !{i32 0}", "!1 = !{i32 1}"]
+
+roundTripsWithNodes :: Text -> Assertion
+roundTripsWithNodes line = do
+  let source = withNodes (inFunction line)
+  parsed <- expectParse "<inline>" source
+  renderModule parsed @?= source
+
 parsesTo :: Text -> Operation (TypedValue Name) -> Assertion
 parsesTo line operation = do
   instructions <- instructionsIn (inFunction line)
@@ -161,6 +211,13 @@ parsesTo line operation = do
   where
     isPhi (IOperation _ (OPhi _) _) = True
     isPhi _ = False
+
+attachmentsOf :: Text -> [MetadataAttachment] -> Assertion
+attachmentsOf line expected = do
+  instructions <- instructionsIn (withNodes (inFunction line))
+  case [i | i@(IOperation _ (OPhi _) _) <- instructions] of
+    [IOperation _ _ attachments] -> attachments @?= expected
+    other -> assertFailure ("expected one phi, got " <> show other)
 
 staysOpaque :: Text -> Assertion
 staysOpaque line = do
