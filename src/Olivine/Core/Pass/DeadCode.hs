@@ -12,6 +12,17 @@
 -- any other once nothing reads its result.  That is exactly LLVM's own line —
 -- @opt -passes=dce@ was given the same call with each of the three promises
 -- missing in turn and keeps it every time.
+--
+-- __A lifetime marker is not a reader.__  It says where storage begins and
+-- ends, so a pair of them around a slot nothing else in the function names is
+-- a pair of them around nothing: the allocation they bracket is unread, and
+-- they are the only reason it looks otherwise.  So the marked address is not
+-- counted as a use, and a marker whose slot nothing else uses goes — which
+-- leaves the allocation unused, and the sweep after this one takes it.  What
+-- makes the case arise is the dead store pass: a slot whose every store it
+-- removes is a slot with markers and nothing between them.  @opt@ removes both
+-- as well, and promotion and splitting already drop the markers on the slots
+-- they take, for the same reason said the other way round.
 module Olivine.Core.Pass.DeadCode
   ( eliminateDeadCode
   , removableWhenUnused
@@ -52,17 +63,25 @@ sweep effects f = f {functionBlocks = map prune (functionBlocks f)}
     used = usedIn f
     prune b = b {blockInstructions = filter keep (blockInstructions b)}
     keep i = case instructionResult i of
-      Nothing -> True
+      -- A marker on storage nothing else in the function names, which is
+      -- storage with no life to say the bounds of.
+      Nothing
+        | Just slot <- lifetimeMarked (instructionOperation i) -> Set.member slot used
+        | otherwise -> True
       Just name ->
         name `Set.member` used
           || not (removableWhenUnused (behaviourOf effects) (instructionOperation i))
 
 -- | Every local the function reads.
+--
+-- A lifetime marker reads none of them: see the module header.  The address it
+-- names is passed over rather than counted, so that a slot the markers are all
+-- that is left of is a slot nothing reads.
 usedIn :: Function -> Set Local
 usedIn f =
   Set.fromList
     ( concat
-        [ localsUsedBy (instructionOperation i)
+        [ reading (instructionOperation i)
         | b <- functionBlocks f
         , i <- blockInstructions b
         ]
@@ -71,6 +90,10 @@ usedIn f =
            , n <- localsUsedBy (terminatorTransfer (blockTerminator b))
            ]
     )
+  where
+    reading operation = case lifetimeMarked operation of
+      Just _ -> []
+      Nothing -> localsUsedBy operation
 
 -- | Whether an operation can be dropped when nothing reads its result, given
 -- what the program says the calls in it do.

@@ -44,6 +44,19 @@ deadCodeTests =
           "every instruction survives"
           [Just (Local 2), Just (Local 3)]
           results
+    , -- A marker says where storage begins and ends, so a pair of them around
+      -- a slot nothing else names is a pair of them around nothing.  The dead
+      -- store pass is what leaves these behind: it takes away every store to a
+      -- slot, and what is left standing is the allocation and its brackets.
+      testCase "a slot only its lifetime markers name goes" $ do
+        results <- resultsOf marked
+        assertEqual "the allocation and both markers" [Just (Local 2)] results
+    , testCase "a slot something else names keeps its markers" $ do
+        results <- resultsOf held
+        assertEqual
+          "nothing is removed"
+          [Just (Local 1), Nothing, Nothing, Just (Local 2), Nothing]
+          results
     , testGroup
         "what may go when nothing reads it"
         [ testCase "arithmetic" $ removableWhenUnused opaque (binary OpAdd) @?= True
@@ -177,6 +190,35 @@ deadCodeTests =
         , "  store i32 %a, ptr %p, align 4"
         , "  %answer = add i32 %a, 1"
         , "  ret i32 %answer"
+        , "}"
+        ]
+    -- The shape the dead store pass leaves: an allocation, the two markers
+    -- around it, and nothing in between for them to bracket.
+    marked =
+      T.unlines
+        [ "declare void @llvm.lifetime.start.p0(i64, ptr)"
+        , "declare void @llvm.lifetime.end.p0(i64, ptr)"
+        , "define i32 @f(i32 %a) {"
+        , "entry:"
+        , "  %s = alloca i32, align 4"
+        , "  call void @llvm.lifetime.start.p0(i64 4, ptr %s)"
+        , "  call void @llvm.lifetime.end.p0(i64 4, ptr %s)"
+        , "  %answer = add i32 %a, 1"
+        , "  ret i32 %answer"
+        , "}"
+        ]
+    held =
+      T.unlines
+        [ "declare void @llvm.lifetime.start.p0(i64, ptr)"
+        , "declare void @llvm.lifetime.end.p0(i64, ptr)"
+        , "define i32 @f(i32 %a) {"
+        , "entry:"
+        , "  %s = alloca i32, align 4"
+        , "  call void @llvm.lifetime.start.p0(i64 4, ptr %s)"
+        , "  store i32 %a, ptr %s, align 4"
+        , "  %v = load i32, ptr %s, align 4"
+        , "  call void @llvm.lifetime.end.p0(i64 4, ptr %s)"
+        , "  ret i32 %v"
         , "}"
         ]
     live =
