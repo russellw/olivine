@@ -73,6 +73,7 @@ module Olivine.Core.Alias
   , objectsIn
   , objectOf
   , mayAlias
+  , mustAlias
   , reachableByCall
   ) where
 
@@ -499,6 +500,44 @@ mayAlias objects p q =
         mine <- toInteger <$> storeSize layout (accessType p)
         theirs <- toInteger <$> storeSize layout (accessType q)
         pure (here < there + theirs && there < here + mine)
+
+-- | Whether writing through one access covers exactly the bytes the other
+-- names.
+--
+-- The other side of 'mayAlias', and not its negation: that one says two
+-- accesses /can/ be the same place and this says they /are/ the same place, so
+-- both answer no wherever the walk could not follow a pointer.  What wants it
+-- is a store answered by a later store, where the later one has to write over
+-- the whole of what the earlier one wrote — writing some of it leaves the rest
+-- readable, and the earlier store has to stay for it.
+--
+-- One base and one offset make the addresses the same, whether the base is an
+-- object or a parameter this function measures from.  The extent is the other
+-- half, and where the two are accessed at the same type it is settled without
+-- a layout to measure with, which is the case a front end writes: a slot
+-- written twice is written at its own type twice.
+--
+-- __The copies are what this is really for.__  Promotion leaves a value that
+-- travelled through a slot as a local assigned from another local, and a front
+-- end reloads a pointer parameter at every use, so two stores through \"the
+-- same pointer\" arrive here naming two different locals.  'regionOf' walks
+-- both back to what they are measured from, which is the whole reason this is
+-- asked of "Olivine.Core.Alias" rather than by comparing two operands.
+mustAlias :: Objects -> Access -> Access -> Bool
+mustAlias objects p q = fromMaybe False $ do
+  here <- regionOf objects (accessPointer p)
+  there <- regionOf objects (accessPointer q)
+  at <- regionOffset here
+  also <- regionOffset there
+  pure (regionBase here == regionBase there && at == also && extending)
+  where
+    extending
+      | accessType p == accessType q = True
+      | otherwise = fromMaybe False $ do
+          layout <- measuring objects
+          mine <- storeSize layout (accessType p)
+          theirs <- storeSize layout (accessType q)
+          pure (mine == theirs)
 
 -- | Whether a pointer handed to this function can point into this storage.
 --

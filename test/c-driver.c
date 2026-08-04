@@ -59,6 +59,11 @@ int reader_twice(const int*); int reader_across_write(int*,int);
 int unused_loop(int,int); int unused_recursion(int); int loop_of_loops(int,int,int);
 int unused_spin(int); int loop_of_spins(int,int);
 extern int written_total;
+/* dse.c */
+int overwritten(int*,int); int guarded(int*,int); int one_way(int*,int,int);
+int filled(int); int refilled(int); int built(int);
+void announce(int); void each_turn(int*,int); int last_seen(int);
+extern volatile int beacon;
 /* linkage.c */
 int real_answer(void); int aliased_answer(void); int hidden_helper(int);
 int never_inlined(int); int uses_them(int);
@@ -384,6 +389,21 @@ int main(void){
        argument until the sum passes a hundred, so a step of nothing is a step
        nothing takes. */
     for(int a=1;a<=3;a++) printf("%d %d ", unused_spin(a), loop_of_spins(2,a));
+    printf("\n"); }
+#endif
+#ifdef DSE
+  /* Every one of these is read back through the storage it wrote, so a store
+     removed that should not have been shows up as a different number rather
+     than as a smaller file. */
+  { int cell = 0;
+    for(int a=0;a<=4;a++)
+      printf("%d %d %d ", overwritten(&cell,a), guarded(&cell,a), one_way(&cell,a,a&1));
+    printf("%d\n", cell);
+    for(int a=0;a<=4;a++) printf("%d %d %d ", filled(a), refilled(a), built(a));
+    printf("\n");
+    for(int a=0;a<=4;a++) { announce(a); printf("%d ", beacon); }
+    printf("\n");
+    for(int n=0;n<=4;n++) { each_turn(&cell,n); printf("%d %d ", cell, last_seen(n)); }
     printf("\n"); }
 #endif
 #ifdef LINKAGE

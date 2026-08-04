@@ -15,6 +15,7 @@ module Olivine.Pipeline
 import Olivine.Core.Lower (lower)
 import Olivine.Core.Pass.ControlFlow (simplifyControlFlow)
 import Olivine.Core.Pass.DeadCode (eliminateDeadCode)
+import Olivine.Core.Pass.DeadStores (eliminateDeadStores)
 import Olivine.Core.Pass.DeadSymbols (eliminateDeadSymbols)
 import Olivine.Core.Pass.Fold (foldOperations)
 import Olivine.Core.Pass.IfConversion (convertBranches)
@@ -165,6 +166,16 @@ passes :: [Pass]
 -- computed from, and whatever was computed only to be one of those operands is
 -- then read by nothing.
 --
+-- Dead stores after all of the above and before the dead code pass, for the
+-- same reason and one of its own.  The reason of its own is that it reads
+-- memory backwards where the redundancies pass reads it forwards, and what
+-- that pass leaves is a function with fewer loads in it: a load it answered
+-- from an earlier access is now a copy, and every load it removes is a read
+-- that no longer keeps a store above it alive.  The shared reason is that a
+-- store it takes away was the only thing reading the value stored and often
+-- the only thing reading the address, and the pass that collects those is the
+-- next one.
+--
 -- Dead symbols last, since it is the one pass that reads what the others
 -- leave: folding a @select@ between two function pointers settles which of
 -- them the program can still reach, a block that control flow removed makes
@@ -182,6 +193,7 @@ passes =
   , Pass "if conversion" convertBranches
   , Pass "redundancies" eliminateRedundancies
   , Pass "loop invariants" hoistLoopInvariants
+  , Pass "dead stores" eliminateDeadStores
   , Pass "dead code" eliminateDeadCode
   , Pass "dead symbols" eliminateDeadSymbols
   ]
