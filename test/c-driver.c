@@ -59,6 +59,11 @@ int reader_twice(const int*); int reader_across_write(int*,int);
 int unused_loop(int,int); int unused_recursion(int); int loop_of_loops(int,int,int);
 int unused_spin(int); int loop_of_spins(int,int);
 extern int written_total;
+/* unroll.c */
+int total4(const int*); int total_n(const int*,int); int every_third(const int*);
+int count_back(const int*); void fill4(int*,int); int total64(const int*);
+int wide4(const int*,int); int alternating(const int*); int until_zero(const int*);
+int grid(const int*); int first_negative(const int*);
 /* dse.c */
 int overwritten(int*,int); int guarded(int*,int); int one_way(int*,int,int);
 int filled(int); int refilled(int); int built(int);
@@ -390,6 +395,23 @@ int main(void){
        nothing takes. */
     for(int a=1;a<=3;a++) printf("%d %d ", unused_spin(a), loop_of_spins(2,a));
     printf("\n"); }
+#endif
+#ifdef UNROLL
+  /* Every one of these is read back through what it computed, so a turn
+     written out with the counter a turn behind, or a store landing on the
+     wrong slot, shows up as a different number. */
+  { static const int values[64] = {
+      3,-1,4,-1,5,-9,2,-6,5,3,-5,8,-9,7,-9,3,2,-3,8,4,6,2,-6,4,3,-3,8,3,2,7,-9,5,
+      0,2,-8,8,4,1,9,7,-1,6,9,3,-9,9,3,7,-5,1,0,5,-8,2,0,9,7,-4,9,4,4,-5,9,2 };
+    printf("%d %d %d %d\n", total4(values), every_third(values), count_back(values),
+           total64(values));
+    for(int n=0;n<=6;n++) printf("%d ", total_n(values,n)); printf("\n");
+    { int out[4]; for(int base=0;base<=3;base++) { fill4(out,base);
+        printf("%d %d %d %d ", out[0], out[1], out[2], out[3]); } printf("\n"); }
+    for(int k=0;k<=3;k++) printf("%d ", wide4(values,k)); printf("\n");
+    printf("%d %d %d\n", alternating(values), grid(values), first_negative(values));
+    { static const int stops[6] = {4,5,6,0,9,9};
+      printf("%d %d\n", until_zero(stops), first_negative(stops)); } }
 #endif
 #ifdef DSE
   /* Every one of these is read back through the storage it wrote, so a store

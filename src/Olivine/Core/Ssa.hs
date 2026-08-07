@@ -218,7 +218,7 @@ reconstruct f = rebuild
     readByRewritten b =
       concatMap
         (localsUsedBy . instructionOperation)
-        (mapMaybe (rewrite (blockLabel b)) (blockInstructions b))
+        (mapMaybe (uncurry (rewrite (blockLabel b))) (numbered (blockInstructions b)))
         <> localsUsedBy
           (terminatorTransfer (rewriteTerminator (blockLabel b) (blockTerminator b)))
 
@@ -273,7 +273,8 @@ reconstruct f = rebuild
               [ PhiNode {phiLocal = p, phiType = t, phiIncoming = incomingOf p}
               | (p, _, t) <- surviving (blockLabel b)
               ]
-          , joinedInstructions = mapMaybe (rewrite (blockLabel b)) (blockInstructions b)
+          , joinedInstructions =
+              mapMaybe (uncurry (rewrite (blockLabel b))) (numbered (blockInstructions b))
           , joinedTerminator = rewriteTerminator (blockLabel b) (blockTerminator b)
           }
       | b <- blocks
@@ -286,14 +287,16 @@ reconstruct f = rebuild
 
     -- An assignment has no LLVM spelling and needs none: its value has been
     -- carried to wherever the local is read.
-    rewrite name instruction = case instructionOperation instruction of
+    rewrite name at instruction = case instructionOperation instruction of
       OAssign _ -> Nothing
       operation ->
         Just
           instruction
             { instructionOperation =
-                onValue (resolveAt name instruction) <$> operation
+                onValue (resolveAt name at) <$> operation
             }
+
+    numbered = zip [0 ..]
 
     -- A terminator stands after everything in its block, so the values it
     -- sees are the ones on the way out.
@@ -310,12 +313,22 @@ reconstruct f = rebuild
 
     -- What a local holds where an instruction stands: the values on the way
     -- into its block, updated by everything before it.
-    resolveAt name instruction = substituteIn (before name instruction)
+    --
+    -- __Where it stands is a position, not the instruction itself.__  Two
+    -- instructions in one block can be equal — an instruction naming a result
+    -- is told apart by the local it names, but a store, a fence or a call
+    -- naming nothing is only its operands, and one block can hold two that are
+    -- written identically.  Looking for the instruction by value then finds the
+    -- first of them and reads every later one against what held there, which is
+    -- a wrong answer rather than a missing one wherever an operand was assigned
+    -- again in between.  Unrolling writes exactly that: n copies of a body in
+    -- one block, each opening by saying what the counter holds this turn.
+    resolveAt name at = substituteIn (before name at)
 
-    before name instruction =
+    before name at =
       runBlock
         (entering exits name)
-        (takeWhile (/= instruction) (blockInstructions (byLabel Map.! name)))
+        (take at (blockInstructions (byLabel Map.! name)))
 
     -- What a local holds, given what the locals hold here.
     --

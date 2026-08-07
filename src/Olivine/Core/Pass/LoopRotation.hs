@@ -220,28 +220,6 @@ rotate types f loop preheader header =
 
     loopNode = named "llvm.loop"
 
--- | Instructions rewritten to assign a local of their own, each followed by an
--- assignment of it to the local it assigned before.
---
--- The locals are issued from the one given, upwards, so two calls want two
--- ranges that do not meet.  Operands are left alone: an instruction reading
--- what one above it computed reads the name that instruction used to assign,
--- which is the name the assignment after it now writes, and the value is the
--- same one either way.
-namedApart :: Map Name Type -> Local -> [Instruction] -> [Instruction]
-namedApart types from instructions = go from instructions
-  where
-    go _ [] = []
-    go fresh@(Local n) (i : rest) = case instructionResult i of
-      Nothing -> i : go fresh rest
-      Just result ->
-        i {instructionResult = Just fresh}
-          : Instruction
-            (Just result)
-            (OAssign (TypedValue (resultType types (instructionOperation i)) (VLocal fresh)))
-            []
-          : go (Local (n + 1)) rest
-
 -- | The loops whose test is on the way in, each with where the copy of it goes
 -- and the block to copy.
 rotatable :: Function -> [(Loop, Preheader, Block)]

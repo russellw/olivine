@@ -114,6 +114,11 @@ shape operation = case operation of
 
 -- | A loop counted to a constant: the shape whose entry guard is settled by
 -- the round after the one that made it.
+--
+-- Counted to a hundred rather than to four so that unrolling declines it.  A
+-- loop written out turn by turn has no guard left to settle and no latch test
+-- to keep, which would make this pass for having removed the whole loop rather
+-- than for the round that folds two constants.
 bounded :: Text
 bounded =
   T.unlines
@@ -123,7 +128,7 @@ bounded =
     , "head:"
     , "  %i = phi i32 [ 0, %entry ], [ %next, %body ]"
     , "  %s = phi i32 [ 0, %entry ], [ %sum, %body ]"
-    , "  %c = icmp slt i32 %i, 4"
+    , "  %c = icmp slt i32 %i, 100"
     , "  br i1 %c, label %body, label %done"
     , "body:"
     , "  %a = getelementptr inbounds i32, ptr %p, i32 %i"

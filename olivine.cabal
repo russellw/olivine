@@ -45,6 +45,7 @@ library
                       Olivine.Core.Ssa
                       Olivine.Core.Blocks
                       Olivine.Core.Layout
+                      Olivine.Core.Induction
                       Olivine.Core.Loops
                       Olivine.Core.Metadata
                       Olivine.Core.Promises
@@ -58,6 +59,7 @@ library
                       Olivine.Core.Pass.Inline
                       Olivine.Core.Pass.LoopInvariants
                       Olivine.Core.Pass.LoopRotation
+                      Olivine.Core.Pass.Unroll
                       Olivine.Core.Pass.Promote
                       Olivine.Core.Pass.Split
                       Olivine.Core.Pass.TailRecursion
@@ -123,6 +125,7 @@ test-suite olivine-test
                       Rotation
                       TailRecursion
                       Pipeline
+                      Unrolling
                       Verify
     build-depends:    base,
                       containers,

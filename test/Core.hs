@@ -19,7 +19,9 @@ import Olivine.Core.Program
 import Olivine.Core.Raise (raise)
 import Olivine.Syntax.Ast qualified as Syntax
 import Olivine.Syntax.Function qualified as Syntax
+import Olivine.Syntax.Instruction (Store (..))
 import Olivine.Syntax.Printer (renderModule)
+import Olivine.Syntax.Type (Type (..))
 import Olivine.Syntax.Value
 import Olivine.Syntax.Verify (renderProblem, verify)
 
@@ -345,6 +347,16 @@ reconstructionTests =
         assertBool
           ("expected poison in " <> T.unpack text)
           ("ret i32 poison" `T.isInfixOf` text)
+    , -- Where an instruction stands is a position and not the instruction
+      -- itself.  Two in one block can be written identically — one naming a
+      -- result is told apart by the local it names, but a store names none —
+      -- and the local they read can be assigned again in between, which is what
+      -- makes the second one mean something the first did not.
+      testCase "two instructions in one block that are written identically" $ do
+        text <- raisedFrom (twiceStored 1 2)
+        assertBool
+          ("expected both values stored in " <> T.unpack text)
+          ("store i32 1" `T.isInfixOf` text && "store i32 2" `T.isInfixOf` text)
     , -- The order a phi's operands come back in has to be the same order the
       -- second time, and what makes that a question is the block being removed
       -- here.  On the way in the copy goes in the source's own forwarding block;
@@ -455,6 +467,63 @@ wellFormed source = do
 
 raised :: Text -> IO Text
 raised source = renderModule . raise . lower <$> expectParse "<inline>" source
+
+raisedFrom :: (Function -> Function) -> IO Text
+raisedFrom rewrite = do
+  parsed <- expectParse "<inline>" storing
+  let program = lower parsed
+  pure (renderModule (raise program {programEntries = map entry (programEntries program)}))
+  where
+    entry (EFunction f) = EFunction (rewrite f)
+    entry other = other
+
+-- | A function whose one block is replaced by two stores of the same local,
+-- with the local assigned in between.  The two stores are equal as values.
+twiceStored :: Integer -> Integer -> Function -> Function
+twiceStored first second f =
+  f
+    { functionBlocks =
+        [ b
+          { blockInstructions =
+              [ assigned first
+              , store
+              , assigned second
+              , store
+              ]
+          }
+        | b <- functionBlocks f
+        ]
+    }
+  where
+    held = Local 9
+    pointer = case functionParameters f of
+      p : _ -> p
+      [] -> Local 0
+    assigned n =
+      Instruction (Just held) (OAssign (TypedValue (TInteger 32) (VInteger n))) []
+    store =
+      Instruction
+        Nothing
+        ( OStore
+            Store
+              { storeVolatile = False
+              , storeValue = TypedValue (TInteger 32) (VLocal held)
+              , storePointer = TypedValue (TPointer Nothing) (VLocal pointer)
+              , storeAlignment = Nothing
+              }
+        )
+        []
+
+-- | One block, one store, one parameter to store through.
+storing :: Text
+storing =
+  T.unlines
+    [ "define void @f(ptr %p) {"
+    , "entry:"
+    , "  store i32 0, ptr %p"
+    , "  ret void"
+    , "}"
+    ]
 
 -- | That the trip through the core is one, on a definition written here rather
 -- than one of the corpus.  'stable' asks the same of every file in it.

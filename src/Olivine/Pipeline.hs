@@ -26,6 +26,7 @@ import Olivine.Core.Pass.Promote (promoteMemory)
 import Olivine.Core.Pass.Redundancies (eliminateRedundancies)
 import Olivine.Core.Pass.Split (splitAggregates)
 import Olivine.Core.Pass.TailRecursion (eliminateTailRecursion)
+import Olivine.Core.Pass.Unroll (unrollLoops)
 import Olivine.Core.Program (Program)
 import Olivine.Core.Raise (raise)
 import Olivine.Syntax.Ast (Module)
@@ -107,6 +108,18 @@ passes :: [Pass]
 -- this order rather than the other is that a slot whose address escapes only in
 -- a block nothing reaches is not promoted, since promotion runs before the
 -- block goes.
+--
+-- Unrolling after control flow, because the loop it writes out has to be one
+-- block by then: rotation puts the test at the bottom and merging makes the
+-- body and the test one block, and a loop still in two is one this declines.
+-- It comes before everything below rather than after, because what it leaves is
+-- a block holding every turn of the loop and the whole point is that the passes
+-- reading a block at a time now see them together — two turns loading one
+-- address are one load to the redundancies, and the copies it opens each turn
+-- with are what folding reads the turn's arithmetic through.  Folding stands
+-- above it and so settles those on the round after; the budget is therefore
+-- counted on the loop as written, which is the only size known when the
+-- decision is made.
 --
 -- If-conversion after control flow, because the diamond it looks for has to be
 -- the real one: at @-O0@ one of the two sides of an @else if@ arrives as a block
@@ -190,6 +203,7 @@ passes =
   , Pass "tail recursion" eliminateTailRecursion
   , Pass "loop rotation" rotateLoops
   , Pass "control flow" simplifyControlFlow
+  , Pass "unrolling" unrollLoops
   , Pass "if conversion" convertBranches
   , Pass "redundancies" eliminateRedundancies
   , Pass "loop invariants" hoistLoopInvariants

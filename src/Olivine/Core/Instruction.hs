@@ -51,6 +51,7 @@ module Olivine.Core.Instruction
   , globalsUsedBy
   , lifetimeMarked
   , resultType
+  , namedApart
   , speculatable
   ) where
 
@@ -492,6 +493,40 @@ resultType types operation = case operation of
            ) of
         (TVector _ _ element, TVector scale n _) -> TVector scale n element
         _ -> typedValueType (shuffleVectorLeft s)
+
+-- | Instructions rewritten to assign a local of their own, each followed by an
+-- assignment of it to the local it assigned before.
+--
+-- This is what copying a run of instructions costs, and it is a rule about the
+-- core rather than about either pass that copies one: a local may be written
+-- twice only by assignments, since an assignment is the only reassignment
+-- "Olivine.Core.Ssa" has a phi to put back for.  So the copy computes into
+-- names of its own and says, afterwards, that the old names hold what it
+-- computed.
+--
+-- The locals are issued from the one given, upwards, so two calls want two
+-- ranges that do not meet.  Operands are left alone: an instruction reading
+-- what one above it computed reads the name that instruction used to assign,
+-- which is the name the assignment after it now writes, and the value is the
+-- same one either way.  That is also what makes a copy of a copy work — every
+-- run written out this way ends with the old names holding what this run left
+-- in them, which is where the next run reads from.
+--
+-- The assignments cost nothing in the output: reconstruction takes every one
+-- of them away again.
+namedApart :: Map Name Type -> Local -> [Instruction] -> [Instruction]
+namedApart types from instructions = go from instructions
+  where
+    go _ [] = []
+    go fresh@(Local n) (i : rest) = case instructionResult i of
+      Nothing -> i : go fresh rest
+      Just result ->
+        i {instructionResult = Just fresh}
+          : Instruction
+            (Just result)
+            (OAssign (TypedValue (resultType types (instructionOperation i)) (VLocal fresh)))
+            []
+          : go (Local (n + 1)) rest
 
 -- | Whether an operation may be run where the program would not have run it.
 --
