@@ -26,6 +26,7 @@ import Memory (memoryTests)
 import Metadata (metadataTests)
 import Offsets (offsetTests)
 import Phis (phiTests)
+import Pipeline (pipelineTests)
 import Promotion (promotionTests)
 import Redundancies (redundancyTests)
 import Rotation (rotationTests)
@@ -46,4 +47,4 @@ main = do
   defaultMain $
     testGroup
       "olivine"
-      ([typeTests, globalTests, comdatTests, indirectTests, declareTests, attributeTests, metadataTests, debugTests, terminatorTests, memoryTests, arithmeticTests, callTests, phiTests, vectorTests, deadCodeTests, deadStoreTests, deadSymbolTests, effectTests, foldingTests, controlFlowTests, promotionTests, splitTests, inliningTests, redundancyTests, rotationTests, tailRecursionTests, ifConversionTests, invariantTests, offsetTests, layoutTests, headerSyntaxTests] <> discovered)
+      ([typeTests, globalTests, comdatTests, indirectTests, declareTests, attributeTests, metadataTests, debugTests, terminatorTests, memoryTests, arithmeticTests, callTests, phiTests, vectorTests, deadCodeTests, deadStoreTests, deadSymbolTests, effectTests, foldingTests, controlFlowTests, promotionTests, splitTests, inliningTests, redundancyTests, rotationTests, tailRecursionTests, ifConversionTests, invariantTests, pipelineTests, offsetTests, layoutTests, headerSyntaxTests] <> discovered)

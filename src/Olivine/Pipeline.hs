@@ -7,9 +7,9 @@
 module Olivine.Pipeline
   ( Pass (..)
   , passes
+  , rounds
   , optimize
   , stages
-  , fixpoint
   ) where
 
 import Olivine.Core.Lower (lower)
@@ -198,6 +198,28 @@ passes =
   , Pass "dead symbols" eliminateDeadSymbols
   ]
 
+-- | How many times the pipeline may be run over one program.
+--
+-- The order above settles what each pass gets to see the first time through,
+-- and three of the notes in it end the same way: what a pass could not do
+-- because another had not run yet is a reason to run the pipeline again.  This
+-- is that.  A slot whose address only stops escaping once inlining has copied
+-- the callee away is promotable on the second round and not the first; the
+-- guard rotation leaves in a preheader is two constants that folding settles
+-- when it is next asked, folding standing above rotation; and hoisting a test
+-- out of the loop around it needs the rotation the round before to have made
+-- the shape.
+--
+-- It stops when a round changes nothing, which over the corpus is always the
+-- second — so the usual cost is one extra round that does nothing but find
+-- that out, and there is no cheaper way to know.  The bound is what keeps a
+-- compiler a function that returns: passes are pure and a fixed point is
+-- therefore well defined, but nothing here proves two of them cannot undo each
+-- other for ever, and a program that hits the bound is left correct and
+-- merely less optimized rather than left running.
+rounds :: Int
+rounds = 4
+
 -- | Read a module, lower it to the core representation, run the passes, and
 -- put it back.
 --
@@ -220,11 +242,23 @@ optimize = raise . snd . last . stages
 -- it takes out lives in the syntax layer, where a metadata node is an entry
 -- and an attachment is a field, and the core carries both through untouched.
 -- See "Olivine.Syntax.Debug" for what goes and what stays.
+--
+-- Every round is here, not just the last, and a round says which it is from
+-- the second one on: a pass that breaks a program is to be named, and "after
+-- folding" names two different points once the pipeline has run twice.
 stages :: Module -> [(String, Program)]
-stages m = scanl step ("as read", lower (stripDebugInfo m)) passes
+stages m = ("as read", start) : fromRound 1 start
   where
-    step (_, program) pass = ("after " <> passName pass, runPass pass program)
-
--- | Apply a transformation until it stops changing the program.
-fixpoint :: Eq a => (a -> a) -> a -> a
-fixpoint f x = let x' = f x in if x' == x then x else fixpoint f x'
+    start = lower (stripDebugInfo m)
+    fromRound n program
+      | n > rounds = []
+      | left == program = thisRound
+      | otherwise = thisRound <> fromRound (n + 1) left
+      where
+        walk = scanl step ("", program) passes
+        thisRound = drop 1 walk
+        left = snd (last walk)
+        step (_, p) pass = (label n (passName pass), runPass pass p)
+    label n name
+      | n == 1 = "after " <> name
+      | otherwise = "after " <> name <> " (round " <> show n <> ")"
