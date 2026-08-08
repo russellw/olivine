@@ -5,6 +5,7 @@
 -- poison is the other, and the harder one to notice.
 module Folding (foldingTests) where
 
+import Data.Text qualified as Text
 import Test.Tasty
 import Test.Tasty.HUnit
 
@@ -333,6 +334,45 @@ foldingTests =
         , testCase "nothing known about either operand" $
             copies (OBinary (over OpSub "s" "t")) @?= Nothing
         ]
+    , testGroup
+        "an aggregate taken apart and put back together"
+        [ -- What a landing pad costs: the pair is unpacked to test the
+          -- selector and packed again to be resumed with.
+          testCase "every field written from the aggregate it came from" $
+            aggregate (rebuilt [(0, "a"), (1, "b")] VPoison) @?= Just (OAssign pair)
+        , testCase "built on undef rather than poison" $
+            aggregate (rebuilt [(0, "a"), (1, "b")] VUndef) @?= Just (OAssign pair)
+        , -- Writing field 0 says nothing about field 1, so the aggregate
+          -- assembled is not the one the field came from.
+          testCase "a field left unwritten" $
+            aggregate (rebuilt [(0, "a")] VPoison) @?= Nothing
+        , -- The fields are one another's, so the pair is the pair reversed.
+          testCase "the fields put back in the wrong places" $
+            aggregate (rebuilt [(0, "b"), (1, "a")] VPoison) @?= Nothing
+        , testCase "fields taken from two aggregates" $
+            aggregate (rebuilt [(0, "a"), (1, "d")] VPoison) @?= Nothing
+        , -- Whatever the base held stands wherever the chain did not write,
+          -- and a chain covering every field never asks what that was.
+          testCase "built on an aggregate rather than on nothing" $
+            aggregate (rebuilt [(0, "a"), (1, "b")] (VLocal (Name Bare "p"))) @?= Nothing
+        ]
+    , testGroup
+        "a field read out of an aggregate it was written into"
+        [ testCase "read where it was written" $
+            aggregate (readingAt [1] (writtenAt [1])) @?= Just (OAssign (int 7))
+        , -- The write went somewhere else entirely, so the read goes past it
+          -- to the aggregate that was written into.
+          testCase "read somewhere the write did not reach" $
+            aggregate (readingAt [0] (writtenAt [1]))
+              @?= Just (OExtractValue (ExtractValue pair [0]))
+        , -- The read wants part of what was written, and what part of a
+          -- written field holds is not settled by knowing the field.
+          testCase "read inside what was written" $
+            aggregate (readingAt [1, 0] (writtenAt [1])) @?= Nothing
+        , -- And the other way about: the write settled part of what is read.
+          testCase "written inside what is read" $
+            aggregate (readingAt [1] (writtenAt [1, 0])) @?= Nothing
+        ]
     ]
   where
     int n = TypedValue (TInteger 32) (VInteger n)
@@ -351,6 +391,58 @@ foldingTests =
               , compareRight = local "x"
               }
         )
+    -- The pair a landing pad leaves, and a second one to take a field from.
+    pairType = TStruct Unpacked [TPointer Nothing, TInteger 32]
+    pair = TypedValue pairType (VLocal (Name Bare "p"))
+    other = TypedValue pairType (VLocal (Name Bare "o"))
+
+    -- @%a@ and @%b@ are the fields of @%p@ read out of it, and @%d@ is the
+    -- second field of the other pair.
+    taken =
+      [ (Name Bare "a", OExtractValue (ExtractValue pair [0]))
+      , (Name Bare "b", OExtractValue (ExtractValue pair [1]))
+      , (Name Bare "d", OExtractValue (ExtractValue other [1]))
+      ]
+    fieldValue name = TypedValue (typeOf name) (VLocal (Name Bare name))
+      where
+        typeOf "a" = TPointer Nothing
+        typeOf _ = TInteger 32
+
+    -- The operation asked about, against what the chain leading to it left in
+    -- each of the locals it reads.
+    aggregate (links, operation) = foldThrough (`lookup` (taken <> links)) operation
+
+    -- A chain of inserts writing the named fields into @base@, each link left
+    -- in a local of its own so that the walk has to follow them, and the
+    -- outermost one the operation to ask about.
+    rebuilt fields base = (zip names (init operations), last operations)
+      where
+        names = [Name Bare ("i" <> Text.pack (show (k :: Int))) | k <- [0 .. length fields - 1]]
+        operations =
+          [ OInsertValue
+              InsertValue
+                { insertValueAggregate = written k
+                , insertValueValue = fieldValue name
+                , insertValueIndices = [index]
+                }
+          | (k, (index, name)) <- zip [0 ..] fields
+          ]
+        written 0 = TypedValue pairType base
+        written k = TypedValue pairType (VLocal (names !! (k - 1)))
+
+    -- A write of @7@ into the pair at a path, left in @%i@.
+    writtenAt path =
+      OInsertValue
+        InsertValue
+          { insertValueAggregate = pair
+          , insertValueValue = int 7
+          , insertValueIndices = path
+          }
+    readingAt path written =
+      ( [(Name Bare "i", written)]
+      , OExtractValue (ExtractValue (TypedValue pairType (VLocal (Name Bare "i"))) path)
+      )
+
     -- An operation over two locals, asked where @%p@ and @%q@ are copies of
     -- @%b@ and @%r@ is a copy of something else.  @%s@ and @%t@ are locals
     -- nothing is known about.

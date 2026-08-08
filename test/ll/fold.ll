@@ -181,3 +181,61 @@ loop:
 out:
   ret i32 %t
 }
+
+; A pair taken apart in one block and put back together in the block below,
+; which is the pair it came from.  That is what a landing pad costs — the pair
+; is unpacked to test the selector and packed again to resume with — and the
+; two blocks are the point: what a block left standing is what stands here,
+; there being one way in.  Returns n + m.
+define i64 @repacked(i64 %n, i32 %m) {
+entry:
+  %p0 = insertvalue { i64, i32 } poison, i64 %n, 0
+  %p = insertvalue { i64, i32 } %p0, i32 %m, 1
+  %a = extractvalue { i64, i32 } %p, 0
+  %b = extractvalue { i64, i32 } %p, 1
+  br label %again
+
+again:
+  %q0 = insertvalue { i64, i32 } poison, i64 %a, 0
+  %q = insertvalue { i64, i32 } %q0, i32 %b, 1
+  %x = extractvalue { i64, i32 } %q, 0
+  %y = extractvalue { i64, i32 } %q, 1
+  %w = sext i32 %y to i64
+  %s = add i64 %x, %w
+  ret i64 %s
+}
+
+; The same fields put back the other way about, which is not the pair they
+; came from.  Called with 3 and 4, so 4003 — and 3004 is what folding this to
+; the original pair would print.
+define i32 @reordered(i32 %n, i32 %m) {
+entry:
+  %p0 = insertvalue { i32, i32 } poison, i32 %n, 0
+  %p = insertvalue { i32, i32 } %p0, i32 %m, 1
+  %a = extractvalue { i32, i32 } %p, 0
+  %b = extractvalue { i32, i32 } %p, 1
+  br label %again
+
+again:
+  %q0 = insertvalue { i32, i32 } poison, i32 %b, 0
+  %q = insertvalue { i32, i32 } %q0, i32 %a, 1
+  %x = extractvalue { i32, i32 } %q, 0
+  %y = extractvalue { i32, i32 } %q, 1
+  %s = mul i32 %x, 1000
+  %t = add i32 %s, %y
+  ret i32 %t
+}
+
+; A field read where a write did not reach, which reads past the write to the
+; aggregate it wrote into; and one read where the write did reach, which is
+; what was written.  Called with 3 and 4, so 3 and 999, printed as 3999.
+define i32 @past_the_write(i32 %n, i32 %m) {
+  %p0 = insertvalue { i32, i32 } poison, i32 %n, 0
+  %p = insertvalue { i32, i32 } %p0, i32 %m, 1
+  %q = insertvalue { i32, i32 } %p, i32 999, 1
+  %a = extractvalue { i32, i32 } %q, 0
+  %b = extractvalue { i32, i32 } %q, 1
+  %s = mul i32 %a, 1000
+  %t = add i32 %s, %b
+  ret i32 %t
+}

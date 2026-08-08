@@ -7,7 +7,8 @@
 -- an operand or a constant that has nothing to do with what the operand holds.
 -- Or what produced an operand may be known, and then a conversion of a
 -- conversion is one conversion or none at all, a conversion cut back and
--- masked is the mask by itself, and two operands that are copies of one local
+-- masked is the mask by itself, an aggregate taken apart and put back together
+-- is the aggregate it came from, and two operands that are copies of one local
 -- are the same value however differently they are spelled.
 --
 -- A folded instruction becomes an assignment of the value it computes.  The
@@ -39,14 +40,20 @@
 -- longer has.  Both go wrong across a back edge, where an instruction can read
 -- what the previous time round the loop left.
 --
--- So this looks through a definition only within the block that made it, where
--- the instructions run in the order they are written and one execution of the
--- block is one run of each.  A definition is dropped as soon as the local it
--- names or any local it reads is assigned again.  That is the whole of what a
--- front end's cast chains need, which arrive as adjacent instructions; a chain
--- spread across blocks is left alone, and the availability walk that would
--- reach it is "Olivine.Core.Pass.Redundancies"'s, which answers a different
--- question and answers it later.
+-- So this looks through a definition only where the instructions run in the
+-- order they are written and one execution is one run of each.  Within a block
+-- that holds, and a definition is dropped as soon as the local it names or any
+-- local it reads is assigned again.  It holds across one boundary as well: a
+-- block with exactly one way into it can only have been arrived at through that
+-- block's terminator, so what the block above was left holding is what stands
+-- here.  See 'sweep'.  Beyond that — two ways in, which would need the two to
+-- agree — the walk is "Olivine.Core.Pass.Redundancies"'s availability analysis,
+-- which answers a different question and answers it later.
+--
+-- The one boundary is not a refinement for its own sake.  A front end's cast
+-- chains arrive as adjacent instructions and want nothing more than the block,
+-- but an aggregate is taken apart where it is tested and put back together
+-- where it is used, which for a landing pad is the block below.
 --
 -- That same walk is what lets a constant reach an operand at all in the
 -- commonest case there is.  'knownValues' says what a local holds throughout
@@ -74,11 +81,12 @@ module Olivine.Core.Pass.Fold
 import Control.Applicative ((<|>))
 import Control.Monad (guard)
 import Data.Bits (complement, shiftL, shiftR, (.&.), (.|.))
-import Data.List (mapAccumL)
+import Data.List (isPrefixOf, mapAccumL)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe)
 
+import Olivine.Core.Blocks (predecessorsOf, reversePostorder)
 import Olivine.Core.Instruction
 import Olivine.Core.Program
 import Olivine.Syntax.Instruction
@@ -86,6 +94,8 @@ import Olivine.Syntax.Instruction
   , BinaryOp (..)
   , Compare (..)
   , Convert (..)
+  , ExtractValue (..)
+  , InsertValue (..)
   , InstructionFlag (..)
   , IntPredicate (..)
   , Select (..)
@@ -113,13 +123,18 @@ sweep :: Function -> Function
 sweep f = f {functionBlocks = map rewrite (functionBlocks f)}
   where
     known = knownValues f
+    blocks = functionBlocks f
+    byLabel = Map.fromList [(blockLabel b, b) | b <- blocks]
 
     -- The definitions in hand are the folded ones and are carried along the
     -- block, so a chain settles as far as the block runs in one sweep rather
     -- than one link per sweep.  The terminator is read against what the last
     -- instruction left, which is where it stands.
     rewrite b =
-      let (leaving, instructions) = mapAccumL instruction Map.empty (blockInstructions b)
+      let (leaving, instructions) =
+            fromMaybe
+              (mapAccumL instruction Map.empty (blockInstructions b))
+              (Map.lookup (blockLabel b) walked)
        in b
             { blockInstructions = instructions
             , blockTerminator =
@@ -128,6 +143,67 @@ sweep f = f {functionBlocks = map rewrite (functionBlocks f)}
                       fmap (resolve leaving) (terminatorTransfer (blockTerminator b))
                   }
             }
+
+    -- Every block a walk arrives at, walked once: what it was left holding and
+    -- what it turned into.
+    --
+    -- __The order is what makes it one walk rather than a chain of them.__  A
+    -- block reads what the block above it was left holding, and in reverse
+    -- postorder the block above has already been walked — the one edge into it
+    -- cannot be a back edge, since a back edge is one whose target was reached
+    -- before its source and the only way to reach this block is along it.  A
+    -- block nothing reaches is not here at all, and 'rewrite' walks one of those
+    -- from nothing.
+    walked = foldl step Map.empty (reversePostorder f)
+      where
+        step done label = case Map.lookup label byLabel of
+          Nothing -> done
+          Just b ->
+            Map.insert
+              label
+              (mapAccumL instruction (entering done label) (blockInstructions b))
+              done
+
+    -- What is in hand where a block begins: nothing, unless there is exactly
+    -- one way into it, and then whatever the block above was left holding.
+    --
+    -- __One predecessor is the whole of the argument.__  Control reaching here
+    -- can only have come through that block's terminator, so every instruction
+    -- in it has just run, in order, and nothing has run since.  That is the same
+    -- sentence that licenses the walk within a block, said of a pair of them,
+    -- and it needs no dominance and no question about back edges: a loop around
+    -- this block comes back through the one predecessor like everything else.
+    -- Two ways in would need the two to agree, which is the availability walk in
+    -- "Olivine.Core.Pass.Redundancies" and not this.
+    --
+    -- The terminator's own result is dropped, an @invoke@ and a @callbr@ being
+    -- calls that assign where a branch stands: what the block left in that local
+    -- is not what stands in it here.  Nothing else the terminator does can
+    -- unsettle a definition, every rule reading this map being about a value
+    -- worked out from operands rather than from memory.
+    --
+    -- __What is carried over is the definitions and not the constants.__  An
+    -- assignment of a constant is dropped at the boundary, so this widens what
+    -- 'foldThrough' can look through and leaves 'resolve' reading the block it
+    -- stands in.  Carrying the constants too would be whole-function constant
+    -- propagation, which is worth two instructions over the corpus and costs
+    -- more than that: folding the address arithmetic in a loop's preheader
+    -- shortens it, and a preheader that no longer ends the way the loop's own
+    -- arms do is one "Olivine.Core.Pass.Sink" can take a shorter run from.  A
+    -- constant that holds throughout is 'knownValues', which 'resolve' already
+    -- asks, and where that cannot answer it is because promotion assigned the
+    -- local twice — in which case what a block above settled is not what holds
+    -- here anyway.
+    entering done label
+      | [above] <- predecessorsOf blocks label
+      , Just (leaving, _) <- Map.lookup above done
+      , Just previous <- Map.lookup above byLabel =
+          Map.filter (not . isConstantAssignment)
+            (forgetting (resultOf (blockTerminator previous)) leaving)
+      | otherwise = Map.empty
+
+    isConstantAssignment (OAssign value) = isConstant (typedValue value)
+    isConstantAssignment _ = False
 
     instruction inHand i =
       ( recording (instructionResult i) folded inHand
@@ -173,10 +249,16 @@ sweep f = f {functionBlocks = map rewrite (functionBlocks f)}
       | result `elem` localsUsedBy operation = remaining
       | otherwise = Map.insert result operation remaining
       where
-        remaining =
-          Map.filterWithKey
-            (\name op -> name /= result && result `notElem` localsUsedBy op)
-            inHand
+        remaining = forgetting (Just result) inHand
+
+    -- What survives an assignment to a local, whatever made it: the definition
+    -- held in that local described something else, and every definition reading
+    -- it means something else now.
+    forgetting Nothing inHand = inHand
+    forgetting (Just result) inHand =
+      Map.filterWithKey
+        (\name op -> name /= result && result `notElem` localsUsedBy op)
+        inHand
 
 -- | The locals whose value is known throughout the function.
 --
@@ -392,6 +474,7 @@ foldThrough ::
 foldThrough produced operation =
   throughConversion produced operation
     <|> throughMask produced operation
+    <|> throughAggregate produced operation
     <|> throughCopies produced operation
 
 -- | An operation on two operands that are copies of one local, which the rules
@@ -503,6 +586,112 @@ throughConversion produced operation = do
                   }
             )
     _ -> Nothing
+
+-- | An aggregate value taken apart and put back together, which is the
+-- aggregate it was taken from; and a field read out of an aggregate the field
+-- was just written into, which is the value written.
+--
+-- The two rules are one another's inverse, and both arise the same way: an
+-- aggregate small enough to travel in registers is passed about a field at a
+-- time, so any pass that takes one apart hands the next one a chain to put back
+-- together.  A landing pad is the case a front end writes without being asked —
+-- the pad's pair is unpacked to test the selector and repacked to @resume@ —
+-- and taking a struct out of a slot will be the other, since a whole-aggregate
+-- load becomes a load per field and a chain that assembles them.
+--
+-- __The chain must cover every field and come from one aggregate.__  Rebuilding
+-- from field 0 alone says nothing about field 1, so what is required is that
+-- each of the fields is written exactly once, that each is @extractvalue@ of one
+-- and the same value at that same field, and that the chain starts from
+-- @poison@ or @undef@ — a chain built on something else keeps whatever that held
+-- wherever it was not written, and a chain covering every field never reads it.
+--
+-- __Top level indices only.__  A path that goes further in writes part of a
+-- field, and part of a field is not a field: knowing where @a.b.c@ came from
+-- says nothing about the rest of @a.b@.  Nothing writes an aggregate that way
+-- in any case, a front end assembling one field at a time.
+--
+-- __A named aggregate type is declined__, because the count of its fields is in
+-- the module's type table and this pass reads nothing but the function.  LLVM
+-- writes a literal type wherever an aggregate travels as a value — the corpus
+-- has 108 of these instructions and not one names a type — so what that costs
+-- is nothing, and the alternative is threading the table through folding for
+-- one rule.
+throughAggregate ::
+  Eq local =>
+  Producer local ->
+  Operation (TypedValue local) ->
+  Maybe (Operation (TypedValue local))
+throughAggregate produced operation =
+  readingBack operation <|> puttingBack operation
+  where
+    -- A field read out of an aggregate an insert had just written.  Where the
+    -- paths are the same the answer is the value that was written; where
+    -- neither path is a prefix of the other the insert wrote somewhere else
+    -- entirely and the read goes past it, to the aggregate it wrote into.  A
+    -- path that is a prefix of the other reads part of what was written, or
+    -- writes part of what is read, and neither of those is settled here.
+    readingBack o = do
+      OExtractValue reading <- Just o
+      VLocal name <- Just (typedValue (extractValueAggregate reading))
+      OInsertValue written <- producing produced name
+      let there = insertValueIndices written
+          here = extractValueIndices reading
+      if there == here
+        then Just (OAssign (insertValueValue written))
+        else do
+          guard (not (there `isPrefixOf` here || here `isPrefixOf` there))
+          Just (OExtractValue reading {extractValueAggregate = insertValueAggregate written})
+
+    -- An aggregate assembled out of the fields of another one.
+    puttingBack o = do
+      OInsertValue outermost <- Just o
+      let aggregate = typedValueType (insertValueAggregate outermost)
+      fields <- fieldsIn aggregate
+      guard (fields > 0)
+      (base, written) <- chain Map.empty (OInsertValue outermost)
+      guard (Map.keys written == [0 .. fromIntegral fields - 1])
+      taken <- traverse fieldTaken (Map.toList written)
+      -- One aggregate, and the same one the chain is building: a pair of
+      -- doubles assembled out of another pair is that pair, and out of the
+      -- first two fields of something wider it is not.
+      (source : rest) <- Just taken
+      guard (all (== source) rest)
+      guard (typedValueType source == aggregate)
+      guard (base == VUndef || base == VPoison)
+      Just (OAssign source)
+      where
+        -- Each field of the chain must be read from its own place in the
+        -- aggregate it is read from, or the chain is a permutation of one and
+        -- not a copy.
+        fieldTaken (index, value) = do
+          VLocal name <- Just (typedValue value)
+          OExtractValue reading <- producing produced name
+          guard (extractValueIndices reading == [index])
+          Just (extractValueAggregate reading)
+
+    -- The whole chain of inserts, from the outermost inward: what each field
+    -- was last written with, and the value the chain was built on.  Written
+    -- outermost first, so a field written twice keeps the write that stands
+    -- last in the program.
+    chain written o = case o of
+      OInsertValue i
+        | [index] <- insertValueIndices i
+        , VLocal name <- typedValue (insertValueAggregate i) ->
+            chain (Map.insertWith (\_ old -> old) index (insertValueValue i) written)
+              =<< producing produced name
+        | [index] <- insertValueIndices i ->
+            Just
+              ( typedValue (insertValueAggregate i)
+              , Map.insertWith (\_ old -> old) index (insertValueValue i) written
+              )
+      _ -> Nothing
+
+    -- How many fields an aggregate has at its top level.
+    fieldsIn t = case t of
+      TStruct _ fields -> Just (length fields)
+      TArray n _ -> Just (fromIntegral n)
+      _ -> Nothing
 
 -- | A value cut down, masked, and zeroed back to the width it came from, which
 -- is the mask alone at the width it started at.
