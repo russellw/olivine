@@ -65,8 +65,24 @@ reconstruct f = rebuild
 
     order = walked <> filter (not . (`Set.member` reachable)) (map blockLabel blocks)
 
+    -- The blocks control can arrive from, each named once however many ways
+    -- it goes here.  This is what the dataflow wants: two edges from one block
+    -- carry the same values, that block having run once either way.
     predecessors target =
       [blockLabel b | b <- blocks, target `elem` targetsOf (blockTerminator b)]
+
+    -- The edges, which is not the same list.  A @switch@ with two cases naming
+    -- one block reaches it twice, and LLVM asks a phi for one operand per
+    -- edge — @llvm-as@ parses a phi with one and its verifier then says
+    -- @PHINode should have one entry for each predecessor@.  So this is what
+    -- the operands are built from, and 'predecessors' is what everything else
+    -- here is.
+    edges target =
+      [ blockLabel b
+      | b <- blocks
+      , going <- targetsOf (blockTerminator b)
+      , going == target
+      ]
 
     -- Every local the core assigns, and the type it was assigned at.
     mutable :: [(Local, Type)]
@@ -148,7 +164,7 @@ reconstruct f = rebuild
     operands :: Map Local [(Value Local, Label)]
     operands =
       Map.fromList
-        [ (p, [(arriving q v, q) | q <- predecessors name])
+        [ (p, [(arriving q v, q) | q <- edges name])
         | (name, phis) <- Map.toList placed
         , (p, v, _) <- phis
         ]

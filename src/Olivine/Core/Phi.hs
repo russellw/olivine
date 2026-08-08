@@ -252,8 +252,28 @@ removeForwarding = settle
             , joinedTerminator =
                 retarget (\l -> if l == gone then target else l) (joinedTerminator b)
             }
+        -- The entry naming the detour comes to name the block above it, and
+        -- comes to name it once for each way that block reached the detour.
+        -- A @switch@ with four cases to one detour is four edges arriving
+        -- where there was one, and LLVM asks a phi for an operand per edge —
+        -- one for four is what its verifier calls a phi without an entry for
+        -- each predecessor.
+        ways =
+          length
+            [ ()
+            | b <- blocks
+            , joinedLabel b == before
+            , going <- targetsOf (joinedTerminator b)
+            , going == gone
+            ]
         relabel p =
-          p {phiIncoming = [(v, if l == gone then before else l) | (v, l) <- phiIncoming p]}
+          p
+            { phiIncoming =
+                concat
+                  [ if l == gone then replicate ways (v, before) else [(v, l)]
+                  | (v, l) <- phiIncoming p
+                  ]
+            }
 
 -- | Put each phi's operands in the order the blocks they arrive from are
 -- written.

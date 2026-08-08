@@ -269,6 +269,19 @@ phiTests =
     , testCase "the invariants hold for these too" $ do
         parsed <- expectParse "<inline>" swap
         assertInvariants (functionsIn (lower parsed))
+    , -- LLVM asks a phi for one operand per /edge/, not per predecessor
+      -- block: a switch with four cases naming one block reaches it four
+      -- times, and @llvm-as@ parses a phi with one entry for those four and
+      -- its verifier then rejects the module.  Nothing in the corpus wrote
+      -- that shape until a switch was added that does.
+      testCase "a phi has an operand for each edge, not each block" $
+        wellFormed manyCases
+    , -- The same, one step removed: the cases arrive through a block that
+      -- holds only the value they leave, so what removes it on the way out
+      -- has to leave four edges from the switch where it found one from the
+      -- detour.
+      testCase "and after a detour between them is taken out" $
+        wellFormed throughOne
     ]
   where
     swap =
@@ -284,6 +297,40 @@ phiTests =
         , ""
         , "done:"
         , "  ret i32 %x"
+        , "}"
+        ]
+    manyCases =
+      T.unlines
+        [ "define i32 @f(i32 %x) {"
+        , "entry:"
+        , "  switch i32 %x, label %other ["
+        , "    i32 3, label %hit"
+        , "    i32 4, label %hit"
+        , "    i32 5, label %hit"
+        , "  ]"
+        , "other:"
+        , "  br label %hit"
+        , "hit:"
+        , "  %r = phi i32 [ 1, %entry ], [ 1, %entry ], [ 1, %entry ], [ 0, %other ]"
+        , "  ret i32 %r"
+        , "}"
+        ]
+    throughOne =
+      T.unlines
+        [ "define i32 @f(i32 %x) {"
+        , "entry:"
+        , "  switch i32 %x, label %other ["
+        , "    i32 3, label %some"
+        , "    i32 4, label %some"
+        , "    i32 5, label %some"
+        , "  ]"
+        , "some:"
+        , "  br label %hit"
+        , "other:"
+        , "  br label %hit"
+        , "hit:"
+        , "  %r = phi i32 [ 1, %some ], [ 0, %other ]"
+        , "  ret i32 %r"
         , "}"
         ]
     independent =
