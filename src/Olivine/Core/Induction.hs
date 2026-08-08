@@ -45,6 +45,7 @@ module Olivine.Core.Induction
   , enteringValues
   , Producing
   , producedAt
+  , producedAfter
   , originAt
   ) where
 
@@ -266,16 +267,24 @@ producedAt = go Map.empty
     go _ [] = []
     go known (i : rest) = (i, known) : go (record i known) rest
 
-    record i known = case instructionResult i of
-      Nothing -> known
-      Just result
-        | result `elem` localsUsedBy operation -> remaining result known
-        | otherwise -> Map.insert result operation (remaining result known)
-      where
-        operation = instructionOperation i
+-- | And what produced each local once the whole block has run, which is where
+-- the terminator reads.  'producedAt' says what stands before each instruction
+-- and so never says this: a block of @n@ instructions has @n@ points inside it
+-- and one at the end.
+producedAfter :: [Instruction] -> Producing
+producedAfter = foldl' (flip record) Map.empty
 
-    remaining result =
-      Map.filterWithKey (\name operation -> name /= result && result `notElem` localsUsedBy operation)
+record :: Instruction -> Producing -> Producing
+record i known = case instructionResult i of
+  Nothing -> known
+  Just result
+    | result `elem` localsUsedBy operation -> remaining result known
+    | otherwise -> Map.insert result operation (remaining result known)
+  where
+    operation = instructionOperation i
+
+    remaining name =
+      Map.filterWithKey (\held operation' -> held /= name && name `notElem` localsUsedBy operation')
 
 -- | The block run over the values in hand, leaving the values it settles.
 --

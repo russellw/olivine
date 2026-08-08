@@ -46,22 +46,32 @@ module Olivine.Core.Pass.StrengthReduce
   ( reduceStrength
   ) where
 
+import Control.Monad (guard)
 import Data.List (find)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (mapMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 
-import Olivine.Core.Induction (Counter (..), countersOf, enteringValues, originAt, producedAt)
+import Olivine.Core.Induction
+  ( Counter (..)
+  , countersOf
+  , enteringValues
+  , originAt
+  , producedAfter
+  , producedAt
+  )
 import Olivine.Core.Instruction
 import Olivine.Core.Loops (Loop (..), loopsOf, enterThrough, preheaderFor)
 import Olivine.Core.Program
 import Olivine.Syntax.Instruction
   ( Binary (..)
   , BinaryOp (..)
+  , Compare (..)
   , Convert (..)
+  , IntPredicate (..)
   )
-import Olivine.Syntax.Type (Type)
+import Olivine.Syntax.Type (Type (..))
 import Olivine.Syntax.Value (CastOp (..), TypedValue (..), Value (..), isConstant)
 
 -- | What one computation in a loop becomes when it is counted beside the
@@ -84,6 +94,25 @@ data Reduction = Reduction
     reducedEntry :: Local -> [Instruction]
   , -- | What goes at the end of the loop, ending in an assignment to the same.
     reducedStep :: Local -> [Instruction]
+  , -- | Where what is counted is a pointer walking an array, what it walks.
+    -- 'replacingTest' is the only reader: to say where a walk ends you have to
+    -- know what it started from and what it steps over.
+    reducedWalk :: Maybe Walk
+  }
+
+-- | A pointer counted along an array: where it starts and what it steps over.
+data Walk = Walk
+  { walkBase :: Value Local
+  , walkElement :: Type
+  }
+
+-- | Replacing the loop's test with one on what is counted rather than on the
+-- counter: what that adds where the loop is entered, what it adds at the end of
+-- the block, and what the branch reads instead.
+data Replacement = Replacement
+  { replacementEntry :: [Instruction]
+  , replacementStep :: [Instruction]
+  , replacementCondition :: TypedValue Local
   }
 
 reduceStrength :: Program -> Program
@@ -106,35 +135,53 @@ settle f = case mapMaybe (reduce f) (loopsOf f) of
   [] -> f
 
 -- | The first computation in this loop worth counting beside the counter,
--- rewritten to be counted.
+-- rewritten to be counted — and, where it is a walk along an array and the
+-- loop's test is on the counter alone, that test rewritten too.
 reduce :: Function -> Loop -> Maybe Function
 reduce f loop = do
   body <- find ((== loopHeader loop) . blockLabel) (functionBlocks f)
   preheader <- preheaderFor f loop
+  counters <- Just (countersOf f loop)
   reduction <-
     firstOf
       [ candidates body (written body) (startedAt counter) counter
-      | counter <- countersOf f loop
+      | counter <- counters
       ]
   let counted = nextLocal f
+      replacement =
+        firstOf
+          [ maybe [] pure (replacingTest body (written body) counter reduction counted)
+          | counter <- counters
+          ]
   pure
     ( enterThrough
-        (rewritten body reduction counted (reducedStep reduction counted))
+        ( rewritten
+            body
+            reduction
+            counted
+            (reducedStep reduction counted <> foldMap replacementStep replacement)
+            (fmap replacementCondition replacement)
+        )
         loop
         preheader
-        (reducedEntry reduction counted)
+        (reducedEntry reduction counted <> foldMap replacementEntry replacement)
         Nothing
     )
   where
     -- In the loop the computation becomes a copy of what is counted, and the
     -- step goes at the end of the block — after the counter's own increment, so
     -- that what stands at the top of the next turn is what that turn would have
-    -- computed.
-    rewritten body reduction counted advanced =
+    -- computed.  A replaced test goes after the step, since what it reads is
+    -- what the step just left.
+    rewritten body reduction counted advanced condition =
       f
         { functionBlocks =
             [ if blockLabel b == blockLabel body
-                then b {blockInstructions = map replace (blockInstructions b) <> advanced}
+                then
+                  b
+                    { blockInstructions = map replace (blockInstructions b) <> advanced
+                    , blockTerminator = maybe (blockTerminator b) (asking b) condition
+                    }
                 else b
             | b <- functionBlocks f
             ]
@@ -147,6 +194,11 @@ reduce f loop = do
                     OAssign (TypedValue (reducedType reduction) (VLocal counted))
                 }
           | otherwise = i
+
+        asking b value = case terminatorTransfer (blockTerminator b) of
+          CondBr _ takenIf takenElse ->
+            (blockTerminator b) {terminatorTransfer = CondBr value takenIf takenElse}
+          _ -> blockTerminator b
 
     written body =
       Set.fromList [name | i <- blockInstructions body, Just name <- [instructionResult i]]
@@ -165,6 +217,107 @@ reduce f loop = do
     firstOf xs = case concat xs of
       x : _ -> Just x
       [] -> Nothing
+
+-- | The loop's test rewritten to ask about the walk rather than about the
+-- counter, so that nothing reads the counter and it goes.
+--
+-- __Only where the counter steps by one.__  The test becomes @p \< end@ with
+-- @end@ the address the counter's bound names, and that is the same question as
+-- @i \< n@ only while the addresses run in the same order as the indices.  For
+-- a step of one every address compared lies between the base and one past the
+-- last element the loop reads, which are addresses of one object — objects do
+-- not wrap, so the order is the index order.  A larger step can land further
+-- past the end than that, where the argument runs out; LLVM's own replacement
+-- handles it by working out the exit value exactly, which is the closed form
+-- this module does without.
+--
+-- __And only where the test is what closes the loop.__  What is read is the
+-- condition of the branch that goes round again, at the end of the block, where
+-- the counter has already been stepped — so the comparison is on the value the
+-- next turn would start with, which is what the walk holds after its own step.
+replacingTest :: Block -> Set Local -> Counter -> Reduction -> Local -> Maybe Replacement
+replacingTest body inLoop counter reduction counted = do
+  walk <- reducedWalk reduction
+  guard (counterStep counter == 1)
+  CondBr condition takenIf takenElse <- Just (terminatorTransfer (blockTerminator body))
+  -- The true edge has to be the one that goes round.  Where it is the false
+  -- edge the test says when to leave, and the replacement would have to be the
+  -- other comparison; rotation writes the first shape and this declines the
+  -- second rather than working out its opposite.
+  guard (takenIf == blockLabel body && takenElse /= blockLabel body)
+  (known, test) <- comparing condition
+  guard (comparePredicate test == ISlt)
+  guard (againstCounter known (compareLeft test))
+  bound <- invariant known (compareRight test)
+  pure
+    Replacement
+      { replacementEntry =
+          [ Instruction
+              (Just ending)
+              ( OOffset
+                  Offset
+                    { offsetFlags = []
+                    , offsetElementType = walkElement walk
+                    , offsetPointer = TypedValue (reducedType reduction) (walkBase walk)
+                    , offsetIndex = bound
+                    }
+              )
+              []
+          ]
+      , replacementStep =
+          [ Instruction
+              (Just asked)
+              ( OICmp
+                  Compare
+                    { compareFlags = []
+                    , comparePredicate = IUlt
+                    , compareLeft = TypedValue (reducedType reduction) (VLocal counted)
+                    , compareRight = TypedValue (reducedType reduction) (VLocal ending)
+                    }
+              )
+              []
+          ]
+      , replacementCondition = TypedValue (TInteger 1) (VLocal asked)
+      }
+  where
+    Local next = counted
+    ending = Local (next + 4)
+    asked = Local (next + 5)
+
+    -- The condition as it stands at the end of the block, which is where the
+    -- branch reads it, together with what was in hand there.
+    comparing condition = case typedValue condition of
+      VLocal held -> case producing known held of
+        Just (OICmp test) -> Just (known, test)
+        _ -> Nothing
+        where
+          known = producedAfter (blockInstructions body)
+      _ -> Nothing
+
+    -- The test asks about the counter as it stands at the end of the block,
+    -- which is the value the next turn starts with and not the local's name:
+    -- the counter has been assigned again by then, so what it holds there is
+    -- what its increment produced.  Asking whether the operand and the counter
+    -- name one value /at that point/ is the whole of the condition, and it is
+    -- why both sides are read through 'originAt' rather than one of them
+    -- compared to a name.
+    againstCounter known operand = case typedValue operand of
+      VLocal held -> originAt known held == originAt known (counterLocal counter)
+      _ -> False
+
+    -- The bound as the block above the loop can name it: a constant, or a local
+    -- the loop does not itself assign.
+    invariant known operand = case typedValue operand of
+      VLocal held
+        | let base = originAt known held
+        , not (Set.member base inLoop) ->
+            Just operand {typedValue = VLocal base}
+      VLocal _ -> Nothing
+      _ -> Just operand
+
+    producing known held = case Map.lookup held known of
+      Just (OAssign (TypedValue _ (VLocal copied))) -> producing known copied
+      other -> other
 
 -- | The computations in this block that are a fixed amount further along each
 -- turn.
@@ -229,6 +382,7 @@ candidates body inLoop start counter =
                             }
                       )
                       counted
+                , reducedWalk = Nothing
                 }
         where
           counted = typedValueType (binaryLeft b)
@@ -249,7 +403,7 @@ candidates body inLoop start counter =
                         2
                         ( OOffset
                             o
-                              { offsetPointer = TypedValue pointer (VLocal base)
+                              { offsetPointer = TypedValue pointer base
                               , offsetIndex = TypedValue indexType (started into)
                               }
                         )
@@ -271,6 +425,7 @@ candidates body inLoop start counter =
                             }
                       )
                       pointer
+                , reducedWalk = Just Walk {walkBase = base, walkElement = offsetElementType o}
                 }
         where
           pointer = typedValueType (offsetPointer o)
@@ -306,9 +461,13 @@ candidates body inLoop start counter =
 
     -- The base as something the block above the loop can name: what the operand
     -- ultimately names, and only if the loop does not compute it.
-    outsideBase known o = do
-      base <- resolved known (offsetPointer o)
-      if Set.member base inLoop then Nothing else Just base
+    outsideBase known o = case typedValue (offsetPointer o) of
+      VLocal held
+        | let base = originAt known held
+        , not (Set.member base inLoop) ->
+            Just (VLocal base)
+      VLocal _ -> Nothing
+      constant -> Just constant
 
     -- The index is the counter, or the counter widened.  Where it is widened,
     -- the widening is made again where the loop is entered.

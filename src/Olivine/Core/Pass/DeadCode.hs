@@ -5,18 +5,31 @@
 -- writes memory, a call may do anything, and neither is dead however unread
 -- its result.
 --
--- __What is live grows from what has to stay; it is not what is left after
--- removing the unread.__  The two are different wherever a value is read only
--- by the computation that produces it.  A loop counter nothing else reads is
--- exactly that: the increment reads the counter and the counter is assigned
--- what the increment produced, so each of the two is read by the other and a
--- sweep that keeps whatever anything reads keeps both for ever.  Starting from
--- the instructions that must stay — the ones with effects, and the terminators
--- — and adding what they read, then what /that/ is computed from, never reaches
--- a cycle nothing outside it needs.  That is the difference between a greatest
--- fixed point and a least one, and it is why a loop whose test has been
--- rewritten to ask about something else loses its counter here rather than
--- keeping it as a phi nobody reads.
+-- __Live is asked at a point, and grown from nothing.__  Both halves matter and
+-- the core is why.
+--
+-- Grown from nothing, because a value can be read only by the computation that
+-- produces it.  A loop counter nothing else reads is exactly that: the
+-- increment reads the counter and the counter is assigned what the increment
+-- produced, so each is read by the other for ever.  Collecting everything
+-- anything reads and keeping what is in it — a greatest fixed point — keeps
+-- both.  Starting from nothing and adding what the terminators and the
+-- instructions with effects read, then what /that/ is computed from, never
+-- reaches such a cycle.
+--
+-- At a point, because a local here can be assigned in more than one place, and
+-- "something reads this name" is then not a question about one value.  Loop
+-- rotation writes the plainest case: the copy of the header it puts above the
+-- loop assigns the same local the header does, so the guard's branch and the
+-- loop's branch read one name — and a pass asking whether the name is read
+-- anywhere concludes that the loop's assignment to it is needed by a branch
+-- that runs before the loop.  Liveness is therefore the ordinary backward walk:
+-- what a block needs on the way in, worked out from what its successors need,
+-- until it settles.
+--
+-- The two together are what lets a counter go once the loop has stopped testing
+-- it, which is what "Olivine.Core.Pass.StrengthReduce" leaves behind when it
+-- rewrites the test to ask about the address instead.
 --
 -- What may go is judged by 'removableWhenUnused', which is cautious about
 -- everything it cannot ask about.  A call it can ask about: what the whole
@@ -41,6 +54,8 @@ module Olivine.Core.Pass.DeadCode
   , removableWhenUnused
   ) where
 
+import Data.Map.Strict (Map)
+import Data.Map.Strict qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 
@@ -73,70 +88,103 @@ settle effects f
 sweep :: Effects -> Function -> Function
 sweep effects f = f {functionBlocks = map prune (functionBlocks f)}
   where
-    used = liveIn effects f
-    prune b = b {blockInstructions = filter keep (blockInstructions b)}
-    keep i = case instructionResult i of
-      -- A marker on storage nothing else in the function names, which is
-      -- storage with no life to say the bounds of.
-      Nothing
-        | Just slot <- lifetimeMarked (instructionOperation i) -> Set.member slot used
-        | otherwise -> True
-      Just name ->
-        name `Set.member` used
-          || not (removableWhenUnused (behaviourOf effects) (instructionOperation i))
+    needed = liveIn effects f
+    prune b = b {blockInstructions = kept effects (namedIn f) (leaving needed b) b}
 
--- | Every local the function needs the value of.
+-- | What is needed on the way out of a block: whatever its successors need on
+-- the way in, and what its own terminator reads.
+leaving :: Map Label (Set Local) -> Block -> Set Local
+leaving needed b =
+  Set.union
+    (Set.fromList (localsUsedBy (terminatorTransfer (blockTerminator b))))
+    (Set.unions [Map.findWithDefault Set.empty target needed | target <- targetsOf (blockTerminator b)])
+
+-- | Every local the function names anywhere, markers aside.
 --
--- Grown rather than collected: what the terminators read and what the
--- instructions that cannot go read, and then whatever those are computed from,
--- until it stops growing.  Collecting instead — every local anything reads —
--- would answer with the locals a dead cycle reads of itself, which is the whole
--- point of doing it this way round; see the module header.
+-- Asked of the whole function rather than at a point, and only about lifetime
+-- markers, which is the one question here that is not about a value: a pair of
+-- them around a slot nothing else names is a pair around nothing, wherever the
+-- two of them stand.
+namedIn :: Function -> Set Local
+namedIn f =
+  Set.fromList
+    ( concat
+        [reading (instructionOperation i) | b <- functionBlocks f, i <- blockInstructions b]
+        <> [ n
+           | b <- functionBlocks f
+           , n <- localsUsedBy (terminatorTransfer (blockTerminator b))
+           ]
+    )
+
+-- | The instructions of a block that stay, given what is needed after it.
 --
--- An instruction that stays for its effects contributes what it reads whether
--- or not anything reads /it/, since it is going to run.  An assignment to a
--- live local contributes too, and all of them do: a local the core assigns in
--- several places holds what any of them left, so needing its value needs every
--- one of them.
+-- Walked backwards, which is the whole of how a point is told from a name: an
+-- instruction assigning a local that nothing below it needs is dead however
+-- much is read of that name above it or in another block.
+kept :: Effects -> Set Local -> Set Local -> Block -> [Instruction]
+kept effects named after b = snd (foldl step (after, []) (reverse (blockInstructions b)))
+  where
+    step (live, held) i
+      | dead = (live, held)
+      | otherwise = (Set.union (Set.difference live (defined i)) (Set.fromList (reading (instructionOperation i))), i : held)
+      where
+        dead = case instructionResult i of
+          -- A marker on storage nothing else in the function names, which is
+          -- storage with no life to say the bounds of.
+          Nothing
+            | Just slot <- lifetimeMarked (instructionOperation i) ->
+                not (Set.member slot named)
+            | otherwise -> False
+          Just name ->
+            not (Set.member name live)
+              && removableWhenUnused (behaviourOf effects) (instructionOperation i)
+
+    defined i = maybe Set.empty Set.singleton (instructionResult i)
+
+-- | What each block needs on the way in.
+--
+-- The ordinary backward walk, settled by iteration: a block needs what its own
+-- instructions read before writing, plus what its successors need and it does
+-- not write.  Started from nothing needed anywhere, so what comes out is the
+-- least such assignment — which is what leaves a cycle that reads only itself
+-- out of it.
+liveIn :: Effects -> Function -> Map Label (Set Local)
+liveIn effects f = settleNeeds Map.empty
+  where
+    blocks = functionBlocks f
+
+    settleNeeds needed
+      | after == needed = needed
+      | otherwise = settleNeeds after
+      where
+        after = foldl visit needed (reverse blocks)
+
+    visit needed b = Map.insert (blockLabel b) (entering needed b) needed
+
+    entering needed b = foldl step (leaving needed b) (reverse (blockInstructions b))
+      where
+        step live i
+          | dead = live
+          | otherwise =
+              Set.union
+                (Set.difference live (maybe Set.empty Set.singleton (instructionResult i)))
+                (Set.fromList (reading (instructionOperation i)))
+          where
+            dead = case instructionResult i of
+              Nothing -> False
+              Just name ->
+                not (Set.member name live)
+                  && removableWhenUnused (behaviourOf effects) (instructionOperation i)
+
+-- | What an instruction reads.
 --
 -- A lifetime marker reads nothing: see the module header.  The address it names
 -- is passed over rather than counted, so that a slot the markers are all that
 -- is left of is a slot nothing reads.
-liveIn :: Effects -> Function -> Set Local
-liveIn effects f = grow (Set.fromList (concatMap rooted instructions <> leaving))
-  where
-    instructions = [i | b <- functionBlocks f, i <- blockInstructions b]
-
-    leaving =
-      [ n
-      | b <- functionBlocks f
-      , n <- localsUsedBy (terminatorTransfer (blockTerminator b))
-      ]
-
-    -- What an instruction that is staying regardless reads.
-    rooted i
-      | removableWhenUnused (behaviourOf effects) (instructionOperation i) = []
-      | otherwise = reading (instructionOperation i)
-
-    grow known
-      | Set.null added = known
-      | otherwise = grow (Set.union known added)
-      where
-        added =
-          Set.difference
-            ( Set.fromList
-                [ n
-                | i <- instructions
-                , Just name <- [instructionResult i]
-                , Set.member name known
-                , n <- reading (instructionOperation i)
-                ]
-            )
-            known
-
-    reading operation = case lifetimeMarked operation of
-      Just _ -> []
-      Nothing -> localsUsedBy operation
+reading :: Operation (TypedValue Local) -> [Local]
+reading operation = case lifetimeMarked operation of
+  Just _ -> []
+  Nothing -> localsUsedBy operation
 
 -- | Whether an operation can be dropped when nothing reads its result, given
 -- what the program says the calls in it do.

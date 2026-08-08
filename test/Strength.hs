@@ -24,7 +24,8 @@ import Olivine.Core.Pass.LoopRotation (rotateLoops)
 import Olivine.Core.Pass.Promote (promoteMemory)
 import Olivine.Core.Pass.StrengthReduce (reduceStrength)
 import Olivine.Core.Program
-import Olivine.Syntax.Instruction (Convert (..))
+import Olivine.Syntax.Instruction (Compare (..), Convert (..))
+import Olivine.Syntax.Type (Type (..))
 import Olivine.Syntax.Value (TypedValue (..), Value (..))
 
 strengthTests :: TestTree
@@ -71,6 +72,28 @@ strengthTests =
           testCase "a multiply by a constant" $ do
             shapes <- shapesAfter multiplying
             assertEqual "the multiply is gone" 0 (count "mul" shapes)
+        ]
+    , testGroup
+        "the test the loop closes on"
+        [ -- The counter is what the loop tested, and once the test asks about
+          -- the address instead nothing reads the counter at all: it goes, and
+          -- with it the increment that was the only other thing reading it.
+          testCase "asks about the address, and the counter goes" $ do
+            shapes <- shapesAfter (walking "1")
+            assertEqual "one comparison and one step, no counting" 1 (count "icmp" shapes)
+            assertEqual "and one addition, which is the sum" 1 (count "binary" shapes)
+        , testCase "and it compares pointers" $
+            testedTypes (walking "1") >>= (@?= [TPointer Nothing])
+        , -- A step of one is what makes the addresses run in the order the
+          -- indices do all the way to the end.  A larger step can land further
+          -- past the last element than one, where the argument runs out — so
+          -- the address is still counted and the test is left as it was.
+          testCase "a step of more than one keeps its own test" $ do
+            shapes <- shapesAfter (walking "3")
+            assertEqual "the counter is still counted" 2 (count "binary" shapes)
+            assertEqual "and still tested" 1 (count "icmp" shapes)
+        , testCase "and the test is on the counter, not the address" $
+            testedTypes (walking "3") >>= (@?= [TInteger 32])
         ]
     , testGroup
         "what is left alone"
@@ -144,6 +167,22 @@ stepIndices source = do
         , blockLabel b `elem` [loopHeader loop | loop <- loopsOf f]
         , i <- blockInstructions b
         , OOffset o <- [instructionOperation i]
+        ]
+    [] -> assertFailure "expected a function"
+
+-- | What the branch that closes the loop compares, by type: the counter's own
+-- type where the test is still on the counter, and a pointer where it is not.
+testedTypes :: Text -> IO [Type]
+testedTypes source = do
+  program <- reduced source
+  case functionsIn program of
+    f : _ ->
+      pure
+        [ typedValueType (compareLeft c)
+        | b <- functionBlocks f
+        , blockLabel b `elem` [loopHeader loop | loop <- loopsOf f]
+        , i <- blockInstructions b
+        , OICmp c <- [instructionOperation i]
         ]
     [] -> assertFailure "expected a function"
 

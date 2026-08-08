@@ -5,7 +5,12 @@
  * the loop goes round, and these are the loops the second question has no
  * answer for.  Written in pairs where there is a pair to write, and every
  * function is read back through what it computed, so an address stepped along
- * wrongly shows up as a different number rather than as a shorter file. */
+ * wrongly shows up as a different number rather than as a shorter file.
+ *
+ * Two things happen to these and the pairs are for both: the address is
+ * counted instead of computed, and — where the counter steps by one and so
+ * nothing else is left reading it — the loop stops testing the counter and
+ * tests the address, which is what lets the counter go entirely. */
 
 #include <stddef.h>
 
@@ -28,7 +33,12 @@ int stride_dot(const int *a, const int *b, int n) {
 }
 
 /* A stride that is not one.  The address advances three elements a turn and
-   the multiply that worked out where to go disappears with the widening. */
+   the multiply that worked out where to go disappears with the widening — but
+   the loop keeps its counter and its own test, because the test is only
+   rewritten to ask about the address for a step of one.  With a larger step
+   the last address computed can land further past the end than one place,
+   which is where the argument that the addresses run in the order the indices
+   do gives out. */
 int stride_third(const int *p, int n) {
   int s = 0;
   for (int i = 0; i < n; i += 3)
@@ -36,7 +46,9 @@ int stride_third(const int *p, int n) {
   return s;
 }
 
-/* Walking backwards, which is a step of minus one and the same rewrite. */
+/* Walking backwards, which is a step of minus one: the address is counted the
+   same way and the test stays on the counter, a step of one being what the
+   replacement asks for. */
 int backwards(const int *p, int n) {
   int s = 0;
   for (int i = n - 1; i >= 0; i--)
