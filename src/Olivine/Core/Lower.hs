@@ -8,6 +8,7 @@ module Olivine.Core.Lower
   ) where
 
 import Control.Monad (guard)
+import Data.Foldable (toList)
 import Data.List (partition)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
@@ -18,21 +19,58 @@ import Olivine.Core.Phi (Joined (..), PhiNode (..), eliminate)
 import Olivine.Core.Program
 import Olivine.Syntax.Ast qualified as Syntax
 import Olivine.Syntax.Function qualified as Syntax
+import Olivine.Syntax.Global qualified as Syntax
 import Olivine.Syntax.Instruction (isTerminator)
 import Olivine.Syntax.Instruction qualified as Syntax
 import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Type (Type)
 import Olivine.Syntax.Type qualified as Syntax
-import Olivine.Syntax.Value (TypedValue (..), Value (..))
+import Olivine.Syntax.Value (TypedValue (..), Value (..), blockAddressesIn)
 
 lower :: Syntax.Module -> Program
-lower m = Program (map (lowerEntry (typesIn m)) (Syntax.moduleEntries m))
+lower m =
+  Program (map (lowerEntry (typesIn m) (addressedIn m)) (Syntax.moduleEntries m))
 
-lowerEntry :: Map Name Type -> Syntax.Entry -> Entry
-lowerEntry types entry = case entry of
+lowerEntry :: Map Name Type -> Map Name [Name] -> Syntax.Entry -> Entry
+lowerEntry types addressed entry = case entry of
   Syntax.EDefine definition ->
-    maybe (ERetained entry) EFunction (lowerDefinition types definition)
+    maybe (ERetained entry) EFunction (lowerDefinition types spoken definition)
+    where
+      spoken =
+        Map.findWithDefault
+          []
+          (Syntax.signatureName (Syntax.definitionSignature definition))
+          addressed
   _ -> ERetained entry
+
+-- | Which blocks of which functions the module takes the address of.
+--
+-- Read from the whole module before any of it is lowered, because that is the
+-- only place the answer is: a @blockaddress@ naming a block of @\@f@ is
+-- almost never written in @\@f@ — it is an entry in the table a computed
+-- @goto@ jumps through, and the table is a global.  So a definition cannot be
+-- lowered by looking at itself, which is what every other question here is
+-- answered by.
+--
+-- Everywhere a value can be written is looked at: a global's initializer, an
+-- alias or ifunc's target, and every operand of every instruction of every
+-- definition.
+addressedIn :: Syntax.Module -> Map Name [Name]
+addressedIn m =
+  Map.fromListWith (<>) [(function, [block]) | (function, block) <- taken]
+  where
+    taken = concatMap fromEntry (Syntax.moduleEntries m)
+    fromEntry entry = case entry of
+      Syntax.EGlobal g -> foldMap blockAddressesIn (Syntax.globalInitializer g)
+      Syntax.EIndirect s -> blockAddressesIn (Syntax.indirectTarget s)
+      Syntax.EDefine d ->
+        [ address
+        | b <- Syntax.definitionBlocks d
+        , Syntax.IOperation _ operation _ <- Syntax.blockBody b
+        , operand <- toList operation
+        , address <- blockAddressesIn (typedValue operand)
+        ]
+      _ -> []
 
 -- | What each named type stands for.
 --
@@ -51,8 +89,14 @@ typesIn m =
 -- it up, so a destination nothing defines has nothing to become, and the
 -- definition is retained as written rather than lowered into a graph with an
 -- edge to nowhere.
-lowerDefinition :: Map Name Type -> Syntax.Definition -> Maybe Function
-lowerDefinition types definition = do
+--
+-- The names of blocks the module holds the address of are handed in, since
+-- nothing about this definition says which they are.  A name among them that
+-- is not a block here fails the definition, for the reason a branch to a
+-- block that is not there does: what cannot be looked up cannot be lowered
+-- into something that still means what it said.
+lowerDefinition :: Map Name Type -> [Name] -> Syntax.Definition -> Maybe Function
+lowerDefinition types spoken definition = do
   -- Taking a @getelementptr@ apart makes instructions the source did not
   -- name, so a counter runs through the blocks issuing locals for them.  It
   -- starts past everything the source named and ends where phi elimination
@@ -62,11 +106,14 @@ lowerDefinition types definition = do
       (readBlock types labels locals)
       (Map.size locals)
       (zip (map Label [0 ..]) written)
+  addressed <-
+    Map.fromList <$> traverse (\name -> (,) name <$> Map.lookup name labels) spoken
   pure
     Function
       { functionSignature = signature {Syntax.signatureParameters = nameless}
       , functionParameters = take (length parameters) (map Local [0 ..])
       , functionBlocks = eliminate (length written) issued blocks
+      , functionAddressed = addressed
       }
   where
     signature = Syntax.definitionSignature definition

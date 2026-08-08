@@ -40,6 +40,7 @@ module Olivine.Core.Pass.DeadSymbols
 
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
+import Data.Foldable (toList)
 import Data.Maybe (fromMaybe, isNothing)
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -56,7 +57,7 @@ import Olivine.Syntax.Instruction qualified as Syntax
 import Olivine.Syntax.Linkage (GlobalAttribute (..), Linkage (..))
 import Olivine.Syntax.Metadata (MetadataOperand (..))
 import Olivine.Syntax.Name (Name (..), isIdentifierChar)
-import Olivine.Syntax.Value (globalsIn, typedValue)
+import Olivine.Syntax.Value (blockAddressesIn, globalsIn, typedValue)
 
 -- | Something a live path can arrive at.
 --
@@ -86,9 +87,10 @@ data Reference
 -- out its @declare@.
 eliminateDeadSymbols :: Program -> Program
 eliminateDeadSymbols program =
-  program {programEntries = filter reached (programEntries program)}
+  program {programEntries = map released (filter reached (programEntries program))}
   where
     live = reachableIn program
+    still = addressedIn program
 
     reached entry = case entry of
       EFunction f
@@ -107,6 +109,65 @@ eliminateDeadSymbols program =
       ERetained (Syntax.EComdat name _) -> isLive (comdat name)
       _ -> True
     isLive reference = reference `Set.member` live
+
+    released (EFunction f) = EFunction (letting f)
+    released retained = retained
+    letting f
+      | null unread =
+          f
+            { functionAddressed =
+                Map.filterWithKey
+                  (\block _ -> (signatureName (functionSignature f), block) `Set.member` still)
+                  (functionAddressed f)
+            }
+      | otherwise = f
+
+    -- A line this cannot read may name a block as well as a symbol, and there
+    -- is no scanning a name out of it: what @blockaddress(\@f, %b)@ says is
+    -- two names of two kinds, and a block's is not a symbol's to be looked up
+    -- afterwards.  So while any unread line holds the word, nothing is
+    -- released at all.  The corpus has no such line; this is what keeps the
+    -- rule true rather than nearly true.
+    unread =
+      [ ()
+      | ERetained (Syntax.EOpaque text) <- programEntries program
+      , T.isInfixOf "blockaddress" text
+      ]
+
+-- | Which blocks of which functions the program still takes the address of.
+--
+-- The counterpart of the reading the lowering does, asked again because the
+-- answer changes: a @select@ between two block addresses that folded into a
+-- branch is two addresses nothing names any more, and the blocks they named
+-- can then be merged and forwarded through like any others.  A block stays
+-- pinned for exactly as long as something can still hold its address, which
+-- is what this measures and what 'Olivine.Core.Program.pinnedIn' reads.
+--
+-- This is the same kind of fact as the rest of the pass: what nothing names
+-- can go, and the only place the question can be asked is the whole program.
+addressedIn :: Program -> Set (Name, Name)
+addressedIn program =
+  Set.fromList (concatMap fromEntry (programEntries program))
+  where
+    fromEntry (EFunction f) =
+      [ address
+      | b <- functionBlocks f
+      , operand <-
+          concatMap (toList . instructionOperation) (blockInstructions b)
+            <> toList (terminatorTransfer (blockTerminator b))
+      , address <- blockAddressesIn (typedValue operand)
+      ]
+    fromEntry (ERetained entry) = case entry of
+      Syntax.EGlobal g -> foldMap blockAddressesIn (globalInitializer g)
+      Syntax.EIndirect s -> blockAddressesIn (indirectTarget s)
+      Syntax.EDefine d ->
+        [ address
+        | b <- Syntax.definitionBlocks d
+        , Syntax.IOperation _ operation _ <- Syntax.blockBody b
+        , operand <- toList operation
+        , address <- blockAddressesIn (typedValue operand)
+        ]
+      _ -> []
 
 -- | Whether a symbol can go when nothing live reaches it, as far as its
 -- linkage is concerned.

@@ -20,6 +20,8 @@ module Olivine.Syntax.Value
   , GepFlag (..)
   , isConstant
   , globalsIn
+  , blockAddressesIn
+  , renameBlockAddresses
   , holdsAsm
   ) where
 
@@ -73,6 +75,23 @@ data Value local
     VStruct Packedness [TypedValue local]
   | -- | A reference to a global, as in @\@counter@.
     VGlobal Name
+  | -- | @blockaddress(\@f, %b)@: the address of a block, which a computed
+    -- @goto@ jumps to and an @indirectbr@ arrives at.
+    --
+    -- Two names and neither of them the type parameter.  The first is a
+    -- global's, since it is a function the rest of the world can name; the
+    -- second is a block's, which is a name in that function and not a local
+    -- — a block is not a value and cannot be assigned to, so nothing that
+    -- rewrites the operands of an instruction may reach it.
+    --
+    -- __The block named is a block of another function than the one this is
+    -- written in__, as often as not: the table a threaded interpreter jumps
+    -- through is a global, and every entry in it names a block of the
+    -- function that walks it.  That is what makes this the one operand whose
+    -- meaning is not local to where it stands, and why the core has to hold
+    -- the block it names by identity rather than by spelling — see
+    -- 'Olivine.Core.Program.functionAddressed'.
+    VBlockAddress Name Name
   | -- | @%x@, naming a local.  In the core representation these will have
     -- addresses and be reassignable; here it is simply what was written.
     VLocal local
@@ -215,6 +234,12 @@ isConstant _ = True
 globalsIn :: Value local -> [Name]
 globalsIn value = case value of
   VGlobal name -> [name]
+  -- The function is named here as surely as a call names its callee: a table
+  -- of block addresses is the only thing keeping the function that jumps
+  -- through it reachable, and a pass removing symbols nothing names would
+  -- otherwise take it away.  The block's name is not a symbol and is not one
+  -- of these.
+  VBlockAddress name _ -> [name]
   VArray elements -> concatMap inside elements
   VVector elements -> concatMap inside elements
   VSplat element -> inside element
@@ -224,6 +249,51 @@ globalsIn value = case value of
   _ -> []
   where
     inside = globalsIn . typedValue
+
+-- | Every block a value takes the address of: the function, and the block in
+-- it.
+--
+-- Recursive for the reason 'globalsIn' is, and the reason is the same one
+-- again: the table a computed @goto@ jumps through is
+-- @[3 x ptr] [ptr blockaddress(\@f, %a), ...]@, so the addresses are inside an
+-- aggregate rather than standing as operands anywhere.
+--
+-- What asks is the lowering, which has to know which blocks of which
+-- functions are spoken for before it can settle any of them — see
+-- 'Olivine.Core.Program.functionAddressed'.
+blockAddressesIn :: Value local -> [(Name, Name)]
+blockAddressesIn value = case value of
+  VBlockAddress function block -> [(function, block)]
+  VArray elements -> concatMap inside elements
+  VVector elements -> concatMap inside elements
+  VSplat element -> inside element
+  VStruct _ fields -> concatMap inside fields
+  VCast _ operand _ -> inside operand
+  VGetElementPtr _ _ operands -> concatMap inside operands
+  _ -> []
+  where
+    inside = blockAddressesIn . typedValue
+
+-- | Say what each block a value takes the address of is called now.
+--
+-- The counterpart of 'blockAddressesIn' and it goes to the same places.  What
+-- wants it is the way out: the core numbers a function's blocks afresh, so
+-- the name a @blockaddress@ was written with is not the name the block will
+-- be printed under, and the one place that knows both is
+-- 'Olivine.Core.Raise.raise'.
+renameBlockAddresses :: (Name -> Name -> Name) -> Value local -> Value local
+renameBlockAddresses rename value = case value of
+  VBlockAddress function block -> VBlockAddress function (rename function block)
+  VArray elements -> VArray (map inside elements)
+  VVector elements -> VVector (map inside elements)
+  VSplat element -> VSplat (inside element)
+  VStruct packedness fields -> VStruct packedness (map inside fields)
+  VCast op operand target -> VCast op (inside operand) target
+  VGetElementPtr flags element operands ->
+    VGetElementPtr flags element (map inside operands)
+  _ -> value
+  where
+    inside (TypedValue t v) = TypedValue t (renameBlockAddresses rename v)
 
 -- | Whether a value is inline assembly, or has some written inside it.
 --

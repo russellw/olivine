@@ -5,6 +5,7 @@
 -- reaching, which is the reason the arithmetic is worth doing.
 module ControlFlow (controlFlowTests) where
 
+import Data.Map.Strict qualified as Map
 import Data.Text (Text)
 import Data.Text qualified as T
 import Test.Tasty
@@ -35,7 +36,7 @@ controlFlowTests =
             folds (condBr (VInteger 1) a b) @?= Just (Br a)
         , -- This one needs no constant: it goes there either way.
           testCase "a branch whose arms agree" $
-            folds (condBr (VLocal (Name Bare "c")) a a) @?= Just (Br a)
+            folds (condBr (VLocal (Local 0)) a a) @?= Just (Br a)
         , testCase "a switch on a known value" $
             folds (switch (VInteger 2)) @?= Just (Br two)
         , testCase "a switch on a value no case matches" $
@@ -45,7 +46,7 @@ controlFlowTests =
             folds (switchOn (TInteger 8) (VInteger (-1)) [(VInteger 255, hit)])
               @?= Just (Br hit)
         , testCase "a switch whose cases all name the default" $
-            folds (switchOn (TInteger 8) (VLocal (Name Bare "x")) [(VInteger 1, fallback)])
+            folds (switchOn (TInteger 8) (VLocal (Local 1)) [(VInteger 1, fallback)])
               @?= Just (Br fallback)
         , testCase "an indirect branch with one destination" $
             folds (IndirectBr pointer [a]) @?= Just (Br a)
@@ -53,14 +54,14 @@ controlFlowTests =
     , testGroup
         "where it stops"
         [ testCase "a branch on a local" $
-            folds (condBr (VLocal (Name Bare "c")) a b) @?= Nothing
+            folds (condBr (VLocal (Local 0)) a b) @?= Nothing
         , -- Branching on poison is undefined, and LLVM may treat it as
           -- unreachable.  Collecting on that is a decision this pass does not
           -- make: it folds branches whose value it knows.
           testCase "a branch on poison" $
             folds (condBr VPoison a b) @?= Nothing
         , testCase "a switch on a local" $
-            folds (switch (VLocal (Name Bare "x"))) @?= Nothing
+            folds (switch (VLocal (Local 1))) @?= Nothing
         , testCase "an indirect branch with a choice to make" $
             folds (IndirectBr pointer [a, b]) @?= Nothing
         , testCase "a return" $ folds (Ret Nothing) @?= Nothing
@@ -140,7 +141,7 @@ controlFlowTests =
     one = Label 4
     two = Label 5
     hit = Label 6
-    pointer = TypedValue (TPointer Nothing) (VLocal (Name Bare "p"))
+    pointer = TypedValue (TPointer Nothing) (VLocal (Local 2))
     condBr condition = CondBr (TypedValue (TInteger 1) condition)
     switch value =
       switchOn (TInteger 32) value [(VInteger 1, one), (VInteger 2, two)]
@@ -282,10 +283,10 @@ simplify source = do
   parsed <- expectParse "<inline>" source
   pure (simplifyControlFlow (lower parsed))
 
--- | 'foldTerminator' at the locals the core uses, which is what these cases
--- build.
+-- | 'foldTerminator' knowing nothing about where an address may land.
 --
--- The pass folds branches whatever a local is called, so it is written for
--- any; these cases have to pick one, and the core's own is what reads.
-folds :: Transfer (TypedValue Name) -> Maybe (Transfer (TypedValue Name))
-folds = foldTerminator
+-- These cases are all about the value a branch reads, and none of them
+-- computes an address; what a block says about the addresses in it is
+-- exercised through the whole pass instead, by 'computed' below.
+folds :: Transfer (TypedValue Local) -> Maybe (Transfer (TypedValue Local))
+folds = foldTerminator Map.empty

@@ -13,11 +13,20 @@
 -- entitled to treat as unreachable and this is not: undefined behaviour is a
 -- promise the program made, and collecting on it is a separate decision from
 -- the arithmetic here.
+--
+-- __An @indirectbr@ is read the same way, and reading it needs the block.__
+-- Where a branch reads a condition an address is computed, so what says where
+-- a computed jump goes is the instruction above it rather than an operand of
+-- the transfer: @goto *(c ? &&x : &&y)@ is a conditional branch written the
+-- long way, and this is where it becomes one.  That is why the folding here
+-- is handed what the block says about the addresses in it — 'aimsIn' — where
+-- everything else it does is a fact about the terminator alone.
 module Olivine.Core.Pass.ControlFlow
   ( simplifyControlFlow
   , foldTerminator
   ) where
 
+import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -25,6 +34,8 @@ import Data.Set qualified as Set
 import Olivine.Core.Blocks (mergeBlocks, removeForwarding)
 import Olivine.Core.Instruction
 import Olivine.Core.Program
+import Olivine.Syntax.Function (Signature (..))
+import Olivine.Syntax.Instruction (Select (..))
 import Olivine.Syntax.Type (Type (..))
 import Olivine.Syntax.Value (TypedValue (..), Value (..))
 
@@ -53,12 +64,12 @@ settle f
 sweep :: Function -> Function
 sweep f = mergeBlocks (removeForwarding (prune (decide f)))
   where
-    decide g = g {functionBlocks = map fold (functionBlocks g)}
+    decide g = g {functionBlocks = map (fold g) (functionBlocks g)}
     prune g = g {functionBlocks = reachableIn g}
-    fold b = b {blockTerminator = foldIn (blockTerminator b)}
-    foldIn t =
+    fold g b = b {blockTerminator = foldIn (aimsIn g b) (blockTerminator b)}
+    foldIn aims t =
       maybe t (\transfer -> t {terminatorTransfer = transfer}) $
-        foldTerminator (terminatorTransfer t)
+        foldTerminator aims (terminatorTransfer t)
 
 -- | The blocks control can get to, in the order they were written.
 --
@@ -67,17 +78,19 @@ sweep f = mergeBlocks (removeForwarding (prune (decide f)))
 -- doing nothing: a block is not kept alive by the blocks that branch to it
 -- when nothing reaches those either, as a loop nothing enters shows.
 --
--- What makes the branches the whole story is that @blockaddress@ is not
--- modelled, so a function taking one holds a line the lowering cannot read
--- and is retained as syntax entire.  Whoever models it has to come back here:
--- the address of a block is a way of reaching it that no terminator mentions,
--- and @indirectbr@ listing every destination is what stands in for that now.
+-- The branches are not quite the whole story, and the exception is
+-- @blockaddress@: the address of a block is a way of reaching it that no
+-- terminator here mentions, and the table it is written into may be read by
+-- another function entirely.  So the walk starts from those blocks as well as
+-- from the entry, which is 'Olivine.Core.Program.pinnedIn' — an @indirectbr@
+-- in this function listing every destination says the same thing about the
+-- ones it lists, and says nothing about the rest.
 reachableIn :: Function -> [Block]
 reachableIn f = [b | b <- blocks, blockLabel b `Set.member` reached]
   where
     blocks = functionBlocks f
     successors = Map.fromList [(blockLabel b, targetsOf (blockTerminator b)) | b <- blocks]
-    reached = maybe Set.empty (walk Set.empty . pure) (entryLabel f)
+    reached = walk Set.empty (maybe [] pure (entryLabel f) <> Set.toList (pinnedIn f))
 
     walk :: Set Label -> [Label] -> Set Label
     walk seen [] = seen
@@ -93,8 +106,10 @@ reachableIn f = [b | b <- blocks, blockLabel b `Set.member` reached]
 -- branch to the same block either way goes there whatever it was branching
 -- on, and a @switch@ whose cases all name the default is a @switch@ in name.
 foldTerminator ::
-  Transfer (TypedValue local) -> Maybe (Transfer (TypedValue local))
-foldTerminator transfer = case transfer of
+  Map Local Aim ->
+  Transfer (TypedValue Local) ->
+  Maybe (Transfer (TypedValue Local))
+foldTerminator aims transfer = case transfer of
   CondBr condition true false
     | true == false -> Just (Br true)
     | Just taken <- conditionOf (typedValue condition) ->
@@ -106,6 +121,87 @@ foldTerminator transfer = case transfer of
   -- a single block is a branch to it, whatever address was computed.
   IndirectBr _ (target : rest)
     | all (== target) rest -> Just (Br target)
+  -- And one whose address this block computed is a branch to what it
+  -- computed.  A @goto *p@ where @p@ was decided a line earlier is what a
+  -- front end writes for @goto@ into a label held in a variable, and reading
+  -- it is what turns the jump table back into the branch the source meant.
+  IndirectBr address targets
+    | Just aim <- reaching aims address -> case aim of
+        AtOne target | target `elem` targets -> Just (Br target)
+        AtEither condition true false
+          | true `elem` targets, false `elem` targets ->
+              Just (CondBr condition true false)
+        _ -> Nothing
+  _ -> Nothing
+
+-- * Where a computed jump goes
+
+-- | Where the address a local holds may land.
+data Aim
+  = -- | One block, because the local holds that block's address.
+    AtOne Label
+  | -- | One of two, decided by a condition: the local was assigned a
+    -- @select@ between two block addresses.
+    AtEither (TypedValue Local) Label Label
+
+-- | Where each local this block computes an address into may land.
+--
+-- Read block-locally, and for the reason "Olivine.Core.Pass.Fold" reads what
+-- produced an operand block-locally: a local here may be assigned twice, so
+-- knowing that it /was/ assigned a block's address somewhere is not knowing
+-- that it holds one here.  Within a block the instructions run in order and
+-- one execution is one run of each, so what the last assignment above the
+-- terminator left is what the terminator reads.  A local assigned again loses
+-- what was known about it, and so does an aim whose condition is assigned
+-- again — the branch this becomes reads that condition where the terminator
+-- stands, not where the @select@ did.
+--
+-- The address has to name a block of this function.  Jumping to a block of
+-- another one is undefined however the address was got, so an address from
+-- elsewhere is not something to fold into a branch to a block that is not
+-- here.
+aimsIn :: Function -> Block -> Map Local Aim
+aimsIn f b = foldl step Map.empty (blockInstructions b)
+  where
+    here = functionAddressed f
+    ours = signatureName (functionSignature f)
+
+    step aims i = case (instructionResult i, instructionOperation i) of
+      (Just result, operation) ->
+        Map.alter (const (aimOf aims operation)) result (dropping result aims)
+      (Nothing, _) -> aims
+
+    -- An aim whose condition has just been assigned is no longer an aim: what
+    -- the condition holds at the terminator is not what the select read.
+    dropping written =
+      Map.filter (\aim -> written `notElem` conditionOf' aim)
+      where
+        conditionOf' (AtEither condition _ _) = localsUsedBy [condition]
+        conditionOf' (AtOne _) = []
+
+    aimOf aims operation = case operation of
+      OAssign operand -> reaching aims operand
+      OSelect s -> do
+        true <- reaching aims (selectTrue s)
+        false <- reaching aims (selectFalse s)
+        case (true, false) of
+          (AtOne a, AtOne c) -> Just (AtEither (selectCondition s) a c)
+          _ -> Nothing
+      _ -> Nothing
+
+    labelOf function block
+      | function == ours = Map.lookup block here
+      | otherwise = Nothing
+
+    reaching aims operand = case typedValue operand of
+      VBlockAddress function block -> AtOne <$> labelOf function block
+      VLocal local -> Map.lookup local aims
+      _ -> Nothing
+
+-- | Where an operand's address lands, where the block above says.
+reaching :: Map Local Aim -> TypedValue Local -> Maybe Aim
+reaching aims operand = case typedValue operand of
+  VLocal local -> Map.lookup local aims
   _ -> Nothing
 
 -- | An @i1@ operand as the branch it decides, when it decides one.

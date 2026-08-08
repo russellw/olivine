@@ -121,8 +121,8 @@
 --
 -- __What it declines and does not intend to take.__  A @switch@, whose sides
 -- would be a chain of selects rather than one and whose cost is a jump table
--- against that chain.  And a side reached from anywhere but the block that tests,
--- which is not a side of this branch at all.
+-- against that chain.  And a side reached from anywhere but the block that
+-- tests, which is not a side of this branch at all.
 module Olivine.Core.Pass.IfConversion
   ( convertBranches
   , armBudget
@@ -244,6 +244,10 @@ armAt f h target =
     [ (side, join)
     | side <- [b | b <- functionBlocks f, blockLabel b == target]
     , Just target /= entryLabel f
+    , -- Nor is a block whose address is taken, for a stronger reason than the
+      -- predecessor count below: control can arrive there without any branch
+      -- here saying so, and a side is a block that stops existing.
+      not (Set.member target (pinnedIn f))
     , predecessorsOf (functionBlocks f) target == [blockLabel h]
     , Br join <- [terminatorTransfer (blockTerminator side)]
     ]

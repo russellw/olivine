@@ -880,6 +880,8 @@ renderValue (VStruct Unpacked fields) = renderStructFields fields
 renderValue (VStruct Packed fields) =
   "<" <> renderStructFields fields <> ">"
 renderValue (VGlobal name) = "@" <> renderName name
+renderValue (VBlockAddress function block) =
+  "blockaddress(@" <> renderName function <> ", %" <> renderName block <> ")"
 renderValue (VAsm a) =
   T.concat
     [ "asm"

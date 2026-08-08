@@ -38,10 +38,15 @@ import Olivine.Core.Program
 -- starts where its first block is, so removing that block would start it
 -- somewhere else, and the block it forwards to may well have predecessors —
 -- which LLVM forbids an entry block, whatever the rest of the graph says.
+--
+-- A block whose address is taken is never one either.  Control can arrive at
+-- it without any branch here saying so, so removing it and sending the
+-- branches past it would leave that arrival with nowhere to land.
 removeForwarding :: Function -> Function
 removeForwarding f = f {functionBlocks = settle (functionBlocks f)}
   where
     entry = entryLabel f
+    pinned = pinnedIn f
 
     settle blocks = case candidates blocks of
       [] -> blocks
@@ -51,6 +56,7 @@ removeForwarding f = f {functionBlocks = settle (functionBlocks f)}
       [ (b, target)
       | b <- blocks
       , Just (blockLabel b) /= entry
+      , not (Set.member (blockLabel b) pinned)
       , null (blockInstructions b)
       , Br target <- [terminatorTransfer (blockTerminator b)]
       , -- A block branching to itself is a loop, not a detour.
@@ -86,6 +92,7 @@ mergeBlocks :: Function -> Function
 mergeBlocks f = f {functionBlocks = settle (functionBlocks f)}
   where
     entry = entryLabel f
+    pinned = pinnedIn f
 
     settle blocks = case candidates blocks of
       [] -> blocks
@@ -102,6 +109,9 @@ mergeBlocks f = f {functionBlocks = settle (functionBlocks f)}
       , -- Nowhere else it is reached from.  The entry block is reached
         -- without being branched to, which no count of predecessors can see.
         Just target /= entry
+      , -- And it is not a block something can hold the address of, which is
+        -- reached by more than the one predecessor a merge can see.
+        not (Set.member target pinned)
       , [_] <- [predecessorsOf blocks target]
       , below <- [c | c <- blocks, blockLabel c == target]
       ]

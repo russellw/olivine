@@ -3,6 +3,8 @@ source_filename = "test/c/jumps.c"
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-pc-linux-gnu"
 
+@thread_ops.ops = internal global [3 x ptr] [ptr blockaddress(@thread_ops, %24), ptr blockaddress(@thread_ops, %50), ptr blockaddress(@thread_ops, %70)], align 16
+
 ; Function Attrs: noinline nounwind optnone uwtable
 define dso_local i32 @search(ptr noundef %0, i32 noundef %1, i32 noundef %2, i32 noundef %3) #0 {
   %5 = alloca ptr, align 8
@@ -286,6 +288,366 @@ define dso_local i32 @nested_while(i32 noundef %0, i32 noundef %1) #0 {
 28:                                               ; preds = %7
   %29 = load i32, ptr %5, align 4
   ret i32 %29
+}
+
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local i32 @weight(i32 noundef %0) #0 {
+  %2 = alloca i32, align 4
+  %3 = alloca i32, align 4
+  store i32 %0, ptr %3, align 4
+  %4 = load i32, ptr %3, align 4
+  switch i32 %4, label %10 [
+    i32 0, label %5
+    i32 1, label %6
+    i32 2, label %7
+    i32 3, label %8
+    i32 4, label %9
+  ]
+
+5:                                                ; preds = %1
+  store i32 3, ptr %2, align 4
+  br label %11
+
+6:                                                ; preds = %1
+  store i32 5, ptr %2, align 4
+  br label %11
+
+7:                                                ; preds = %1
+  store i32 7, ptr %2, align 4
+  br label %11
+
+8:                                                ; preds = %1
+  store i32 9, ptr %2, align 4
+  br label %11
+
+9:                                                ; preds = %1
+  store i32 11, ptr %2, align 4
+  br label %11
+
+10:                                               ; preds = %1
+  store i32 0, ptr %2, align 4
+  br label %11
+
+11:                                               ; preds = %10, %9, %8, %7, %6, %5
+  %12 = load i32, ptr %2, align 4
+  ret i32 %12
+}
+
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local i32 @in_season(i32 noundef %0) #0 {
+  %2 = alloca i32, align 4
+  %3 = alloca i32, align 4
+  store i32 %0, ptr %3, align 4
+  %4 = load i32, ptr %3, align 4
+  switch i32 %4, label %6 [
+    i32 3, label %5
+    i32 4, label %5
+    i32 5, label %5
+    i32 6, label %5
+  ]
+
+5:                                                ; preds = %1, %1, %1, %1
+  store i32 1, ptr %2, align 4
+  br label %7
+
+6:                                                ; preds = %1
+  store i32 0, ptr %2, align 4
+  br label %7
+
+7:                                                ; preds = %6, %5
+  %8 = load i32, ptr %2, align 4
+  ret i32 %8
+}
+
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local i32 @step_down(i32 noundef %0) #0 {
+  %2 = alloca i32, align 4
+  %3 = alloca i32, align 4
+  store i32 %0, ptr %2, align 4
+  store i32 -1, ptr %3, align 4
+  %4 = load i32, ptr %2, align 4
+  switch i32 %4, label %9 [
+    i32 10, label %5
+    i32 11, label %6
+    i32 12, label %7
+    i32 13, label %8
+  ]
+
+5:                                                ; preds = %1
+  store i32 40, ptr %3, align 4
+  br label %9
+
+6:                                                ; preds = %1
+  store i32 30, ptr %3, align 4
+  br label %9
+
+7:                                                ; preds = %1
+  store i32 20, ptr %3, align 4
+  br label %9
+
+8:                                                ; preds = %1
+  store i32 10, ptr %3, align 4
+  br label %9
+
+9:                                                ; preds = %1, %8, %7, %6, %5
+  %10 = load i32, ptr %3, align 4
+  ret i32 %10
+}
+
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local i32 @scattered(i32 noundef %0) #0 {
+  %2 = alloca i32, align 4
+  %3 = alloca i32, align 4
+  store i32 %0, ptr %3, align 4
+  %4 = load i32, ptr %3, align 4
+  switch i32 %4, label %9 [
+    i32 0, label %5
+    i32 1, label %6
+    i32 2, label %7
+    i32 3, label %8
+  ]
+
+5:                                                ; preds = %1
+  store i32 4, ptr %2, align 4
+  br label %10
+
+6:                                                ; preds = %1
+  store i32 9, ptr %2, align 4
+  br label %10
+
+7:                                                ; preds = %1
+  store i32 2, ptr %2, align 4
+  br label %10
+
+8:                                                ; preds = %1
+  store i32 7, ptr %2, align 4
+  br label %10
+
+9:                                                ; preds = %1
+  store i32 -1, ptr %2, align 4
+  br label %10
+
+10:                                               ; preds = %9, %8, %7, %6, %5
+  %11 = load i32, ptr %2, align 4
+  ret i32 %11
+}
+
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local i32 @sparse(i32 noundef %0) #0 {
+  %2 = alloca i32, align 4
+  %3 = alloca i32, align 4
+  store i32 %0, ptr %3, align 4
+  %4 = load i32, ptr %3, align 4
+  switch i32 %4, label %8 [
+    i32 1, label %5
+    i32 2, label %6
+    i32 4, label %7
+  ]
+
+5:                                                ; preds = %1
+  store i32 2, ptr %2, align 4
+  br label %9
+
+6:                                                ; preds = %1
+  store i32 4, ptr %2, align 4
+  br label %9
+
+7:                                                ; preds = %1
+  store i32 8, ptr %2, align 4
+  br label %9
+
+8:                                                ; preds = %1
+  store i32 0, ptr %2, align 4
+  br label %9
+
+9:                                                ; preds = %8, %7, %6, %5
+  %10 = load i32, ptr %2, align 4
+  ret i32 %10
+}
+
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local i32 @case_works(i32 noundef %0, i32 noundef %1) #0 {
+  %3 = alloca i32, align 4
+  %4 = alloca i32, align 4
+  %5 = alloca i32, align 4
+  store i32 %0, ptr %4, align 4
+  store i32 %1, ptr %5, align 4
+  %6 = load i32, ptr %4, align 4
+  switch i32 %6, label %16 [
+    i32 0, label %7
+    i32 1, label %10
+    i32 2, label %13
+  ]
+
+7:                                                ; preds = %2
+  %8 = load i32, ptr %5, align 4
+  %9 = add nsw i32 %8, 1
+  store i32 %9, ptr %3, align 4
+  br label %17
+
+10:                                               ; preds = %2
+  %11 = load i32, ptr %5, align 4
+  %12 = add nsw i32 %11, 2
+  store i32 %12, ptr %3, align 4
+  br label %17
+
+13:                                               ; preds = %2
+  %14 = load i32, ptr %5, align 4
+  %15 = add nsw i32 %14, 3
+  store i32 %15, ptr %3, align 4
+  br label %17
+
+16:                                               ; preds = %2
+  store i32 0, ptr %3, align 4
+  br label %17
+
+17:                                               ; preds = %16, %13, %10, %7
+  %18 = load i32, ptr %3, align 4
+  ret i32 %18
+}
+
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local i32 @thread_ops(ptr noundef %0, i32 noundef %1) #0 {
+  %3 = alloca i32, align 4
+  %4 = alloca ptr, align 8
+  %5 = alloca i32, align 4
+  %6 = alloca i32, align 4
+  %7 = alloca i32, align 4
+  store ptr %0, ptr %4, align 8
+  store i32 %1, ptr %5, align 4
+  store i32 0, ptr %6, align 4
+  store i32 0, ptr %7, align 4
+  %8 = load i32, ptr %7, align 4
+  %9 = load i32, ptr %5, align 4
+  %10 = icmp sge i32 %8, %9
+  br i1 %10, label %11, label %13
+
+11:                                               ; preds = %2
+  %12 = load i32, ptr %6, align 4
+  store i32 %12, ptr %3, align 4
+  br label %72
+
+13:                                               ; preds = %2
+  %14 = load ptr, ptr %4, align 8
+  %15 = load i32, ptr %7, align 4
+  %16 = sext i32 %15 to i64
+  %17 = getelementptr inbounds i8, ptr %14, i64 %16
+  %18 = load i8, ptr %17, align 1
+  %19 = zext i8 %18 to i32
+  %20 = srem i32 %19, 3
+  %21 = sext i32 %20 to i64
+  %22 = getelementptr inbounds [3 x ptr], ptr @thread_ops.ops, i64 0, i64 %21
+  %23 = load ptr, ptr %22, align 8
+  br label %74
+
+24:                                               ; preds = %74
+  %25 = load ptr, ptr %4, align 8
+  %26 = load i32, ptr %7, align 4
+  %27 = sext i32 %26 to i64
+  %28 = getelementptr inbounds i8, ptr %25, i64 %27
+  %29 = load i8, ptr %28, align 1
+  %30 = zext i8 %29 to i32
+  %31 = load i32, ptr %6, align 4
+  %32 = add nsw i32 %31, %30
+  store i32 %32, ptr %6, align 4
+  %33 = load i32, ptr %7, align 4
+  %34 = add nsw i32 %33, 1
+  store i32 %34, ptr %7, align 4
+  %35 = load i32, ptr %5, align 4
+  %36 = icmp sge i32 %34, %35
+  br i1 %36, label %37, label %39
+
+37:                                               ; preds = %24
+  %38 = load i32, ptr %6, align 4
+  store i32 %38, ptr %3, align 4
+  br label %72
+
+39:                                               ; preds = %24
+  %40 = load ptr, ptr %4, align 8
+  %41 = load i32, ptr %7, align 4
+  %42 = sext i32 %41 to i64
+  %43 = getelementptr inbounds i8, ptr %40, i64 %42
+  %44 = load i8, ptr %43, align 1
+  %45 = zext i8 %44 to i32
+  %46 = srem i32 %45, 3
+  %47 = sext i32 %46 to i64
+  %48 = getelementptr inbounds [3 x ptr], ptr @thread_ops.ops, i64 0, i64 %47
+  %49 = load ptr, ptr %48, align 8
+  br label %74
+
+50:                                               ; preds = %74
+  %51 = load i32, ptr %6, align 4
+  %52 = mul nsw i32 %51, 2
+  store i32 %52, ptr %6, align 4
+  %53 = load i32, ptr %7, align 4
+  %54 = add nsw i32 %53, 1
+  store i32 %54, ptr %7, align 4
+  %55 = load i32, ptr %5, align 4
+  %56 = icmp sge i32 %54, %55
+  br i1 %56, label %57, label %59
+
+57:                                               ; preds = %50
+  %58 = load i32, ptr %6, align 4
+  store i32 %58, ptr %3, align 4
+  br label %72
+
+59:                                               ; preds = %50
+  %60 = load ptr, ptr %4, align 8
+  %61 = load i32, ptr %7, align 4
+  %62 = sext i32 %61 to i64
+  %63 = getelementptr inbounds i8, ptr %60, i64 %62
+  %64 = load i8, ptr %63, align 1
+  %65 = zext i8 %64 to i32
+  %66 = srem i32 %65, 3
+  %67 = sext i32 %66 to i64
+  %68 = getelementptr inbounds [3 x ptr], ptr @thread_ops.ops, i64 0, i64 %67
+  %69 = load ptr, ptr %68, align 8
+  br label %74
+
+70:                                               ; preds = %74
+  %71 = load i32, ptr %6, align 4
+  store i32 %71, ptr %3, align 4
+  br label %72
+
+72:                                               ; preds = %70, %57, %37, %11
+  %73 = load i32, ptr %3, align 4
+  ret i32 %73
+
+74:                                               ; preds = %59, %39, %13
+  %75 = phi ptr [ %23, %13 ], [ %49, %39 ], [ %69, %59 ]
+  indirectbr ptr %75, [label %24, label %50, label %70]
+}
+
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local i32 @jump_over(i32 noundef %0) #0 {
+  %2 = alloca i32, align 4
+  %3 = alloca ptr, align 8
+  %4 = alloca i32, align 4
+  store i32 %0, ptr %2, align 4
+  %5 = load i32, ptr %2, align 4
+  %6 = icmp sgt i32 %5, 0
+  %7 = zext i1 %6 to i64
+  %8 = select i1 %6, ptr blockaddress(@jump_over, %10), ptr blockaddress(@jump_over, %11)
+  store ptr %8, ptr %3, align 8
+  store i32 0, ptr %4, align 4
+  %9 = load ptr, ptr %3, align 8
+  br label %14
+
+10:                                               ; preds = %14
+  store i32 1, ptr %4, align 4
+  br label %12
+
+11:                                               ; preds = %14
+  store i32 -1, ptr %4, align 4
+  br label %12
+
+12:                                               ; preds = %11, %10
+  %13 = load i32, ptr %4, align 4
+  ret i32 %13
+
+14:                                               ; preds = %1
+  %15 = phi ptr [ %9, %1 ]
+  indirectbr ptr %15, [label %10, label %11]
 }
 
 attributes #0 = { noinline nounwind optnone uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }

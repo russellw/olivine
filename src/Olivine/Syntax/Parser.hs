@@ -1648,6 +1648,7 @@ pValue =
     , VBoolean False <$ keyword "false"
     , pStringValue
     , pGetElementPtrValue
+    , pBlockAddressValue
     , pCastValue
     , pSplatValue
     , pAsmValue
@@ -1754,6 +1755,21 @@ pGetElementPtrValue = do
   operands <- pTypedValue `sepBy1` symbol ","
   symbol ")"
   pure (VGetElementPtr flags element operands)
+
+-- | @blockaddress(\@f, %b)@.
+--
+-- The second operand is written like a local and is not one: it is a block's
+-- name, in the function the first operand names.  Nothing about it is a type,
+-- so unlike every other constant expression here there is no type to read.
+pBlockAddressValue :: Parser (Value Name)
+pBlockAddressValue = do
+  keyword "blockaddress"
+  symbol "("
+  function <- pGlobalName
+  symbol ","
+  block <- pLocalName
+  symbol ")"
+  pure (VBlockAddress function block)
 
 -- | An integer or a floating point literal.
 --

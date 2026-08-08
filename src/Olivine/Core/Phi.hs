@@ -25,6 +25,8 @@ module Olivine.Core.Phi
 
 import Data.List (elemIndex, partition, sortOn)
 import Data.Maybe (fromMaybe)
+import Data.Set (Set)
+import Data.Set qualified as Set
 
 import Olivine.Core.Instruction
 import Olivine.Core.Program
@@ -198,8 +200,12 @@ distinct = foldr (\x xs -> x : filter (/= x) xs) []
 -- that block would start it somewhere else, and the block it forwards to may
 -- well have predecessors — which LLVM forbids an entry block, whatever the
 -- rest of the graph says.
-removeForwarding :: [Joined] -> [Joined]
-removeForwarding = settle
+--
+-- The pinned blocks are never detours either, however little they do: a block
+-- something can hold the address of is reached by ways no branch here names,
+-- so branching past it would leave a jump arriving at a block that is gone.
+removeForwarding :: Set Label -> [Joined] -> [Joined]
+removeForwarding pinned = settle
   where
     settle blocks = case candidates blocks of
       [] -> blocks
@@ -215,6 +221,7 @@ removeForwarding = settle
       [ (b, target)
       | b <- blocks
       , Just (joinedLabel b) /= entryOf blocks
+      , not (Set.member (joinedLabel b) pinned)
       , null (joinedInstructions b)
       , null (joinedPhis b)
       , Br target <- [terminatorTransfer (joinedTerminator b)]

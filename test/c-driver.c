@@ -21,6 +21,9 @@ long counted(int); int only_stored(int);
 /* jumps.c */
 int search(const int*,int,int,int); int digits(unsigned); int falls_through(int);
 int two_exits(const int*,int,int); int nested_while(int,int);
+int weight(int); int in_season(int); int step_down(int); int scattered(int);
+int sparse(int); int case_works(int,int); int thread_ops(const unsigned char*,int);
+int jump_over(int);
 /* unions.c -- the by-value aggregates have to be declared the same way here */
 union bits { int i; float f; unsigned char b[4]; };
 struct flags { unsigned kind:3; unsigned live:1; signed delta:12; };
@@ -170,7 +173,17 @@ int main(void){
     for(unsigned u=0;u<100000u;u=u*7+1) printf("%d ", digits(u)); printf("\n");
     for(int i=-1;i<=10;i++) printf("%d ", falls_through(i)); printf("\n");
     for(int c=-5;c<=20;c+=5) printf("%d ", two_exits(g,12,c)); printf("\n");
-    for(int a=0;a<5;a++) printf("%d ", nested_while(a,3)); printf("\n"); }
+    for(int a=0;a<5;a++) printf("%d ", nested_while(a,3)); printf("\n");
+    /* Either side of every range, so a switch folded into arithmetic is
+       checked where the range test is what decides. */
+    for(int i=-2;i<=7;i++) printf("%d ", weight(i)); printf("\n");
+    for(int i=0;i<=8;i++) printf("%d ", in_season(i)); printf("\n");
+    for(int i=8;i<=15;i++) printf("%d ", step_down(i)); printf("\n");
+    for(int i=-1;i<=5;i++) printf("%d %d %d ", scattered(i), sparse(i), case_works(i,10));
+    printf("\n");
+    { const unsigned char code[] = {0,3,1,6,2,9,0,1};
+      for(int n=0;n<=8;n++) printf("%d ", thread_ops(code,n)); printf("\n"); }
+    for(int i=-1;i<=1;i++) printf("%d ", jump_over(i)); printf("\n"); }
 #endif
 #ifdef UNIONS
   { for(float f=-2.5f;f<=2.5f;f+=1.25f) printf("%d ", punned(f)); printf("\n");

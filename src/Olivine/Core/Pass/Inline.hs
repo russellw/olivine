@@ -309,6 +309,12 @@ copyable world callee =
     && not (interposable (signatureLinkage signature))
     && not (any (`elem` attributes) [FANoInline, FAReturnsTwice, FANaked])
     && not (any indirect (functionBlocks callee))
+    -- A block whose address is taken may not be copied: the address is one
+    -- value and the copy would be a second block with the same claim to it,
+    -- and whichever the table then named, the other would be unreachable
+    -- through it.  LLVM's own inliner refuses the same body for the same
+    -- reason.
+    && Map.null (functionAddressed callee)
     && not (any unwinding (functionBlocks callee))
     && not (returnsTwiceIn (worldPromises world) callee)
   where

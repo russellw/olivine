@@ -29,14 +29,26 @@ import Olivine.Core.Program
 import Olivine.Core.Ssa (reconstruct)
 import Olivine.Syntax.Ast qualified as Syntax
 import Olivine.Syntax.Function qualified as Syntax
+import Olivine.Syntax.Global qualified as Syntax
 import Olivine.Syntax.Instruction qualified as Syntax
 import Olivine.Syntax.Name
 import Olivine.Syntax.Printer (renderName)
 import Olivine.Syntax.Type (Type (..))
-import Olivine.Syntax.Value (TypedValue (..), Value (..))
+import Olivine.Syntax.Value (TypedValue (..), Value (..), renameBlockAddresses)
 
+-- | Put a whole program back into syntax.
+--
+-- One entry at a time, except for the one thing that is not a fact about one
+-- entry: a @blockaddress@ names a block of a function that is almost always
+-- another entry, and the number that block ends up with is settled by
+-- numbering that function.  So the numbering happens for every function
+-- first, and every entry is then read for addresses to correct — the globals
+-- above all, a table of them being what a computed @goto@ jumps through.
 raise :: Program -> Syntax.Module
-raise = Syntax.Module . map raiseEntry . programEntries
+raise program =
+  Syntax.Module (map (correcting . raiseEntry) (programEntries program))
+  where
+    correcting = renamingBlockAddresses (blockRenamingIn program)
 
 raiseEntry :: Entry -> Syntax.Entry
 raiseEntry (ERetained entry) = entry
@@ -47,6 +59,17 @@ raiseEntry (EFunction f) =
       , Syntax.definitionBlocks = map (raiseBlock numbering single) single
       }
   where
+    (numbering, single) = settled f
+
+-- | A function in single assignment form, and what everything in it is to be
+-- called.
+--
+-- Two callers want this and must agree exactly: raising the function itself,
+-- and working out what a @blockaddress@ elsewhere in the program should now
+-- say.  So it is computed in one place rather than twice from the same parts.
+settled :: Function -> (Numbering, [Joined])
+settled f = (number (functionSignature f) (functionParameters f) single, single)
+  where
     -- Reconstruction is what empties the blocks put on split edges: the
     -- assignments in them become phi operands, leaving a branch and nothing
     -- else.  Taking them out again is what makes the trip through the core
@@ -56,8 +79,53 @@ raiseEntry (EFunction f) =
     -- graph the second time as the first: removing a detour renames the block an
     -- operand arrives from, which is what leaves the order to be settled here
     -- rather than where the operands were made.
-    single = inWrittenOrder (removeForwarding (reconstruct f))
-    numbering = number (functionSignature f) (functionParameters f) single
+    single = inWrittenOrder (removeForwarding (pinnedIn f) (reconstruct f))
+
+-- * Block addresses
+
+-- | What every block whose address is taken is called now, by function and by
+-- the name the address was written with.
+--
+-- Only the functions that were lowered are here.  One that was retained comes
+-- back out as it was written, block names and all, so a @blockaddress@ naming
+-- one of its blocks still names it and there is nothing to correct.
+blockRenamingIn :: Program -> Map Name (Map Name Name)
+blockRenamingIn program =
+  Map.fromList
+    [ ( Syntax.signatureName (functionSignature f)
+      , Map.map (blockLabelName (fst (settled f))) (functionAddressed f)
+      )
+    | EFunction f <- programEntries program
+    ]
+
+-- | Rewrite the block addresses in one entry.
+--
+-- Every place a value can stand is visited: a global's initializer, an alias
+-- or ifunc's target, and every operand of every instruction — the last being
+-- where a computed @goto@ writing its table into a local puts them.
+renamingBlockAddresses :: Map Name (Map Name Name) -> Syntax.Entry -> Syntax.Entry
+renamingBlockAddresses renaming = go
+  where
+    -- A name the renaming does not mention is a block of a function that was
+    -- never lowered, and it keeps what it was written with.
+    rename function block =
+      Map.findWithDefault block block (Map.findWithDefault Map.empty function renaming)
+    value = renameBlockAddresses rename
+    operand (TypedValue t v) = TypedValue t (value v)
+
+    go entry = case entry of
+      Syntax.EGlobal g ->
+        Syntax.EGlobal g {Syntax.globalInitializer = value <$> Syntax.globalInitializer g}
+      Syntax.EIndirect s ->
+        Syntax.EIndirect s {Syntax.indirectTarget = value (Syntax.indirectTarget s)}
+      Syntax.EDefine d ->
+        Syntax.EDefine d {Syntax.definitionBlocks = map block (Syntax.definitionBlocks d)}
+      _ -> entry
+
+    block b = b {Syntax.blockBody = map instruction (Syntax.blockBody b)}
+    instruction (Syntax.IOperation result operation metadata) =
+      Syntax.IOperation result (fmap operand operation) metadata
+    instruction i = i
 
 -- * Numbering
 

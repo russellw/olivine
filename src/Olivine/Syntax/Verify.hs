@@ -73,6 +73,7 @@ import Olivine.Syntax.Type (Type (..))
 import Olivine.Syntax.Value
   ( TypedValue (..)
   , Value (..)
+  , blockAddressesIn
   , globalsIn
   , holdsAsm
   , isConstant
@@ -126,6 +127,15 @@ data Complaint
   | RedefinedMetadata Natural
   | -- | A reference to a symbol the module does not have.
     UndefinedSymbol Name
+  | -- | A @blockaddress@ naming a block the function it names does not have.
+    --
+    -- The one reference in the grammar whose target is not a symbol, and so
+    -- the one that no other rule here would catch.  It is worth a rule of its
+    -- own because the way to get it wrong is not to write it wrong: a block's
+    -- printed name is issued afresh every time a module is written out, so an
+    -- address carried through unchanged while the blocks were renumbered names
+    -- whatever now happens to have that number — or nothing, which is this.
+    MissingBlockAddress Name Name
   | -- | A @comdat@ clause naming a group the module does not have.  A clause
     -- written bare names the group the symbol's own name spells, so this is
     -- the name it was resolved to rather than the name that was written.
@@ -252,6 +262,7 @@ verify (Module entries) =
         , knownSymbols = Set.fromList (concatMap symbolsDefinedBy entries)
         , knownComdats = Set.fromList [name | EComdat name _ <- entries]
         , knownNodes = Set.fromList [node | EMetadata node _ _ <- entries]
+        , knownBlocks = Map.fromList (concatMap blocksDefinedBy entries)
         }
 
     opaque (EOpaque _) = True
@@ -273,7 +284,10 @@ symbolsDefinedBy entry = case entry of
 -- | What the module has, for everything that refers to something by name.
 --
 -- Three namespaces, because @\@g@ and @$g@ and @!0@ are three unrelated names
--- and a definition of one is no definition of another.
+-- and a definition of one is no definition of another.  And the blocks, which
+-- are not a namespace of the module at all — each function has its own — and
+-- are here because a @blockaddress@ names one from outside the function it is
+-- in.
 data Known = Known
   { -- | Whether every entry was read.  An unread line can define into any of
     -- the three and there is no telling which, so nothing is asked of any of
@@ -282,6 +296,11 @@ data Known = Known
   , knownSymbols :: Set Name
   , knownComdats :: Set Name
   , knownNodes :: Set Natural
+  , -- | What each definition in the module calls its blocks, which is what a
+    -- @blockaddress@ is checked against.  A function that is only declared has
+    -- no entry here and nothing is asked about it: its blocks are in another
+    -- module.
+    knownBlocks :: Map Name (Set Name)
   }
 
 -- | Whether the module has what is named here, when it can be said what the
@@ -323,6 +342,7 @@ global known g =
     <> concatMap (clause known (globalName g)) (globalAttributes g)
     <> concatMap (nodeReference known . attachmentNode) (globalMetadata g)
     <> symbols known (foldMap globalsIn initializer)
+    <> blockAddresses known (foldMap blockAddressesIn initializer)
   where
     initializer = globalInitializer g
 
@@ -335,6 +355,7 @@ indirect known s =
     <> [TargetNotConstant | not (isConstant target)]
     <> [ResolverNotSymbol | indirectKind s == IndirectIFunc, not (symbol target)]
     <> symbols known (globalsIn target)
+    <> blockAddresses known (blockAddressesIn target)
   where
     target = indirectTarget s
     symbol (VGlobal _) = True
@@ -433,6 +454,42 @@ nodeReference known node =
 symbols :: Known -> [Name] -> [Complaint]
 symbols known names =
   [UndefinedSymbol name | name <- nub names, not (has knownSymbols known name)]
+
+-- | Whether every block a value takes the address of is a block of the
+-- function it says.
+--
+-- Asked wherever symbols are, and of the same values, since a block address
+-- can stand anywhere a constant can — an initializer, a table of them, an
+-- operand of an instruction.  Nothing is asked where the module is not whole,
+-- or where the function named has no body here.
+blockAddresses :: Known -> [(Name, Name)] -> [Complaint]
+blockAddresses known taken =
+  [ MissingBlockAddress function block
+  | (function, block) <- nub taken
+  , knownWhole known
+  , Just blocks <- [Map.lookup function (knownBlocks known)]
+  , not (Set.member block blocks)
+  ]
+
+-- | What a definition calls its blocks.
+--
+-- The entry block is named too, under the number LLVM gives it, for the reason
+-- the definition verifier names it: a reference to it is understood even
+-- though the block was written without a label.  LLVM forbids taking the entry
+-- block's address, which is a rule this does not enforce and would be a
+-- separate complaint if it did.
+blocksDefinedBy :: Entry -> [(Name, Set Name)]
+blocksDefinedBy (EDefine d) =
+  [ ( signatureName signature
+    , Set.fromList
+        [ maybe (entryBlockName signature) blockLabelName (blockLabel b)
+        | b <- definitionBlocks d
+        ]
+    )
+  ]
+  where
+    signature = definitionSignature d
+blocksDefinedBy _ = []
 
 -- * What a function is made of
 
@@ -651,6 +708,9 @@ definition known d =
             <> symbols
               known
               [g | operand <- toList operation, g <- globalsIn (typedValue operand)]
+            <> blockAddresses
+              known
+              [a | operand <- toList operation, a <- blockAddressesIn (typedValue operand)]
             <> concatMap (nodeReference known . attachmentNode) attachments
 
     -- What the three exception handling instructions ask of the function
@@ -804,6 +864,12 @@ renderComplaint complaint = case complaint of
   RedefinedComdat name -> "$" <> renderName name <> " is defined twice"
   RedefinedMetadata node -> "!" <> natural node <> " is defined twice"
   UndefinedSymbol name -> "@" <> renderName name <> " is defined nowhere in the module"
+  MissingBlockAddress function block ->
+    "the address of %"
+      <> renderName block
+      <> " is taken in @"
+      <> renderName function
+      <> ", which has no such block"
   UndefinedComdat name -> "$" <> renderName name <> " is defined nowhere in the module"
   UndefinedMetadata node -> "!" <> natural node <> " is defined nowhere in the module"
   LinkageNotForDeclaration l ->

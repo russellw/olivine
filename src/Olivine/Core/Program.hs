@@ -20,10 +20,13 @@ module Olivine.Core.Program
   , entryLabel
   , nextLocal
   , nextLabel
+  , pinnedIn
   ) where
 
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
+import Data.Set (Set)
+import Data.Set qualified as Set
 
 import Olivine.Core.Instruction
 
@@ -63,6 +66,21 @@ data Function = Function
   , -- | The parameters, as the body refers to them, in the order written.
     functionParameters :: [Local]
   , functionBlocks :: [Block]
+  , -- | The blocks of this function whose address is taken, under the names
+    -- they were taken by.
+    --
+    -- The one place the core keeps a block's spelling, and it keeps it for
+    -- the one reason there could be: a @blockaddress@ elsewhere in the module
+    -- says @%b@, and nothing but this can say which block that was once the
+    -- names are gone.  What the map is for is the way out — see
+    -- 'Olivine.Core.Raise.raise', which writes the number the block ended up
+    -- with wherever the old name was written.
+    --
+    -- What it is for on the way through is 'pinnedIn': a block something can
+    -- hold the address of may not be merged away, forwarded through or
+    -- dropped for being unreachable, because the graph is no longer the whole
+    -- story about how control gets there.
+    functionAddressed :: Map Name Label
   }
   deriving (Eq, Show)
 
@@ -143,3 +161,19 @@ entryLabel :: Function -> Maybe Label
 entryLabel f = case functionBlocks f of
   block : _ -> Just (blockLabel block)
   [] -> Nothing
+
+-- | The blocks that have to stay, whatever the graph says about them.
+--
+-- A block whose address is taken is reached by ways no terminator in this
+-- function mentions: an @indirectbr@ in it, an @indirectbr@ in another
+-- function, or a table of addresses the program indexes at run time.  So the
+-- three things the graph normally licenses — removing a block nothing
+-- branches to, branching past one that only forwards, and folding one into
+-- the single block above it — are all wrong here, and every pass that does
+-- one of them asks this first.
+--
+-- What it does not license is leaving such a block's contents alone.  The
+-- instructions in it are ordinary instructions and what it branches to is an
+-- ordinary edge; it is the label that is spoken for.
+pinnedIn :: Function -> Set Label
+pinnedIn = Set.fromList . Map.elems . functionAddressed
