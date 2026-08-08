@@ -61,6 +61,7 @@ library
                       Olivine.Core.Pass.LoopRotation
                       Olivine.Core.Pass.Unroll
                       Olivine.Core.Pass.Promote
+                      Olivine.Core.Pass.Sink
                       Olivine.Core.Pass.Split
                       Olivine.Core.Pass.StrengthReduce
                       Olivine.Core.Pass.Switches
@@ -130,6 +131,7 @@ test-suite olivine-test
                       Unrolling
                       Addresses
                       Strength
+                      Sink
                       Switches
                       Verify
     build-depends:    base,

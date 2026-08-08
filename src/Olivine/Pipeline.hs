@@ -24,6 +24,7 @@ import Olivine.Core.Pass.LoopInvariants (hoistLoopInvariants)
 import Olivine.Core.Pass.LoopRotation (rotateLoops)
 import Olivine.Core.Pass.Promote (promoteMemory)
 import Olivine.Core.Pass.Redundancies (eliminateRedundancies)
+import Olivine.Core.Pass.Sink (sinkCommonTails)
 import Olivine.Core.Pass.Split (splitAggregates)
 import Olivine.Core.Pass.StrengthReduce (reduceStrength)
 import Olivine.Core.Pass.Switches (foldSwitches)
@@ -110,6 +111,23 @@ passes :: [Pass]
 -- this order rather than the other is that a slot whose address escapes only in
 -- a block nothing reaches is not promoted, since promotion runs before the
 -- block goes.
+--
+-- Sinking straight after control flow, and it wants that pass more than
+-- anything else here does.  An arm is a block that branches to the join and
+-- nowhere else, and every predecessor of the join has to be one; a detour block
+-- that forwarding has not yet removed is a predecessor holding nothing to sink,
+-- so one of them left standing does not shorten the run — it refuses the join
+-- outright.  Everything below reads blocks an instruction at a time, and what
+-- this leaves them is one copy of a tail where there were n, so it goes above
+-- all of them rather than at the end: the redundancies have one computation to
+-- look at, if-conversion's sides are shorter by whatever they shared and so more
+-- of them fit the budget, and the dead code pass collects on whatever the last
+-- read of an operand went with.
+--
+-- It leaves the loops alone by itself and wants no rule for them.  A rotated
+-- loop merged into one block is its own predecessor, and a block is never an arm
+-- of the join it is: what is left is the preheader, which is one arm, and two is
+-- the least that can be merged.
 --
 -- Unrolling after control flow, because the loop it writes out has to be one
 -- block by then: rotation puts the test at the bottom and merging makes the
@@ -220,6 +238,7 @@ passes =
   , Pass "tail recursion" eliminateTailRecursion
   , Pass "loop rotation" rotateLoops
   , Pass "control flow" simplifyControlFlow
+  , Pass "sinking" sinkCommonTails
   , Pass "unrolling" unrollLoops
   , Pass "strength reduction" reduceStrength
   , Pass "switch folding" foldSwitches
