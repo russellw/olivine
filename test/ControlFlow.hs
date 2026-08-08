@@ -102,6 +102,46 @@ controlFlowTests =
             assertEqual "unchanged" lowered (simplifyControlFlow lowered)
         ]
     , testGroup
+        "an invoke that cannot throw"
+        [ -- The unwind edge cannot be taken, so the invoke is a call and the
+          -- block below it is the rest of this one.  What that leaves is the
+          -- landing pad, which nothing now reaches.
+          testCase "becomes a call" $ do
+            calls <- map nameText <$> calledIn cannotThrow
+            assertEqual "an instruction, not a terminator" ["safe"] calls
+        , testCase "and takes the landing pad with it" $ do
+            blocks <- blocksOf cannotThrow
+            assertEqual "one block is left" [Label 0] blocks
+        , testCase "and what followed it is the rest of the block" $ do
+            terminators <- terminatorsOf cannotThrow
+            assertEqual "ending where the invoke returned to" [Ret Nothing] terminators
+        , -- An invoke's result arrives only along the normal edge; an
+          -- instruction's is in hand for the rest of the block.  So the
+          -- addition below the invoke reads what the call assigns, in one
+          -- block, which is the whole point of the widening.
+          testCase "and its result is read below it" $ do
+            reads' <- operandsOf withResult
+            assertEqual
+              "the call reads the parameter and the add reads the call"
+              [[Local 0], [Local 1]]
+              reads'
+        , -- A callee that says nothing about unwinding may unwind, and an
+          -- attribute list is a set of promises rather than a description.
+          testCase "a callee that may throw is left alone" $ do
+            parsed <- expectParse "<inline>" mayThrow
+            let lowered = lower parsed
+            assertEqual "unchanged" lowered (simplifyControlFlow lowered)
+        , -- Two invokes reaching one pad, only one of which may be made plain:
+          -- what decides the pad's fate is whether anything still throws to
+          -- it, so it stays and the reachability walk is what says so.
+          testCase "a pad another invoke still reaches stays" $ do
+            calls <- map nameText <$> calledIn shared
+            assertEqual "only the safe one became a call" ["safe"] calls
+        , testCase "and the pad is still there to be reached" $ do
+            blocks <- blocksOf shared
+            assertEqual "the pad and the block that returns" 3 (length blocks)
+        ]
+    , testGroup
         "what is merged"
         [ -- A chain of blocks each reached from one place, by a block that
           -- goes nowhere else, is one block written as several.
@@ -240,6 +280,81 @@ undecided =
     , "}"
     ]
 
+-- | An invoke of a callee that promises not to throw.
+--
+-- The @nounwind@ is on the declaration, which is where clang puts it and where
+-- 'Olivine.Core.Effects' reads it from whether or not a body is here to read.
+cannotThrow :: Text
+cannotThrow =
+  T.unlines
+    [ "declare void @safe() nounwind"
+    , "declare i32 @personality(...)"
+    , "define void @f() personality ptr @personality {"
+    , "entry:"
+    , "  invoke void @safe() to label %next unwind label %pad"
+    , "next:"
+    , "  ret void"
+    , "pad:"
+    , "  %e = landingpad { ptr, i32 } cleanup"
+    , "  resume { ptr, i32 } %e"
+    , "}"
+    ]
+
+-- | The same, assigning a result that is read after the call returns.
+withResult :: Text
+withResult =
+  T.unlines
+    [ "declare i32 @safeval(i32) nounwind"
+    , "declare i32 @personality(...)"
+    , "define i32 @f(i32 %n) personality ptr @personality {"
+    , "entry:"
+    , "  %r = invoke i32 @safeval(i32 %n) to label %next unwind label %pad"
+    , "next:"
+    , "  %s = add i32 %r, 1"
+    , "  ret i32 %s"
+    , "pad:"
+    , "  %e = landingpad { ptr, i32 } cleanup"
+    , "  resume { ptr, i32 } %e"
+    , "}"
+    ]
+
+-- | An invoke of a callee that promises nothing.
+mayThrow :: Text
+mayThrow =
+  T.unlines
+    [ "declare void @risky()"
+    , "declare i32 @personality(...)"
+    , "define void @f() personality ptr @personality {"
+    , "entry:"
+    , "  invoke void @risky() to label %next unwind label %pad"
+    , "next:"
+    , "  ret void"
+    , "pad:"
+    , "  %e = landingpad { ptr, i32 } cleanup"
+    , "  resume { ptr, i32 } %e"
+    , "}"
+    ]
+
+-- | One landing pad, two invokes throwing to it, one of which cannot.
+shared :: Text
+shared =
+  T.unlines
+    [ "declare void @safe() nounwind"
+    , "declare void @risky()"
+    , "declare i32 @personality(...)"
+    , "define void @f() personality ptr @personality {"
+    , "entry:"
+    , "  invoke void @safe() to label %mid unwind label %pad"
+    , "mid:"
+    , "  invoke void @risky() to label %next unwind label %pad"
+    , "next:"
+    , "  ret void"
+    , "pad:"
+    , "  %e = landingpad { ptr, i32 } cleanup"
+    , "  resume { ptr, i32 } %e"
+    , "}"
+    ]
+
 blocksOf :: Text -> IO [Label]
 blocksOf source = do
   simplified <- simplify source
@@ -251,6 +366,17 @@ resultsOf source = do
   simplified <- simplify source
   pure
     [ instructionResult i
+    | f <- functionsIn simplified
+    , b <- functionBlocks f
+    , i <- blockInstructions b
+    ]
+
+-- | What locals each surviving instruction reads, in order.
+operandsOf :: Text -> IO [[Local]]
+operandsOf source = do
+  simplified <- simplify source
+  pure
+    [ localsUsedBy (instructionOperation i)
     | f <- functionsIn simplified
     , b <- functionBlocks f
     , i <- blockInstructions b

@@ -21,6 +21,16 @@
 -- long way, and this is where it becomes one.  That is why the folding here
 -- is handed what the block says about the addresses in it — 'aimsIn' — where
 -- everything else it does is a fact about the terminator alone.
+--
+-- __An @invoke@ that cannot throw is one of those branches__, and 'plainCalls'
+-- is where it stops being a branch at all.  The edge it cannot take leads to a
+-- landing pad, so what folding it away leaves for the sweep below to collect is
+-- a whole block and everything in it, which is the largest thing this pass does
+-- on a program with exceptions in it.  Two things make it unlike the rest:
+-- what it rewrites is the block and not only the terminator — a call that does
+-- not end its block is an instruction — and it is the first thing here to want
+-- an analysis, since whether a callee throws is 'Olivine.Core.Effects'
+-- answering rather than arithmetic on an operand.
 module Olivine.Core.Pass.ControlFlow
   ( simplifyControlFlow
   , foldTerminator
@@ -32,10 +42,11 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 
 import Olivine.Core.Blocks (mergeBlocks, removeForwarding)
+import Olivine.Core.Effects (Behaviour (..), behaviourOf, effectsOf)
 import Olivine.Core.Instruction
 import Olivine.Core.Program
 import Olivine.Syntax.Function (Signature (..))
-import Olivine.Syntax.Instruction (Select (..))
+import Olivine.Syntax.Instruction (Call, Select (..))
 import Olivine.Syntax.Type (Type (..))
 import Olivine.Syntax.Value (TypedValue (..), Value (..))
 
@@ -43,17 +54,25 @@ simplifyControlFlow :: Program -> Program
 simplifyControlFlow program =
   program {programEntries = map entry (programEntries program)}
   where
-    entry (EFunction f) = EFunction (settle f)
+    -- Read once for the whole program, and still true at the end of it: what
+    -- this pass does to a function is remove work, and nothing it removes is
+    -- something a caller could have been relying on the callee to do.  So no
+    -- answer here goes stale as the sweeps go round.
+    made = behaviourOf (effectsOf program)
+    entry (EFunction f) = EFunction (settle made f)
     entry retained = retained
+
+-- | What a call may do, as this pass is handed it.
+type Made = Call (TypedValue Local) -> Behaviour
 
 -- | Removing one block can leave another unreachable, and can leave the block
 -- before it a detour, so this runs until a sweep finds nothing.
-settle :: Function -> Function
-settle f
+settle :: Made -> Function -> Function
+settle made f
   | swept == f = f
-  | otherwise = settle swept
+  | otherwise = settle made swept
   where
-    swept = sweep f
+    swept = sweep made f
 
 -- | Fold what can be folded, drop what that leaves unreachable, and put back
 -- together the blocks the CFG no longer has a reason to keep apart.
@@ -61,8 +80,15 @@ settle f
 -- Merging comes last because the other three make work for it and it makes
 -- none for them: a block stops having a second predecessor when the branch
 -- that was the other one folds away, or when the block it was in is dropped.
-sweep :: Function -> Function
-sweep f = mergeBlocks (removeForwarding (prune (decide f)))
+--
+-- Making the invokes plain comes first for the same reason from the other end:
+-- it is the one step that makes work for all three and takes none from any of
+-- them.  An invoke that becomes a call is a block whose landing pad nothing now
+-- reaches, so pruning has something to drop; and it is a block ending in an
+-- unconditional branch, so merging has two blocks to join where it had a call
+-- standing between them.
+sweep :: Made -> Function -> Function
+sweep made f = mergeBlocks (removeForwarding (prune (decide (plainCalls made f))))
   where
     decide g = g {functionBlocks = map (fold g) (functionBlocks g)}
     prune g = g {functionBlocks = reachableIn g}
@@ -70,6 +96,49 @@ sweep f = mergeBlocks (removeForwarding (prune (decide f)))
     foldIn aims t =
       maybe t (\transfer -> t {terminatorTransfer = transfer}) $
         foldTerminator aims (terminatorTransfer t)
+
+-- | An @invoke@ whose callee cannot throw, written as the call it is.
+--
+-- The unwind edge of such an invoke is a branch that can never be taken, so
+-- this is 'foldTerminator' by another name — and it is here rather than there
+-- because the answer is not a transfer.  A call that returns to the next
+-- instruction /is/ an instruction, so what comes back is the block with the
+-- call at the end of its instructions and an unconditional branch to where the
+-- invoke went when it returned.
+--
+-- __The result is the same local and it is now readable everywhere.__  An
+-- invoke's result arrives only along the normal edge, which is what the
+-- verifier's @ResultOnUnwind@ says; an instruction's result is in hand for the
+-- rest of the block and below.  That is a widening of where it may be read and
+-- so takes nothing away from anything already written.
+--
+-- __Nothing moves.__  The call ends up where the invoke was, after every
+-- instruction of the block and before control leaves it, so the copies a phi
+-- left on the normal edge still run where they ran.  That is why this needs no
+-- question asked about the block: an invoke is already the last thing in it.
+--
+-- The metadata goes on the call rather than on the branch.  An attachment on an
+-- invoke is about the call it makes — what it may return, which callees it may
+-- resolve to — and the branch this leaves behind decides nothing for a branch
+-- weight to be about.
+plainCalls :: Made -> Function -> Function
+plainCalls made f = f {functionBlocks = map plainly (functionBlocks f)}
+  where
+    plainly b = case terminatorTransfer (blockTerminator b) of
+      Invoke result call normal _
+        | not (mayUnwind (made call)) ->
+            b
+              { blockInstructions =
+                  blockInstructions b
+                    <> [ Instruction
+                          { instructionResult = result
+                          , instructionOperation = OCall call
+                          , instructionMetadata = terminatorMetadata (blockTerminator b)
+                          }
+                       ]
+              , blockTerminator = Terminator (Br normal) []
+              }
+      _ -> b
 
 -- | The blocks control can get to, in the order they were written.
 --
