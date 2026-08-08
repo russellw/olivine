@@ -63,6 +63,7 @@ library
                       Olivine.Core.Pass.Promote
                       Olivine.Core.Pass.Split
                       Olivine.Core.Pass.StrengthReduce
+                      Olivine.Core.Pass.Switches
                       Olivine.Core.Pass.TailRecursion
                       Olivine.Core.Raise
                       Olivine.Core.Verify
@@ -129,6 +130,7 @@ test-suite olivine-test
                       Unrolling
                       Addresses
                       Strength
+                      Switches
                       Verify
     build-depends:    base,
                       containers,

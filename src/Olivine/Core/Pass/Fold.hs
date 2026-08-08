@@ -66,6 +66,9 @@ module Olivine.Core.Pass.Fold
   , foldOperation
   , foldThrough
   , Producer
+  , integerOf
+  , valueOf
+  , widthOf
   ) where
 
 import Control.Applicative ((<|>))

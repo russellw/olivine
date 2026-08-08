@@ -26,6 +26,7 @@ import Olivine.Core.Pass.Promote (promoteMemory)
 import Olivine.Core.Pass.Redundancies (eliminateRedundancies)
 import Olivine.Core.Pass.Split (splitAggregates)
 import Olivine.Core.Pass.StrengthReduce (reduceStrength)
+import Olivine.Core.Pass.Switches (foldSwitches)
 import Olivine.Core.Pass.TailRecursion (eliminateTailRecursion)
 import Olivine.Core.Pass.Unroll (unrollLoops)
 import Olivine.Core.Program (Program)
@@ -129,6 +130,14 @@ passes :: [Pass]
 -- widening of the counter still standing where the front end put it, which is
 -- why it comes above the redundancies and the hoisting rather than below them.
 --
+-- Switch folding beside if-conversion and just above it, the two being the
+-- same reading of a terminator: a side is a block reached only from it that
+-- goes on to a join, and what it decides is the local those sides assign.  It
+-- wants the graph straightened for exactly the reason if-conversion does, and
+-- it goes first of the two because what it leaves is a block ending in a
+-- select and an unconditional branch, which is a side if-conversion may then
+-- take — where the other order would leave nothing for either.
+--
 -- If-conversion after control flow, because the diamond it looks for has to be
 -- the real one: at @-O0@ one of the two sides of an @else if@ arrives as a block
 -- that forwards to the side proper, and a side that does not branch to the join
@@ -213,6 +222,7 @@ passes =
   , Pass "control flow" simplifyControlFlow
   , Pass "unrolling" unrollLoops
   , Pass "strength reduction" reduceStrength
+  , Pass "switch folding" foldSwitches
   , Pass "if conversion" convertBranches
   , Pass "redundancies" eliminateRedundancies
   , Pass "loop invariants" hoistLoopInvariants

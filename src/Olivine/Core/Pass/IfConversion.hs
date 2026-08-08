@@ -121,8 +121,12 @@
 --
 -- __What it declines and does not intend to take.__  A @switch@, whose sides
 -- would be a chain of selects rather than one and whose cost is a jump table
--- against that chain.  And a side reached from anywhere but the block that
--- tests, which is not a side of this branch at all.
+-- against that chain.  Where the cases of one leave constants that run in
+-- step, they are a formula and not a chain, and
+-- "Olivine.Core.Pass.Switches" takes it just above here — reading the sides
+-- exactly as this does and writing one select rather than one per case.  And
+-- a side reached from anywhere but the block that tests, which is not a side
+-- of this branch at all.
 module Olivine.Core.Pass.IfConversion
   ( convertBranches
   , armBudget
