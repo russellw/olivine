@@ -35,18 +35,26 @@
 -- agrees on both: it gives a self-recursive @memory(none)@ function its
 -- @memory(none)@ and withholds @willreturn@.
 --
--- __What is not modelled.__  LLVM's @memory@ says which /locations/ are
--- touched — the arguments, storage nothing can address, everything else — and
--- this reduces all of that to \"reads\" and \"writes\".  A function promising
--- @memory(argmem: write)@ therefore only says here that it writes, where the
--- promise would let a caller keep everything it knows about storage the callee
--- was never handed.  That wants the aliasing to be asked about each argument
--- in turn, which is worth doing on the day something measures it; the coarse
--- answer is already what separates a call from a wall.
+-- __Where it touches is read as well as whether.__  LLVM's @memory@ says which
+-- locations are touched — the arguments, storage nothing in the module can
+-- address, everything else — and 'behaviourReach' keeps that.  It is what
+-- separates a call that may disturb anything from one that may disturb only
+-- what it was handed: @memcpy@ promises @memory(argmem: readwrite)@, so a load
+-- from storage neither of its two pointers names survives it.  'mayReach' is
+-- the question a pass actually asks, and it is asked instead of
+-- 'reachableByCall' rather than as well.
+--
+-- Whether and where are kept apart on purpose.  'writesMemory' goes on meaning
+-- \"writes something\", including storage this module cannot address, because
+-- that is what the dead code pass has to ask: a call writing inaccessible
+-- memory has an effect even though no load here can see it, and dropping it
+-- because nothing here aliases it would be dropping the effect.
 module Olivine.Core.Effects
   ( Behaviour (..)
+  , Reach (..)
   , anything
   , nothing
+  , mayReach
   , Effects
   , effectsOf
   , behaviourOf
@@ -59,7 +67,7 @@ import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as T
 
-import Olivine.Core.Alias (objectsIn, reachableByCall)
+import Olivine.Core.Alias (Objects, objectsIn, reachableByArguments, reachableByCall)
 import Olivine.Core.Blocks (predecessorsOf)
 import Olivine.Core.Instruction
 import Olivine.Core.Layout (Layout, layoutOf)
@@ -75,8 +83,9 @@ import Olivine.Core.Promises
   )
 import Olivine.Syntax.Attribute (FunctionAttribute (..))
 import Olivine.Syntax.Function (Signature (..))
-import Olivine.Syntax.Instruction (Call (..), Load (..), Store (..))
+import Olivine.Syntax.Instruction (Argument (..), Call (..), Load (..), Store (..))
 import Olivine.Syntax.Name (nameText)
+import Olivine.Syntax.Type (Type (..))
 import Olivine.Syntax.Value (TypedValue (..), Value (..), holdsAsm)
 
 -- | What running something may do besides computing with its operands.
@@ -102,16 +111,61 @@ data Behaviour = Behaviour
     mayUnwind :: Bool
   , -- | May fail to come back at all: it loops, it recurs, or it exits.
     mayNotReturn :: Bool
+  , -- | Where the reading and the writing can land.
+    behaviourReach :: Reach
   }
   deriving (Eq, Show)
 
+-- | Where a call's memory accesses can be, as far as its caller can see.
+data Reach
+  = -- | Anywhere a stranger can name, which is the answer for anything not
+    -- promising otherwise.
+    Anywhere
+  | -- | Only the storage its own arguments point into, which is what
+    -- @memory(argmem: ...)@ promises.
+    OnlyArguments
+  | -- | Only storage nothing in this module can address, which is
+    -- @memory(inaccessiblemem: ...)@.  No access written here can alias it, so
+    -- for aliasing this is nothing at all — but it is not nothing for the
+    -- passes that ask whether a call does anything, and 'writesMemory' still
+    -- says it writes.
+    Unaddressable
+  deriving (Eq, Show)
+
+-- | Whether a call may touch the storage a pointer points into.
+--
+-- The question every pass that has to give something up at a call is really
+-- asking.  What it gives up depends on what the callee promised about where it
+-- goes, so this is 'reachableByCall' for a callee that promised nothing and
+-- something narrower for one that did.
+mayReach :: Objects -> Behaviour -> Call (TypedValue Local) -> Value Local -> Bool
+mayReach objects behaviour call address = case behaviourReach behaviour of
+  Anywhere -> reachableByCall objects address
+  -- Only the pointer arguments: @argmem@ is what the arguments /point/ into,
+  -- and an argument that is not a pointer is not a way to reach storage.  The
+  -- size and the volatile flag of a @memcpy@ are two of them, and counting
+  -- them would make every such call reach everywhere — which is what it did
+  -- before this said so.
+  OnlyArguments ->
+    reachableByArguments
+      objects
+      [ typedValue (argumentValue argument)
+      | argument <- callArguments call
+      , TPointer _ <- [typedValueType (argumentValue argument)]
+      ]
+      address
+  Unaddressable -> False
+
 -- | The answer for something nothing is known about.
 anything :: Behaviour
-anything = Behaviour True True True True
+anything = Behaviour True True True True Anywhere
 
 -- | The answer for something that does none of it.
+-- Its reach is the smallest there is, which is what makes it the identity of
+-- 'also': something that touches no memory widens nothing when it is added to
+-- something that does.
 nothing :: Behaviour
-nothing = Behaviour False False False False
+nothing = Behaviour False False False False Unaddressable
 
 -- | Both of them, which is what a body does when it does two things.
 also :: Behaviour -> Behaviour -> Behaviour
@@ -121,6 +175,7 @@ also a b =
     , writesMemory = writesMemory a || writesMemory b
     , mayUnwind = mayUnwind a || mayUnwind b
     , mayNotReturn = mayNotReturn a || mayNotReturn b
+    , behaviourReach = wider (behaviourReach a) (behaviourReach b)
     }
 
 -- | What two accounts of one thing agree it may do.
@@ -138,7 +193,23 @@ sharper a b =
     , writesMemory = writesMemory a && writesMemory b
     , mayUnwind = mayUnwind a && mayUnwind b
     , mayNotReturn = mayNotReturn a && mayNotReturn b
+    , behaviourReach = narrower (behaviourReach a) (behaviourReach b)
     }
+
+-- | Where two things between them may go, which is wherever either may.
+wider :: Reach -> Reach -> Reach
+wider a b
+  | a == Anywhere || b == Anywhere = Anywhere
+  | a == OnlyArguments || b == OnlyArguments = OnlyArguments
+  | otherwise = Unaddressable
+
+-- | Where two promises about one call agree it may go, which is where both
+-- allow.  Two that allow nothing in common allow nothing the caller can see.
+narrower :: Reach -> Reach -> Reach
+narrower a b
+  | a == Unaddressable || b == Unaddressable = Unaddressable
+  | a == OnlyArguments || b == OnlyArguments = OnlyArguments
+  | otherwise = Anywhere
 
 -- | What each symbol the module names may do, and the promises to read a call
 -- site's own attributes with.
@@ -419,8 +490,11 @@ bodyOf layout promises metadata f =
       -- Control never gets here, so nothing it stands for happens.
       Unreachable -> nothing
 
-    reading = nothing {readsMemory = True}
-    writing = nothing {writesMemory = True}
+    -- A body's own access may be anywhere: proving that what it reaches through
+    -- a parameter is only what the caller handed it is the analysis this does
+    -- not have, and the promise a callee makes is read rather than worked out.
+    reading = nothing {readsMemory = True, behaviourReach = Anywhere}
+    writing = nothing {writesMemory = True, behaviourReach = Anywhere}
 
     -- An access to storage no caller can name is no effect of the call at all.
     touching address behaviour
@@ -503,16 +577,20 @@ behaviourOf effects =
 fromAttributes :: [FunctionAttribute] -> Behaviour
 fromAttributes attributes =
   Behaviour
-    { readsMemory = maybe True fst locations
-    , writesMemory = maybe True snd locations
+    { readsMemory = maybe True reads' locations
+    , writesMemory = maybe True writes' locations
     , mayUnwind = FANoUnwind `notElem` attributes
     , mayNotReturn = FAWillReturn `notElem` attributes
+    , behaviourReach = maybe Anywhere goes locations
     }
   where
     locations = case [text | FAMemory text <- attributes] of
       [] -> Nothing
       texts -> Just (foldr1 both (map accesses texts))
-    both (r, w) (r', w') = (r || r', w || w')
+    both (r, w, x) (r', w', x') = (r || r', w || w', wider x x')
+    reads' (r, _, _) = r
+    writes' (_, w, _) = w
+    goes (_, _, x) = x
 
 -- | What a @memory(...)@ clause says, as \"may read\" and \"may write\".
 --
@@ -523,10 +601,30 @@ fromAttributes attributes =
 -- the locations, and an unnamed location's access is @none@, which contributes
 -- nothing.  That makes @memory(read, argmem: none)@ a read and no write, which
 -- is what it says.
-accesses :: Text -> (Bool, Bool)
-accesses text = (any (`elem` ["read", "readwrite"]) said, any (`elem` ["write", "readwrite"]) said)
+accesses :: Text -> (Bool, Bool, Reach)
+accesses text = (any (`elem` ["read", "readwrite"]) said, any (`elem` ["write", "readwrite"]) said, goes)
   where
-    said = map (T.strip . after) (T.splitOn "," text)
+    items = map T.strip (T.splitOn "," text)
+    said = map after items
+
     after item = case T.breakOn ":" item of
-      (_, rest) | not (T.null rest) -> T.drop 1 rest
+      (_, rest) | not (T.null rest) -> T.strip (T.drop 1 rest)
       (whole, _) -> whole
+
+    location item = case T.breakOn ":" item of
+      (name, rest) | not (T.null rest) -> T.strip name
+      _ -> ""
+
+    -- The locations something is actually done to.  A bare access is the one
+    -- for every location not named, so it counts as a location of its own and
+    -- one that is not on the short list below.
+    touched = [location item | item <- items, after item `elem` ["read", "write", "readwrite"]]
+
+    -- @errnomem@ is deliberately not here: errno is storage this module can
+    -- address like any other, so a promise about it is no promise to a caller
+    -- holding a pointer.
+    goes
+      | null touched = Unaddressable
+      | not (all (`elem` ["argmem", "inaccessiblemem"]) touched) = Anywhere
+      | "argmem" `elem` touched = OnlyArguments
+      | otherwise = Unaddressable

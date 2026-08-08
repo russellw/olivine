@@ -143,8 +143,8 @@ import Data.Maybe (fromMaybe, listToMaybe, mapMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 
-import Olivine.Core.Alias (Access (..), Objects, mayAlias, objectsIn, reachableByCall)
-import Olivine.Core.Effects (Behaviour (..), Effects, behaviourOf, effectsOf)
+import Olivine.Core.Alias (Access (..), Objects, mayAlias, objectsIn)
+import Olivine.Core.Effects (Behaviour (..), Effects, behaviourOf, effectsOf, mayReach)
 import Olivine.Core.Layout (Layout, alignmentOf, layoutOf, storeSize)
 import Olivine.Core.Instruction
 import Olivine.Core.Loops (Loop (..), Preheader, enterThrough, loopsOf, preheaderFor)
@@ -317,7 +317,9 @@ invariantIn globals layout effects objects f loop =
     -- write must happen, which is the opposite of a reason to pass over it.
     changed read' =
       any (mayAlias objects read') stored
-        || (calling && reachableByCall objects (accessPointer read'))
+        || anyAtomic
+        || any (\call -> writesMemory (made call) && mayReach objects (made call) call (accessPointer read'))
+          [call | OCall call <- inside]
 
     -- Where each store writes and how much of it: a store to another field of
     -- the struct a load reads is not a store the load has to be kept behind.
@@ -325,14 +327,15 @@ invariantIn globals layout effects objects f loop =
       [ Access (typedValue (storePointer s)) (typedValueType (storeValue s))
       | OStore s <- inside
       ]
-    -- A call that writes may write anything it can name, and an atomic is
-    -- where a write by another thread becomes visible, which reaches just as
-    -- far.  Either of them in the body and a load of storage this function let
-    -- out of its sight has to stay in the loop.
-    calling = any strangers inside
+    -- An atomic is where a write by another thread becomes visible, and a
+    -- thread promised nothing about where it writes: one of these in the body
+    -- and a load of storage this function let out of its sight has to stay in
+    -- the loop.  A call is asked about the address instead — what it may write
+    -- is what it promised, and 'mayReach' is that promise read.
+    anyAtomic = any strangers inside
 
     strangers operation = case operation of
-      OCall call -> writesMemory (made call)
+      OCall _ -> False
       OAtomicLoad _ -> True
       OAtomicStore _ -> True
       OAtomicRmw _ -> True

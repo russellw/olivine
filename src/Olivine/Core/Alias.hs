@@ -75,6 +75,7 @@ module Olivine.Core.Alias
   , mayAlias
   , mustAlias
   , reachableByCall
+  , reachableByArguments
   ) where
 
 import Data.Foldable (toList)
@@ -585,6 +586,29 @@ promisedApart objects p q =
 -- address positions of this function's own accesses.
 reachableByCall :: Objects -> Value Local -> Bool
 reachableByCall objects = maybe True (escaped objects) . objectOf objects
+
+-- | Whether a call that touches only what its arguments reach can reach this
+-- storage.
+--
+-- Stronger than 'reachableByCall' and asked instead of it, never as well:
+-- storage that escaped is storage a stranger can name, but a callee promising
+-- @memory(argmem: ...)@ has said it will not name it that way — the only
+-- storage it touches is the storage its own arguments point into.  So the
+-- question stops being whether the address got out and becomes whether any of
+-- these arguments points into the same object.
+--
+-- An argument whose object cannot be worked out could be pointing anywhere, and
+-- an address whose object cannot be worked out could be anywhere; either way
+-- the answer is that it might.  Only the pointers are looked at: an argument
+-- that is not one is not a way to reach storage.
+reachableByArguments :: Objects -> [Value Local] -> Value Local -> Bool
+reachableByArguments objects arguments address = case objectOf objects address of
+  Nothing -> True
+  Just object -> any (into object) arguments
+  where
+    into object argument = case objectOf objects argument of
+      Nothing -> True
+      Just other -> other == object
 
 -- | Whether storage can be reached other than through a pointer this can
 -- follow back to it.

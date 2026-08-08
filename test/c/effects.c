@@ -151,3 +151,33 @@ int unused_recursion(int n) {
   chain(n);
   return n;
 }
+
+/* Storage for the three below: three objects the compiler can tell apart. */
+static int held[8];
+static int spare[8];
+static int watched;
+
+/* What a promise says about *where*, not only about what.  memcpy and memset
+   promise memory(argmem: ...), which is that they touch only the storage their
+   own pointer arguments point into — so a load of something neither of them
+   names survives the call, and the pair below is what says so: the first two
+   share their second load and the third must not.  Only the pointer arguments
+   count; the size and the volatile flag of a memcpy are arguments too, and
+   counting them would make every such call reach everywhere. */
+int seen_across_copy(void) {
+  int a = watched;
+  __builtin_memcpy(held, spare, sizeof held);
+  return a + watched;
+}
+
+int seen_across_set(void) {
+  int a = watched;
+  __builtin_memset(held, 0, sizeof held);
+  return a + watched;
+}
+
+int copied_into(void) {
+  int a = held[0];
+  __builtin_memcpy(held, spare, sizeof held);
+  return a + held[0];
+}

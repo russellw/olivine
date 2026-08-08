@@ -160,7 +160,7 @@ import Data.Maybe (mapMaybe)
 import Data.Set qualified as Set
 
 import Olivine.Core.Alias (Access (..), mayAlias, objectsIn, reachableByCall)
-import Olivine.Core.Effects (Behaviour (..), Effects, behaviourOf, effectsOf)
+import Olivine.Core.Effects (Behaviour (..), Effects, behaviourOf, effectsOf, mayReach)
 import Olivine.Core.Layout (Layout, layoutOf)
 import Olivine.Core.Blocks (predecessorsOf, reversePostorder)
 import Olivine.Core.Instruction
@@ -252,6 +252,12 @@ eliminateIn :: Map Name Type -> Maybe Layout -> Effects -> Function -> Function
 eliminateIn types layout effects f = f {functionBlocks = map rewrite (functionBlocks f)}
   where
     made = behaviourOf effects
+
+    -- Whether this call can disturb what is known about an address.  A call
+    -- that writes nothing disturbs nothing; one that writes only what its
+    -- arguments reach disturbs only that.  See 'mayReach'.
+    disturbedBy call address =
+      writesMemory (made call) && mayReach objects (made call) call address
     blocks = functionBlocks f
     order = reversePostorder f
     -- What the function's own pointers point into, which every question about
@@ -288,10 +294,7 @@ eliminateIn types layout effects f = f {functionBlocks = map rewrite (functionBl
     leaving t known = case callIn (terminatorTransfer t) of
       Just call ->
         assigned
-          { contents =
-              if writesMemory (made call)
-                then filter (not . reachableByCall objects . contentAddress) (contents known)
-                else contents known
+          { contents = filter (not . disturbedBy call . contentAddress) (contents known)
           }
         where
           assigned = maybe id kill (resultOf t) known
@@ -435,7 +438,7 @@ eliminateIn types layout effects f = f {functionBlocks = map rewrite (functionBl
           -- Whatever it does to memory, it does it to memory it can name — and
           -- a call the program says writes nothing does nothing to it at all.
           OCall call
-            | writesMemory (made call) -> byStrangers known'
+            | writesMemory (made call) -> byCall call known'
             | otherwise -> known'
           -- And an atomic is where what another thread did to memory becomes
           -- visible here, which reaches exactly as far: everything this
@@ -471,10 +474,17 @@ eliminateIn types layout effects f = f {functionBlocks = map rewrite (functionBl
           _ -> known'
 
         -- Nothing a stranger can reach is known any more.
+        -- An atomic is where another thread's writes become visible, and a
+        -- thread is a stranger that promised nothing: everything a stranger can
+        -- name goes.
         byStrangers known' =
           known'
-            { contents =
-                filter (not . reachableByCall objects . contentAddress) (contents known')
+            { contents = filter (not . reachableByCall objects . contentAddress) (contents known')
+            }
+
+        byCall call known' =
+          known'
+            { contents = filter (not . disturbedBy call . contentAddress) (contents known')
             }
 
         -- Every fact about an address a write to this one could have been a

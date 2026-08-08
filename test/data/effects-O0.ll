@@ -3,6 +3,9 @@ source_filename = "test/c/effects.c"
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-pc-linux-gnu"
 
+@watched = internal global i32 0, align 4
+@held = internal global [8 x i32] zeroinitializer, align 16
+@spare = internal global [8 x i32] zeroinitializer, align 16
 @written_total = dso_local global i32 0, align 4
 
 ; Function Attrs: noinline nounwind optnone uwtable
@@ -457,7 +460,51 @@ define internal i32 @chain(i32 noundef %0) #0 {
   ret i32 %13
 }
 
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local i32 @seen_across_copy() #0 {
+  %1 = alloca i32, align 4
+  %2 = load i32, ptr @watched, align 4
+  store i32 %2, ptr %1, align 4
+  call void @llvm.memcpy.p0.p0.i64(ptr align 16 @held, ptr align 16 @spare, i64 32, i1 false)
+  %3 = load i32, ptr %1, align 4
+  %4 = load i32, ptr @watched, align 4
+  %5 = add nsw i32 %3, %4
+  ret i32 %5
+}
+
+; Function Attrs: nocallback nofree nounwind willreturn memory(argmem: readwrite)
+declare void @llvm.memcpy.p0.p0.i64(ptr noalias writeonly captures(none), ptr noalias readonly captures(none), i64, i1 immarg) #1
+
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local i32 @seen_across_set() #0 {
+  %1 = alloca i32, align 4
+  %2 = load i32, ptr @watched, align 4
+  store i32 %2, ptr %1, align 4
+  call void @llvm.memset.p0.i64(ptr align 16 @held, i8 0, i64 32, i1 false)
+  %3 = load i32, ptr %1, align 4
+  %4 = load i32, ptr @watched, align 4
+  %5 = add nsw i32 %3, %4
+  ret i32 %5
+}
+
+; Function Attrs: nocallback nofree nounwind willreturn memory(argmem: write)
+declare void @llvm.memset.p0.i64(ptr writeonly captures(none), i8, i64, i1 immarg) #2
+
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local i32 @copied_into() #0 {
+  %1 = alloca i32, align 4
+  %2 = load i32, ptr @held, align 16
+  store i32 %2, ptr %1, align 4
+  call void @llvm.memcpy.p0.p0.i64(ptr align 16 @held, ptr align 16 @spare, i64 32, i1 false)
+  %3 = load i32, ptr %1, align 4
+  %4 = load i32, ptr @held, align 16
+  %5 = add nsw i32 %3, %4
+  ret i32 %5
+}
+
 attributes #0 = { noinline nounwind optnone uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
+attributes #1 = { nocallback nofree nounwind willreturn memory(argmem: readwrite) }
+attributes #2 = { nocallback nofree nounwind willreturn memory(argmem: write) }
 
 !llvm.module.flags = !{!0, !1, !2, !3, !4}
 !llvm.ident = !{!5}

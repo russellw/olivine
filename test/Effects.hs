@@ -20,6 +20,12 @@ import Olivine.Core.Program
 import Olivine.Syntax.Function (Signature (..))
 import Olivine.Syntax.Name (nameText)
 
+-- | What a body's own access comes to: it may be anywhere, since nothing here
+-- works out that what a function reaches through a parameter is only what its
+-- caller handed it.  Only a promise written down says otherwise.
+anywhere :: Behaviour
+anywhere = nothing {behaviourReach = Anywhere}
+
 effectTests :: TestTree
 effectTests =
   testGroup
@@ -44,13 +50,13 @@ effectTests =
               >>= (@?= nothing)
         , testCase "a global read" $
             behaviourIn (asking "%r = load i32, ptr @counter" "ret i32 %r")
-              >>= (@?= nothing {readsMemory = True})
+              >>= (@?= anywhere {readsMemory = True})
         , testCase "a global written" $
             behaviourIn (asking "store i32 %0, ptr @counter" "ret i32 %0")
-              >>= (@?= nothing {writesMemory = True})
+              >>= (@?= anywhere {writesMemory = True})
         , testCase "a pointer it was handed written through" $
             behaviourIn (asking' "ptr" "store i32 3, ptr %0" "ret i32 0")
-              >>= (@?= nothing {writesMemory = True})
+              >>= (@?= anywhere {writesMemory = True})
         , -- The address got out, so what is written there is not the frame's
           -- own business any more.
           testCase "its own storage after the address escapes" $
@@ -64,7 +70,7 @@ effectTests =
                   )
                   "ret i32 %0"
               )
-              >>= (@?= nothing {writesMemory = True})
+              >>= (@?= anywhere {writesMemory = True})
         , -- A volatile access is a side effect however narrow the storage.
           testCase "a volatile read of its own storage" $
             behaviourIn
@@ -74,11 +80,11 @@ effectTests =
                   )
                   "ret i32 %r"
               )
-              >>= (@?= nothing {readsMemory = True, writesMemory = True})
+              >>= (@?= anywhere {readsMemory = True, writesMemory = True})
         , -- An ordering is where another thread's writes become visible.
           testCase "an atomic read" $
             behaviourIn (asking "%r = load atomic i32, ptr @counter monotonic, align 4" "ret i32 %r")
-              >>= (@?= nothing {readsMemory = True, writesMemory = True})
+              >>= (@?= anywhere {readsMemory = True, writesMemory = True})
         ]
     , testGroup
         "whether it comes back"
@@ -135,18 +141,37 @@ effectTests =
             behaviourIn (declaring "memory(none) nounwind willreturn" "") >>= (@?= nothing)
         , testCase "memory(read)" $
             behaviourIn (declaring "memory(read) nounwind willreturn" "")
-              >>= (@?= nothing {readsMemory = True})
-        , -- Which location a promise is about is not modelled; that it is a
-          -- read and not a write is.
+              >>= (@?= anywhere {readsMemory = True})
+        , -- Where the promise is about is read as well as what it promises: a
+          -- callee that touches only what its arguments point into cannot
+          -- disturb storage it was never handed.
           testCase "memory(argmem: read)" $
             behaviourIn (declaring "memory(argmem: read) nounwind willreturn" "")
-              >>= (@?= nothing {readsMemory = True})
-        , testCase "memory(read, argmem: none)" $
+              >>= (@?= nothing {readsMemory = True, behaviourReach = OnlyArguments})
+        , -- The bare access is the one for every location not named, so this
+          -- reads everything except the arguments and reaches anywhere.
+          testCase "memory(read, argmem: none)" $
             behaviourIn (declaring "memory(read, argmem: none) nounwind willreturn" "")
-              >>= (@?= nothing {readsMemory = True})
+              >>= (@?= anywhere {readsMemory = True})
         , testCase "memory(argmem: write)" $
             behaviourIn (declaring "memory(argmem: write) nounwind willreturn" "")
-              >>= (@?= nothing {writesMemory = True})
+              >>= (@?= nothing {writesMemory = True, behaviourReach = OnlyArguments})
+        , -- Storage nothing in the module can address: it writes, which is why
+          -- the dead code pass keeps it, and no access written here can alias
+          -- it, which is why nothing has to be given up at it.
+          testCase "memory(inaccessiblemem: write)" $
+            behaviourIn (declaring "memory(inaccessiblemem: write) nounwind willreturn" "")
+              >>= (@?= nothing {writesMemory = True, behaviourReach = Unaddressable})
+        , testCase "memory(argmem: readwrite, inaccessiblemem: readwrite)" $
+            behaviourIn
+              (declaring "memory(argmem: readwrite, inaccessiblemem: readwrite) nounwind willreturn" "")
+              >>= ( @?=
+                      nothing
+                        { readsMemory = True
+                        , writesMemory = True
+                        , behaviourReach = OnlyArguments
+                        }
+                  )
         , -- The site's attributes are a promise about this call, so either
           -- place saying it is enough.  LLVM reads them the same way.
           testCase "promised at the call site instead" $

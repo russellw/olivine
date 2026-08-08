@@ -56,7 +56,8 @@ int twice_over(int,int); int across_call(const int*,int,int);
 int in_loop(const int*,int,int,int); int unused_result(int,int);
 int writer_twice(int); int across_writer(const int*,int); int unused_writer(int);
 int reader_twice(const int*); int reader_across_write(int*,int);
-int unused_loop(int,int); int unused_recursion(int); int loop_of_loops(int,int,int);
+int unused_loop(int,int); int unused_recursion(int);
+int seen_across_copy(void); int seen_across_set(void); int copied_into(void); int loop_of_loops(int,int,int);
 int unused_spin(int); int loop_of_spins(int,int);
 extern int written_total;
 /* stride.c */
@@ -395,6 +396,7 @@ int main(void){
     printf("%d %d\n", reader_twice(cells), reader_across_write(cells,9));
     for(int n=0;n<=4;n++)
       printf("%d %d %d ", unused_loop(n,1), unused_recursion(n), loop_of_loops(n,2,3));
+    printf("%d %d %d\n", seen_across_copy(), seen_across_set(), copied_into());
     printf("\n");
     /* The spinning one is only called where it comes back at all: it adds its
        argument until the sum passes a hundred, so a step of nothing is a step
