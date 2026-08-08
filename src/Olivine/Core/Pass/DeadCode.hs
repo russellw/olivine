@@ -5,6 +5,19 @@
 -- writes memory, a call may do anything, and neither is dead however unread
 -- its result.
 --
+-- __What is live grows from what has to stay; it is not what is left after
+-- removing the unread.__  The two are different wherever a value is read only
+-- by the computation that produces it.  A loop counter nothing else reads is
+-- exactly that: the increment reads the counter and the counter is assigned
+-- what the increment produced, so each of the two is read by the other and a
+-- sweep that keeps whatever anything reads keeps both for ever.  Starting from
+-- the instructions that must stay — the ones with effects, and the terminators
+-- — and adding what they read, then what /that/ is computed from, never reaches
+-- a cycle nothing outside it needs.  That is the difference between a greatest
+-- fixed point and a least one, and it is why a loop whose test has been
+-- rewritten to ask about something else loses its counter here rather than
+-- keeping it as a phi nobody reads.
+--
 -- What may go is judged by 'removableWhenUnused', which is cautious about
 -- everything it cannot ask about.  A call it can ask about: what the whole
 -- program says the callee does is "Olivine.Core.Effects", and a call that
@@ -60,7 +73,7 @@ settle effects f
 sweep :: Effects -> Function -> Function
 sweep effects f = f {functionBlocks = map prune (functionBlocks f)}
   where
-    used = usedIn f
+    used = liveIn effects f
     prune b = b {blockInstructions = filter keep (blockInstructions b)}
     keep i = case instructionResult i of
       -- A marker on storage nothing else in the function names, which is
@@ -72,25 +85,55 @@ sweep effects f = f {functionBlocks = map prune (functionBlocks f)}
         name `Set.member` used
           || not (removableWhenUnused (behaviourOf effects) (instructionOperation i))
 
--- | Every local the function reads.
+-- | Every local the function needs the value of.
 --
--- A lifetime marker reads none of them: see the module header.  The address it
--- names is passed over rather than counted, so that a slot the markers are all
--- that is left of is a slot nothing reads.
-usedIn :: Function -> Set Local
-usedIn f =
-  Set.fromList
-    ( concat
-        [ reading (instructionOperation i)
-        | b <- functionBlocks f
-        , i <- blockInstructions b
-        ]
-        <> [ n
-           | b <- functionBlocks f
-           , n <- localsUsedBy (terminatorTransfer (blockTerminator b))
-           ]
-    )
+-- Grown rather than collected: what the terminators read and what the
+-- instructions that cannot go read, and then whatever those are computed from,
+-- until it stops growing.  Collecting instead — every local anything reads —
+-- would answer with the locals a dead cycle reads of itself, which is the whole
+-- point of doing it this way round; see the module header.
+--
+-- An instruction that stays for its effects contributes what it reads whether
+-- or not anything reads /it/, since it is going to run.  An assignment to a
+-- live local contributes too, and all of them do: a local the core assigns in
+-- several places holds what any of them left, so needing its value needs every
+-- one of them.
+--
+-- A lifetime marker reads nothing: see the module header.  The address it names
+-- is passed over rather than counted, so that a slot the markers are all that
+-- is left of is a slot nothing reads.
+liveIn :: Effects -> Function -> Set Local
+liveIn effects f = grow (Set.fromList (concatMap rooted instructions <> leaving))
   where
+    instructions = [i | b <- functionBlocks f, i <- blockInstructions b]
+
+    leaving =
+      [ n
+      | b <- functionBlocks f
+      , n <- localsUsedBy (terminatorTransfer (blockTerminator b))
+      ]
+
+    -- What an instruction that is staying regardless reads.
+    rooted i
+      | removableWhenUnused (behaviourOf effects) (instructionOperation i) = []
+      | otherwise = reading (instructionOperation i)
+
+    grow known
+      | Set.null added = known
+      | otherwise = grow (Set.union known added)
+      where
+        added =
+          Set.difference
+            ( Set.fromList
+                [ n
+                | i <- instructions
+                , Just name <- [instructionResult i]
+                , Set.member name known
+                , n <- reading (instructionOperation i)
+                ]
+            )
+            known
+
     reading operation = case lifetimeMarked operation of
       Just _ -> []
       Nothing -> localsUsedBy operation

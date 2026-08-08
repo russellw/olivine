@@ -11,6 +11,7 @@ import Olivine.Core.Lower (lower)
 import Olivine.Core.Instruction
 import Olivine.Core.Effects (Behaviour (..), anything, nothing)
 import Olivine.Core.Pass.DeadCode (eliminateDeadCode, removableWhenUnused)
+import Olivine.Core.Pass.Promote (promoteMemory)
 import Olivine.Core.Program
 import Olivine.Syntax.Instruction hiding (Operation (..))
 import Olivine.Syntax.Name
@@ -51,6 +52,22 @@ deadCodeTests =
       testCase "a slot only its lifetime markers name goes" $ do
         results <- resultsOf marked
         assertEqual "the allocation and both markers" [Just (Local 2)] results
+    , -- A value read only by the computation that produces it.  Each of the two
+      -- is read by the other, so a sweep that keeps whatever anything reads
+      -- keeps both for ever; what settles it is that neither is reached from a
+      -- terminator or from anything that stays for its effects.  A loop counter
+      -- nothing else reads is the case that matters, and it is what a loop
+      -- whose test has been rewritten to ask about something else is left with.
+      testCase "a value read only by what computes it" $ do
+        results <- promotedResultsOf spinning
+        assertEqual "the counter goes and the write stays" [Nothing] results
+    , -- The same loop with the counter read once outside the cycle, which is
+      -- what keeps it: the pair is only dead together.
+      testCase "and the same one read from outside the cycle" $ do
+        results <- promotedResultsOf spinningRead
+        assertBool
+          ("expected the counter kept in " <> show results)
+          (length results > 1)
     , testCase "a slot something else names keeps its markers" $ do
         results <- resultsOf held
         assertEqual
@@ -230,6 +247,57 @@ deadCodeTests =
         , "  ret i32 %doubled"
         , "}"
         ]
+
+-- | A loop whose counter nothing but the counter reads.  The volatile store is
+-- what keeps the loop itself from going.
+spinning :: Text
+spinning =
+  T.unlines
+    [ "define void @f(ptr %p) {"
+    , "entry:"
+    , "  %i = alloca i32"
+    , "  store i32 0, ptr %i"
+    , "  br label %loop"
+    , "loop:"
+    , "  %i1 = load i32, ptr %i"
+    , "  %next = add i32 %i1, 1"
+    , "  store i32 %next, ptr %i"
+    , "  store volatile i32 7, ptr %p"
+    , "  br label %loop"
+    , "}"
+    ]
+
+-- | The same, with the count written somewhere that is read.
+spinningRead :: Text
+spinningRead =
+  T.unlines
+    [ "define void @f(ptr %p) {"
+    , "entry:"
+    , "  %i = alloca i32"
+    , "  store i32 0, ptr %i"
+    , "  br label %loop"
+    , "loop:"
+    , "  %i1 = load i32, ptr %i"
+    , "  %next = add i32 %i1, 1"
+    , "  store i32 %next, ptr %i"
+    , "  store volatile i32 %next, ptr %p"
+    , "  br label %loop"
+    , "}"
+    ]
+
+-- | The same, with the counter taken out of memory first — a slot is kept
+-- alive by the stores to it, so a value read only by what computes it is only
+-- written that way once promotion has made it a local.
+promotedResultsOf :: Text -> IO [Maybe Local]
+promotedResultsOf source = do
+  parsed <- expectParse "<inline>" source
+  let program = eliminateDeadCode (promoteMemory (lower parsed))
+  pure
+    [ instructionResult i
+    | f <- functionsIn program
+    , b <- functionBlocks f
+    , i <- blockInstructions b
+    ]
 
 -- | What each surviving instruction assigns to, in order.
 resultsOf :: Text -> IO [Maybe Local]
