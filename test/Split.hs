@@ -191,6 +191,46 @@ splitTests =
                   )
               )
               @?>= ["alloca", "load", "field", "store", "field", "load", "other"]
+        , -- A fill covering the whole slot is a zero written into each field.
+          -- @zeroinitializer@ is the one spelling of a zero that needs to know
+          -- nothing about the type it is a zero of.
+          testCase "a slot filled with zeroes is filled a field at a time" $
+            shapes (holding (filling "i8 0" "i64 8" : both))
+              @?>= ["alloca", "alloca", "store", "store", "store", "load"]
+        , -- A count that does not cover the slot leaves bytes of it holding
+          -- what they held, and this pass cannot say which.
+          testCase "a fill that does not cover the slot is left as it was" $
+            shapes (holding (filling "i8 0" "i64 4" : both))
+              @?>= ["alloca", "other", "field", "store", "field", "load"]
+        , -- A byte repeated to a field's width is arithmetic on a
+          -- representation, and for a field that is a float it is a literal
+          -- this has no business inventing.
+          testCase "a fill of something other than zero is left as it was" $
+            shapes (holding (filling "i8 -1" "i64 8" : both))
+              @?>= ["alloca", "other", "field", "store", "field", "load"]
+        , testCase "a fill of a length nothing knows is left as it was" $
+            shapes (holding (filling "i8 0" "i64 %n" : both))
+              @?>= ["alloca", "other", "field", "store", "field", "load"]
+        , -- Both ends hold the same struct, so the copy is a load and a store
+          -- per field and no byte of either is named except through a field.
+          testCase "a copy between two slots is a copy per field" $
+            shapes (holding (copying <> both))
+              @?>= [ "alloca"
+                   , "alloca"
+                   , "alloca"
+                   , "alloca"
+                   , "load"
+                   , "store"
+                   , "load"
+                   , "store"
+                   , "store"
+                   , "load"
+                   ]
+        , -- Its fields would have to be stepped to at an alignment nothing here
+          -- knows, this function not having allocated it.
+          testCase "a copy one end of which is not a slot is left as it was" $
+            shapes (holding (copyingOut <> both))
+              @?>= ["alloca", "other", "field", "store", "field", "load"]
         ]
     , testGroup
         "what the pipeline makes of it"
@@ -222,6 +262,20 @@ splitTests =
       , "  %r = load i32, ptr %q, align 4"
       ]
 
+    filling what count =
+      "  call void @llvm.memset.p0.i64(ptr align 4 %a, " <> what <> ", " <> count <> ", i1 false)"
+
+    -- A second slot of the same struct, copied into from the first.
+    copying =
+      [ "  %b = alloca %s, align 4"
+      , "  call void @llvm.memcpy.p0.p0.i64(ptr align 4 %b, ptr align 4 %a, i64 8, i1 false)"
+      ]
+
+    -- And the same copy where the other end is a pointer handed in.
+    copyingOut =
+      [ "  call void @llvm.memcpy.p0.p0.i64(ptr align 4 %out, ptr align 4 %a, i64 8, i1 false)"
+      ]
+
     started pointer = "  call void @llvm.lifetime.start.p0(i64 8, ptr " <> pointer <> ")"
     ended pointer = "  call void @llvm.lifetime.end.p0(i64 8, ptr " <> pointer <> ")"
 
@@ -231,12 +285,19 @@ splitTests =
 
     surrounding allocation body =
       T.unlines
-        ( [ "%s = type { i32, i32 }"
+        ( [ -- The layout string is here for the two cases that are a byte
+            -- count: a fill and a copy have to be shown to cover exactly the
+            -- type the slot was allocated as, and that is the one question the
+            -- pass asks it.  Everything else answers the same without it.
+            "target datalayout = \"e-m:e-i64:64-f80:128-n8:16:32:64-S128\""
+          , "%s = type { i32, i32 }"
           , "%t = type { i32, i8 }"
           , "declare void @g(ptr)"
+          , "declare void @llvm.memset.p0.i64(ptr captures(none), i8, i64, i1 immarg)"
+          , "declare void @llvm.memcpy.p0.p0.i64(ptr captures(none), ptr captures(none), i64, i1 immarg)"
           , "declare void @llvm.lifetime.start.p0(i64 immarg, ptr captures(none))"
           , "declare void @llvm.lifetime.end.p0(i64 immarg, ptr captures(none))"
-          , "define i32 @f(i32 %v) {"
+          , "define i32 @f(i32 %v, i64 %n, ptr %out) {"
           , "entry:"
           , allocation
           ]

@@ -18,7 +18,7 @@ define dso_local i32 @area(i32 noundef %0, i32 noundef %1, i32 noundef %2, i32 n
   store i32 %1, ptr %6, align 4, !tbaa !5
   store i32 %2, ptr %7, align 4, !tbaa !5
   store i32 %3, ptr %8, align 4, !tbaa !5
-  call void @llvm.lifetime.start.p0(i64 16, ptr %9) #3
+  call void @llvm.lifetime.start.p0(i64 16, ptr %9) #4
   %10 = load i32, ptr %5, align 4, !tbaa !5
   %11 = getelementptr inbounds nuw %struct.frame, ptr %9, i32 0, i32 0
   %12 = getelementptr inbounds nuw %struct.corner, ptr %11, i32 0, i32 0
@@ -50,7 +50,7 @@ define dso_local i32 @area(i32 noundef %0, i32 noundef %1, i32 noundef %2, i32 n
   %34 = load i32, ptr %33, align 4, !tbaa !12
   %35 = sub nsw i32 %31, %34
   %36 = mul nsw i32 %28, %35
-  call void @llvm.lifetime.end.p0(i64 16, ptr %9) #3
+  call void @llvm.lifetime.end.p0(i64 16, ptr %9) #4
   ret i32 %36
 }
 
@@ -69,7 +69,7 @@ define dso_local i32 @pick_corner(i32 noundef %0, i32 noundef %1, i32 noundef %2
   store i32 %0, ptr %4, align 4, !tbaa !5
   store i32 %1, ptr %5, align 4, !tbaa !5
   store i32 %2, ptr %6, align 4, !tbaa !5
-  call void @llvm.lifetime.start.p0(i64 8, ptr %7) #3
+  call void @llvm.lifetime.start.p0(i64 8, ptr %7) #4
   %8 = load i32, ptr %6, align 4, !tbaa !5
   %9 = icmp ne i32 %8, 0
   br i1 %9, label %10, label %15
@@ -99,7 +99,7 @@ define dso_local i32 @pick_corner(i32 noundef %0, i32 noundef %1, i32 noundef %2
   %24 = getelementptr inbounds nuw %struct.corner, ptr %7, i32 0, i32 1
   %25 = load i32, ptr %24, align 4, !tbaa !16
   %26 = add nsw i32 %23, %25
-  call void @llvm.lifetime.end.p0(i64 8, ptr %7) #3
+  call void @llvm.lifetime.end.p0(i64 8, ptr %7) #4
   ret i32 %26
 }
 
@@ -110,9 +110,9 @@ define dso_local i32 @walk(i32 noundef %0) #0 {
   %4 = alloca i32, align 4
   %5 = alloca %struct.corner, align 4
   store i32 %0, ptr %2, align 4, !tbaa !5
-  call void @llvm.lifetime.start.p0(i64 4, ptr %3) #3
+  call void @llvm.lifetime.start.p0(i64 4, ptr %3) #4
   store i32 0, ptr %3, align 4, !tbaa !5
-  call void @llvm.lifetime.start.p0(i64 4, ptr %4) #3
+  call void @llvm.lifetime.start.p0(i64 4, ptr %4) #4
   store i32 0, ptr %4, align 4, !tbaa !5
   br label %6
 
@@ -123,11 +123,11 @@ define dso_local i32 @walk(i32 noundef %0) #0 {
   br i1 %9, label %11, label %10
 
 10:                                               ; preds = %6
-  call void @llvm.lifetime.end.p0(i64 4, ptr %4) #3
+  call void @llvm.lifetime.end.p0(i64 4, ptr %4) #4
   br label %28
 
 11:                                               ; preds = %6
-  call void @llvm.lifetime.start.p0(i64 8, ptr %5) #3
+  call void @llvm.lifetime.start.p0(i64 8, ptr %5) #4
   %12 = load i32, ptr %4, align 4, !tbaa !5
   %13 = getelementptr inbounds nuw %struct.corner, ptr %5, i32 0, i32 0
   store i32 %12, ptr %13, align 4, !tbaa !15
@@ -144,7 +144,7 @@ define dso_local i32 @walk(i32 noundef %0) #0 {
   %23 = load i32, ptr %3, align 4, !tbaa !5
   %24 = add nsw i32 %23, %22
   store i32 %24, ptr %3, align 4, !tbaa !5
-  call void @llvm.lifetime.end.p0(i64 8, ptr %5) #3
+  call void @llvm.lifetime.end.p0(i64 8, ptr %5) #4
   br label %25
 
 25:                                               ; preds = %11
@@ -155,7 +155,7 @@ define dso_local i32 @walk(i32 noundef %0) #0 {
 
 28:                                               ; preds = %10
   %29 = load i32, ptr %3, align 4, !tbaa !5
-  call void @llvm.lifetime.end.p0(i64 4, ptr %3) #3
+  call void @llvm.lifetime.end.p0(i64 4, ptr %3) #4
   ret i32 %29
 }
 
@@ -166,7 +166,7 @@ define dso_local i32 @through_field(i32 noundef %0, i32 noundef %1) #0 {
   %5 = alloca %struct.corner, align 4
   store i32 %0, ptr %3, align 4, !tbaa !5
   store i32 %1, ptr %4, align 4, !tbaa !5
-  call void @llvm.lifetime.start.p0(i64 8, ptr %5) #3
+  call void @llvm.lifetime.start.p0(i64 8, ptr %5) #4
   %6 = load i32, ptr %3, align 4, !tbaa !5
   %7 = getelementptr inbounds nuw %struct.corner, ptr %5, i32 0, i32 0
   store i32 %6, ptr %7, align 4, !tbaa !15
@@ -179,7 +179,7 @@ define dso_local i32 @through_field(i32 noundef %0, i32 noundef %1) #0 {
   %13 = getelementptr inbounds nuw %struct.corner, ptr %5, i32 0, i32 1
   %14 = load i32, ptr %13, align 4, !tbaa !16
   %15 = add nsw i32 %12, %14
-  call void @llvm.lifetime.end.p0(i64 8, ptr %5) #3
+  call void @llvm.lifetime.end.p0(i64 8, ptr %5) #4
   ret i32 %15
 }
 
@@ -209,7 +209,7 @@ define dso_local i32 @diagonal(i32 noundef %0, i32 noundef %1) #0 {
   %5 = alloca %struct.corner, align 4
   store i32 %0, ptr %3, align 4, !tbaa !5
   store i32 %1, ptr %4, align 4, !tbaa !5
-  call void @llvm.lifetime.start.p0(i64 8, ptr %5) #3
+  call void @llvm.lifetime.start.p0(i64 8, ptr %5) #4
   %6 = load i32, ptr %3, align 4, !tbaa !5
   %7 = load i32, ptr %4, align 4, !tbaa !5
   %8 = call i64 @make_corner(i32 noundef %6, i32 noundef %7)
@@ -219,7 +219,7 @@ define dso_local i32 @diagonal(i32 noundef %0, i32 noundef %1) #0 {
   %11 = getelementptr inbounds nuw %struct.corner, ptr %5, i32 0, i32 1
   %12 = load i32, ptr %11, align 4, !tbaa !16
   %13 = sub nsw i32 %10, %12
-  call void @llvm.lifetime.end.p0(i64 8, ptr %5) #3
+  call void @llvm.lifetime.end.p0(i64 8, ptr %5) #4
   ret i32 %13
 }
 
@@ -230,7 +230,7 @@ define dso_local i32 @tag_at(i32 noundef %0, i32 noundef %1) #0 {
   %5 = alloca %struct.label, align 4
   store i32 %0, ptr %3, align 4, !tbaa !5
   store i32 %1, ptr %4, align 4, !tbaa !5
-  call void @llvm.lifetime.start.p0(i64 8, ptr %5) #3
+  call void @llvm.lifetime.start.p0(i64 8, ptr %5) #4
   %6 = load i32, ptr %3, align 4, !tbaa !5
   %7 = getelementptr inbounds nuw %struct.label, ptr %5, i32 0, i32 0
   store i32 %6, ptr %7, align 4, !tbaa !20
@@ -256,14 +256,71 @@ define dso_local i32 @tag_at(i32 noundef %0, i32 noundef %1) #0 {
   %23 = load i8, ptr %22, align 1, !tbaa !22
   %24 = sext i8 %23 to i32
   %25 = add nsw i32 %17, %24
-  call void @llvm.lifetime.end.p0(i64 8, ptr %5) #3
+  call void @llvm.lifetime.end.p0(i64 8, ptr %5) #4
   ret i32 %25
+}
+
+; Function Attrs: nounwind uwtable
+define dso_local i32 @copied(i32 noundef %0, i32 noundef %1) #0 {
+  %3 = alloca i32, align 4
+  %4 = alloca i32, align 4
+  %5 = alloca %struct.corner, align 4
+  %6 = alloca %struct.corner, align 4
+  store i32 %0, ptr %3, align 4, !tbaa !5
+  store i32 %1, ptr %4, align 4, !tbaa !5
+  call void @llvm.lifetime.start.p0(i64 8, ptr %5) #4
+  %7 = load i32, ptr %3, align 4, !tbaa !5
+  %8 = getelementptr inbounds nuw %struct.corner, ptr %5, i32 0, i32 0
+  store i32 %7, ptr %8, align 4, !tbaa !15
+  %9 = load i32, ptr %4, align 4, !tbaa !5
+  %10 = getelementptr inbounds nuw %struct.corner, ptr %5, i32 0, i32 1
+  store i32 %9, ptr %10, align 4, !tbaa !16
+  call void @llvm.lifetime.start.p0(i64 8, ptr %6) #4
+  call void @llvm.memcpy.p0.p0.i64(ptr align 4 %6, ptr align 4 %5, i64 8, i1 false), !tbaa.struct !23
+  %11 = getelementptr inbounds nuw %struct.corner, ptr %6, i32 0, i32 0
+  %12 = load i32, ptr %11, align 4, !tbaa !15
+  %13 = mul nsw i32 %12, 1000
+  %14 = getelementptr inbounds nuw %struct.corner, ptr %6, i32 0, i32 1
+  %15 = load i32, ptr %14, align 4, !tbaa !16
+  %16 = add nsw i32 %13, %15
+  call void @llvm.lifetime.end.p0(i64 8, ptr %6) #4
+  call void @llvm.lifetime.end.p0(i64 8, ptr %5) #4
+  ret i32 %16
+}
+
+; Function Attrs: nocallback nofree nounwind willreturn memory(argmem: readwrite)
+declare void @llvm.memcpy.p0.p0.i64(ptr noalias writeonly captures(none), ptr noalias readonly captures(none), i64, i1 immarg) #3
+
+; Function Attrs: nounwind uwtable
+define dso_local i32 @copied_out(i32 noundef %0, i32 noundef %1, ptr noundef %2) #0 {
+  %4 = alloca i32, align 4
+  %5 = alloca i32, align 4
+  %6 = alloca ptr, align 8
+  %7 = alloca %struct.corner, align 4
+  store i32 %0, ptr %4, align 4, !tbaa !5
+  store i32 %1, ptr %5, align 4, !tbaa !5
+  store ptr %2, ptr %6, align 8, !tbaa !24
+  call void @llvm.lifetime.start.p0(i64 8, ptr %7) #4
+  %8 = load i32, ptr %4, align 4, !tbaa !5
+  %9 = getelementptr inbounds nuw %struct.corner, ptr %7, i32 0, i32 0
+  store i32 %8, ptr %9, align 4, !tbaa !15
+  %10 = load i32, ptr %5, align 4, !tbaa !5
+  %11 = getelementptr inbounds nuw %struct.corner, ptr %7, i32 0, i32 1
+  store i32 %10, ptr %11, align 4, !tbaa !16
+  %12 = load ptr, ptr %6, align 8, !tbaa !24
+  call void @llvm.memcpy.p0.p0.i64(ptr align 4 %12, ptr align 4 %7, i64 8, i1 false), !tbaa.struct !23
+  %13 = getelementptr inbounds nuw %struct.corner, ptr %7, i32 0, i32 0
+  %14 = load i32, ptr %5, align 4, !tbaa !5
+  %15 = call i32 @add_into(ptr noundef %13, i32 noundef %14)
+  call void @llvm.lifetime.end.p0(i64 8, ptr %7) #4
+  ret i32 %15
 }
 
 attributes #0 = { nounwind uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #1 = { nocallback nofree nosync nounwind willreturn memory(argmem: readwrite) }
 attributes #2 = { "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
-attributes #3 = { nounwind }
+attributes #3 = { nocallback nofree nounwind willreturn memory(argmem: readwrite) }
+attributes #4 = { nounwind }
 
 !llvm.module.flags = !{!0, !1, !2, !3}
 !llvm.ident = !{!4}
@@ -291,3 +348,7 @@ attributes #3 = { nounwind }
 !20 = !{!21, !6, i64 0}
 !21 = !{!"label", !6, i64 0, !7, i64 4}
 !22 = !{!7, !7, i64 0}
+!23 = !{i64 0, i64 4, !5, i64 4, i64 4, !5}
+!24 = !{!25, !25, i64 0}
+!25 = !{!"p1 _ZTS6corner", !26, i64 0}
+!26 = !{!"any pointer", !7, i64 0}

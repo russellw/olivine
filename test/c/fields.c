@@ -95,3 +95,26 @@ int tag_at(int n, int i) {
   s.tag[3] = 0;
   return s.n + s.tag[i & 3];
 }
+
+/* One struct assigned to another, which a front end writes as a memcpy of a
+   constant size: a question about bytes again, and the count is what has to be
+   shown to cover the whole of the slot.  Both ends are slots of the same
+   struct, so the copy is a copy per field. */
+int copied(int x, int y) {
+  struct corner p;
+  p.x = x;
+  p.y = y;
+  struct corner q;
+  q = p;
+  return q.x * 1000 + q.y;
+}
+
+/* And the same where one end escapes, so neither slot goes: the copy has to be
+   left as it was rather than written out as several. */
+int copied_out(int x, int y, struct corner *out) {
+  struct corner p;
+  p.x = x;
+  p.y = y;
+  *out = p;
+  return add_into(&p.x, y);
+}

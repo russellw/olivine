@@ -99,6 +99,7 @@ int add_into(int *p, int v){ *p += v; return *p; }
 int area(int,int,int,int); int pick_corner(int,int,int); int walk(int);
 int through_field(int,int); struct corner make_corner(int,int);
 int diagonal(int,int); int tag_at(int,int);
+int copied(int,int); int copied_out(int,int,struct corner *);
 /* values.c -- the by-value aggregates have to be declared the same way here */
 struct point { double x, y; };
 struct box { int a,b,c,d,e; };
@@ -321,7 +322,10 @@ int main(void){
     for(int a=-2;a<=2;a++) printf("%d ", through_field(a,a+4)); printf("\n");
     for(int x=-2;x<=2;x++) printf("%d ", diagonal(x,x*x)); printf("\n");
     { struct corner c = make_corner(6,-7); printf("%d %d\n", c.x, c.y); }
-    for(int i=0;i<5;i++) printf("%d ", tag_at(100,i)); printf("\n"); }
+    for(int i=0;i<5;i++) printf("%d ", tag_at(100,i)); printf("\n");
+    for(int x=-2;x<=2;x++) printf("%d ", copied(x,x*3+1)); printf("\n");
+    { struct corner c; for(int x=-2;x<=2;x++) printf("%d ", copied_out(x,x+9,&c));
+      printf("%d %d\n", c.x, c.y); } }
 #endif
 #ifdef SETJMP
   { static const int xs[7] = {0,1,2,3,1,4,2};

@@ -67,24 +67,27 @@ module Olivine.Core.Pass.Split
   , splittableIn
   ) where
 
-import Control.Monad (guard)
 import Data.List (mapAccumL)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (isJust)
 import Data.Set qualified as Set
+import Data.Text qualified as T
 import Numeric.Natural (Natural)
 
 import Olivine.Core.Instruction
+import Olivine.Core.Layout (Layout, allocSize, layoutOf)
 import Olivine.Core.Program
 import Olivine.Syntax.Instruction
   ( Alloca (..)
+  , Argument (..)
+  , Call (..)
   , ExtractValue (..)
   , InsertValue (..)
   , Load (..)
   , Store (..)
   )
-import Olivine.Syntax.Name (Name)
+import Olivine.Syntax.Name (Name, nameText)
 import Olivine.Syntax.Type (Type (..), resolveNamed)
 import Olivine.Syntax.Value (TypedValue (..), Value (..))
 
@@ -97,27 +100,31 @@ splitAggregates program =
     -- differently.
     types = namedTypes program
 
-    entry (EFunction f) = EFunction (settle types f)
+    -- Asked one question and no other: whether a byte count covers exactly the
+    -- type a slot was allocated as.  See 'unpackedIn'.
+    layout = layoutOf program
+
+    entry (EFunction f) = EFunction (settle layout types f)
     entry retained = retained
 
 -- | Split, and then split what splitting brought into view.
-settle :: Map Name Type -> Function -> Function
-settle types f
+settle :: Maybe Layout -> Map Name Type -> Function -> Function
+settle layout types f
   | split == f = f
-  | otherwise = settle types split
+  | otherwise = settle layout types split
   where
-    split = splitIn types f
+    split = splitIn layout types f
 
 -- | One sweep: every slot 'splittableIn' admits becomes the slots its fields
 -- want, and every step to a field becomes the slot the field got — after any
 -- slot said whole has been said a field at a time, which is what makes some of
 -- them admissible in the first place.
-splitIn :: Map Name Type -> Function -> Function
-splitIn types original
+splitIn :: Maybe Layout -> Map Name Type -> Function -> Function
+splitIn layout types original
   | Map.null aggregates = original
   | otherwise = f {functionBlocks = map block (functionBlocks f)}
   where
-    f = unpackedIn types original
+    f = unpackedIn layout types original
     aggregates = splittableIn types f
 
     Local next = nextLocal f
@@ -254,19 +261,39 @@ single a =
 -- than copied onto each field, an aliasing fact about a struct not being one
 -- about a field of it, and dropping one is always allowed.
 --
--- What is left refused here and wants more than the type: a @memset@ or a
--- @memcpy@ naming the slot, both of which are a byte count that has to be shown
--- to cover the whole of it, and that is @sizeof@ — "Olivine.Core.Layout"'s
--- business rather than this pass's.
-unpackedIn :: Map Name Type -> Function -> Function
-unpackedIn types f
-  | null worthwhile = f
-  | otherwise = unpacking types worthwhile f
+-- __And the two that are a byte count.__  A @memset@ of a slot to zero and a
+-- @memcpy@ between two of them say the whole of a slot as plainly as a wide
+-- load does, but they say it in bytes: what has to be shown is that the count
+-- covers exactly the type the slot was allocated as, and that is @sizeof@.  So
+-- this is the one question "Olivine.Core.Layout" is asked here, and asked of
+-- nothing else — a module with no layout string declines these two and splits
+-- everything else exactly as before.  A fill of anything but zero is refused:
+-- @zeroinitializer@ is the one spelling of a zero that needs no knowledge of
+-- how a type is represented, where a fill of @0xAB@ would want the byte
+-- repeated to each field\'s width and a float literal invented to hold it.
+--
+-- What is left refused after those: a slot strided into as an array, and a
+-- @memcpy@ one end of which is not a slot of this function — its fields would
+-- have to be stepped to at an alignment nothing here knows.
+unpackedIn :: Maybe Layout -> Map Name Type -> Function -> Function
+unpackedIn layout types f
+  | Set.null worthwhile = f
+  | otherwise = unpacking layout types worthwhile f
   where
-    candidates = [slot | (slot, _) <- wholeAccessesIn types f]
-    trial = unpacking types candidates f
-    splittable = splittableIn types trial
-    worthwhile = filter (`Map.member` splittable) candidates
+    candidates = Set.fromList (concatMap snd (wholeAccessesIn layout types f))
+
+    -- Shrunk until it stops shrinking.  An access naming two slots is only
+    -- written out if both of them go, so dropping one slot can take another
+    -- access with it and leave a third slot no longer worth unpacking; taking
+    -- the answer from one round would leave a rewrite standing that nothing
+    -- then splits.  It terminates because the set only ever loses members.
+    worthwhile = shrinking candidates
+    shrinking chosen
+      | Set.size fewer == Set.size chosen = chosen
+      | otherwise = shrinking fewer
+      where
+        splittable = splittableIn types (unpacking layout types chosen f)
+        fewer = Set.filter (`Map.member` splittable) chosen
 
 -- | The slots this function assigns one @alloca@ of a struct to, with what
 -- that struct holds.
@@ -290,28 +317,35 @@ slotsIn types f =
   where
     instructions = [i | b <- functionBlocks f, i <- blockInstructions b]
 
--- | Every access that reads or writes one of those slots whole, with the slot.
+-- | Every access that reads or writes one of those slots whole, with the slots
+-- it names.
 --
 -- At the type it was allocated as and no other: an access at some other type
 -- covers some other bytes, and this pass has nothing to say about bytes.  A
 -- volatile one is left alone, the point of one being that it happens as it was
 -- written, and a load into nothing is left because there is nothing to
 -- assemble.
-wholeAccessesIn :: Map Name Type -> Function -> [(Local, Instruction)]
-wholeAccessesIn types f =
-  [ (slot, i)
+wholeAccessesIn ::
+  Maybe Layout -> Map Name Type -> Function -> [(Instruction, [Local])]
+wholeAccessesIn layout types f =
+  [ (i, slots)
   | b <- functionBlocks f
   , i <- blockInstructions b
-  , Just slot <- [wholeAccessTo types (slotsIn types f) i]
+  , let slots = wholeAccessTo layout types (slotsIn types f) i
+  , not (null slots)
   ]
 
--- | Which slot this instruction reads or writes whole, where it does.
+-- | Which slots this instruction reads or writes whole, where it does.
+--
+-- One for a load, a store or a fill, and two for a copy — the slot written and
+-- the slot read.
 wholeAccessTo ::
+  Maybe Layout ->
   Map Name Type ->
   Map Local (Alloca (TypedValue Local), Type, [Type]) ->
   Instruction ->
-  Maybe Local
-wholeAccessTo types slots i = case instructionOperation i of
+  [Local]
+wholeAccessTo layout types slots i = case instructionOperation i of
   OLoad l
     | not (loadVolatile l)
     , isJust (instructionResult i) ->
@@ -319,23 +353,78 @@ wholeAccessTo types slots i = case instructionOperation i of
   OStore s
     | not (storeVolatile s) ->
         naming (storePointer s) (typedValueType (storeValue s))
-  _ -> Nothing
+  -- @llvm.memset(dst, value, size, isvolatile)@ and
+  -- @llvm.memcpy(dst, src, size, isvolatile)@, each covering the whole of what
+  -- it names and no more.
+  OCall call -> case byteWise call of
+    Just (Fill, [destination, filled, size, plain])
+      | zero filled
+      , plain == VBoolean False ->
+          covering size destination
+    -- The two ends of a copy must be slots holding the same struct: the fields
+    -- of the one are then the fields of the other, so the copy is a copy per
+    -- field and no byte of either is named except through a field.
+    Just (Copy, [destination, source, size, plain])
+      | plain == VBoolean False
+      , [into] <- covering size destination
+      , [from] <- covering size source
+      , into /= from
+      , Just (_, held, _) <- Map.lookup into slots
+      , Just (_, other, _) <- Map.lookup from slots
+      , held == other ->
+          [into, from]
+    _ -> []
+  _ -> []
   where
-    naming (TypedValue _ (VLocal slot)) accessed = do
-      (_, held, _) <- Map.lookup slot slots
-      -- One place names the slot, or a store writing the slot's own address
-      -- into it would be read as an access and lose the other mention.
-      guard (length (filter (== slot) (localsUsedBy (instructionOperation i))) == 1)
-      guard (resolveNamed types accessed == held)
-      pure slot
-    naming _ _ = Nothing
+    -- Whether the count covers the whole of the slot the address names, which
+    -- is the one question the layout is asked.
+    covering (VInteger count) (VLocal slot)
+      | Just (_, held, _) <- Map.lookup slot slots
+      , Just size <- (\known -> allocSize known held) =<< layout
+      , count >= 0
+      , fromIntegral count == size
+      , names slot =
+          [slot]
+    covering _ _ = []
+
+    naming (TypedValue _ (VLocal slot)) accessed
+      | Just (_, held, _) <- Map.lookup slot slots
+      , names slot
+      , resolveNamed types accessed == held =
+          [slot]
+    naming _ _ = []
+
+    -- One place names the slot, or a store writing the slot\'s own address into
+    -- it would be read as an access and lose the other mention.  A copy names
+    -- two slots and each of them once, so this is asked of each.
+    names slot =
+      length (filter (== slot) (localsUsedBy (instructionOperation i))) == 1
+
+    zero value = value == VInteger 0 || value == VZeroInitializer
+
+-- | Whether a call is to one of the two memory intrinsics, and what it was
+-- handed.
+byteWise :: Call (TypedValue Local) -> Maybe (ByteWise, [Value Local])
+byteWise call = do
+  VGlobal name <- Just (typedValue (callCallee call))
+  kind <- case () of
+    _ | called (nameText name) "llvm.memset" -> Just Fill
+      | called (nameText name) "llvm.memcpy" -> Just Copy
+      | otherwise -> Nothing
+  pure (kind, map (typedValue . argumentValue) (callArguments call))
+  where
+    -- The overloaded name carries the types it was resolved at.
+    called this base = this == base || T.isPrefixOf (base <> ".") this
+
+-- | Which of the two.
+data ByteWise = Fill | Copy
+  deriving (Eq)
 
 -- | The rewrite itself, for the slots named.
-unpacking :: Map Name Type -> [Local] -> Function -> Function
-unpacking types wanted f = f {functionBlocks = blocks}
+unpacking :: Maybe Layout -> Map Name Type -> Set.Set Local -> Function -> Function
+unpacking layout types chosen f = f {functionBlocks = blocks}
   where
     slots = slotsIn types f
-    chosen = Set.fromList wanted
     Local start = nextLocal f
     (_, blocks) = mapAccumL block start (functionBlocks f)
 
@@ -343,28 +432,40 @@ unpacking types wanted f = f {functionBlocks = blocks}
       where
         (after, groups) = mapAccumL instruction n (blockInstructions b)
 
-    instruction n i = case wholeAccessTo types slots i of
-      Just slot
+    -- An access is written out only where every slot it names is one being
+    -- unpacked, a copy between a slot that goes and one that stays being no
+    -- fewer instructions than it was.
+    instruction n i = case wholeAccessTo layout types slots i of
+      [slot]
         | Set.member slot chosen
         , Just (a, _, fields) <- Map.lookup slot slots ->
             unpacked n i a fields
+      [into, from]
+        | Set.member into chosen
+        , Set.member from chosen
+        , Just (a, _, fields) <- Map.lookup into slots
+        , Just (b, _, _) <- Map.lookup from slots ->
+            copied n i a b fields
       _ -> (n, [i])
 
     -- The addresses come first, then what is done through them: a load reads
     -- each field and assembles them, a store takes the value apart and writes
-    -- each field.
+    -- each field, a fill writes a zero into each.
     unpacked n i a fields = case instructionOperation i of
       OLoad l ->
         ( n + 3 * count - 1
-        , steps <> [reading j | j <- indices] <> [assembling j | j <- indices]
+        , steps (loadPointer l) <> [reading j | j <- indices] <> [assembling j | j <- indices]
         )
         where
-          pointer = loadPointer l
-          steps = [stepping j pointer | j <- indices]
           reading j =
             Instruction
               (Just (value j))
-              (OLoad l {loadType = fields !! fromIntegral j, loadPointer = addressed j pointer})
+              ( OLoad
+                  l
+                    { loadType = fields !! fromIntegral j
+                    , loadPointer = addressed n j (loadPointer l)
+                    }
+              )
               []
           assembling j =
             Instruction
@@ -383,46 +484,109 @@ unpacking types wanted f = f {functionBlocks = blocks}
             Just r -> r
             Nothing -> Local n
       OStore s ->
-        (n + 2 * count, steps <> concat [[taking j, writing j] | j <- indices])
+        ( n + 2 * count
+        , steps (storePointer s) <> concat [[taking j, writing j] | j <- indices]
+        )
         where
-          pointer = storePointer s
-          steps = [stepping j pointer | j <- indices]
           taking j =
             Instruction
               (Just (value j))
               (OExtractValue (ExtractValue (storeValue s) [j]))
               []
-          writing j =
+          writing j = written (fields !! fromIntegral j) (VLocal (value j)) j (storePointer s)
+      -- A fill, whose destination is the first thing it was handed.  A zero of
+      -- a field's type is written @zeroinitializer@ whatever that type is,
+      -- which is the one spelling that needs to know nothing about how the type
+      -- is laid out or how a literal of it is spelled.
+      OCall call
+        | destination : _ <- map argumentValue (callArguments call) ->
+            ( n + count
+            , steps destination
+                <> [ written (fields !! fromIntegral j) VZeroInitializer j destination
+                   | j <- indices
+                   ]
+            )
+      _ -> (n, [i])
+      where
+        count = length fields
+        indices = [0 .. fromIntegral count - 1]
+        value j = Local (n + count + fromIntegral j)
+        steps pointer = [stepping n (allocaType a) pointer j | j <- indices]
+        written t held j pointer =
+          Instruction
+            Nothing
+            ( OStore
+                Store
+                  { storeVolatile = False
+                  , storeValue = TypedValue t held
+                  , storePointer = addressed n j pointer
+                  , storeAlignment = allocaAlignment a
+                  }
+            )
+            []
+
+    -- A copy, which is a step to each field of both ends, a load of each field
+    -- of the one and a store into each field of the other.  Both hold the same
+    -- struct, so one list of fields answers for both; the alignments are each
+    -- slot's own.
+    copied n i a b fields = case map argumentValue (maybe [] callArguments call) of
+      destination : source : _ ->
+        ( n + 3 * count
+        , [stepping n (allocaType a) destination j | j <- indices]
+            <> [stepping (n + count) (allocaType b) source j | j <- indices]
+            <> concat [[reading j source, writing j destination] | j <- indices]
+        )
+        where
+          reading j from =
+            Instruction
+              (Just (value j))
+              ( OLoad
+                  Load
+                    { loadVolatile = False
+                    , loadType = fields !! fromIntegral j
+                    , loadPointer = addressed (n + count) j from
+                    , loadAlignment = allocaAlignment b
+                    }
+              )
+              []
+          writing j into =
             Instruction
               Nothing
               ( OStore
-                  s
-                    { storeValue = TypedValue (fields !! fromIntegral j) (VLocal (value j))
-                    , storePointer = addressed j pointer
+                  Store
+                    { storeVolatile = False
+                    , storeValue = TypedValue (fields !! fromIntegral j) (VLocal (value j))
+                    , storePointer = addressed n j into
                     , storeAlignment = allocaAlignment a
                     }
               )
               []
       _ -> (n, [i])
       where
+        call = case instructionOperation i of
+          OCall c -> Just c
+          _ -> Nothing
         count = length fields
         indices = [0 .. fromIntegral count - 1]
-        value j = Local (n + count + fromIntegral j)
-        addressed j (TypedValue t _) = TypedValue t (VLocal (Local (n + fromIntegral j)))
-        -- The struct as the allocation wrote it, so a named type stays named
-        -- and 'splittableIn' reads the step as one into the type it allocated.
-        stepping j pointer =
-          Instruction
-            (Just (Local (n + fromIntegral j)))
-            ( OField
-                Field
-                  { fieldFlags = []
-                  , fieldStructType = allocaType a
-                  , fieldPointer = pointer
-                  , fieldIndex = j
-                  }
-            )
-            []
+        value j = Local (n + 2 * count + fromIntegral j)
+
+    addressed base j (TypedValue t _) =
+      TypedValue t (VLocal (Local (base + fromIntegral j)))
+
+    -- The struct as the allocation wrote it, so a named type stays named and
+    -- 'splittableIn' reads the step as one into the type it allocated.
+    stepping base structType pointer j =
+      Instruction
+        (Just (Local (base + fromIntegral j)))
+        ( OField
+            Field
+              { fieldFlags = []
+              , fieldStructType = structType
+              , fieldPointer = pointer
+              , fieldIndex = j
+              }
+        )
+        []
 
 -- | A slot that can be taken apart, and what into.
 data Aggregate = Aggregate

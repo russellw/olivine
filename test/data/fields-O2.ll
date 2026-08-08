@@ -107,6 +107,27 @@ define dso_local i32 @tag_at(i32 noundef %0, i32 noundef %1) local_unnamed_addr 
   ret i32 %10
 }
 
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+define dso_local i32 @copied(i32 noundef %0, i32 noundef %1) local_unnamed_addr #0 {
+  %3 = mul nsw i32 %0, 1000
+  %4 = add nsw i32 %3, %1
+  ret i32 %4
+}
+
+; Function Attrs: nounwind uwtable
+define dso_local i32 @copied_out(i32 noundef %0, i32 noundef %1, ptr noundef writeonly captures(none) initializes((0, 8)) %2) local_unnamed_addr #2 {
+  %4 = alloca %struct.corner, align 8
+  call void @llvm.lifetime.start.p0(i64 8, ptr nonnull %4) #4
+  store i32 %0, ptr %4, align 8, !tbaa !5
+  %5 = getelementptr inbounds nuw i8, ptr %4, i64 4
+  store i32 %1, ptr %5, align 4, !tbaa !10
+  %6 = load i64, ptr %4, align 8
+  store i64 %6, ptr %2, align 4
+  %7 = call i32 @add_into(ptr noundef nonnull %4, i32 noundef %1) #4
+  call void @llvm.lifetime.end.p0(i64 8, ptr nonnull %4) #4
+  ret i32 %7
+}
+
 attributes #0 = { mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #1 = { mustprogress nocallback nofree nosync nounwind willreturn memory(argmem: readwrite) }
 attributes #2 = { nounwind uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }

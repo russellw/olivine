@@ -235,8 +235,59 @@ define dso_local i32 @tag_at(i32 noundef %0, i32 noundef %1) #0 {
   ret i32 %25
 }
 
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local i32 @copied(i32 noundef %0, i32 noundef %1) #0 {
+  %3 = alloca i32, align 4
+  %4 = alloca i32, align 4
+  %5 = alloca %struct.corner, align 4
+  %6 = alloca %struct.corner, align 4
+  store i32 %0, ptr %3, align 4
+  store i32 %1, ptr %4, align 4
+  %7 = load i32, ptr %3, align 4
+  %8 = getelementptr inbounds nuw %struct.corner, ptr %5, i32 0, i32 0
+  store i32 %7, ptr %8, align 4
+  %9 = load i32, ptr %4, align 4
+  %10 = getelementptr inbounds nuw %struct.corner, ptr %5, i32 0, i32 1
+  store i32 %9, ptr %10, align 4
+  call void @llvm.memcpy.p0.p0.i64(ptr align 4 %6, ptr align 4 %5, i64 8, i1 false)
+  %11 = getelementptr inbounds nuw %struct.corner, ptr %6, i32 0, i32 0
+  %12 = load i32, ptr %11, align 4
+  %13 = mul nsw i32 %12, 1000
+  %14 = getelementptr inbounds nuw %struct.corner, ptr %6, i32 0, i32 1
+  %15 = load i32, ptr %14, align 4
+  %16 = add nsw i32 %13, %15
+  ret i32 %16
+}
+
+; Function Attrs: nocallback nofree nounwind willreturn memory(argmem: readwrite)
+declare void @llvm.memcpy.p0.p0.i64(ptr noalias writeonly captures(none), ptr noalias readonly captures(none), i64, i1 immarg) #2
+
+; Function Attrs: noinline nounwind optnone uwtable
+define dso_local i32 @copied_out(i32 noundef %0, i32 noundef %1, ptr noundef %2) #0 {
+  %4 = alloca i32, align 4
+  %5 = alloca i32, align 4
+  %6 = alloca ptr, align 8
+  %7 = alloca %struct.corner, align 4
+  store i32 %0, ptr %4, align 4
+  store i32 %1, ptr %5, align 4
+  store ptr %2, ptr %6, align 8
+  %8 = load i32, ptr %4, align 4
+  %9 = getelementptr inbounds nuw %struct.corner, ptr %7, i32 0, i32 0
+  store i32 %8, ptr %9, align 4
+  %10 = load i32, ptr %5, align 4
+  %11 = getelementptr inbounds nuw %struct.corner, ptr %7, i32 0, i32 1
+  store i32 %10, ptr %11, align 4
+  %12 = load ptr, ptr %6, align 8
+  call void @llvm.memcpy.p0.p0.i64(ptr align 4 %12, ptr align 4 %7, i64 8, i1 false)
+  %13 = getelementptr inbounds nuw %struct.corner, ptr %7, i32 0, i32 0
+  %14 = load i32, ptr %5, align 4
+  %15 = call i32 @add_into(ptr noundef %13, i32 noundef %14)
+  ret i32 %15
+}
+
 attributes #0 = { noinline nounwind optnone uwtable "frame-pointer"="all" "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #1 = { "frame-pointer"="all" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
+attributes #2 = { nocallback nofree nounwind willreturn memory(argmem: readwrite) }
 
 !llvm.module.flags = !{!0, !1, !2, !3, !4}
 !llvm.ident = !{!5}
