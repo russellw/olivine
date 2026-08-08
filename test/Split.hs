@@ -143,9 +143,54 @@ splitTests =
           testCase "the markers go with the slot they bracketed" $
             shapes (holding ([started "%a"] <> both <> [ended "%a"]))
               @?>= ["alloca", "alloca", "store", "load"]
-        , testCase "a slot the pass will not take is left as it was" $
+        , -- The access that covers the whole slot is written out as one per
+          -- field and an @insertvalue@ chain assembling them, which is what a
+          -- struct returned by value arrives as.  The steps it writes are the
+          -- ones the split then renames away, so what is left is a slot per
+          -- field, the accesses, and the chain.
+          testCase "a slot loaded whole is loaded a field at a time" $
             shapes (holding ("  %w = load %s, ptr %a, align 4" : both))
+              @?>= [ "alloca"
+                   , "alloca"
+                   , "load"
+                   , "load"
+                   , "other"
+                   , "other"
+                   , "store"
+                   , "load"
+                   ]
+        , testCase "a slot stored whole is stored a field at a time" $
+            shapes (holding ("  store %s zeroinitializer, ptr %a, align 4" : both))
+              @?>= [ "alloca"
+                   , "alloca"
+                   , "other"
+                   , "store"
+                   , "other"
+                   , "store"
+                   , "store"
+                   , "load"
+                   ]
+        , -- An access at some other type covers some other bytes, so there is
+          -- nothing to write out and the slot keeps its storage.
+          testCase "a slot read whole at another type is left as it was" $
+            shapes (holding ("  %w = load %t, ptr %a, align 4" : both))
               @?>= ["alloca", "load", "field", "store", "field", "load"]
+        , -- The point of a volatile access is that it happens as it was
+          -- written, and several narrower ones are not that.
+          testCase "a slot read whole and volatile is left as it was" $
+            shapes (holding ("  %w = load volatile %s, ptr %a, align 4" : both))
+              @?>= ["alloca", "load", "field", "store", "field", "load"]
+        , -- Writing the access out is a pessimization on its own — one access
+          -- for several — so it is only done where the slot then goes.
+          testCase "a slot loaded whole that would not split is left as it was" $
+            shapes
+              ( holding
+                  ( ["  %w = load %s, ptr %a, align 4"]
+                      <> both
+                      <> ["  call void @g(ptr %p)"]
+                  )
+              )
+              @?>= ["alloca", "load", "field", "store", "field", "load", "other"]
         ]
     , testGroup
         "what the pipeline makes of it"
