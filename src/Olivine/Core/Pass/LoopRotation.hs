@@ -115,7 +115,6 @@ import Olivine.Core.Metadata (named)
 import Olivine.Core.Program
 import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Type (Type)
-import Olivine.Syntax.Value (TypedValue (..), Value (..))
 
 rotateLoops :: Program -> Program
 rotateLoops program =

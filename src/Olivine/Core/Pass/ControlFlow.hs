@@ -31,6 +31,15 @@
 -- not end its block is an instruction — and it is the first thing here to want
 -- an analysis, since whether a callee throws is 'Olivine.Core.Effects'
 -- answering rather than arithmetic on an operand.
+--
+-- __And a branch decides nothing when the block above it settled the condition__,
+-- which is 'thread'.  That is the same arithmetic asked one block further back:
+-- where 'foldTerminator' reads what the block holding a branch left in its
+-- locals, this reads what a block that /reaches/ one left, so the answer is about
+-- an edge rather than about a terminator.  Short-circuit @&&@ is the shape — one
+-- side leaves @false@ and meets the other at a block that branches on the answer
+-- — and it arrives here as an assignment of a constant in the block above, a phi
+-- being what the core writes that way.
 module Olivine.Core.Pass.ControlFlow
   ( simplifyControlFlow
   , foldTerminator
@@ -41,14 +50,14 @@ import Data.Map.Strict qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 
-import Olivine.Core.Blocks (mergeBlocks, removeForwarding)
+import Olivine.Core.Blocks (liftAssignments, mergeBlocks, removeForwarding)
 import Olivine.Core.Effects (Behaviour (..), behaviourOf, effectsOf)
 import Olivine.Core.Instruction
 import Olivine.Core.Program
 import Olivine.Syntax.Function (Signature (..))
 import Olivine.Syntax.Instruction (Call, Select (..))
 import Olivine.Syntax.Type (Type (..))
-import Olivine.Syntax.Value (TypedValue (..), Value (..))
+import Olivine.Syntax.Value (TypedValue (..), Value (..), isConstant)
 
 simplifyControlFlow :: Program -> Program
 simplifyControlFlow program =
@@ -77,18 +86,36 @@ settle made f
 -- | Fold what can be folded, drop what that leaves unreachable, and put back
 -- together the blocks the CFG no longer has a reason to keep apart.
 --
--- Merging comes last because the other three make work for it and it makes
--- none for them: a block stops having a second predecessor when the branch
--- that was the other one folds away, or when the block it was in is dropped.
+-- The order is what each step leaves for the next, and it runs from the steps
+-- that make the most work to the ones that make none.
 --
--- Making the invokes plain comes first for the same reason from the other end:
--- it is the one step that makes work for all three and takes none from any of
--- them.  An invoke that becomes a call is a block whose landing pad nothing now
--- reaches, so pruning has something to drop; and it is a block ending in an
--- unconditional branch, so merging has two blocks to join where it had a call
--- standing between them.
+-- Making the invokes plain comes first, being the one step that makes work for
+-- every other and takes none from any of them.  An invoke that becomes a call is
+-- a block whose landing pad nothing now reaches, so pruning has something to
+-- drop; and it is a block ending in an unconditional branch, so merging has two
+-- blocks to join where a call stood between them.
+--
+-- Folding a terminator next, and then threading one, in that order because a
+-- branch that decides nothing on its own account is settled without asking where
+-- control came from, and asking is the more expensive question.  Both leave
+-- blocks nothing reaches, which is why pruning follows them rather than either.
+--
+-- Lifting the assignments after pruning and before the two removals: what it
+-- makes is a block holding nothing at all, which is precisely what
+-- 'removeForwarding' takes, and it wants the real predecessor list to ask its
+-- question of.  Merging comes last because everything above makes work for it
+-- and it makes none for them: a block stops having a second predecessor when the
+-- branch that was the other one folds away, is threaded past, or goes with the
+-- block it was in.
 sweep :: Made -> Function -> Function
-sweep made f = mergeBlocks (removeForwarding (prune (decide (plainCalls made f))))
+sweep made =
+  mergeBlocks
+    . removeForwarding
+    . liftAssignments
+    . prune
+    . thread
+    . decide
+    . plainCalls made
   where
     decide g = g {functionBlocks = map (fold g) (functionBlocks g)}
     prune g = g {functionBlocks = reachableIn g}
@@ -139,6 +166,97 @@ plainCalls made f = f {functionBlocks = map plainly (functionBlocks f)}
               , blockTerminator = Terminator (Br normal) []
               }
       _ -> b
+
+-- | Send a branch where it will go, when the block it goes to decides on
+-- something this block has settled.
+--
+-- 'foldTerminator' asks what a branch comes to knowing what the block holding it
+-- left in its locals; this asks the same of the /next/ block's branch, which is a
+-- question about where control came from rather than about the terminator alone.
+-- The shape is what short-circuit @&&@ becomes: one side of it leaves the answer
+-- @false@ and joins the other side at a block that branches on it, so the edge
+-- from that side has no decision left on it.  Written as a phi it is
+-- @phi i1 [ false, %a ], [ %c, %b ]@; written the way the core writes one it is
+-- an assignment of a constant in the block above.
+--
+-- __Only through a block that does nothing.__  Control sent past a block skips
+-- what is in it, so there must be nothing in it to skip.  That also settles what
+-- would otherwise be the awkward case: a landing pad is an instruction, so a
+-- block an unwind edge reaches is never one of these, and no phi's copies stand
+-- on the edges being retargeted because a block holding no instructions holds no
+-- copies either.
+--
+-- __The whole chain at once, and never round a cycle.__  Following the chain to
+-- its end is what makes this settle: a sweep that stopped one block along would
+-- give a different answer next time, and the sweeps would not converge.  Where
+-- the chain comes back to a block it has already been through, control does go
+-- round that cycle for ever and there is no end to walk to, so the branch is
+-- left as it was.
+thread :: Function -> Function
+thread f = f {functionBlocks = map redirect (functionBlocks f)}
+  where
+    -- What each block that holds nothing decides.  A block that holds something
+    -- is not here, so nothing can be threaded past it.
+    deciding =
+      Map.fromList
+        [ (blockLabel b, terminatorTransfer (blockTerminator b))
+        | b <- functionBlocks f
+        , null (blockInstructions b)
+        ]
+
+    redirect b =
+      b {blockTerminator = retarget (past (settledIn b)) (blockTerminator b)}
+
+    past known original = go Set.empty original
+      where
+        go seen target
+          | Set.member target seen = original
+          | otherwise = case Map.lookup target deciding >>= taken known of
+              Just chosen -> go (Set.insert target seen) chosen
+              Nothing -> target
+
+    -- Where a branch goes once the locals this block settled are written into it.
+    -- 'foldTerminator' is the arithmetic, so a @switch@ on a settled value is
+    -- threaded by the same rule a branch is, and there is one implementation of
+    -- what each terminator decides.  It is asked knowing nothing about addresses,
+    -- since what is being read is another block's terminator and 'aimsIn' speaks
+    -- only for the block it was taken from.
+    taken known transfer = case foldTerminator Map.empty (fmap (write known) transfer) of
+      Just (Br chosen) -> Just chosen
+      _ -> Nothing
+
+    write known operand = case operand of
+      TypedValue t (VLocal local)
+        | Just value <- Map.lookup local known -> TypedValue t value
+      _ -> operand
+
+-- | What each of a block's locals holds where it branches, where that is a
+-- constant.
+--
+-- Block-local, and for the reason "Olivine.Core.Pass.Fold" reads what produced an
+-- operand block-locally: a local may be assigned more than once here, so knowing
+-- it /was/ assigned a constant somewhere is not knowing it holds one at the
+-- branch.  Within a block the instructions run in order and one execution is one
+-- run of each, so the last assignment above the terminator is what the terminator
+-- leaves behind for the block below to read.  A local an instruction writes is
+-- dropped, whatever was known about it before.
+settledIn :: Block -> Map Local (Value Local)
+settledIn b = foldl step Map.empty (blockInstructions b)
+  where
+    step known i = case (instructionResult i, instructionOperation i) of
+      (Nothing, _) -> known
+      (Just result, OAssign operand) -> case value known (typedValue operand) of
+        Just settled -> Map.insert result settled known
+        Nothing -> Map.delete result known
+      (Just result, _) -> Map.delete result known
+
+    -- An assignment of a local that is itself settled carries the value on, which
+    -- is what makes a chain of copies — the shape promotion and phi elimination
+    -- both leave — say what the last of them holds.
+    value known operand = case operand of
+      VLocal local -> Map.lookup local known
+      _ | isConstant operand -> Just operand
+      _ -> Nothing
 
 -- | The blocks control can get to, in the order they were written.
 --

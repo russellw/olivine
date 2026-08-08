@@ -238,10 +238,6 @@ armAt f h target =
     , Br join <- [terminatorTransfer (blockTerminator side)]
     ]
 
-isAssignment :: Operation operand -> Bool
-isAssignment (OAssign _) = True
-isAssignment _ = False
-
 -- | Which locals a side assigns that anything outside it reads, and the type
 -- each is assigned at.
 --

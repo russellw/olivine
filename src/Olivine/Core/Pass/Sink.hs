@@ -407,10 +407,6 @@ allowed operation = case operation of
   OLandingPad _ -> False
   _ -> True
 
-isAssignment :: Operation operand -> Bool
-isAssignment (OAssign _) = True
-isAssignment _ = False
-
 -- | An operation with its operands replaced, position for position.
 --
 -- The operands are visited in the order the derived 'Traversable' visits them,

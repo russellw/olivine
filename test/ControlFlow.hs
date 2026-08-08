@@ -142,6 +142,62 @@ controlFlowTests =
             assertEqual "the pad and the block that returns" 3 (length blocks)
         ]
     , testGroup
+        "a block that only assigns"
+        [ -- In the core a phi is assignments in the blocks above, so a block whose
+          -- only content is the phi of the block below it holds nothing but
+          -- copies.  Putting them where control came from leaves a detour, and
+          -- what goes with the block is a phi: two phis deciding one value, one
+          -- here and one below, become the one below.
+          testCase "goes, and its copies go up" $ do
+            blocks <- blocksOf carrying
+            assertEqual "the block in the middle is gone" [Label 0, Label 1, Label 2, Label 3, Label 5, Label 6] blocks
+        , testCase "and each way in makes them" $ do
+            shapes <- shapesIn carrying
+            assertEqual
+              "both arms end with the copy the middle block made"
+              [[], [], ["add", "copy", "copy"], ["add", "copy", "copy"], ["add", "copy"], []]
+              shapes
+        , -- The copies would be made on the other path too, and splitting the
+          -- edge to stop that is a block put back for a block taken away.
+          testCase "a way in that could go elsewhere is refused" $ unchanged elsewhere
+        , -- Control can arrive at a block whose address is taken without any
+          -- branch here saying so, and such an arrival would find the copies gone.
+          testCase "a block whose address is taken is refused" $ do
+            shapes <- shapesIn addressed
+            assertEqual
+              "the copy stays where the address points"
+              [[], ["add", "copy"], ["add", "copy"], ["copy"]]
+              shapes
+        ]
+    , testGroup
+        "a branch the block above has settled"
+        [ -- Short-circuit @&&@: one side leaves the answer false and joins the
+          -- other at a block that branches on it, so the edge from that side has
+          -- no decision left on it.  The block above settled the condition, so it
+          -- goes straight where the branch would have sent it.
+          -- The edge from the left side is the critical one, so phi elimination
+          -- gave it a block of its own — label 5, holding the assignment of
+          -- @false@ — and that is the block the threading is done from.  What is
+          -- left of the test then has one way in and is merged into the right
+          -- side, which is label 1.
+          testCase "goes straight where it would have gone" $ do
+            edges <- edgesIn shortCircuit
+            assertEqual
+              "the side that settled it reaches the answer without the test"
+              [ (Label 0, [Label 1, Label 5])
+              , (Label 5, [Label 4])
+              , (Label 1, [Label 3, Label 4])
+              , (Label 3, [])
+              , (Label 4, [])
+              ]
+              edges
+        , -- Control sent past a block skips what is in it, so there has to be
+          -- nothing in it to skip.
+          testCase "a block with something in it is not passed" $ unchanged occupied
+        , testCase "a condition the block above did not settle is refused" $
+            unchanged undetermined
+        ]
+    , testGroup
         "what is merged"
         [ -- A chain of blocks each reached from one place, by a block that
           -- goes nowhere else, is one block written as several.
@@ -354,6 +410,172 @@ shared =
     , "  resume { ptr, i32 } %e"
     , "}"
     ]
+
+-- | A block whose only content is the phi of the block below it.
+--
+-- Both arms reach it by an unconditional branch, so the copy it holds can stand
+-- at the end of each of them.
+carrying :: Text
+carrying =
+  T.unlines
+    [ "define i32 @f(i1 %c, i1 %d, i32 %x, i32 %y, i32 %z) {"
+    , "entry:"
+    , "  br i1 %c, label %head, label %other"
+    , "head:"
+    , "  br i1 %d, label %a, label %b"
+    , "a:"
+    , "  %u = add i32 %x, 1"
+    , "  br label %mid"
+    , "b:"
+    , "  %v = add i32 %y, 1"
+    , "  br label %mid"
+    , "mid:"
+    , "  %m = phi i32 [ %u, %a ], [ %v, %b ]"
+    , "  br label %join"
+    , "other:"
+    , "  %w = add i32 %z, 1"
+    , "  br label %join"
+    , "join:"
+    , "  %r = phi i32 [ %m, %mid ], [ %w, %other ]"
+    , "  ret i32 %r"
+    , "}"
+    ]
+
+-- | The same, where the one way in can go somewhere else instead.
+elsewhere :: Text
+elsewhere =
+  T.unlines
+    [ "define i32 @f(i1 %d, i32 %x, i32 %z) {"
+    , "entry:"
+    , "  %u = add i32 %x, 1"
+    , "  br i1 %d, label %mid, label %other"
+    , "mid:"
+    , "  br label %join"
+    , "other:"
+    , "  %w = add i32 %z, 1"
+    , "  br label %join"
+    , "join:"
+    , "  %r = phi i32 [ %u, %mid ], [ %w, %other ]"
+    , "  ret i32 %r"
+    , "}"
+    ]
+
+-- | A block that only assigns, and something holding its address.
+addressed :: Text
+addressed =
+  T.unlines
+    [ "@target = global ptr blockaddress(@f, %mid)"
+    , "define i32 @f(i1 %d, i32 %x, i32 %y, i32 %z) {"
+    , "entry:"
+    , "  br i1 %d, label %a, label %b"
+    , "a:"
+    , "  %u = add i32 %x, 1"
+    , "  br label %mid"
+    , "b:"
+    , "  %v = add i32 %y, 1"
+    , "  br label %mid"
+    , "mid:"
+    , "  %m = phi i32 [ %u, %a ], [ %v, %b ]"
+    , "  br label %join"
+    , "join:"
+    , "  %r = phi i32 [ %m, %mid ]"
+    , "  ret i32 %r"
+    , "}"
+    ]
+
+-- | What @c && e@ becomes: the left side leaves @false@ and joins the right at a
+-- block that branches on the answer.
+shortCircuit :: Text
+shortCircuit =
+  T.unlines
+    [ "define i32 @f(i1 %c, i1 %e) {"
+    , "entry:"
+    , "  br i1 %c, label %rhs, label %test"
+    , "rhs:"
+    , "  br label %test"
+    , "test:"
+    , "  %p = phi i1 [ false, %entry ], [ %e, %rhs ]"
+    , "  br i1 %p, label %yes, label %no"
+    , "yes:"
+    , "  ret i32 1"
+    , "no:"
+    , "  ret i32 0"
+    , "}"
+    ]
+
+-- | The same, with something in the block control would be sent past.
+occupied :: Text
+occupied =
+  T.unlines
+    [ "define i32 @f(i1 %c, i1 %e, ptr %p) {"
+    , "entry:"
+    , "  br i1 %c, label %rhs, label %test"
+    , "rhs:"
+    , "  br label %test"
+    , "test:"
+    , "  %q = phi i1 [ false, %entry ], [ %e, %rhs ]"
+    , "  store i32 1, ptr %p"
+    , "  br i1 %q, label %yes, label %no"
+    , "yes:"
+    , "  ret i32 1"
+    , "no:"
+    , "  ret i32 0"
+    , "}"
+    ]
+
+-- | The same, where neither way in settles the condition.
+undetermined :: Text
+undetermined =
+  T.unlines
+    [ "define i32 @f(i1 %c, i1 %e, i1 %g) {"
+    , "entry:"
+    , "  br i1 %c, label %rhs, label %test"
+    , "rhs:"
+    , "  br label %test"
+    , "test:"
+    , "  %q = phi i1 [ %g, %entry ], [ %e, %rhs ]"
+    , "  br i1 %q, label %yes, label %no"
+    , "yes:"
+    , "  ret i32 1"
+    , "no:"
+    , "  ret i32 0"
+    , "}"
+    ]
+
+-- | What each block holds afterwards, said as the kind of each operation.
+shapesIn :: Text -> IO [[String]]
+shapesIn source = do
+  simplified <- simplify source
+  pure
+    [ map (kindOf . instructionOperation) (blockInstructions b)
+    | f <- functionsIn simplified
+    , b <- functionBlocks f
+    ]
+
+kindOf :: Operation operand -> String
+kindOf operation = case operation of
+  OAssign _ -> "copy"
+  OBinary _ -> "add"
+  OICmp _ -> "icmp"
+  OStore _ -> "store"
+  _ -> "other"
+
+-- | Which blocks each block can reach, in the order written.
+edgesIn :: Text -> IO [(Label, [Label])]
+edgesIn source = do
+  simplified <- simplify source
+  pure
+    [ (blockLabel b, targetsOf (blockTerminator b))
+    | f <- functionsIn simplified
+    , b <- functionBlocks f
+    ]
+
+-- | A program the pass leaves exactly as it found it.
+unchanged :: Text -> Assertion
+unchanged source = do
+  parsed <- expectParse "<inline>" source
+  let lowered = lower parsed
+  assertEqual "unchanged" lowered (simplifyControlFlow lowered)
 
 blocksOf :: Text -> IO [Label]
 blocksOf source = do

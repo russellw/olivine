@@ -52,6 +52,7 @@ module Olivine.Core.Instruction
   , lifetimeMarked
   , resultType
   , namedApart
+  , isAssignment
   , speculatable
   ) where
 
@@ -527,6 +528,19 @@ namedApart types from instructions = go from instructions
             (OAssign (TypedValue (resultType types (instructionOperation i)) (VLocal fresh)))
             []
           : go (Local (n + 1)) rest
+
+-- | Whether an operation is an assignment.
+--
+-- Here rather than privately in the passes that ask, for the reason
+-- 'speculatable' is: four of them now ask it and they had better get the same
+-- answer.  What they are all really asking is which instructions reach the
+-- output, an assignment being what a phi becomes on the way in and what
+-- 'Olivine.Core.Ssa.reconstruct' takes back out again.  So a block of them holds
+-- nothing the output will show, a run of them is worth nothing to sink, and a
+-- side of a branch made of them costs nothing to speculate.
+isAssignment :: Operation operand -> Bool
+isAssignment (OAssign _) = True
+isAssignment _ = False
 
 -- | Whether an operation may be run where the program would not have run it.
 --

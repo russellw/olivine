@@ -1,13 +1,17 @@
 -- | The control flow graph: simplifying it, and walking it.
 --
--- Two simplifications, both of the same kind: an edge that control has no
+-- Three simplifications, all of the same kind: an edge that control has no
 -- choice about is not really an edge.  A block holding nothing but a branch
--- is a detour, and its predecessors can go where it went; a block reached
--- from one place, by a block that goes nowhere else, is the rest of that
--- block written separately.
+-- is a detour, and its predecessors can go where it went; a block holding
+-- nothing but assignments is a detour too, once they stand where control came
+-- from; and a block reached from one place, by a block that goes nowhere else,
+-- is the rest of that block written separately.
 --
--- Both run on the core, where there are no phis — that being the point of the
--- core — so a block that stops existing leaves nothing behind naming it.  The
+-- All three run on the core, where there are no phis — that being the point of
+-- the core — so a block that stops existing leaves nothing behind naming it.
+-- That is what makes the second of them possible at all: a phi belongs to the
+-- block it stands at and cannot be moved, where the assignments it becomes here
+-- belong to the edges and can stand at either end of one.  The
 -- same detours have to be removed on the way out as well, where phis exist
 -- again and name the block a value arrives from; that is
 -- 'Olivine.Core.Phi.removeForwarding', and it is a separate function because
@@ -17,6 +21,7 @@
 -- value forwards has to go in.
 module Olivine.Core.Blocks
   ( removeForwarding
+  , liftAssignments
   , mergeBlocks
   , reversePostorder
   , predecessorsOf
@@ -71,6 +76,80 @@ removeForwarding f = f {functionBlocks = settle (functionBlocks f)}
       where
         gone = blockLabel block
         redirect = retarget (\l -> if l == gone then target else l)
+
+-- | Remove a block that does nothing but assign and then branch elsewhere, by
+-- leaving its assignments where control came from.
+--
+-- The third detour, and it is 'removeForwarding' one step further on.  A block
+-- holding nothing but assignments is a phi and no more — in single assignment
+-- form that is exactly what it is written as, a block whose only content is
+-- @phi@ nodes — and reconstruction will put those back at the block it branches
+-- to just as well as at this one, once the assignments stand at the end of every
+-- block that reaches here.  What goes is a whole block, so a phi at it goes with
+-- it: what was two phis, one deciding a value here and one deciding it again
+-- below, becomes the one phi below.
+--
+-- __Every way in must be unconditional.__  The assignments are put at the end of
+-- each block that reaches this one, and a block that could go somewhere else
+-- instead would then make them on that path too.  Splitting such an edge would
+-- answer it, and that is a block put back for a block taken away.
+--
+-- The block is removed here rather than left empty for 'removeForwarding' to
+-- take, and that is what makes this terminate: every step is one block fewer,
+-- where lifting alone can put assignments back into a block it emptied a moment
+-- ago and go round a cycle of them for ever.
+liftAssignments :: Function -> Function
+liftAssignments f = f {functionBlocks = settle (functionBlocks f)}
+  where
+    entry = entryLabel f
+    pinned = pinnedIn f
+
+    settle blocks = case candidates blocks of
+      [] -> blocks
+      (block, target, feeding) : _ -> settle (lift blocks block target feeding)
+
+    candidates blocks =
+      [ (b, target, feeding)
+      | b <- blocks
+      , Just (blockLabel b) /= entry
+      , -- Control can arrive at a block whose address is taken without any
+        -- branch here saying so, and such an arrival would find the assignments
+        -- gone.
+        not (Set.member (blockLabel b) pinned)
+      , not (null (blockInstructions b))
+      , all (isAssignment . instructionOperation) (blockInstructions b)
+      , Br target <- [terminatorTransfer (blockTerminator b)]
+      , target /= blockLabel b
+      , let feeding = predecessorsOf blocks (blockLabel b)
+      , -- A block nothing reaches is for the reachability walk to remove, and
+        -- one that reaches itself is a loop rather than a detour.
+        not (null feeding)
+      , blockLabel b `notElem` feeding
+      , all (onlyHere blocks (blockLabel b)) feeding
+      ]
+
+    -- Whether a block that reaches this one can go nowhere else.
+    onlyHere blocks here label =
+      or
+        [ True
+        | b <- blocks
+        , blockLabel b == label
+        , Br target <- [terminatorTransfer (blockTerminator b)]
+        , target == here
+        ]
+
+    lift blocks block target feeding =
+      [ carry b {blockTerminator = redirect (blockTerminator b)}
+      | b <- blocks
+      , blockLabel b /= gone
+      ]
+      where
+        gone = blockLabel block
+        redirect = retarget (\l -> if l == gone then target else l)
+        carry b
+          | blockLabel b `elem` feeding =
+              b {blockInstructions = blockInstructions b <> blockInstructions block}
+          | otherwise = b
 
 -- | Merge a block into the one block that reaches it.
 --

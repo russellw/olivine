@@ -275,10 +275,6 @@ runnableEitherWay anythingReads side =
       not (isAssignment (instructionOperation i))
         && maybe False (`Set.member` anythingReads) (instructionResult i)
 
-isAssignment :: Operation operand -> Bool
-isAssignment (OAssign _) = True
-isAssignment _ = False
-
 -- | Put both sides of a branch in the block that tested, and pick between what
 -- they leave.
 convert :: Map Name Type -> Function -> Diamond -> Function
