@@ -59,6 +59,12 @@ int reader_twice(const int*); int reader_across_write(int*,int);
 int unused_loop(int,int); int unused_recursion(int); int loop_of_loops(int,int,int);
 int unused_spin(int); int loop_of_spins(int,int);
 extern int written_total;
+/* stride.c */
+int stride_walk(const int*,int); int stride_dot(const int*,const int*,int);
+int stride_third(const int*,int); int backwards(const int*,int);
+void scale(int*,const int*,int,int); int stride_weighted(const int*,int);
+unsigned stride_unsigned(const unsigned*,unsigned); int through_handle(int*const*,int);
+int gathered(const int*,const int*,int); int grid_total(const int*,int,int);
 /* unroll.c */
 int total4(const int*); int total_n(const int*,int); int every_third(const int*);
 int count_back(const int*); void fill4(int*,int); int total64(const int*);
@@ -394,6 +400,29 @@ int main(void){
        argument until the sum passes a hundred, so a step of nothing is a step
        nothing takes. */
     for(int a=1;a<=3;a++) printf("%d %d ", unused_spin(a), loop_of_spins(2,a));
+    printf("\n"); }
+#endif
+#ifdef STRIDE
+  /* Each is read back through what it computed, so an address stepped along
+     wrongly is a different number and not a shorter file. */
+  { static const int values[24] = {
+      3,-1,4,-1,5,-9,2,-6,5,3,-5,8,-9,7,-9,3,2,-3,8,4,6,2,-6,4 };
+    static const unsigned uvalues[8] = {7,1,4,9,2,8,3,6};
+    static const int picks[8] = {5,0,3,7,2,9,1,4};
+    for(int n=0;n<=8;n++)
+      printf("%d %d %d %d ", stride_walk(values,n), stride_dot(values,values+4,n),
+             stride_third(values,n), backwards(values,n));
+    printf("\n");
+    for(int n=0;n<=6;n++) printf("%d %u ", stride_weighted(values,n),
+                                 stride_unsigned(uvalues,n));
+    printf("\n");
+    { int out[8]; for(int k=0;k<=2;k++) { for(int j=0;j<8;j++) out[j]=0;
+        scale(out,values,6,k);
+        for(int j=0;j<8;j++) printf("%d ", out[j]); } printf("\n"); }
+    { const int *handle = values;
+      for(int n=0;n<=6;n++) printf("%d %d ", through_handle(&handle,n),
+                                   gathered(values,picks,n)); printf("\n"); }
+    for(int r=0;r<=2;r++) for(int c=0;c<=3;c++) printf("%d ", grid_total(values,r,c));
     printf("\n"); }
 #endif
 #ifdef UNROLL

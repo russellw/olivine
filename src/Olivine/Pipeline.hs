@@ -25,6 +25,7 @@ import Olivine.Core.Pass.LoopRotation (rotateLoops)
 import Olivine.Core.Pass.Promote (promoteMemory)
 import Olivine.Core.Pass.Redundancies (eliminateRedundancies)
 import Olivine.Core.Pass.Split (splitAggregates)
+import Olivine.Core.Pass.StrengthReduce (reduceStrength)
 import Olivine.Core.Pass.TailRecursion (eliminateTailRecursion)
 import Olivine.Core.Pass.Unroll (unrollLoops)
 import Olivine.Core.Program (Program)
@@ -121,6 +122,13 @@ passes :: [Pass]
 -- counted on the loop as written, which is the only size known when the
 -- decision is made.
 --
+-- Strength reduction beside unrolling and after it, the two being what a
+-- counter is read for: unrolling answers for the loops that can be run to the
+-- end and this one for the rest, so a loop offered to both is offered to the
+-- pass that removes it first.  It wants the same one block, and it wants the
+-- widening of the counter still standing where the front end put it, which is
+-- why it comes above the redundancies and the hoisting rather than below them.
+--
 -- If-conversion after control flow, because the diamond it looks for has to be
 -- the real one: at @-O0@ one of the two sides of an @else if@ arrives as a block
 -- that forwards to the side proper, and a side that does not branch to the join
@@ -204,6 +212,7 @@ passes =
   , Pass "loop rotation" rotateLoops
   , Pass "control flow" simplifyControlFlow
   , Pass "unrolling" unrollLoops
+  , Pass "strength reduction" reduceStrength
   , Pass "if conversion" convertBranches
   , Pass "redundancies" eliminateRedundancies
   , Pass "loop invariants" hoistLoopInvariants
@@ -232,7 +241,7 @@ passes =
 -- other for ever, and a program that hits the bound is left correct and
 -- merely less optimized rather than left running.
 rounds :: Int
-rounds = 4
+rounds = 20
 
 -- | Read a module, lower it to the core representation, run the passes, and
 -- put it back.

@@ -25,7 +25,7 @@ for pair in "arith ARITH" "branch BRANCH" "loop LOOP" "memops MEMOPS" "hello HEL
             "rotate ROTATE" "pick PICK" "values VALUES" "atomics ATOMICS" \
             "bytes BYTES" "fields FIELDS" "setjmp SETJMP" "asm ASM" \
             "tail TAIL" "assume ASSUME" "effects EFFECTS" "dse DSE" \
-            "unroll UNROLL" "except EXCEPT -lstdc++"; do
+            "unroll UNROLL" "stride STRIDE" "except EXCEPT -lstdc++"; do
     set -- $pair
     base=$1
     macro=$2
