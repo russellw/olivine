@@ -4,7 +4,8 @@
 -- choice about is not really an edge.  A block holding nothing but a branch
 -- is a detour, and its predecessors can go where it went; a block holding
 -- nothing but assignments is a detour too, once they stand where control came
--- from; and a block reached from one place, by a block that goes nowhere else,
+-- from, or if it decides something is left holding nothing but the decision;
+-- and a block reached from one place, by a block that goes nowhere else,
 -- is the rest of that block written separately.
 --
 -- All three run on the core, where there are no phis — that being the point of
@@ -77,8 +78,8 @@ removeForwarding f = f {functionBlocks = settle (functionBlocks f)}
         gone = blockLabel block
         redirect = retarget (\l -> if l == gone then target else l)
 
--- | Remove a block that does nothing but assign and then branch elsewhere, by
--- leaving its assignments where control came from.
+-- | Take the assignments out of a block that does nothing else, by leaving them
+-- where control came from.
 --
 -- The third detour, and it is 'removeForwarding' one step further on.  A block
 -- holding nothing but assignments is a phi and no more — in single assignment
@@ -89,15 +90,41 @@ removeForwarding f = f {functionBlocks = settle (functionBlocks f)}
 -- it: what was two phis, one deciding a value here and one deciding it again
 -- below, becomes the one phi below.
 --
+-- __A block that decides is emptied and kept.__  The assignments come out of it
+-- the same way, but its terminator picks between destinations and so has to
+-- stay where it is.  What that leaves is a block holding nothing at all, which
+-- is what "Olivine.Core.Pass.ControlFlow"'s threading asks for and what it was
+-- not getting: a @switch@ on a value each predecessor settles, standing in a
+-- block that also held the copies of a second phi.  LLVM sees an empty block
+-- there because a phi is not an instruction to it; the core sees the copies,
+-- and this is what puts the two views back together.
+--
+-- __An @indirectbr@ is not one of them__, though it picks between destinations
+-- like the others.  Threading reads no addresses — it asks
+-- 'Olivine.Core.Pass.ControlFlow.foldTerminator' knowing nothing about where
+-- one may land, another block's assignments not speaking for this one — so
+-- emptying such a block lets nothing through it; and the assignments in a block
+-- are exactly where the aims that /do/ fold a computed jump are read from, so
+-- taking them out could only lose.  A @ret@, an @unreachable@ and the two calls
+-- that end a block are left alone for the first of those reasons alone: they
+-- decide nothing, so emptying one enables nothing and only writes the
+-- assignments out once per way in.
+--
 -- __Every way in must be unconditional.__  The assignments are put at the end of
 -- each block that reaches this one, and a block that could go somewhere else
 -- instead would then make them on that path too.  Splitting such an edge would
 -- answer it, and that is a block put back for a block taken away.
 --
--- The block is removed here rather than left empty for 'removeForwarding' to
--- take, and that is what makes this terminate: every step is one block fewer,
--- where lifting alone can put assignments back into a block it emptied a moment
--- ago and go round a cycle of them for ever.
+-- __What makes this terminate__ is the pair (how many blocks there are, how many
+-- non-empty blocks decide), read in that order.  Removing a detour is one block
+-- fewer.  Emptying a deciding block leaves the count of blocks alone and is one
+-- deciding block fewer, and it stays that way: a block is refilled only by being
+-- a predecessor in a later step, which 'onlyHere' allows only of a block ending
+-- in an unconditional branch, and retargeting never changes which terminator a
+-- block has.  Neither step makes a deciding block out of one that was not.  The
+-- block-count half is what the first case needs on its own account, lifting
+-- alone being able to put assignments back into a block it emptied a moment ago
+-- and go round a cycle of them for ever.
 liftAssignments :: Function -> Function
 liftAssignments f = f {functionBlocks = settle (functionBlocks f)}
   where
@@ -106,10 +133,10 @@ liftAssignments f = f {functionBlocks = settle (functionBlocks f)}
 
     settle blocks = case candidates blocks of
       [] -> blocks
-      (block, target, feeding) : _ -> settle (lift blocks block target feeding)
+      (block, leaves, feeding) : _ -> settle (lift blocks block leaves feeding)
 
     candidates blocks =
-      [ (b, target, feeding)
+      [ (b, leaves, feeding)
       | b <- blocks
       , Just (blockLabel b) /= entry
       , -- Control can arrive at a block whose address is taken without any
@@ -118,8 +145,7 @@ liftAssignments f = f {functionBlocks = settle (functionBlocks f)}
         not (Set.member (blockLabel b) pinned)
       , not (null (blockInstructions b))
       , all (isAssignment . instructionOperation) (blockInstructions b)
-      , Br target <- [terminatorTransfer (blockTerminator b)]
-      , target /= blockLabel b
+      , Just leaves <- [leavesOf (blockLabel b) (terminatorTransfer (blockTerminator b))]
       , let feeding = predecessorsOf blocks (blockLabel b)
       , -- A block nothing reaches is for the reachability walk to remove, and
         -- one that reaches itself is a loop rather than a detour.
@@ -138,18 +164,41 @@ liftAssignments f = f {functionBlocks = settle (functionBlocks f)}
         , target == here
         ]
 
-    lift blocks block target feeding =
-      [ carry b {blockTerminator = redirect (blockTerminator b)}
-      | b <- blocks
-      , blockLabel b /= gone
-      ]
+    lift blocks block leaves feeding = case leaves of
+      Detour target ->
+        [ carry b {blockTerminator = retarget (redirect target) (blockTerminator b)}
+        | b <- blocks
+        , blockLabel b /= gone
+        ]
+      Decision ->
+        [ carry (if blockLabel b == gone then b {blockInstructions = []} else b)
+        | b <- blocks
+        ]
       where
         gone = blockLabel block
-        redirect = retarget (\l -> if l == gone then target else l)
+        redirect target l = if l == gone then target else l
         carry b
           | blockLabel b `elem` feeding =
               b {blockInstructions = blockInstructions b <> blockInstructions block}
           | otherwise = b
+
+-- | What is left of a block once its assignments stand where control came from.
+data Leaves
+  = -- | Nothing, so the block goes and its predecessors go where it went.
+    Detour Label
+  | -- | The choice it makes, which stays where it is in an emptied block.
+    Decision
+
+-- | What lifting a block's assignments out would leave of it, where that is
+-- worth doing at all.
+leavesOf :: Label -> Transfer operand -> Maybe Leaves
+leavesOf here transfer = case transfer of
+  -- A block branching to itself is a loop, not a detour — and the predecessor
+  -- test refuses it as well, this being one of its own predecessors.
+  Br target | target /= here -> Just (Detour target)
+  CondBr{} -> Just Decision
+  Switch{} -> Just Decision
+  _ -> Nothing
 
 -- | Merge a block into the one block that reaches it.
 --

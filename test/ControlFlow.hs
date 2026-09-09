@@ -168,6 +168,40 @@ controlFlowTests =
               "the copy stays where the address points"
               [[], ["add", "copy"], ["add", "copy"], ["copy"]]
               shapes
+        , -- A block that decides keeps its terminator and is emptied rather than
+          -- removed, and what that leaves is a block holding nothing at all —
+          -- which is what the threading below asks for and was not getting.
+          testCase "one that decides is emptied and threaded past" $ do
+            edges <- edgesOf (deciding condBranch)
+            assertEqual
+              "each side goes straight where its own copy of the condition sends it"
+              [ (Label 0, [Label 1, Label 2])
+              , (Label 1, [Label 5])
+              , (Label 2, [Label 5])
+              , (Label 5, [])
+              ]
+              edges
+        , testCase "and each way in makes the copies it held" $ do
+            shapes <- shapesOf (deciding condBranch)
+            assertEqual
+              "both sides end with the copy the deciding block made"
+              [[], ["copy", "copy", "copy"], ["copy", "copy", "copy", "copy"], []]
+              shapes
+        , -- Threading reads no addresses, so emptying the block of a computed
+          -- jump lets nothing through it; and the assignments in such a block
+          -- are where an address may be read from, so taking them out could
+          -- only lose.
+          testCase "a computed jump keeps its copies" $
+            same (deciding computedJump)
+        , -- A @ret@ decides nothing, so emptying its block enables nothing and
+          -- writes the copies out once per way in for it.  What the two blocks
+          -- it stops reaching cost is the pruning walk's business.
+          testCase "a block that decides nothing keeps its copies" $ do
+            shapes <- shapesOf (deciding (Ret (Just (i32 (VLocal answer)))))
+            assertEqual
+              "the copy stays where it returns from"
+              [[], ["copy", "copy"], ["copy", "copy"], ["copy"]]
+              shapes
         ]
     , testGroup
         "a branch the block above has settled"
@@ -483,6 +517,60 @@ addressed =
     , "}"
     ]
 
+-- | A block that decides, holding the copies of a phi below it.
+--
+-- Stated as blocks rather than parsed, because no phi elimination writes this:
+-- an edge out of a block with more than one successor is split, so the copies a
+-- phi below leaves go into a block of their own.  What puts them in the
+-- deciding block is promotion — a slot the front end branches on, read where
+-- the branch is — and that stands elsewhere in the pipeline.  A parsed
+-- definition lends the signature; 'skeleton' says what the parameters are, and
+-- the core numbers them from zero.
+deciding :: Transfer (TypedValue Local) -> [Block]
+deciding transfer =
+  [ block 0 [] (CondBr (i1 (VLocal c)) (Label 1) (Label 2))
+  , block 1 [copy taken (i1 (VBoolean True)), copy carried (i32 (VLocal x))] (Br (Label 3))
+  , block 2 [copy taken (i1 (VBoolean False)), copy carried (i32 (VLocal y))] (Br (Label 3))
+  , block 3 [copy answer (i32 (VLocal carried))] transfer
+  , block 4 [copy answer (i32 (VLocal z))] (Br (Label 5))
+  , block 5 [] (Ret (Just (i32 (VLocal answer))))
+  ]
+  where
+    (c, x, y, z) = (Local 0, Local 1, Local 2, Local 3)
+
+-- | The branch the deciding block makes, which each way in has settled.
+condBranch :: Transfer (TypedValue Local)
+condBranch = CondBr (i1 (VLocal taken)) (Label 5) (Label 4)
+
+-- | The same decision made by a computed jump, which names both blocks it may
+-- reach and so says as much about the graph.
+computedJump :: Transfer (TypedValue Local)
+computedJump = IndirectBr (TypedValue (TPointer Nothing) (VLocal carried)) [Label 5, Label 4]
+
+-- | The locals 'deciding' invents, past the parameters.
+taken, carried, answer :: Local
+(taken, carried, answer) = (Local 4, Local 5, Local 6)
+
+block :: Int -> [Instruction] -> Transfer (TypedValue Local) -> Block
+block label instructions transfer =
+  Block (Label label) instructions (Terminator transfer [])
+
+copy :: Local -> TypedValue Local -> Instruction
+copy result value = Instruction (Just result) (OAssign value) []
+
+i1, i32 :: Value Local -> TypedValue Local
+i1 = TypedValue (TInteger 1)
+i32 = TypedValue (TInteger 32)
+
+-- | A definition whose body is replaced: only its signature is read.
+skeleton :: Text
+skeleton =
+  T.unlines
+    [ "define i32 @f(i1 %c, i32 %x, i32 %y, i32 %z) {"
+    , "  ret i32 %x"
+    , "}"
+    ]
+
 -- | What @c && e@ becomes: the left side leaves @false@ and joins the right at a
 -- block that branches on the answer.
 shortCircuit :: Text
@@ -569,6 +657,42 @@ edgesIn source = do
     | f <- functionsIn simplified
     , b <- functionBlocks f
     ]
+
+-- | The same three questions, of a body stated as blocks rather than parsed.
+edgesOf :: [Block] -> IO [(Label, [Label])]
+edgesOf blocks = do
+  simplified <- simplifyBody blocks
+  pure
+    [ (blockLabel b, targetsOf (blockTerminator b))
+    | f <- functionsIn simplified
+    , b <- functionBlocks f
+    ]
+
+shapesOf :: [Block] -> IO [[String]]
+shapesOf blocks = do
+  simplified <- simplifyBody blocks
+  pure
+    [ map (kindOf . instructionOperation) (blockInstructions b)
+    | f <- functionsIn simplified
+    , b <- functionBlocks f
+    ]
+
+same :: [Block] -> Assertion
+same blocks = do
+  program <- bodied blocks
+  assertEqual "unchanged" program (simplifyControlFlow program)
+
+simplifyBody :: [Block] -> IO Program
+simplifyBody blocks = simplifyControlFlow <$> bodied blocks
+
+-- | 'skeleton' with the given blocks for a body.
+bodied :: [Block] -> IO Program
+bodied blocks = do
+  parsed <- expectParse "<inline>" skeleton
+  let lowered = lower parsed
+      rebody (EFunction f) = EFunction f {functionBlocks = blocks}
+      rebody retained = retained
+  pure lowered {programEntries = map rebody (programEntries lowered)}
 
 -- | A program the pass leaves exactly as it found it.
 unchanged :: Text -> Assertion
