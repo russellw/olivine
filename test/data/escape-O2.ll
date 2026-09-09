@@ -32,6 +32,15 @@ define dso_local i32 @volatile_local(i32 noundef %0) local_unnamed_addr #2 {
 }
 
 ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+define dso_local i32 @picked_pair(i32 noundef %0, i32 noundef %1, i32 noundef %2) local_unnamed_addr #0 {
+  %4 = icmp eq i32 %2, 0
+  %5 = select i1 %4, i32 %0, i32 %1
+  %6 = shl nsw i32 %5, 1
+  %7 = add nsw i32 %6, %1
+  ret i32 %7
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
 define dso_local noundef i32 @addressed_pair(i32 noundef %0, i32 noundef %1) local_unnamed_addr #0 {
   %3 = tail call i32 @llvm.smin.i32(i32 %0, i32 %1)
   ret i32 %3

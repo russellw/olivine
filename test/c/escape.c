@@ -22,6 +22,17 @@ int volatile_local(int v) {
   return x + x;
 }
 
+int picked_pair(int a, int b, int c) {
+  /* Every element is named by a constant, which is a name and not a
+     measurement, so the slot comes apart into one per element with no data
+     layout consulted.  The first is written in two places, so that answering
+     the read of it takes a slot of its own and not merely a store to look
+     back at. */
+  int xs[2] = {a, b};
+  if (c) xs[0] = b;
+  return xs[0] * 2 + xs[1];
+}
+
 int addressed_pair(int a, int b) {
   int xs[2] = {a, b};
   /* The address is computed rather than only read, so the slot is stepped into

@@ -17,6 +17,7 @@ void *duplicate(const void*,unsigned long); void clear(void*,unsigned long);
 void release(void*); int apply(int(*)(int),int); int total(int,...);
 /* escape.c */
 int through_pointer(int); int volatile_local(int); int addressed_pair(int,int);
+int picked_pair(int,int,int);
 long counted(int); int only_stored(int);
 /* jumps.c */
 int search(const int*,int,int,int); int digits(unsigned); int falls_through(int);
@@ -165,8 +166,8 @@ int main(void){
 #endif
 #ifdef ESCAPE
   for(int i=-4;i<=4;i++)
-    printf("%d %d %d %ld %d\n", through_pointer(i), volatile_local(i),
-      addressed_pair(i,-i), counted(i<1?1:i), only_stored(i));
+    printf("%d %d %d %d %ld %d\n", through_pointer(i), volatile_local(i),
+      picked_pair(i,i+1,i&1), addressed_pair(i,-i), counted(i<1?1:i), only_stored(i));
 #endif
 #ifdef JUMPS
   { int g[12]; for(int i=0;i<12;i++) g[i]=(i*5)%7-2;

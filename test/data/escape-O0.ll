@@ -52,6 +52,40 @@ define dso_local i32 @volatile_local(i32 noundef %0) #0 {
 }
 
 ; Function Attrs: noinline nounwind optnone uwtable
+define dso_local i32 @picked_pair(i32 noundef %0, i32 noundef %1, i32 noundef %2) #0 {
+  %4 = alloca i32, align 4
+  %5 = alloca i32, align 4
+  %6 = alloca i32, align 4
+  %7 = alloca [2 x i32], align 4
+  store i32 %0, ptr %4, align 4
+  store i32 %1, ptr %5, align 4
+  store i32 %2, ptr %6, align 4
+  %8 = load i32, ptr %4, align 4
+  store i32 %8, ptr %7, align 4
+  %9 = getelementptr inbounds i32, ptr %7, i64 1
+  %10 = load i32, ptr %5, align 4
+  store i32 %10, ptr %9, align 4
+  %11 = load i32, ptr %6, align 4
+  %12 = icmp ne i32 %11, 0
+  br i1 %12, label %13, label %16
+
+13:                                               ; preds = %3
+  %14 = load i32, ptr %5, align 4
+  %15 = getelementptr inbounds [2 x i32], ptr %7, i64 0, i64 0
+  store i32 %14, ptr %15, align 4
+  br label %16
+
+16:                                               ; preds = %13, %3
+  %17 = getelementptr inbounds [2 x i32], ptr %7, i64 0, i64 0
+  %18 = load i32, ptr %17, align 4
+  %19 = mul nsw i32 %18, 2
+  %20 = getelementptr inbounds [2 x i32], ptr %7, i64 0, i64 1
+  %21 = load i32, ptr %20, align 4
+  %22 = add nsw i32 %19, %21
+  ret i32 %22
+}
+
+; Function Attrs: noinline nounwind optnone uwtable
 define dso_local i32 @addressed_pair(i32 noundef %0, i32 noundef %1) #0 {
   %3 = alloca i32, align 4
   %4 = alloca i32, align 4

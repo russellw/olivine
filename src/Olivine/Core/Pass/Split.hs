@@ -1,4 +1,4 @@
--- | Taking a slot that holds a struct apart into a slot per field.
+-- | Taking a slot that holds an aggregate apart into a slot per part.
 --
 -- LLVM calls this scalar replacement of aggregates, and what it is for here is
 -- "Olivine.Core.Pass.Promote".  A slot holding a whole struct is not a local
@@ -11,23 +11,33 @@
 -- field is a slot in its own right, at the type its accesses are already
 -- written at, which is the shape promotion was built for.
 --
--- __It splits by name, not by offset.__  What makes a field a candidate is
--- that the program stepped to it with an 'OField', which says which field it
--- meant; nothing here asks where a field begins or how many bytes it covers,
--- so the pass wants no data layout and answers the same on every target.  That
--- is also the whole of its limit.  A slot strided into as though it were an
--- array, stepped into as some other struct, or handed to a @memset@ or a
--- @memcpy@ keeps its storage, because what such an access covers is a number of
--- bytes and this pass is not in the business of bytes.  LLVM's own gives up on
--- the same programs for the same reason, having watched the bytes and found an
--- access it could not place.
+-- __It splits by name, not by offset.__  What makes a part a candidate is that
+-- the program named it: a struct's field by the index an 'OField' carries, and
+-- an array's element by a constant number of strides over the element type,
+-- which says the @k@th element whatever a stride turns out to cover.  Nothing
+-- here asks where a part begins or how many bytes it covers, so the pass wants
+-- no data layout and answers the same on every target.  That is also the whole
+-- of its limit: a slot stepped into as some other type, strided over as though
+-- it were an array of itself, or stepped to at an index the program computes
+-- keeps its storage, because what such an access covers is a number of bytes
+-- or a place this cannot put a name to.  LLVM's own gives up on the same
+-- programs for the same reason, having watched the bytes and found an access it
+-- could not place.
 --
--- The one that used to be on that list and no longer is is the slot read or
--- written /whole/, at the very type it was allocated as.  That access names no
--- field, but it names every field, and the struct type says which they are —
--- so 'unpackedIn' writes it out one field at a time before the split looks, and
--- the whole thing stays a question about names.  See there for what it costs
--- and why it is only done where the slot then goes.
+-- Two that used to be on that list and no longer are.  The slot read or written
+-- /whole/, at the very type it was allocated as, names no part but names every
+-- part, and the type says which they are — so 'unpackedIn' writes it out one
+-- field at a time before the split looks.  And a load at an index that can only
+-- be zero or one names two elements, which is a choice between them and not a
+-- measurement — so 'chosenIn' writes it out as the two loads and the @select@
+-- it is.  Both are done only where the slot then goes; see there for why.
+--
+-- __A copy of an address is another name for it.__  Promotion turns a pointer
+-- variable into an assignment, so @int *p = &s@ leaves every access the program
+-- wrote through @p@ naming a copy of the slot rather than the slot.  Everything
+-- here that reads an address reads all of its names at once, which is 'namesOf';
+-- without that the copy is a use of the slot the pass cannot account for, and
+-- the slot is refused for it.
 --
 -- __Nothing reached through a field may leave it.__  Separating the fields is
 -- only truthful if no access the program makes crosses from one into the next,
@@ -82,14 +92,16 @@ import Olivine.Syntax.Instruction
   ( Alloca (..)
   , Argument (..)
   , Call (..)
+  , Convert (..)
   , ExtractValue (..)
   , InsertValue (..)
   , Load (..)
+  , Select (..)
   , Store (..)
   )
 import Olivine.Syntax.Name (Name, nameText)
 import Olivine.Syntax.Type (Type (..), resolveNamed)
-import Olivine.Syntax.Value (TypedValue (..), Value (..))
+import Olivine.Syntax.Value (CastOp (..), TypedValue (..), Value (..))
 
 splitAggregates :: Program -> Program
 splitAggregates program =
@@ -124,7 +136,7 @@ splitIn layout types original
   | Map.null aggregates = original
   | otherwise = f {functionBlocks = map block (functionBlocks f)}
   where
-    f = unpackedIn layout types original
+    f = chosenIn types (unpackedIn layout types original)
     aggregates = splittableIn types f
 
     Local next = nextLocal f
@@ -162,6 +174,19 @@ splitIn layout types original
 
     renamed local = Map.findWithDefault local local renaming
 
+    -- The copies that gave a slot its other names.  Each is an assignment of an
+    -- address that is about to stop existing, and there is nothing for it to
+    -- assign instead: whatever named the slot names one of the new ones, and
+    -- the one it names is the business of the use rather than of the copy.
+    copied :: Set.Set Local
+    copied =
+      Set.fromList
+        [ name
+        | (slot, aggregate) <- Map.toList aggregates
+        , name <- Set.toList (aggregateNames aggregate)
+        , name /= slot
+        ]
+
     block b =
       b
         { blockInstructions = concatMap instruction (blockInstructions b)
@@ -180,13 +205,14 @@ splitIn layout types original
       -- something else and costs nothing here, markers being what a pass may
       -- believe rather than something it must keep.
       | Just marked <- lifetimeMarked (instructionOperation i)
-      , Map.member marked aggregates || Map.member marked renaming =
+      , Map.member marked aggregates || Map.member marked renaming || Set.member marked copied =
           []
       | otherwise = case instructionResult i of
           Just slot
             | Just aggregate <- Map.lookup slot aggregates ->
                 allocations i slot aggregate
           Just result | Map.member result renaming -> []
+          Just result | Set.member result copied -> []
           _ -> [substituted i]
 
     substituted i =
@@ -216,6 +242,51 @@ splitIn layout types original
               -- allocation's own and stay as they were.
               allocaElementCount = Nothing
             }
+
+-- | What the part at an index holds, where there is such a part.
+--
+-- The two ways a program can name a part of a slot without measuring anything:
+-- a struct's field by the index an 'OField' carries, and an array's element by
+-- the number of strides an 'OOffset' takes.  Asked by index rather than
+-- answered as a list, because an array says how many elements it has and a slot
+-- gets storage only for the parts something names — a step to element nine of a
+-- thousand should cost the walk nine and not a thousand.
+partAt :: Map Name Type -> Type -> Natural -> Maybe Type
+partAt types held index = case resolveNamed types held of
+  TStruct _ fields -> fields !? index
+  TArray count held' | index < count -> Just held'
+  _ -> Nothing
+  where
+    fields !? n = case drop (fromIntegral n) fields of
+      field : _ -> Just field
+      [] -> Nothing
+
+-- | Whether a slot holding this has parts at all.
+hasParts :: Map Name Type -> Type -> Bool
+hasParts types held = case resolveNamed types held of
+  TStruct _ fields -> not (null fields)
+  TArray count _ -> count > 0
+  _ -> False
+
+-- | Which element of an array a step strides to, where it strides to one.
+--
+-- __A constant number of strides over the element type is a name__, the same
+-- kind of name a field index is, and it is why this pass can split an array
+-- without a data layout: element @k@ is the @k@th, whatever the target says a
+-- stride covers.  A step over some other type is measuring bytes and is
+-- refused, and so is one whose index the program computes — it names no
+-- element, and a slot with such a use has a part this cannot account for.
+element ::
+  Map Name Type -> Type -> Offset (TypedValue Local) -> Maybe (Natural, Type)
+element types held x = do
+  TArray count held' <- Just (resolveNamed types held)
+  VInteger index <- Just (typedValue (offsetIndex x))
+  () <- if index >= 0 && fromIntegral index < count then Just () else Nothing
+  () <-
+    if resolveNamed types (offsetElementType x) == resolveNamed types held'
+      then Just ()
+      else Nothing
+  pure (fromIntegral index, held')
 
 -- | Whether an allocation is of one object rather than an array of them.
 --
@@ -294,6 +365,195 @@ unpackedIn layout types f
       where
         splittable = splittableIn types (unpacking layout types chosen f)
         fewer = Set.filter (`Map.member` splittable) chosen
+
+-- | A load at an element an index of zero or one names, read at both and chosen
+-- between.
+--
+-- @xs[a > b]@ is the shape, and it is the last thing standing between an array
+-- slot and its elements: every other use names an element, and this one names
+-- two.  So it is written as what it means — a load of each of the two, and a
+-- @select@ on the boolean the index came from — and then every use names an
+-- element and the slot goes.  This is 'unpackedIn' again, one access this pass
+-- cannot attribute said in terms it can read, and it is decided the same way,
+-- by making the rewrite and asking 'splittableIn' of the result.
+--
+-- __A zero-extended boolean is the only index taken.__  A @getelementptr@
+-- index is /signed/, so an @i1@ used as one directly is zero or minus one and
+-- names an element before the array rather than the second of it; what says
+-- zero or one is the @zext@ that widens it, and that is what is looked for.
+-- Nothing else is: an index a range analysis could bound is still an index this
+-- would have to enumerate, and two is where enumerating stops paying.
+--
+-- __Reading the element the program did not ask for is safe and costs nothing.__
+-- Both stand inside an @alloca@ of at least two of them, which is
+-- dereferenceable for the whole of what it allocated, so neither load can
+-- fault; what an unwritten one holds is undefined, and the @select@ is what
+-- says the program never sees it.  The alignment is the original access's own,
+-- which both elements can honestly claim, since a load at a computed index was
+-- already claiming it of whichever it landed on.
+--
+-- __Only a load.__  A store through such an address would have to write both
+-- elements to write the one, and there is no @select@ of a store.
+chosenIn :: Map Name Type -> Function -> Function
+chosenIn types f
+  | Set.null worthwhile = f
+  | otherwise = choosing types worthwhile f
+  where
+    candidates = Set.fromList (map pickSlot (Map.elems (picksIn types f)))
+
+    -- One round, unlike 'unpackedIn': a step names one slot, so whether one
+    -- slot's reads are worth writing out does not turn on whether another's
+    -- were.
+    worthwhile = Set.filter (`Map.member` splittable) candidates
+    splittable = splittableIn types (choosing types candidates f)
+
+-- | A step to an element chosen by a boolean, and what writing it out takes.
+data Pick = Pick
+  { pickSlot :: Local
+  , -- | The @i1@ the index was widened from, which the @select@ reads.
+    pickCondition :: TypedValue Local
+  , -- | The step as it was written.  The two that replace it differ from it in
+    -- their index and in nothing else, so the flags, the element type and the
+    -- width the index is written at all come from here.
+    pickStep :: Offset (TypedValue Local)
+  }
+
+-- | Every such step, under every name its address goes by.
+--
+-- Both ends want 'namesOf': the slot is reached through the copies promotion
+-- left of it, and so is the step's own address — @int *p = xs + c@ is a slot
+-- holding an address, and the load reads it back.
+picksIn :: Map Name Type -> Function -> Map Local Pick
+picksIn types f =
+  Map.fromList
+    [ (name, Pick slot condition x)
+    | Instruction (Just address) (OOffset x) _ <- instructions
+    , Map.findWithDefault 0 address (readsDefinitions reads') == 1
+    , VLocal pointer <- [typedValue (offsetPointer x)]
+    , Just (slot, held) <- [Map.lookup pointer allocated]
+    , TArray count held' <- [resolveNamed types held]
+    , count >= 2
+    , resolveNamed types (offsetElementType x) == resolveNamed types held'
+    , Just condition <- [zeroOrOne (offsetIndex x)]
+    , let family = namesOf reads' address
+    , let reads'' = outsideOf reads' family
+    , not (null reads'')
+    , all (readAt held' family) reads''
+    , name <- Set.toList family
+    ]
+  where
+    instructions = [i | b <- functionBlocks f, i <- blockInstructions b]
+    reads' = readsIn f
+
+    -- What each name of a slot allocates, for the slots that allocate one
+    -- object.  One object is what makes both elements dereferenceable:
+    -- @alloca [2 x i32], i32 %n@ has no bytes at all when the count turns out
+    -- to be zero.
+    allocated =
+      Map.fromList
+        [ (name, (slot, allocaType a))
+        | Instruction (Just slot) (OAlloca a) _ <- instructions
+        , single a
+        , Map.findWithDefault 0 slot (readsDefinitions reads') == 1
+        , name <- Set.toList (namesOf reads' slot)
+        ]
+
+    -- The index says zero or one, which only a widened boolean does.  Both the
+    -- widening and the boolean are read where the load is rather than where
+    -- they were written, so each must be assigned in one place: a local
+    -- assigned twice holds what the last assignment above the read left, and
+    -- that is a question about where.
+    zeroOrOne index = case index of
+      TypedValue (TInteger width) (VLocal widened)
+        | width > 1
+        , Map.findWithDefault 0 widened (readsDefinitions reads') == 1
+        , Just i <- Map.lookup widened produced
+        , OConvert c <- instructionOperation i
+        , convertOp c == CastZExt
+        , TypedValue (TInteger 1) source <- convertOperand c
+        , settled source ->
+            Just (convertOperand c)
+      _ -> Nothing
+
+    -- A parameter is assigned nowhere and reassigned nowhere, which is what
+    -- this is asking; anything else has to be assigned in exactly one place.
+    settled (VLocal local) = Map.findWithDefault 0 local (readsDefinitions reads') <= 1
+    settled _ = True
+
+    produced =
+      Map.fromList [(result, i) | i <- instructions, Just result <- [instructionResult i]]
+
+    readAt t family i = case instructionOperation i of
+      OLoad l ->
+        not (loadVolatile l)
+          && isJust (instructionResult i)
+          && withinNames family (loadPointer l)
+          && resolveNamed types (loadType l) == resolveNamed types t
+          && onlyName family i
+      _ -> False
+
+-- | The rewrite itself, for the slots named.
+choosing :: Map Name Type -> Set.Set Local -> Function -> Function
+choosing types chosen f = f {functionBlocks = blocks}
+  where
+    picks = Map.filter ((`Set.member` chosen) . pickSlot) (picksIn types f)
+    Local start = nextLocal f
+    (_, blocks) = mapAccumL block start (functionBlocks f)
+
+    block n b = (after, b {blockInstructions = concat groups})
+      where
+        (after, groups) = mapAccumL instruction n (blockInstructions b)
+
+    instruction n i = case instructionOperation i of
+      -- The step goes: what stood at each of its uses now works out both
+      -- addresses for itself, and nothing is left that names an element the
+      -- program has not decided on.
+      _ | Just address <- instructionResult i, Map.member address picks -> (n, [])
+      OLoad l
+        | TypedValue _ (VLocal address) <- loadPointer l
+        , Just pick <- Map.lookup address picks
+        , Just result <- instructionResult i ->
+            (n + 4, reading n pick i l result)
+      _ -> (n, [i])
+
+    reading n pick i l result =
+      [ stepping (Local n) 0
+      , stepping (Local (n + 1)) 1
+      , loading (Local (n + 2)) (Local n)
+      , loading (Local (n + 3)) (Local (n + 1))
+      , Instruction
+          (Just result)
+          ( OSelect
+              Select
+                { selectFlags = []
+                , selectCondition = pickCondition pick
+                , selectTrue = held (Local (n + 3))
+                , selectFalse = held (Local (n + 2))
+                }
+          )
+          []
+      ]
+      where
+        step = pickStep pick
+        held local = TypedValue (loadType l) (VLocal local)
+        stepping name index =
+          Instruction
+            (Just name)
+            ( OOffset
+                step
+                  { offsetIndex =
+                      TypedValue (typedValueType (offsetIndex step)) (VInteger index)
+                  }
+            )
+            []
+        -- The access as it was written, at the address of one element.  Its
+        -- metadata says what type the array is read at, which is as true of
+        -- each element as it was of the one the index landed on.
+        loading name address =
+          Instruction
+            (Just name)
+            (OLoad l {loadPointer = TypedValue (typedValueType (loadPointer l)) (VLocal address)})
+            (instructionMetadata i)
 
 -- | The slots this function assigns one @alloca@ of a struct to, with what
 -- that struct holds.
@@ -594,13 +854,18 @@ data Aggregate = Aggregate
     -- differ in what they hold and in nothing else, so which memory the
     -- storage is in and how well aligned it is come from here.
     aggregateAlloca :: Alloca (TypedValue Local)
-  , -- | For each field the function reaches: what that field holds, and the
+  , -- | Every local that names the slot itself: the one the @alloca@ assigns,
+    -- and the copies of it — see 'namesOf'.  What the rewrite wants them for is
+    -- that a copy of an address that is about to stop existing has to go too.
+    aggregateNames :: Set.Set Local
+  , -- | For each part the function reaches: what that part holds, and the
     -- locals that are its address and have to become the new slot.
     --
-    -- Usually one local per step and several steps to a field, a front end
-    -- writing the step afresh at every mention of it.  The slot's own local is
-    -- among them when the first field is reached by the slot's own address,
-    -- which is where a front end wrote the access without a step at all.
+    -- Usually one local per step and several steps to a part, a front end
+    -- writing the step afresh at every mention of it, plus whatever copies
+    -- promotion left of each.  The slot's own names are among them when the
+    -- first part is reached by the slot's own address, which is where a front
+    -- end wrote the access without a step at all.
     aggregateFields :: Map Natural (Type, [Local])
   }
   deriving (Eq, Show)
@@ -629,51 +894,70 @@ data Aggregate = Aggregate
 splittableIn :: Map Name Type -> Function -> Map Local Aggregate
 splittableIn types f =
   Map.fromList
-    [ (slot, Aggregate a (Map.fromListWith together taken))
+    [ (slot, Aggregate a family (Map.fromListWith together taken))
     | Instruction (Just slot) (OAlloca a) _ <- instructions
     , single a
     , isJust (allocaAlignment a)
-    , Map.findWithDefault 0 slot definitions == 1
+    , Map.findWithDefault 0 slot (readsDefinitions reads') == 1
     , slot `notElem` functionParameters f
     , let held = resolveNamed types (allocaType a)
-    , TStruct _ fields <- [held]
-    , let taken = concatMap (reaching held fields slot) (usesOf slot)
+    , hasParts types held
+    , let family = namesOf reads' slot
+    , let here = outsideOf reads' family
+    , let taken = concatMap (reaching held family) here
     , -- A slot nothing reaches has nothing to be split into, and a slot with a
-      -- use this could not read has a field it cannot account for.  Each of
-      -- the uses below names the slot exactly once, so the two numbers agree
-      -- when every use of it is one of them and not otherwise.
+      -- use this could not read has a part it cannot account for.  Each of the
+      -- uses below names the slot exactly once, so the two numbers agree when
+      -- every use of it is one of them and not otherwise.
       not (null taken)
-    , length taken + length (bracketing slot) == Map.findWithDefault 0 slot uses
+    , accountedIn reads' family (length taken + length (bracketing family))
     ]
   where
     instructions = [i | b <- functionBlocks f, i <- blockInstructions b]
+    reads' = readsIn f
 
     together (t, new) (_, old) = (t, old <> new)
 
-    -- What one use of a slot says about a field of it: nothing, or the field
-    -- and the local that is its address.
-    reaching held fields slot i
-      | not (only slot i) = []
+    -- What one use of a slot says about a part of it: nothing, or the part and
+    -- the locals that are its address.
+    reaching held family i
+      | not (onlyName family i) = []
       | otherwise = case instructionOperation i of
           OField x
-            | names slot (fieldPointer x)
-            , Just result <- instructionResult i
-            , Map.findWithDefault 0 result definitions == 1
+            | withinNames family (fieldPointer x)
             , resolveNamed types (fieldStructType x) == held
-            , Just t <- fields !? fieldIndex x
-            , contains (length instructions) t result ->
-                [(fieldIndex x, (t, [result]))]
-          -- The address of the first field is the address of the struct,
-          -- packed or not, and a front end that wrote the access without a
-          -- step wrote this.  It is at that field's own type, so it keeps to
-          -- the field for the reason every access 'contains' admits does.
-          OLoad l | names slot (loadPointer l) -> first (loadType l)
-          OStore s | names slot (storePointer s) -> first (typedValueType (storeValue s))
+            , Just t <- partAt types held (fieldIndex x)
+            , Just stepped <- addressing t i ->
+                [(fieldIndex x, (t, stepped))]
+          OOffset x
+            | withinNames family (offsetPointer x)
+            , Just (index, t) <- element types held x
+            , Just stepped <- addressing t i ->
+                [(index, (t, stepped))]
+          -- The address of the first part is the address of the whole, packed
+          -- or not, and a front end that wrote the access without a step wrote
+          -- this.  It is at that part's own type, so it keeps to the part for
+          -- the reason every access 'contains' admits does.
+          OLoad l | withinNames family (loadPointer l) -> first (loadType l)
+          OStore s | withinNames family (storePointer s) -> first (typedValueType (storeValue s))
           _ -> []
       where
-        first accessed = case fields !? 0 of
-          Just t | resolveNamed types t == resolveNamed types accessed -> [(0, (t, [slot]))]
+        -- Every name of the whole is a name of its first part, so all of them
+        -- become that part's slot.
+        first accessed = case partAt types held 0 of
+          Just t
+            | resolveNamed types t == resolveNamed types accessed ->
+                [(0, (t, Set.toList family))]
           _ -> []
+
+    -- The locals a step's address goes by, where nothing reached through any of
+    -- them leaves the part it is the address of.
+    addressing t i = do
+      result <- instructionResult i
+      () <- if Map.findWithDefault 0 result (readsDefinitions reads') == 1 then Just () else Nothing
+      if contains (length instructions) t result
+        then Just (Set.toList (namesOf reads' result))
+        else Nothing
 
     -- Whether everything reached through this address keeps to the value of
     -- this type that it is the address of.
@@ -684,98 +968,180 @@ splittableIn types f =
     -- well: a pointer handed to a call or written into memory is not among the
     -- shapes here, so the slot it came from is not split.
     --
+    -- Asked of every name the address goes by at once, since a copy of it is
+    -- one — see 'namesOf'.
+    --
     -- The fuel is what a chain of steps that closes on itself runs out of.
     -- Nothing well formed writes one, and this pass runs before the thing that
     -- would say so.
     contains :: Int -> Type -> Local -> Bool
     contains fuel t pointer =
       fuel > 0
-        && length here == Map.findWithDefault 0 pointer uses
+        && accountedIn reads' family (length here)
         && all keeping here
       where
-        here = Map.findWithDefault [] pointer usedBy
+        family = namesOf reads' pointer
+        here = outsideOf reads' family
 
         keeping i =
-          only pointer i
+          onlyName family i
             && case instructionOperation i of
-              OLoad l -> names pointer (loadPointer l) && at (loadType l)
-              OStore s -> names pointer (storePointer s) && at (typedValueType (storeValue s))
+              OLoad l -> withinNames family (loadPointer l) && at (loadType l)
+              OStore s -> withinNames family (storePointer s) && at (typedValueType (storeValue s))
               OField x
-                | names pointer (fieldPointer x)
+                | withinNames family (fieldPointer x)
                 , Just result <- instructionResult i
-                , Map.findWithDefault 0 result definitions == 1
+                , Map.findWithDefault 0 result (readsDefinitions reads') == 1
                 , resolveNamed types (fieldStructType x) == resolveNamed types t
-                , TStruct _ fields <- resolveNamed types t
-                , Just inner <- fields !? fieldIndex x ->
+                , TStruct{} <- resolveNamed types t
+                , Just inner <- partAt types t (fieldIndex x) ->
                     contains (fuel - 1) inner result
-              -- A field's own address bracketed, which a front end writes
-              -- where a member outlives less of the function than the struct
-              -- around it.  The same answer as for the whole slot above.
-              operation -> lifetimeMarked operation == Just pointer
+              OOffset x
+                | withinNames family (offsetPointer x)
+                , Just result <- instructionResult i
+                , Map.findWithDefault 0 result (readsDefinitions reads') == 1
+                , Just (_, inner) <- element types t x ->
+                    contains (fuel - 1) inner result
+              -- A part's own address bracketed, which a front end writes where
+              -- a member outlives less of the function than the struct around
+              -- it.  The same answer as for the whole slot above.
+              operation -> maybe False (`Set.member` family) (lifetimeMarked operation)
 
         at accessed = resolveNamed types accessed == resolveNamed types t
 
-    names local (TypedValue _ (VLocal n)) = n == local
-    names _ _ = False
-
-    -- The lifetime markers naming a local, which are uses of it that say
-    -- nothing about any field and are not escapes either.  Counted rather than
-    -- accounted for, since the whole of what they mark is the whole of what is
-    -- about to stop being one object: the rewrite drops them, as it must —
-    -- after the split there is no local for one to name.
+    -- The lifetime markers naming any of a slot's names, which are uses that
+    -- say nothing about any part and are not escapes either.  Counted rather
+    -- than accounted for, since the whole of what they mark is the whole of
+    -- what is about to stop being one object: the rewrite drops them, as it
+    -- must — after the split there is no local for one to name.
     --
     -- Whether a slot bracketed this way is worth splitting is not in question.
     -- It is what a front end writes for every local aggregate at any level
     -- above @-O0@, so refusing them left every struct in the newer half of the
     -- corpus in memory.
-    bracketing local =
+    bracketing family =
       [ i
-      | i <- usesOf local
-      , lifetimeMarked (instructionOperation i) == Just local
+      | i <- outsideOf reads' family
+      , maybe False (`Set.member` family) (lifetimeMarked (instructionOperation i))
       ]
 
-    -- Whether an instruction names a local in one place only, so that a
-    -- pointer standing in an address position and somewhere else besides is
-    -- refused for the somewhere else: @store ptr %p, ptr %p@ writes an address
-    -- into the storage it is the address of.
-    only local i =
-      length (filter (== local) (localsUsedBy (instructionOperation i))) == 1
+-- | What a function says about the locals in it.
+--
+-- How many places assign each, how many operand positions read each, and which
+-- instructions those are for the ones an instruction names.  The count and the
+-- list are both wanted and are not the same question: a use accounted for does
+-- not say the others were, and a local the count reaches but the list does not
+-- is one a terminator names.
+data Reads = Reads
+  { readsDefinitions :: Map Local Int
+  , readsUses :: Map Local Int
+  , readsBy :: Map Local [Instruction]
+  }
 
-    (!?) :: [Type] -> Natural -> Maybe Type
-    fields !? index = case drop (fromIntegral index) fields of
-      field : _ -> Just field
-      [] -> Nothing
-
-    definitions :: Map Local Int
-    definitions =
-      Map.fromListWith (+) [(result, 1) | Just result <- map instructionResult instructions]
-
-    -- How many operand positions name each local, terminators included, and
-    -- which instructions those are for the ones an instruction names.  The
-    -- count is what the two checks above are written in terms of: a use
-    -- accounted for does not say the others were, and a local the count
-    -- reaches but 'usedBy' does not is one a terminator names.
-    uses :: Map Local Int
-    uses =
-      Map.fromListWith
-        (+)
-        ( [ (local, 1)
+readsIn :: Function -> Reads
+readsIn f =
+  Reads
+    { readsDefinitions =
+        Map.fromListWith (+) [(result, 1) | Just result <- map instructionResult instructions]
+    , readsUses =
+        Map.fromListWith
+          (+)
+          ( [ (local, 1)
+            | i <- instructions
+            , local <- localsUsedBy (instructionOperation i)
+            ]
+              <> [ (local, 1)
+                 | b <- functionBlocks f
+                 , local <- localsUsedBy (terminatorTransfer (blockTerminator b))
+                 ]
+          )
+    , readsBy =
+        Map.fromListWith
+          (<>)
+          [ (local, [i])
           | i <- instructions
           , local <- localsUsedBy (instructionOperation i)
           ]
-            <> [ (local, 1)
-               | b <- functionBlocks f
-               , local <- localsUsedBy (terminatorTransfer (blockTerminator b))
-               ]
-        )
+    }
+  where
+    instructions = [i | b <- functionBlocks f, i <- blockInstructions b]
 
-    usedBy :: Map Local [Instruction]
-    usedBy =
-      Map.fromListWith
-        (<>)
-        [ (local, [i])
-        | i <- instructions
-        , local <- localsUsedBy (instructionOperation i)
-        ]
+-- | Every local that is one address: the one asked about, and the copies of it.
+--
+-- __A copy of an address is another name for it__, and promotion writes them
+-- everywhere.  @int *p = &s@ is a slot holding an address, so once that slot is
+-- promoted every access the program wrote through @p@ names a local that is a
+-- copy of the slot rather than the slot itself.  A pass that reads addresses
+-- and finds only the copies finds a slot with a use it cannot account for, and
+-- refuses it — which is what refused the array in @addressed_pair@ and the
+-- @select@ that should have come of it.
+--
+-- __Both ends assigned in one place__, so that the copy is that address
+-- wherever either can be read.  A local assigned twice holds what the last
+-- assignment above the read left, which is a question about where, and this is
+-- read as a fact about the whole function.
+--
+-- The copy is then a use of the address that says nothing about any part of it,
+-- like a lifetime marker and for the same reason — and there is exactly one for
+-- each name past the first, which is what 'accountedIn' counts on.
+--
+-- The names are collected rather than resolved into the operands, which is the
+-- line "Olivine.Core.Pass.Fold" draws for the same shape: putting the address
+-- back into every operand would be a second place that has to keep the copy
+-- chain right, and "Olivine.Core.Ssa" takes every copy away on the way out
+-- regardless.
+namesOf :: Reads -> Local -> Set.Set Local
+namesOf reads' local = walk Set.empty [local]
+  where
+    walk seen [] = seen
+    walk seen (x : rest)
+      | Set.member x seen = walk seen rest
+      | otherwise = walk (Set.insert x seen) (copies x <> rest)
 
-    usesOf slot = Map.findWithDefault [] slot usedBy
+    copies x =
+      [ copy
+      | i <- Map.findWithDefault [] x (readsBy reads')
+      , Just copy <- [instructionResult i]
+      , OAssign (TypedValue _ (VLocal named)) <- [instructionOperation i]
+      , named == x
+      , Map.findWithDefault 0 copy (readsDefinitions reads') == 1
+      , length (filter (== x) (localsUsedBy (instructionOperation i))) == 1
+      ]
+
+-- | Every use of every name an address goes by, less the copies that make the
+-- names.
+outsideOf :: Reads -> Set.Set Local -> [Instruction]
+outsideOf reads' family =
+  [ i
+  | x <- Set.toList family
+  , i <- Map.findWithDefault [] x (readsBy reads')
+  , not (linking i)
+  ]
+  where
+    linking i = case (instructionResult i, instructionOperation i) of
+      (Just copy, OAssign (TypedValue _ (VLocal named))) ->
+        Set.member copy family && Set.member named family
+      _ -> False
+
+-- | Whether that many uses is all of them.
+--
+-- Each name past the first is made by exactly one copy, and a copy is one use,
+-- so the copies are what the two sides differ by.
+accountedIn :: Reads -> Set.Set Local -> Int -> Bool
+accountedIn reads' family n =
+  n + Set.size family - 1
+    == sum [Map.findWithDefault 0 x (readsUses reads') | x <- Set.toList family]
+
+-- | Whether an operand is one of the names.
+withinNames :: Set.Set Local -> TypedValue Local -> Bool
+withinNames family operand = case typedValue operand of
+  VLocal local -> Set.member local family
+  _ -> False
+
+-- | Whether an instruction names the address in one place only, so that a
+-- pointer standing in an address position and somewhere else besides is refused
+-- for the somewhere else: @store ptr %p, ptr %p@ writes an address into the
+-- storage it is the address of.
+onlyName :: Set.Set Local -> Instruction -> Bool
+onlyName family i =
+  length (filter (`Set.member` family) (localsUsedBy (instructionOperation i))) == 1

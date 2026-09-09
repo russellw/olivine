@@ -105,8 +105,8 @@ splitTests =
             slots (allocating "alloca %s, i32 %v, align 4") @?>= 0
         , testCase "an inalloca slot" $
             slots (allocating "alloca inalloca %s, align 4") @?>= 0
-        , testCase "a slot allocated as something other than a struct" $
-            slots (allocating "alloca [2 x i32], align 4") @?>= 0
+        , testCase "a slot allocated as something with no parts" $
+            slots (allocating "alloca i32, align 4") @?>= 0
         , -- The first field begins where the struct begins, packed or not, so
           -- an access at that field's own type through the slot's own address
           -- is an access to that field and reaches no further.  This is the
@@ -115,6 +115,75 @@ splitTests =
             slots (holding ["  store i32 %v, ptr %a, align 4"]) @?>= 1
         , testCase "the slot's own address read at another type" $
             slots (holding ["  store i16 1, ptr %a, align 2"]) @?>= 0
+        ]
+    , testGroup
+        "an array, whose parts are its elements"
+        [ -- A constant number of strides over the element type says the @k@th
+          -- element whatever a stride turns out to cover, which is a name and
+          -- not a measurement.  Element zero is reached by the slot's own
+          -- address here, the same way a struct's first field is.
+          testCase "an array stepped to by a constant index" $
+            slots (arrayed elements) @?>= 1
+        , testCase "the elements stepped to are the elements taken" $
+            taken (arrayed elements) @?>= [0, 1]
+        , -- An index the program computes names no element, and a slot with
+          -- such a use has a part this cannot account for.
+          testCase "an index the program computes" $
+            slots (arrayed (stepping "i32" "%n" <> writing)) @?>= 0
+        , -- A stride over something else covers a number of bytes.
+          testCase "an array stepped into in bytes" $
+            slots (arrayed (stepping "i8" "4" <> writing)) @?>= 0
+        , testCase "an array strided over as though it were an element" $
+            slots (arrayed (stepping "[2 x i32]" "1" <> writing)) @?>= 0
+        , testCase "an index past the end" $
+            slots (arrayed (stepping "i32" "2" <> writing)) @?>= 0
+        , testCase "one slot per element, and no steps left" $
+            shapes (arrayed elements) @?>= ["alloca", "alloca", "store", "load"]
+        ]
+    , testGroup
+        "an address reached through a copy"
+        [ -- Promotion turns a pointer variable into an assignment, so the
+          -- accesses the program wrote through it name a copy of the slot and
+          -- not the slot.  A phi is the same shape and is what the core writes
+          -- one as.
+          testCase "a slot reached through a copy of its address" $
+            slots copied @?>= 1
+        , testCase "and the copy goes with the slot it named" $
+            shapes copied @?>= ["alloca", "store", "load"]
+        ]
+    , testGroup
+        "an element a boolean chooses"
+        [ -- @xs[a > b]@: the index is zero or one, so the load is a load of
+          -- each element and a @select@ between them, and then every use names
+          -- an element and the slot goes.
+          testCase "a load at a widened boolean is a select of two loads" $
+            shapes (arrayed (choosing "i1 %c" <> reading <> elements))
+              @?>= [ "alloca"
+                   , "alloca"
+                   , "convert"
+                   , "load"
+                   , "load"
+                   , "select"
+                   , "store"
+                   , "load"
+                   ]
+        , -- Anything wider would have to be enumerated rather than chosen
+          -- between.
+          testCase "an index widened from something wider is left as it was" $
+            shapes (arrayed (choosing "i8 %d" <> reading <> elements))
+              @?>= ["alloca", "convert", "offset", "load", "offset", "store", "load"]
+        , -- Writing both would be writing the one the program did not name.
+          testCase "a store through such an address is left as it was" $
+            shapes (arrayed (choosing "i1 %c" <> writing))
+              @?>= ["alloca", "convert", "offset", "store"]
+        , -- One access for three is a pessimization on its own, so it is only
+          -- done where the slot then goes.
+          testCase "a slot that would not split is left as it was" $
+            shapes
+              ( arrayed
+                  (choosing "i1 %c" <> ["  call void @g(ptr %a)"] <> reading)
+              )
+              @?>= ["alloca", "convert", "offset", "other", "load"]
         ]
     , testGroup
         "what the instructions become"
@@ -276,10 +345,35 @@ splitTests =
       [ "  call void @llvm.memcpy.p0.p0.i64(ptr align 4 %out, ptr align 4 %a, i64 8, i1 false)"
       ]
 
+    -- An array slot, whose two elements are named the two ways there are: a
+    -- step of one stride, and the slot's own address for the first.
+    elements =
+      [ "  %q = getelementptr inbounds i32, ptr %a, i64 1"
+      , "  store i32 %v, ptr %q, align 4"
+      , "  %r = load i32, ptr %a, align 4"
+      ]
+
+    -- A step over the given type by the given number of strides, and something
+    -- through it, which is what most of the array cases vary.
+    stepping over index =
+      ["  %p = getelementptr inbounds " <> over <> ", ptr %a, i64 " <> index]
+
+    writing = ["  store i32 %v, ptr %p, align 4"]
+
+    reading = ["  %w = load i32, ptr %p, align 4"]
+
+    -- The index a boolean widened, and the step it makes.
+    choosing widened =
+      [ "  %i = zext " <> widened <> " to i64"
+      , "  %p = getelementptr inbounds i32, ptr %a, i64 %i"
+      ]
+
     started pointer = "  call void @llvm.lifetime.start.p0(i64 8, ptr " <> pointer <> ")"
     ended pointer = "  call void @llvm.lifetime.end.p0(i64 8, ptr " <> pointer <> ")"
 
     holding body = surrounding "  %a = alloca %s, align 4" body
+
+    arrayed body = surrounding "  %a = alloca [2 x i32], align 4" body
 
     allocating what = surrounding ("  %a = " <> what) both
 
@@ -297,7 +391,7 @@ splitTests =
           , "declare void @llvm.memcpy.p0.p0.i64(ptr captures(none), ptr captures(none), i64, i1 immarg)"
           , "declare void @llvm.lifetime.start.p0(i64 immarg, ptr captures(none))"
           , "declare void @llvm.lifetime.end.p0(i64 immarg, ptr captures(none))"
-          , "define i32 @f(i32 %v, i64 %n, ptr %out) {"
+          , "define i32 @f(i32 %v, i64 %n, ptr %out, i1 %c, i8 %d) {"
           , "entry:"
           , allocation
           ]
@@ -325,6 +419,24 @@ splitTests =
         , "  %p = getelementptr inbounds %u, ptr %a, i32 0, i32 0"
         , "  store ptr %p, ptr %p, align 8"
         , "  ret void"
+        , "}"
+        ]
+
+    -- The slot's address passing through a variable of its own, which a phi is
+    -- the core's way of writing and promotion the usual source of.
+    copied =
+      T.unlines
+        [ "%s = type { i32, i32 }"
+        , "define i32 @f(i32 %v) {"
+        , "entry:"
+        , "  %a = alloca %s, align 4"
+        , "  br label %body"
+        , "body:"
+        , "  %b = phi ptr [ %a, %entry ]"
+        , "  %p = getelementptr inbounds %s, ptr %b, i32 0, i32 1"
+        , "  store i32 %v, ptr %p, align 4"
+        , "  %r = load i32, ptr %p, align 4"
+        , "  ret i32 %r"
         , "}"
         ]
 
@@ -383,6 +495,8 @@ shapeOf operation = case operation of
   OStore _ -> "store"
   OField _ -> "field"
   OOffset _ -> "offset"
+  OSelect _ -> "select"
+  OConvert _ -> "convert"
   _ -> "other"
 
 -- | What each allocation left standing allocates.
