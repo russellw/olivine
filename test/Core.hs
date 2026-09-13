@@ -262,6 +262,19 @@ phiTests =
         assertBool
           ("expected both phi locals assigned in " <> show assignments)
           (all (`elem` map fst assignments) [Local 3, Local 4])
+    , -- A phi may name its own result as what arrives along an edge: the
+      -- value is unchanged that way round.  The assignment that edge wants is
+      -- then @%x = %x@, which does nothing — and which reads what it writes,
+      -- so ordering it against anything is impossible and the temporary that
+      -- breaks a cycle does not help.  Nothing clang writes has this shape;
+      -- what does is a loop Olivine's own tail recursion pass wrote, so this
+      -- is a module the optimizer could not read back its own output of.
+      testCase "a phi naming itself is no assignment at all" $ do
+        assignments <- assignmentsIn 4 unchanged
+        assertEqual "only the other edge assigns" 1 (length assignments)
+    , testCase "the invariants hold with one of those in it" $ do
+        parsed <- expectParse "<inline>" unchanged
+        assertInvariants (functionsIn (lower parsed))
     , -- An ordinary pair of phis needs no temporary.
       testCase "independent phis are written out as they are" $ do
         assignments <- assignmentsIn 3 independent
@@ -293,6 +306,23 @@ phiTests =
         , "loop:"
         , "  %x = phi i32 [ %a, %entry ], [ %y, %loop ]"
         , "  %y = phi i32 [ %b, %entry ], [ %x, %loop ]"
+        , "  br i1 %c, label %loop, label %done"
+        , ""
+        , "done:"
+        , "  ret i32 %x"
+        , "}"
+        ]
+    unchanged =
+      T.unlines
+        [ "define i32 @f(i32 %a, i1 %c) {"
+        , "entry:"
+        , "  br label %loop"
+        , ""
+        , "loop:"
+        , "  %x = phi i32 [ %a, %entry ], [ %x, %again ], [ 1, %loop ]"
+        , "  br i1 %c, label %loop, label %again"
+        , ""
+        , "again:"
         , "  br i1 %c, label %loop, label %done"
         , ""
         , "done:"

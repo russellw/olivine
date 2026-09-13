@@ -154,10 +154,27 @@ eliminate firstLabel firstLocal blocks = concatMap build issued
 -- writes.  When every remaining assignment is read by another they form a
 -- cycle, which is broken by saving one local in a temporary and reading the
 -- temporary instead.
+--
+-- __An assignment of a local to itself is dropped first.__  A phi may name its
+-- own result as what arrives along an edge — @%x = phi [ %n, %entry ],
+-- [ %x, %again ]@ says the value is unchanged that way round, and a loop the
+-- tail recursion pass wrote is full of them — so the assignment that edge
+-- wants is @%x = %x@, which does nothing.
+--
+-- Leaving it in is not untidiness.  It is an assignment that reads what it
+-- writes, so it is never ready, and the temporary does not rescue it: what
+-- breaking a cycle does is put the saved local in place of the destination
+-- everywhere /else/, and the read that blocks this one is its own.  Dropping
+-- these is therefore what makes the ordering terminate at all — every
+-- assignment that is left reads some /other/ assignment's destination, and
+-- saving that destination makes it ready.
 sequenceCopies ::
   Int -> [(Local, TypedValue Local)] -> (Int, [(Local, TypedValue Local)])
-sequenceCopies = go
+sequenceCopies next copies = go next (filter (not . idle) copies)
   where
+    idle (name, TypedValue _ (VLocal other)) = name == other
+    idle _ = False
+
     go n [] = (n, [])
     go n pending =
       case partition (not . isReadBy pending . fst) pending of
