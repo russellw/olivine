@@ -35,10 +35,16 @@
 -- handed-in one is — and it holds one value the same way, being assigned in
 -- one place.  That is what 'Base' is: an object, or a local to measure from.
 --
--- An offset is known or it is not.  A step by an index nothing settles, a
--- pointer arriving as a constant expression, a type with no size: any of them
--- and the accumulated offset is dropped, leaving the base and no offset, which
--- is the same as saying the access could be anywhere in it.
+-- __An offset is a range of offsets.__  A settled one is the range with both
+-- ends at the same place, and most are; the reason for the range is that a
+-- front end writes @s.tag[i & 3]@ far more often than it writes @s.tag[2]@,
+-- and what the mask says is not which element but which four.  That is enough
+-- to tell the array from the field beside it, which is the whole question the
+-- bytes are compared for.  A pointer arriving as a constant expression, a type
+-- with no size, an index nothing has been done to: any of them and there is no
+-- range at all, leaving the base alone, which is the same as saying the access
+-- could be anywhere in it.  'mustAlias' wants the settled case and asks for it
+-- — a range of addresses is not an address.
 --
 -- __What escapes decides what a stranger can reach.__  A pointer this cannot
 -- follow back to an object may point anywhere a pointer got to, and that is
@@ -99,6 +105,8 @@ import Olivine.Syntax.Attribute (ParamAttribute (..))
 import Olivine.Syntax.Function qualified as Syntax
 import Olivine.Syntax.Instruction
   ( Alloca (..)
+  , Binary (..)
+  , BinaryOp (..)
   , Argument (..)
   , Call (..)
   , Convert (..)
@@ -106,7 +114,7 @@ import Olivine.Syntax.Instruction
   , Store (..)
   )
 import Olivine.Syntax.Name (Name)
-import Olivine.Syntax.Type (Type)
+import Olivine.Syntax.Type (Type (..))
 import Olivine.Syntax.Value (CastOp (..), TypedValue (..), Value (..))
 
 -- | The storage a pointer points into.
@@ -153,8 +161,47 @@ data Object
 -- backwards; Nothing where the walk passed something it could not measure.
 data Region = Region
   { regionBase :: Base
-  , regionOffset :: Maybe Integer
+  , regionOffset :: Maybe Span
   }
+
+-- | A range of byte offsets a pointer may stand at, both ends included.
+--
+-- __An offset is not one number.__  A front end writes @s.tag[i & 3]@ as a
+-- step by an index it has just masked, and what the mask says is not which
+-- element but which four: the address is somewhere in the array and nowhere
+-- else.  That is enough to tell it from the field beside the array, which is
+-- the whole question 'overlapping' asks, and keeping only settled offsets
+-- threw it away — a step by anything but a constant left the walk with the
+-- object and no offset at all, which says the access could be anywhere in it.
+--
+-- A settled offset is the degenerate case, @Span n n@, so nothing that worked
+-- before is expressed differently now.  What 'mustAlias' wants is exactly that
+-- case and it asks for it: a range of addresses is no address.
+data Span = Span Integer Integer
+  deriving (Eq)
+
+-- | Two steps one after the other, which is their ranges added end to end.
+instance Semigroup Span where
+  Span a b <> Span c d = Span (a + c) (b + d)
+
+instance Monoid Span where
+  mempty = Span 0 0
+
+-- | A span scaled by a stride, which is how far a number of elements reaches.
+--
+-- The stride is a size and so is never negative, which is what lets the ends
+-- stay in order; a negative multiplier would swap them and this does not have
+-- to think about that.
+strideOf :: Natural -> Span -> Span
+strideOf stride (Span a b) = Span (a * n) (b * n)
+  where
+    n = toInteger stride
+
+-- | The one offset a span stands for, where it stands for one.
+settled :: Span -> Maybe Integer
+settled (Span a b)
+  | a == b = Just a
+  | otherwise = Nothing
 
 -- | What a pointer is measured from.
 --
@@ -475,7 +522,7 @@ objectOf objects value = case regionOf objects value of
 -- on itself is answered rather than followed forever.  Nothing well formed
 -- writes one, and this is not the place that says so.
 regionOf :: Objects -> Value Local -> Maybe Region
-regionOf objects = go Set.empty (Just 0)
+regionOf objects = go Set.empty (Just mempty)
   where
     go seen at value = case value of
       VGlobal name -> Just (Region (InObject (InGlobal name)) at)
@@ -493,7 +540,7 @@ regionOf objects = go Set.empty (Just 0)
                   Just (Region (InObject (OnHeap n)) at)
             Just operation -> case derivedFrom operation of
               Just (from, step) ->
-                go (Set.insert n seen) ((+) <$> at <*> distance step) (typedValue from)
+                go (Set.insert n seen) ((<>) <$> at <*> distance step) (typedValue from)
               -- Assigned once by something that is no derivation, so this is as
               -- far back as the pointer can be followed.  Where it points is not
               -- said here and nothing below claims it is; what the walk stopping
@@ -519,22 +566,84 @@ regionOf objects = go Set.empty (Just 0)
       _ -> Nothing
 
     -- A step in bytes.  Nothing where the module has no layout to measure it
-    -- with, or where the index is not one the program has settled: an
-    -- array subscript is usually a variable, and where it is, this is the walk
+    -- with, or where nothing bounds the index: an array subscript is often a
+    -- variable, and where nothing has been done to it this is still the walk
     -- giving up on the offset and keeping the object.
     distance step = case step of
-      Nowhere -> Just 0
+      Nowhere -> Just mempty
       Strides element index -> do
         layout <- measuring objects
-        n <- constantIn index
+        span' <- boundedIn Set.empty index
         stride <- allocSize layout element
-        pure (n * toInteger stride)
+        pure (strideOf stride span')
       Into struct index -> do
         layout <- measuring objects
-        toInteger <$> fieldOffset layout struct index
+        offset <- toInteger <$> fieldOffset layout struct index
+        pure (Span offset offset)
 
-    constantIn (TypedValue _ (VInteger n)) = Just n
-    constantIn _ = Nothing
+    -- What an index can be, where the program has said enough to bound it.
+    --
+    -- A constant settles it; otherwise the local is followed back through what
+    -- assigned it, the same way and under the same rule as the pointer walk
+    -- above — one assignment, or this says nothing.  The locals already seen
+    -- are carried for the same reason too.
+    --
+    -- __Masking is what a front end writes.__  @i & 3@ is how a program says
+    -- \"somewhere in these four\", and the result of an @and@ with a
+    -- non-negative constant has only the bits that constant has, so it lies
+    -- between zero and the mask whatever the other operand was.  A negative
+    -- mask is refused because it is no bound at all: @x & -1@ is @x@.
+    --
+    -- The casts are here because the mask and the step are never the same
+    -- width — an index is widened to pointer size before it is stepped by — and
+    -- without them the bound would not survive the widening.  @sext@ keeps the
+    -- value, so it keeps the bound; @zext@ keeps it only where the bound is
+    -- already non-negative, a negative value widening to a large positive one.
+    --
+    -- Other things bound an index too — @urem@ by a constant, the width of a
+    -- narrow type — and are left until something asks for them.
+    boundedIn seen value = case typedValue value of
+      VInteger n -> Just (Span n n)
+      VLocal n
+        | Set.member n seen -> Nothing
+        | otherwise -> case Map.lookup n (definedBy objects) of
+            Just (OAssign copied) -> boundedIn (Set.insert n seen) copied
+            Just (OBinary b)
+              | binaryOp b == OpAnd
+              , Just mask <- masking b ->
+                  Just (Span 0 mask)
+            Just (OConvert c)
+              | convertOp c `elem` [CastSExt, CastZExt] -> do
+                  bound@(Span low _) <- boundedIn (Set.insert n seen) (convertOperand c)
+                  if convertOp c == CastSExt || low >= 0 then Just bound else Nothing
+            _ -> Nothing
+      _ -> Nothing
+      where
+        -- Either operand may be the constant; @and@ says the same thing both
+        -- ways round and LLVM canonicalizes it to the right but is not obliged
+        -- to have done so yet.
+        --
+        -- __A mask is non-negative in its own width or it is no bound.__  An
+        -- index is read as a signed number, and @and i8 %x, 255@ is a mask LLVM
+        -- accepts and writes for all-ones: it clears nothing, so the result is
+        -- every @i8@ there is and runs from -128.  Reading the constant as
+        -- written would have that bounded by 255 and below by zero, and both
+        -- halves would be wrong.  So the sign bit of the type has to be clear,
+        -- which is what makes the mask a number of low bits rather than a bit
+        -- pattern.  @and i8 %x, -1@ is the same mask written the canonical way
+        -- and is refused by the same test.
+        masking b = case (binaryLeft b, binaryRight b) of
+          (_, TypedValue t (VInteger m)) -> bounding t m
+          (TypedValue t (VInteger m), _) -> bounding t m
+          _ -> Nothing
+
+        -- The width is asked to be at least one before it is decremented: a
+        -- 'Natural' does not go below zero, and @i0@ is not a type LLVM has but
+        -- is a thing a malformed module can say.  What a verifier rejects this
+        -- must still not crash on.
+        bounding (TInteger width) m
+          | width >= 1, m >= 0, m < 2 ^ (width - 1) = Just m
+        bounding _ _ = Nothing
 
 -- | Whether writing through one access can change what reading through the
 -- other sees.
@@ -606,14 +715,20 @@ mayAlias objects p q =
     -- is a question only asked of two accesses measured from one base.
     -- Anything not known — either offset, either extent — and the answer is
     -- that they can.
+    --
+    -- Each access covers everything from the first byte its offset can start at
+    -- to the last byte its offset can end at, so an access whose offset is a
+    -- range covers the range plus its own extent.  Two of those meet unless one
+    -- ends at or before the other begins, which is the same test as for two
+    -- settled offsets and is that test where both ranges are a point.
     overlapping a b =
       fromMaybe True $ do
-        here <- regionOffset a
-        there <- regionOffset b
+        Span from to <- regionOffset a
+        Span also until' <- regionOffset b
         layout <- measuring objects
         mine <- toInteger <$> storeSize layout (accessType p)
         theirs <- toInteger <$> storeSize layout (accessType q)
-        pure (here < there + theirs && there < here + mine)
+        pure (from < until' + theirs && also < to + mine)
 
 -- | Whether writing through one access covers exactly the bytes the other
 -- names.
@@ -641,8 +756,13 @@ mustAlias :: Objects -> Access -> Access -> Bool
 mustAlias objects p q = fromMaybe False $ do
   here <- regionOf objects (accessPointer p)
   there <- regionOf objects (accessPointer q)
-  at <- regionOffset here
-  also <- regionOffset there
+  -- 'settled' and not the range: a pointer known to stand somewhere in four
+  -- bytes is a pointer this cannot say the address of, and two of them are not
+  -- each other however alike their ranges look.  This is the difference between
+  -- the two questions — 'mayAlias' is about the bytes an access can touch and a
+  -- range answers it, and this is about which address it is.
+  at <- settled =<< regionOffset here
+  also <- settled =<< regionOffset there
   pure (regionBase here == regionBase there && at == also && extending)
   where
     extending

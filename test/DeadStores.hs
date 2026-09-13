@@ -339,6 +339,97 @@ deadStoreTests =
               )
               @?>= [2]
         ]
+    , -- An offset need not be one number.  What a mask says is not which
+      -- element but which four, and that is enough to tell the array from the
+      -- integer beside it.
+      --
+      -- Each of these is the slot dying at the return with one load standing
+      -- between the store and it, so what is being asked is exactly whether
+      -- the load may be the read of what the store wrote.
+      testGroup
+        "an index the program bounded"
+        [ testCase "a masked index cannot reach the field beside the array" $
+            written
+              ( labelled
+                  [ "  store i32 1, ptr %s"
+                  , "  %m = and i32 %i, 3"
+                  , "  %w = sext i32 %m to i64"
+                  , "  %a = getelementptr inbounds i8, ptr %t, i64 %w"
+                  , "  %v = load i8, ptr %a, align 1"
+                  ]
+              )
+              @?>= []
+        , -- The same without the mask, where the index can be anywhere and the
+          -- load may be the read of the integer.
+          testCase "and an index nothing bounds may" $
+            written
+              ( labelled
+                  [ "  store i32 1, ptr %s"
+                  , "  %w = sext i32 %i to i64"
+                  , "  %a = getelementptr inbounds i8, ptr %t, i64 %w"
+                  , "  %v = load i8, ptr %a, align 1"
+                  ]
+              )
+              @?>= [1]
+        , -- A mask whose sign bit is set is no bound: @and i8 %b, -8@ clears
+          -- the low three bits and leaves every negative value there was, so
+          -- the index runs below zero and the load may be the read of the
+          -- integer after all.  Reading the constant as written would have this
+          -- bounded between zero and -8 and would be wrong twice over.
+          testCase "and a mask that leaves the sign bit does not bound it" $
+            written
+              ( labelled
+                  [ "  store i32 1, ptr %s"
+                  , "  %m = and i8 %b, -8"
+                  , "  %w = sext i8 %m to i64"
+                  , "  %a = getelementptr inbounds i8, ptr %t, i64 %w"
+                  , "  %v = load i8, ptr %a, align 1"
+                  ]
+              )
+              @?>= [1]
+        , -- The other half of the range: a store into one of the four bytes the
+          -- index covers is a store the load may be reading.
+          testCase "a store inside the range the index covers stays" $
+            written
+              ( labelled
+                  [ "  store i8 1, ptr %t"
+                  , "  %m = and i32 %i, 3"
+                  , "  %w = sext i32 %m to i64"
+                  , "  %a = getelementptr inbounds i8, ptr %t, i64 %w"
+                  , "  %v = load i8, ptr %a, align 1"
+                  ]
+              )
+              @?>= [1]
+        ]
+    , -- A range of addresses is not an address.  These are written through a
+      -- pointer the function was handed, so no slot dies at the return and the
+      -- only thing that can remove a store is a later one covering it.
+      testGroup
+        "a bounded address is no address"
+        [ testCase "one bounded address does not write over another" $
+            written
+              ( handed
+                  [ "  %m = and i32 %i, 3"
+                  , "  %w = sext i32 %m to i64"
+                  , "  %a = getelementptr inbounds i8, ptr %p, i64 %w"
+                  , "  store i8 1, ptr %a"
+                  , "  store i8 2, ptr %a"
+                  ]
+              )
+              @?>= [1, 2]
+        , -- And the same two stores through an address the program settled,
+          -- which is the control: one offset and one extent make them one
+          -- place, and the first goes.
+          testCase "and a settled one does" $
+            written
+              ( handed
+                  [ "  %a = getelementptr inbounds i8, ptr %p, i64 3"
+                  , "  store i8 1, ptr %a"
+                  , "  store i8 2, ptr %a"
+                  ]
+              )
+              @?>= [2]
+        ]
     , -- A slot of this frame handed to a callee that promises not to keep it.
       -- The slot has not escaped, which is what the promise is read for, and
       -- the callee may still read it.
@@ -374,6 +465,31 @@ deadStoreTests =
               @?>= [1]
         ]
     ]
+
+-- | A body holding a @%label@ slot, called @%s@, with @%t@ at its array.
+labelled :: [Text] -> Text
+labelled lines' =
+  module'
+    ( [ "define void @f(i32 %n, i32 %i, i8 %b) {"
+      , "entry:"
+      , "  %s = alloca %label, align 4"
+      , "  %t = getelementptr inbounds %label, ptr %s, i32 0, i32 1"
+      ]
+        <> lines'
+        <> ["  ret void", "}"]
+    )
+
+-- | A body writing through a pointer it was handed, called @%p@.
+--
+-- Nothing here dies at the return, so a store goes only where a later one
+-- covers it.
+handed :: [Text] -> Text
+handed lines' =
+  module'
+    ( ["define void @f(ptr %p, i32 %i) {", "entry:"]
+        <> lines'
+        <> ["  ret void", "}"]
+    )
 
 -- | A body holding a buffer a call handed back, called @%b@.
 heap :: [Text] -> Text
@@ -427,6 +543,10 @@ module' :: [Text] -> Text
 module' lines' =
   T.unlines $
     [ "target datalayout = \"e-m:e-i64:64-f80:128-n8:16:32:64-S128\""
+    , -- An integer beside an array, which is the shape a bounded index is
+      -- about: the four bytes the index can reach are the array and not the
+      -- integer.
+      "%label = type { i32, [4 x i8] }"
     , "declare void @use(ptr)"
     , "declare void @stranger()"
     , "declare void @quiet() memory(none) nounwind willreturn"

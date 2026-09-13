@@ -84,8 +84,11 @@ int diagonal(int x, int y) {
 }
 
 /* A field that is an array is reached by striding along it, and how far a
-   stride goes is a number of bytes.  The whole slot stays, the integer beside
-   the array with it. */
+   stride goes is a number of bytes.  The subscript is masked, which is a thing
+   a C program writes to stay inside an array and is the reason the offset here
+   is a range rather than a number: i & 3 says the address is one of the four
+   bytes of the tag, so the store of s.n is a store to somewhere the read below
+   cannot be.  It goes, and the array stays. */
 int tag_at(int n, int i) {
   struct label s;
   s.n = n;
