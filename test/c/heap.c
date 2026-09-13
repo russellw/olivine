@@ -5,12 +5,15 @@
    neither, so every access to one was an access to somewhere unknown and no
    two of them were ever the same place or different places.
 
-   What a local holding such a buffer says is what a parameter says: it is
-   assigned in one place, so it holds one address wherever it is read, and two
-   accesses written as steps from it are that far apart.  It says no more than
-   that — where the buffer is, and whether a stranger can reach it, are still
-   unknown here, and the functions below that must keep reloading are the ones
-   that turn on the difference. */
+   Two things say what such a local holds, and they are worth keeping apart.
+   It is assigned in one place, so it holds one address wherever it is read and
+   two accesses written as steps from it are that far apart — which is what a
+   parameter says too, and says nothing about where the buffer is.  And the
+   noalias on malloc's result says the buffer is nothing else the caller can
+   reach, which makes it an object: apart from another buffer, from a slot of
+   this frame, and from anything handed in.  What is still unknown is whether a
+   stranger can reach it, and the functions below that must keep reloading are
+   the ones that turn on that. */
 
 #include <stdlib.h>
 
@@ -56,11 +59,10 @@ int somewhere_in_it(int n, int i) {
   return s;
 }
 
-/* Two buffers, and this cannot tell them apart.  Two allocations are two
-   objects — LLVM says so from the noalias on malloc's result — but that is a
-   fact about what the two locals point at rather than about the distance
-   between two accesses through one of them, which is all the walk stops here
-   for.  So the read is not answered, and this is the standing limit. */
+/* Two buffers, told apart by the noalias on malloc's result: each call
+   promises the pointer it hands back reaches nothing reachable otherwise, and
+   the other call's buffer is reachable when the second promise is made.  So
+   both reads are answered by the stores above them. */
 int two_buffers(int n) {
   int *p = malloc(4 * sizeof(int));
   int *q = malloc(4 * sizeof(int));
@@ -72,10 +74,11 @@ int two_buffers(int n) {
   return s;
 }
 
-/* A pointer this function was handed may be pointing into the buffer, there
-   being nothing here to say that malloc's answer is not where the caller's
-   pointer already pointed.  The write between the reads is therefore a write
-   to the address being read. */
+/* A pointer this function was handed is a pointer the caller holds, and the
+   promise is that what malloc returned is not one of those.  So the write
+   between the stores and the read is a write to somewhere else, and the read
+   is answered.  This is the one the promise buys that the distance between two
+   accesses never could. */
 int through_a_parameter(int *q, int n) {
   int *p = malloc(4 * sizeof(int));
   p[0] = n;
