@@ -97,11 +97,12 @@ import Olivine.Core.Alias
   , reachableByCall
   )
 import Olivine.Core.Blocks (reversePostorder)
-import Olivine.Core.Effects (Behaviour (..), Effects, behaviourOf, effectsOf)
+import Olivine.Core.Effects (Behaviour (..), Effects, behaviourOf, effectsOf, mayReach)
 import Olivine.Core.Instruction
 import Olivine.Core.Layout (Layout, layoutOf)
 import Olivine.Core.Loops (dominators)
 import Olivine.Core.Program
+import Olivine.Core.Promises (Promises, freedBy, promisesOf)
 import Olivine.Syntax.Instruction (Alloca (..), Load (..), Store (..))
 import Olivine.Syntax.Value (TypedValue (..), Value (..))
 
@@ -112,11 +113,15 @@ eliminateDeadStores program =
     -- What the module says about sizes and offsets, which is what tells a
     -- store to one field of a struct from a load of another.
     layout = layoutOf program
+    -- What the module wrote down about the symbols it names: a callee's
+    -- promise to keep no pointer to what it is handed, and which calls give
+    -- storage back to the allocator.
+    promises = promisesOf program
     -- And what each call does, read once for the whole program: whether a call
     -- reads at all is the difference between a store surviving every call in
     -- the function and surviving none of them.
     effects = effectsOf program
-    entry (EFunction f) = EFunction (eliminateIn layout effects f)
+    entry (EFunction f) = EFunction (eliminateIn promises layout effects f)
     entry retained = retained
 
 -- | One store, as the walk needs it: what it writes, and the three questions
@@ -136,13 +141,13 @@ data Written = Written
     writtenNames :: [Local]
   }
 
-eliminateIn :: Maybe Layout -> Effects -> Function -> Function
-eliminateIn layout effects f
+eliminateIn :: Promises -> Maybe Layout -> Effects -> Function -> Function
+eliminateIn promises layout effects f
   | Map.null stores = f
   | otherwise = f {functionBlocks = map rewrite (functionBlocks f)}
   where
     made = behaviourOf effects
-    objects = objectsIn layout f
+    objects = objectsIn promises layout f
     blocks = functionBlocks f
     -- The order a value can be carried forwards in, walked backwards, which
     -- is the order this carries a fact in.  A block outside it is one nothing
@@ -200,26 +205,39 @@ eliminateIn layout effects f
       where
         covers w c = mustAlias objects (writtenAccess w) (writtenAccess c)
 
-    -- The stores whose storage the frame takes away with it.  Every @alloca@
-    -- but the one kind that is not the function's own: @inalloca@ is the
-    -- memory the caller built the arguments in, which the caller still has
+    -- The stores whose storage nothing can read once the function is done
+    -- with it.  Two kinds, and they qualify for opposite reasons.
+    --
+    -- __A slot goes when the frame goes__, and whether its address escaped is
+    -- not asked: the storage is gone once the frame is, however far the address
+    -- travelled, and reading it afterwards is undefined rather than something
+    -- to preserve — which is what @opt -passes=dse@ concludes too, removing a
+    -- store to a slot whose address was handed to a call before it.  Every
+    -- @alloca@ but the one kind that is not the function's own: @inalloca@ is
+    -- the memory the caller built the arguments in, which the caller still has
     -- after the call.
     --
-    -- Whether the address escaped is not asked.  A slot's storage is gone once
-    -- the frame is, however far its address travelled, and reading it
-    -- afterwards is undefined rather than something to preserve — which is
-    -- what @opt -passes=dse@ concludes too, removing a store to a slot whose
-    -- address was handed to a call before it.  What the escape decides is
-    -- something else: whether a call in between can read the value, and that is
-    -- 'writtenStrange' being asked at each call.
+    -- __Storage a call promised does not go, and the way to it does.__  The
+    -- buffer outlives the frame, so nothing here says its bytes stop existing;
+    -- what ends is every way of naming them.  The promise says the pointer
+    -- that came back is the only way to that storage, and the escape says that
+    -- pointer got no further than this function's own accesses, so when the
+    -- function returns there is nothing left that could read what was written.
+    -- Hence the escape is the whole of the argument here and is asked, where
+    -- for a slot it is beside the point.  Nothing about freeing is read: a
+    -- buffer never freed at all qualifies on the same grounds, its address
+    -- being lost either way.
+    --
+    -- What the escape decides for a slot is something else and is asked
+    -- elsewhere: whether a call in between can read the value, which is
+    -- 'writtenStrange' at each call.
     dying :: Set Int
-    dying =
-      Set.fromList
-        [ n
-        | (n, w) <- Map.toList stores
-        , Just (OnStack slot) <- [writtenObject w]
-        , not (Set.member slot argumentMemory)
-        ]
+    dying = Set.fromList [n | (n, w) <- Map.toList stores, dies w]
+      where
+        dies w = case writtenObject w of
+          Just (OnStack slot) -> not (Set.member slot argumentMemory)
+          Just (OnHeap _) -> not (writtenStrange w)
+          _ -> False
 
     argumentMemory =
       Set.fromList
@@ -279,7 +297,7 @@ eliminateIn layout effects f
         -- would be removed on the strength of a later store the call may never
         -- let it reach.
         called dead = case callIn transfer of
-          Just call | disturbing (made call) -> strangers dead
+          Just call | disturbing (made call) -> handled call dead
           _ -> dead
         assigned = killing (resultOf (blockTerminator b))
 
@@ -315,7 +333,7 @@ eliminateIn layout effects f
         -- nothing was going to read leaves it just as unread.
         read' = case operation of
           OLoad l -> without (Access (typedValue (loadPointer l)) (loadType l))
-          OCall call | disturbing (made call) -> strangers
+          OCall call | disturbing (made call) -> handled call
           -- An atomic is where another thread's reads and this one's writes
           -- are put in an order, so everything a stranger can reach may be
           -- read at it.  A fence names no address and is no exception: the
@@ -335,19 +353,61 @@ eliminateIn layout effects f
           -- @llvm.lifetime.start@ begins holds nothing that was put there
           -- before it.  @opt -passes=dse@ removes the store above either one.
           _ | Just slot <- lifetimeMarked operation -> Set.union (within slot)
+          -- Storage given back to the allocator, which is the heap's version of
+          -- the frame going: what a call deallocates cannot be read afterwards,
+          -- so everything written into it above is unread however the call
+          -- itself is declared.  That last part is the point of the case —
+          -- @free@ promises @memory(argmem: readwrite)@, so the line above it in
+          -- 'read'' has just said the call may read the buffer and taken every
+          -- store to it back out.  It may; what it reads is bytes on their way
+          -- to being nobody's.  @opt -passes=dse@ draws the same line, removing
+          -- the stores while leaving the @free@ that follows them.
+          OCall call | Just back <- freedBy promises call -> Set.union (given (typedValue back))
           _ -> id
 
     -- Every store into the storage a lifetime marker names, where that is a
     -- frame slot.  A marker naming anything else is malformed, and answering
     -- nothing for it is answering what it deserves.
-    within slot = case objectOf objects (VLocal slot) of
-      Just object@(OnStack _) ->
-        Set.fromList [n | (n, w) <- Map.toList stores, writtenObject w == Just object]
+    within slot = into onStack (VLocal slot)
+      where
+        onStack (OnStack _) = True
+        onStack _ = False
+
+    -- And every store into the storage a deallocation gives back, where that is
+    -- storage a call promised in the first place.  Giving back anything else —
+    -- a slot of this frame, a symbol — is undefined, so the same rule applies
+    -- as for a marker: what this declines to claim about it costs nothing.
+    given address = into onHeap address
+      where
+        onHeap (OnHeap _) = True
+        onHeap _ = False
+
+    -- Every store into the storage a pointer points into, where the function
+    -- says which and it is the kind of storage the caller will accept.  A
+    -- pointer this cannot place names no stores, which is what both callers
+    -- want: nothing is claimed dead on the strength of a marker or a
+    -- deallocation whose target is unknown.
+    into acceptable address = case objectOf objects address of
+      Just object
+        | acceptable object ->
+            Set.fromList [n | (n, w) <- Map.toList stores, writtenObject w == Just object]
       _ -> Set.empty
 
     without read'' = Set.filter (not . mayAlias objects read'' . writtenAccess . at)
 
+    -- What survives an atomic or a fence: another thread can read anything a
+    -- stranger can name, and it has no arguments with which to be handed
+    -- anything else.
     strangers = Set.filter (not . writtenStrange . at)
+
+    -- And what survives a call, which is the same less what the call was
+    -- handed.  Being an argument is a second way for a call to reach storage,
+    -- beside naming it as a stranger, for the reason written out at 'mayReach'
+    -- — and for the same reason it says nothing extra while every argument is
+    -- a pointer let out of sight.
+    handled call = Set.filter (not . reached . at)
+      where
+        reached w = writtenStrange w || mayReach objects (made call) call (accessPointer (writtenAccess w))
 
     killing Nothing = id
     killing (Just local) = Set.filter (notElem local . writtenNames . at)

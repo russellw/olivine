@@ -50,6 +50,7 @@ module Olivine.Core.Instruction
   , localsUsedBy
   , globalsUsedBy
   , lifetimeMarked
+  , assumedAbout
   , resultType
   , namedApart
   , isAssignment
@@ -83,6 +84,7 @@ import Olivine.Syntax.Instruction
   , LandingPad (..)
   , Load (..)
   , MetadataAttachment
+  , OperandBundle (..)
   , Select (..)
   , ShuffleVector (..)
   , Store (..)
@@ -427,6 +429,33 @@ lifetimeMarked operation = case operation of
   _ -> Nothing
   where
     marks called base = called == base || T.isPrefixOf (base <> ".") called
+
+-- | The locals an @llvm.assume@ names in its operand bundles.
+--
+-- A bundle operand is an operand slot like any other and is read as one
+-- everywhere else, which is what keeps renaming and escape honest about the
+-- bundles nobody has modelled: a pointer written in one is a pointer let out
+-- of sight, because what the call will do with it is not known.
+--
+-- This is the call where that is too cautious.  An @llvm.assume@ states a fact
+-- and does nothing else — @\"align\"(ptr %p, i64 16)@ says the pointer is
+-- aligned, not that anything is done with it — and there is no body for a
+-- pointer to be kept in.  So a pointer named here has not got out of sight,
+-- and LLVM draws the line in the same place, its capture tracking passing over
+-- the assume-like intrinsics.
+--
+-- The argument is not read, only the bundles: what @llvm.assume@ takes as an
+-- argument is the condition, an @i1@, and a pointer never stands there.
+assumedAbout :: Operation (TypedValue local) -> [local]
+assumedAbout operation = case operation of
+  OCall call
+    | VGlobal name <- typedValue (callCallee call)
+    , nameText name == "llvm.assume" ->
+        [ p
+        | bundle <- callBundles call
+        , TypedValue _ (VLocal p) <- bundleOperands bundle
+        ]
+  _ -> []
 
 -- | What an operation leaves in the local it assigns to, 'TVoid' when it
 -- leaves nothing.

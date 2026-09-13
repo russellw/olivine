@@ -165,6 +165,7 @@ import Olivine.Core.Layout (Layout, layoutOf)
 import Olivine.Core.Blocks (predecessorsOf, reversePostorder)
 import Olivine.Core.Instruction
 import Olivine.Core.Program
+import Olivine.Core.Promises (Promises, promisesOf)
 import Olivine.Syntax.Instruction (Call, Load (..), Store (..))
 import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Type (Type)
@@ -179,11 +180,14 @@ eliminateRedundancies program =
     -- tells one field of a struct from another when a store to one is asked
     -- whether it wrote what a load of the other reads.
     layout = layoutOf program
+    -- What the module wrote down about the symbols it names, which is where a
+    -- callee's promise to keep no pointer to what it is handed is written.
+    promises = promisesOf program
     -- And what each call does, which is what says whether a call is a wall
     -- that everything known about memory stops at, or a computation like the
     -- rest.
     effects = effectsOf program
-    entry (EFunction f) = EFunction (eliminateIn types layout effects f)
+    entry (EFunction f) = EFunction (eliminateIn types promises layout effects f)
     entry retained = retained
 
 -- | What is known at a point in a function.
@@ -248,8 +252,8 @@ contentAccess content = Access (contentAddress content) (contentType content)
 nothingKnown :: Known
 nothingKnown = Known Map.empty Map.empty []
 
-eliminateIn :: Map Name Type -> Maybe Layout -> Effects -> Function -> Function
-eliminateIn types layout effects f = f {functionBlocks = map rewrite (functionBlocks f)}
+eliminateIn :: Map Name Type -> Promises -> Maybe Layout -> Effects -> Function -> Function
+eliminateIn types promises layout effects f = f {functionBlocks = map rewrite (functionBlocks f)}
   where
     made = behaviourOf effects
 
@@ -264,7 +268,7 @@ eliminateIn types layout effects f = f {functionBlocks = map rewrite (functionBl
     -- memory below is asked of.  Read from the function as it arrives: the
     -- rewrite replaces computations with copies of the same value, so what a
     -- pointer points into is the same in what leaves.
-    objects = objectsIn layout f
+    objects = objectsIn promises layout f
     reachable = Set.fromList order
     byLabel = Map.fromList [(blockLabel b, b) | b <- blocks]
 

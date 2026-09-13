@@ -24,6 +24,8 @@ module Olivine.Core.Promises
   , resolve
   , attributesOf
   , returnsTwiceIn
+  , keepsArgument
+  , freedBy
   , interposable
   , copied
   ) where
@@ -32,6 +34,8 @@ import Data.Foldable (toList)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Text (Text)
+import Data.Text qualified as T
+import Data.Maybe (listToMaybe)
 import Numeric.Natural (Natural)
 
 import Olivine.Core.Instruction
@@ -42,8 +46,8 @@ import Olivine.Syntax.Attribute
   , FunctionAttribute (..)
   , ParamAttribute (..)
   )
-import Olivine.Syntax.Function (Definition (..), Signature (..))
-import Olivine.Syntax.Instruction (Call (..))
+import Olivine.Syntax.Function (Definition (..), Parameter (..), Signature (..))
+import Olivine.Syntax.Instruction (Argument (..), Call (..))
 import Olivine.Syntax.Linkage (Linkage (..))
 import Olivine.Syntax.Name (Name (..))
 import Olivine.Syntax.Value (TypedValue (..), Value (..))
@@ -58,6 +62,15 @@ data Promises = Promises
     -- text, since @\@f@ and @\@"f"@ are one symbol and the quoting is a fact
     -- about the writing rather than about what is called.
     promiseSymbols :: Map Text [FunctionAttribute]
+  , -- | The signature each symbol is declared with, for the promises that are
+    -- made about a /parameter/ rather than about the function.
+    --
+    -- Kept whole rather than reduced to the parameter attributes, because the
+    -- two questions asked of it so far want different parts and a second
+    -- reduction would be a second thing to keep right.  Groups are not
+    -- resolved into it and there is nothing to resolve: @attributes #0@ holds
+    -- function attributes, and a parameter's are always written out beside it.
+    promiseSignatures :: Map Text Signature
   }
 
 promisesOf :: Program -> Promises
@@ -69,6 +82,8 @@ promisesOf program =
           [ (nameText (signatureName s), resolveWith groups (signatureAttributes s))
           | s <- signatures
           ]
+    , promiseSignatures =
+        Map.fromList [(nameText (signatureName s), s) | s <- signatures]
     }
   where
     groups =
@@ -154,6 +169,79 @@ returnsTwiceIn promises f = any twice (callsIn f)
             FAReturnsTwice
               `elem` Map.findWithDefault [] (nameText name) (promiseSymbols promises)
           _ -> False
+
+-- | Whether a call may keep the pointer it is handed at an argument position.
+--
+-- The cautious answer is that it does, so a position nothing says anything
+-- about — an indirect call, a callee the module never declares, an argument
+-- past the end of a variadic signature — is one that keeps.
+--
+-- The attributes are on the /declaration/ rather than on the call: clang writes
+-- @declare void \@free(ptr allocptr noundef captures(none))@ and then calls it
+-- with @noundef nonnull@ and nothing else, so there is no reading this off the
+-- call site alone.  The site is read as well, because either may carry it and
+-- LLVM reads both — the rule 'returnsTwiceIn' already follows for an attribute
+-- of the whole call, and a parameter's is no different.
+--
+-- __Keeping is not touching.__  A callee promising @captures(none)@ may do
+-- what it likes to the storage while it runs; what it promises is not to have
+-- a pointer to it afterwards.  So this says an address did not get out of
+-- sight, and what the call does to the storage during the call is a separate
+-- question asked separately — 'Olivine.Core.Effects.mayReach'.
+--
+-- Only @captures(none)@ and the @nocapture@ it replaced count.  The other
+-- spellings — @captures(address)@, @captures(address, provenance)@ — say the
+-- callee keeps some of what it was handed, and some is enough.
+keepsArgument :: Promises -> Call (TypedValue Local) -> Int -> Bool
+keepsArgument promises call n = not (any released (atSite <> atCallee))
+  where
+    atSite = take 1 (drop n (map argumentAttributes (callArguments call)))
+
+    atCallee = case typedValue (callCallee call) of
+      VGlobal name
+        | Just signature <- Map.lookup (nameText name) (promiseSignatures promises) ->
+            take 1 (drop n (map parameterAttributes (signatureParameters signature)))
+      _ -> []
+
+    released = any letGo
+
+    letGo PANoCapture = True
+    letGo (PACaptures raw) = T.strip raw == "none"
+    letGo _ = False
+
+-- | The argument a call gives back to the allocator, where it gives one back.
+--
+-- @allockind(\"free\")@ on the callee says the call deallocates, and
+-- @allocptr@ on a parameter says which argument is the pointer it deallocates.
+-- Both are needed and neither does on its own: @realloc@ carries @allocptr@ too
+-- and is no deallocation of the old storage — it is a copy of it — so reading
+-- the parameter attribute alone would have this call a buffer dead at the
+-- moment its contents are about to be moved.
+--
+-- The kind is a comma-separated list, @allockind(\"alloc,uninitialized\")@
+-- being one attribute and not two, so it is split before @free@ is looked for
+-- rather than compared whole.
+--
+-- Asked of the callee only, unlike 'returnsTwiceIn'.  @allocptr@ is a
+-- parameter attribute, and what a call site writes in that position is the
+-- attributes of the argument rather than of the parameter; the one place the
+-- two are certain to agree is the signature.  A call through a pointer is
+-- therefore no deallocation here, which is the cautious answer.
+freedBy :: Promises -> Call (TypedValue Local) -> Maybe (TypedValue Local)
+freedBy promises call = do
+  VGlobal name <- Just (typedValue (callCallee call))
+  signature <- Map.lookup (nameText name) (promiseSignatures promises)
+  True <- Just (any deallocating (resolve promises (signatureAttributes signature)))
+  (argument, _) <-
+    listToMaybe
+      [ pair
+      | pair@(_, parameter) <- zip (callArguments call) (signatureParameters signature)
+      , PAAllocPtr `elem` parameterAttributes parameter
+      ]
+  pure (argumentValue argument)
+  where
+    deallocating (FAAllocKind kinds) = "free" `elem` map T.strip (T.splitOn "," kinds)
+    deallocating _ = False
 
 -- | Every call a body makes, the ones standing where a branch stands
 -- included.

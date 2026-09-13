@@ -138,23 +138,36 @@ data Reach
 -- asking.  What it gives up depends on what the callee promised about where it
 -- goes, so this is 'reachableByCall' for a callee that promised nothing and
 -- something narrower for one that did.
+--
+-- __A callee promising nothing may still touch what it was handed.__  Being
+-- handed a pointer is a second way to reach storage, beside naming it as a
+-- stranger, and the two are unioned rather than either standing for both.
+-- While every argument is a pointer let out of sight the union is the first
+-- alone — an argument's storage has escaped by the act of being an argument —
+-- which is why this said 'reachableByCall' and was right.  It stops being
+-- right the moment a callee can promise to be handed a pointer without keeping
+-- it: the storage is then unescaped and an argument at once, and reading
+-- 'reachableByCall' alone would have this answer that a call cannot touch what
+-- it was just given.
 mayReach :: Objects -> Behaviour -> Call (TypedValue Local) -> Value Local -> Bool
 mayReach objects behaviour call address = case behaviourReach behaviour of
-  Anywhere -> reachableByCall objects address
-  -- Only the pointer arguments: @argmem@ is what the arguments /point/ into,
-  -- and an argument that is not a pointer is not a way to reach storage.  The
-  -- size and the volatile flag of a @memcpy@ are two of them, and counting
-  -- them would make every such call reach everywhere — which is what it did
-  -- before this said so.
-  OnlyArguments ->
-    reachableByArguments
-      objects
-      [ typedValue (argumentValue argument)
-      | argument <- callArguments call
-      , TPointer _ <- [typedValueType (argumentValue argument)]
-      ]
-      address
+  Anywhere -> reachableByCall objects address || handedOver
+  OnlyArguments -> handedOver
   Unaddressable -> False
+  where
+    -- Only the pointer arguments: @argmem@ is what the arguments /point/ into,
+    -- and an argument that is not a pointer is not a way to reach storage.  The
+    -- size and the volatile flag of a @memcpy@ are two of them, and counting
+    -- them would make every such call reach everywhere — which is what it did
+    -- before this said so.
+    handedOver =
+      reachableByArguments
+        objects
+        [ typedValue (argumentValue argument)
+        | argument <- callArguments call
+        , TPointer _ <- [typedValueType (argumentValue argument)]
+        ]
+        address
 
 -- | The answer for something nothing is known about.
 anything :: Behaviour
@@ -426,7 +439,7 @@ bodyOf layout promises metadata f =
 
     -- What the function's own pointers point into, which is what tells a write
     -- to its own frame from a write anything else can see.
-    objects = objectsIn layout f
+    objects = objectsIn promises layout f
 
     -- A call is not answered here: what it does is what its callee does, and
     -- that is not settled yet.  They are collected in 'bodyCalls' instead.

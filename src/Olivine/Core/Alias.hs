@@ -94,9 +94,17 @@ import Numeric.Natural (Natural)
 import Olivine.Core.Instruction
 import Olivine.Core.Layout (Layout, allocSize, fieldOffset, storeSize)
 import Olivine.Core.Program
+import Olivine.Core.Promises (Promises, keepsArgument)
 import Olivine.Syntax.Attribute (ParamAttribute (..))
 import Olivine.Syntax.Function qualified as Syntax
-import Olivine.Syntax.Instruction (Alloca (..), Call (..), Convert (..), Load (..), Store (..))
+import Olivine.Syntax.Instruction
+  ( Alloca (..)
+  , Argument (..)
+  , Call (..)
+  , Convert (..)
+  , Load (..)
+  , Store (..)
+  )
 import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Type (Type)
 import Olivine.Syntax.Value (CastOp (..), TypedValue (..), Value (..))
@@ -233,9 +241,9 @@ data Objects = Objects
   }
 
 -- | Read a function's pointers.
-objectsIn :: Maybe Layout -> Function -> Objects
-objectsIn layout f =
-  Objects definitions (leakingIn f definitions) unassigned promised layout
+objectsIn :: Promises -> Maybe Layout -> Function -> Objects
+objectsIn promises layout f =
+  Objects definitions (leakingIn promises f definitions) unassigned noalias layout
   where
     definitions = definitionsIn f
 
@@ -248,7 +256,7 @@ objectsIn layout f =
     -- 'functionParameters', which is what lets one be read by the other: the
     -- attributes are in the signature and the local the body calls it by is
     -- not.
-    promised =
+    noalias =
       Set.fromList
         [ local
         | (local, p) <-
@@ -292,13 +300,23 @@ definitionsIn f =
 -- | The locals whose value gets somewhere this cannot follow it to.
 --
 -- A least fixed point over two rules.  An instruction lets out of sight
--- everything it reads other than as an address: a call argument, a returned
--- value, the value half of a store, an operand of anything that computes with
--- a pointer rather than dereferencing it.  And a step whose result gets out of
--- sight lets out what it stepped from, since a pointer into an object is as
--- good as the object to anything holding it.
-leakingIn :: Function -> Map Local (Operation (TypedValue Local)) -> Set Local
-leakingIn f definitions = settle (Set.fromList (concatMap directly instructions <> transferred))
+-- everything it reads other than as an address: a call argument the callee did
+-- not promise to let go of, a returned value, the value half of a store, an
+-- operand of anything that computes with a pointer rather than dereferencing
+-- it.  And a step whose result gets out of sight lets out what it stepped from,
+-- since a pointer into an object is as good as the object to anything holding
+-- it.
+--
+-- __Getting out of sight is not the same as being read.__  A callee promising
+-- @captures(none)@ may do anything it likes to the storage while it runs; what
+-- it promises is not to have a pointer to it afterwards.  So this says the
+-- address never left, and what the call does to the storage /during/ the call
+-- is a separate question asked separately — 'Olivine.Core.Effects.mayReach',
+-- which unions what a stranger can name with what this call's own arguments
+-- reach for exactly this reason.
+leakingIn ::
+  Promises -> Function -> Map Local (Operation (TypedValue Local)) -> Set Local
+leakingIn promises f definitions = settle (Set.fromList (concatMap directly instructions <> transferred))
   where
     instructions = instructionsIn f
 
@@ -346,10 +364,31 @@ leakingIn f definitions = settle (Set.fromList (concatMap directly instructions 
             foldMap (toList . fst) (derivedFrom (instructionOperation i))
       _ -> []
 
-    -- Where a pointer is used and not let out of sight: dereferenced, or handed
-    -- on to a local this can follow it through.
+    -- Where a pointer is used and not let out of sight: dereferenced, handed
+    -- on to a local this can follow it through, or handed to a callee that
+    -- promised to keep no pointer to it.
     addressPositions operation =
-      dereferenced operation <> foldMap (local . fst) (derivedFrom operation)
+      dereferenced operation
+        <> foldMap (local . fst) (derivedFrom operation)
+        <> released operation
+
+    -- The two ways a call can name a pointer without it getting out: an
+    -- argument the callee promised to keep no pointer to, and an operand of an
+    -- @llvm.assume@ bundle, which states a fact and does nothing else.
+    --
+    -- One entry per position rather than per local, so that a local handed over
+    -- twice is deleted twice and a local in one released position and one kept
+    -- one still leaks.  That is the same counting the difference below is
+    -- written for.
+    released operation = case operation of
+      OCall c ->
+        [ n
+        | (i, argument) <- zip [0 ..] (callArguments c)
+        , not (keepsArgument promises c i)
+        , TypedValue _ (VLocal n) <- [argumentValue argument]
+        ]
+          <> assumedAbout operation
+      _ -> []
 
     dereferenced operation = case operation of
       OLoad l -> local (loadPointer l)

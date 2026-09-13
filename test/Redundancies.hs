@@ -22,6 +22,7 @@ import Olivine.Core.Effects (Behaviour (..), anything, nothing)
 import Olivine.Core.Pass.Redundancies (eliminateRedundancies, shareable)
 import Olivine.Core.Pass.Promote (promoteMemory)
 import Olivine.Core.Program
+import Olivine.Core.Promises (promisesOf)
 import Olivine.Syntax.Instruction hiding (Operation (..))
 import Olivine.Syntax.Name
 import Olivine.Syntax.Type
@@ -687,7 +688,7 @@ aliasingIn source = do
     [] -> assertFailure "no function lowered"
     f : _ ->
       pure
-        ( objectsIn (layoutOf program) f
+        ( objectsIn (promisesOf program) (layoutOf program) f
         , [ slot
           | b <- functionBlocks f
           , Instruction (Just slot) (OAlloca _) _ <- blockInstructions b
@@ -710,7 +711,7 @@ strangersIn source = do
     [] -> assertFailure "no function lowered"
     f : _ ->
       pure
-        ( objectsIn (layoutOf program) f
+        ( objectsIn (promisesOf program) (layoutOf program) f
         , [ result
           | b <- functionBlocks f
           , Instruction (Just result) (OLoad l) _ <- blockInstructions b
@@ -734,7 +735,7 @@ acquiredIn source = do
     [] -> assertFailure "no function lowered"
     f : _ ->
       pure
-        ( objectsIn (layoutOf program) f
+        ( objectsIn (promisesOf program) (layoutOf program) f
         , [ result
           | b <- functionBlocks f
           , Instruction (Just result) (OCall _) _ <- blockInstructions b
@@ -762,7 +763,7 @@ steppingIn source = do
     [] -> assertFailure "no function lowered"
     f : _ ->
       pure
-        ( objectsIn (layoutOf program) f
+        ( objectsIn (promisesOf program) (layoutOf program) f
         , [ result
           | b <- functionBlocks f
           , Instruction (Just result) operation _ <- blockInstructions b

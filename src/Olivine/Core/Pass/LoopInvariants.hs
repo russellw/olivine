@@ -149,6 +149,7 @@ import Olivine.Core.Layout (Layout, alignmentOf, layoutOf, storeSize)
 import Olivine.Core.Instruction
 import Olivine.Core.Loops (Loop (..), Preheader, enterThrough, loopsOf, preheaderFor)
 import Olivine.Core.Program
+import Olivine.Core.Promises (Promises, promisesOf)
 import Olivine.Syntax.Ast qualified as Syntax
 import Olivine.Syntax.Global (Global (..))
 import Olivine.Syntax.Instruction (Call, Load (..), Store (..))
@@ -176,7 +177,12 @@ hoistLoopInvariants program =
     -- computation that can come out of the loop like any other.
     effects = effectsOf program
 
-    entry (EFunction f) = EFunction (settle globals layout effects (rounds f) f)
+    -- And what the module wrote down about the symbols it names, which is
+    -- where a callee's promise to keep no pointer to what it is handed is
+    -- written.
+    promises = promisesOf program
+
+    entry (EFunction f) = EFunction (settle globals promises layout effects (rounds f) f)
     entry retained = retained
 
 -- | The module's global variables by name.
@@ -203,23 +209,24 @@ rounds f =
     , Set.member (blockLabel b) (loopBody loop)
     ]
 
-settle :: Map Name Global -> Maybe Layout -> Effects -> Int -> Function -> Function
-settle globals layout effects remaining f
+settle :: Map Name Global -> Promises -> Maybe Layout -> Effects -> Int -> Function -> Function
+settle globals promises layout effects remaining f
   | remaining <= 0 = f
-  | otherwise = case candidates globals layout effects f of
+  | otherwise = case candidates globals promises layout effects f of
       [] -> f
       (loop, preheader, moving) : _ ->
-        settle globals layout effects (remaining - 1) (hoistFrom f loop preheader moving)
+        settle globals promises layout effects (remaining - 1) (hoistFrom f loop preheader moving)
 
 -- | The loops with something to take out of them, innermost first, each with
 -- where what comes out of it goes.
 candidates ::
   Map Name Global ->
+  Promises ->
   Maybe Layout ->
   Effects ->
   Function ->
   [(Loop, Preheader, [Instruction])]
-candidates globals layout effects f =
+candidates globals promises layout effects f =
   [ (loop, preheader, moving)
   | loop <- loopsOf f
   , Just preheader <- [preheaderFor f loop]
@@ -232,7 +239,7 @@ candidates globals layout effects f =
     -- per loop: hoisting moves instructions between blocks, and what a pointer
     -- points into is not a fact about where the instruction computing it
     -- stands.
-    objects = objectsIn layout f
+    objects = objectsIn promises layout f
 
 -- | The instructions in a loop that can be computed before it instead.
 --

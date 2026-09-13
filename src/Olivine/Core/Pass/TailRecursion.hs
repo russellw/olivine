@@ -272,7 +272,7 @@ transformable promises f =
     && FANaked `notElem` attributesOf promises signature
     && not (any (any copied . parameterAttributes) (signatureParameters signature))
     && not (returnsTwiceIn promises f)
-    && reusable f
+    && reusable promises f
   where
     signature = functionSignature f
 
@@ -290,10 +290,10 @@ transformable promises f =
 -- The layout is not consulted, and 'objectsIn' is given none.  What a layout
 -- measures is how far one pointer stands from another, and the question here is
 -- only whether an address got out at all.
-reusable :: Function -> Bool
-reusable f = all shareable here && not (any allocation elsewhere)
+reusable :: Promises -> Function -> Bool
+reusable promises f = all shareable here && not (any allocation elsewhere)
   where
-    objects = objectsIn Nothing f
+    objects = objectsIn promises Nothing f
 
     here = filter allocation (concatMap blockInstructions (take 1 (functionBlocks f)))
     elsewhere = concatMap blockInstructions (drop 1 (functionBlocks f))

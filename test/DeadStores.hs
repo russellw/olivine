@@ -272,7 +272,126 @@ deadStoreTests =
           testCase "overwritten by the next turn of a loop" $
             written (spinning ["  store i32 1, ptr %p"]) @?>= [1]
         ]
+    , -- Storage a call promised was fresh.  It does not die with the frame, so
+      -- what makes a store into it dead is that every way of naming it has
+      -- ended: the address never got out, and either the function returns or
+      -- the storage goes back to the allocator.
+      testGroup
+        "a buffer a call handed back"
+        [ testCase "filled and never read" $
+            written (heap ["  store i32 1, ptr %b"]) @?>= []
+        , -- The address is handed to the deallocator, which promises not to
+          -- keep it, so it still never got out of sight.
+          testCase "filled and given back" $
+            written (heap ["  store i32 1, ptr %b", "  call void @release(ptr %b)"])
+              @?>= []
+        , -- And the same with the address named by an assume, which states a
+          -- fact about the pointer and does nothing with it.
+          testCase "filled with the pointer named by an assume" $
+            written
+              ( heap
+                  [ "  call void @llvm.assume(i1 true) [ \"align\"(ptr %b, i64 16) ]"
+                  , "  store i32 1, ptr %b"
+                  ]
+              )
+              @?>= []
+        , -- The store below the read is dead and the one above it is not,
+          -- which is the ordinary rule arriving at storage it could not place
+          -- until the promise told it what the buffer was.
+          testCase "read between two stores" $
+            written
+              ( heap
+                  [ "  store i32 1, ptr %b"
+                  , "  %v = load i32, ptr %b"
+                  , "  store i32 2, ptr %b"
+                  ]
+              )
+              @?>= [1]
+        , -- The soundness case for the whole of it.  @borrow@ promises not to
+          -- keep the pointer, which is why the buffer is still unescaped — and
+          -- it promises nothing about reading through it while it runs, so the
+          -- store above it has to stay.  Getting this wrong is the failure the
+          -- union in 'Olivine.Core.Effects.mayReach' exists to prevent.
+          testCase "handed to a callee that may read it" $
+            written (heap ["  store i32 1, ptr %b", "  call void @borrow(ptr %b)"])
+              @?>= [1]
+        , -- And where the address does get out, every later call can name the
+          -- storage and nothing about it is known at all.
+          testCase "handed to a callee that may keep it" $
+            written (heap ["  store i32 1, ptr %b", "  call void @use(ptr %b)"])
+              @?>= [1]
+        , -- Two buffers, and the store into the one nothing names is dead
+          -- while the store into the one handed over is not.  Telling them
+          -- apart is what the promise on the return buys.
+          testCase "two buffers, one of them handed over" $
+            written
+              ( module'
+                  [ "define void @f() {"
+                  , "entry:"
+                  , "  %b = call noalias ptr @acquire(i64 16)"
+                  , "  %c = call noalias ptr @acquire(i64 16)"
+                  , "  store i32 1, ptr %b"
+                  , "  store i32 2, ptr %c"
+                  , "  call void @use(ptr %c)"
+                  , "  ret void"
+                  , "}"
+                  ]
+              )
+              @?>= [2]
+        ]
+    , -- A slot of this frame handed to a callee that promises not to keep it.
+      -- The slot has not escaped, which is what the promise is read for, and
+      -- the callee may still read it.
+      testGroup
+        "a slot lent to a callee"
+        [ testCase "a store above the call stays" $
+            written (body ["  store i32 1, ptr %p", "  call void @borrow(ptr %p)"])
+              @?>= [1]
+        , -- What the promise buys is here, and the order is the whole of the
+          -- test: the lend is /above/ the store, so nothing that runs after
+          -- the store has been handed the address, and @stranger@ cannot name
+          -- a slot that never got out.  The store dies with the frame.
+          testCase "a store below the lend and above an unrelated call goes" $
+            written
+              ( slot
+                  [ "  call void @borrow(ptr %s)"
+                  , "  store i32 1, ptr %s"
+                  , "  call void @stranger()"
+                  ]
+              )
+              @?>= []
+        , -- And without the promise it does not: handing the address over is
+          -- how a stranger comes to know it, whether or not it is handed over
+          -- before the store.
+          testCase "and not where the callee may keep it" $
+            written
+              ( slot
+                  [ "  call void @use(ptr %s)"
+                  , "  store i32 1, ptr %s"
+                  , "  call void @stranger()"
+                  ]
+              )
+              @?>= [1]
+        ]
     ]
+
+-- | A body holding a buffer a call handed back, called @%b@.
+heap :: [Text] -> Text
+heap lines' =
+  module'
+    ( ["define void @f() {", "entry:", "  %b = call noalias ptr @acquire(i64 16)"]
+        <> lines'
+        <> ["  ret void", "}"]
+    )
+
+-- | A body holding a slot of its own frame, called @%s@.
+slot :: [Text] -> Text
+slot lines' =
+  module'
+    ( ["define void @f() {", "entry:", "  %s = alloca i32, align 4"]
+        <> lines'
+        <> ["  ret void", "}"]
+    )
 
 -- | The values the surviving stores write, in order.
 --
@@ -315,6 +434,14 @@ module' lines' =
     , "declare void @thrower() memory(none) willreturn"
     , "declare void @endless() memory(none) nounwind"
     , "declare void @llvm.lifetime.end.p0(i64, ptr)"
+    , "declare void @llvm.assume(i1)"
+    , -- An allocator, a deallocator, and a callee that is handed a pointer and
+      -- promises only not to keep it.  The third is what tells the two rules
+      -- apart: promising not to keep a pointer is not promising not to read
+      -- through it.
+      "declare noalias ptr @acquire(i64)"
+    , "declare void @release(ptr allocptr captures(none)) allockind(\"free\")"
+    , "declare void @borrow(ptr captures(none))"
     ]
       <> lines'
 
