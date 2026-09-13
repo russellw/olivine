@@ -335,6 +335,66 @@ foldingTests =
             copies (OBinary (over OpSub "s" "t")) @?= Nothing
         ]
     , testGroup
+        "an operation on vectors, lane by lane"
+        [ testCase "two vectors written out" $
+            lanes OpAdd [] (vectorOf [1, 2, 3, 4]) (vectorOf [10, 20, 30, 40])
+              @?= Just (vectorOf [11, 22, 33, 44])
+        , testCase "a splat is the same value in every lane" $
+            lanes OpAdd [] (splat 3) (vectorOf [1, 2, 3, 4]) @?= Just (vectorOf [4, 5, 6, 7])
+        , -- And back out the same way: LLVM prints @splat (i32 0)@ as
+          -- @zeroinitializer@, so that is what an answer of nothing in every
+          -- lane is written as.
+          testCase "zeroinitializer is a splat of nothing" $
+            lanes OpMul [] zeroes (vectorOf [1, 2, 3, 4])
+              @?= Just (TypedValue vectorType VZeroInitializer)
+        , -- LLVM prints @\<i32 15, i32 15\>@ back as @splat (i32 15)@, so the
+          -- long form would be text that does not survive a round trip.
+          testCase "one answer in every lane is written as a splat" $
+            lanes OpMul [] (splat 3) (splat 5) @?= Just (splat 15)
+        , -- One lane is enough: the flag is a promise about the operation, and
+          -- the operation is the one that has a lane where it does not hold.
+          testCase "a lane that overflows a flag leaves the operation standing" $
+            lanes OpAdd [FlagNSW] (splat 2147483647) (vectorOf [0, 0, 0, 1]) @?= Nothing
+        , testCase "a vector of the wrong length" $
+            lanes OpAdd [] (vectorOf [1, 2, 3]) (vectorOf [1, 2, 3]) @?= Nothing
+        , -- How many lanes it has is not written down, so writing them out is
+          -- not possible and one answer for all of them is the only answer.
+          testCase "a scalable vector of splats" $
+            scalable OpAdd (splatOf scalableVector 3) (splatOf scalableVector 5)
+              @?= Just (splatOf scalableVector 8)
+        ]
+    , testGroup
+        "a sum of two multiples of one value"
+        [ testCase "two multiplications by constants" $
+            summed (multiplying "x" 3) (multiplying "x" 5) @?= Just (multiplied (local "x") 8)
+        , testCase "the constants written on the left" $
+            summed (multiplying' "x" 3) (multiplying' "x" 5) @?= Just (multiplied (local "x") 8)
+        , -- The two multiples are one instruction read twice, which the rule
+          -- reads as a multiple twice over.
+          testCase "one multiplication read as both operands" $
+            doubled (multiplying "x" 3) @?= Just (multiplied (local "x") 6)
+        , -- The sum wraps where neither multiplication did, so what the flags
+          -- promised is not promised again.
+          testCase "the flags are not carried over" $
+            summed (multiplying "x" 3) {binaryFlags = [FlagNSW]} (multiplying "x" 5) {binaryFlags = [FlagNSW]}
+              @?= Just (multiplied (local "x") 8)
+        , -- Promotion is why this is not equality: a value that went through
+          -- a slot reaches the two multiplications as two copies of one local.
+          testCase "multiples reached through the copies of one local" $
+            summed (multiplying "p" 3) (multiplying "q" 5) @?= Just (multiplied (local "p") 8)
+        , testCase "multiples of two different values" $
+            summed (multiplying "x" 3) (multiplying "y" 5) @?= Nothing
+        , testCase "a multiplication by something unknown" $
+            summed (multiplying "x" 3) (multiplying' "x" 5) {binaryLeft = local "n"} @?= Nothing
+        , -- What the corpus has: an unrolled loop whose stores were forwarded
+          -- to its loads leaves the sum of what each turn computed.
+          testCase "multiples of a vector" $
+            summed
+              (Binary OpMul [] (vectorLocal "x") (vectorOf [0, 1, 2, 3]))
+              (Binary OpMul [] (vectorLocal "x") (vectorOf [4, 5, 6, 7]))
+              @?= Just (OBinary (Binary OpMul [] (vectorLocal "x") (vectorOf [4, 6, 8, 10])))
+        ]
+    , testGroup
         "an aggregate taken apart and put back together"
         [ -- What a landing pad costs: the pair is unpacked to test the
           -- selector and packed again to be resumed with.
@@ -376,6 +436,44 @@ foldingTests =
     ]
   where
     int n = TypedValue (TInteger 32) (VInteger n)
+    vectorType = TVector FixedWidth 4 (TInteger 32)
+    vectorOf ns = TypedValue vectorType (VVector [int n | n <- ns])
+    splat n = splatOf vectorType n
+    splatOf t n = TypedValue t (VSplat (int n))
+    zeroes = TypedValue vectorType VZeroInitializer
+    vectorLocal name = TypedValue vectorType (VLocal (Name Bare name))
+    scalableVector = TVector Scalable 4 (TInteger 32)
+
+    lanes op flags left right =
+      folded (OBinary Binary {binaryOp = op, binaryFlags = flags, binaryLeft = left, binaryRight = right})
+    scalable op left right = lanes op [] left right
+
+    -- A multiplication of a local by a constant, and the same written the
+    -- other way about.
+    multiplying name n = Binary OpMul [] (local name) (int n)
+    multiplying' name n = Binary OpMul [] (int n) (local name)
+    multiplied value n = OBinary (Binary OpMul [] value (int n))
+
+    -- The two multiplications left in @%a@ and @%b@, added.
+    summed left right =
+      foldThrough
+        ( \name -> case name of
+            Name Bare "a" -> Just (OBinary left)
+            Name Bare "b" -> Just (OBinary right)
+            -- @%p@ and @%q@ are copies of one local, which is what a value
+            -- that passed through a slot arrives as.
+            Name Bare "p" -> Just (OAssign (local "c"))
+            Name Bare "q" -> Just (OAssign (local "c"))
+            _ -> Nothing
+        )
+        (OBinary (Binary OpAdd [] (local "a") (local "b")))
+    doubled only =
+      foldThrough
+        ( \name -> case name of
+            Name Bare "a" -> Just (OBinary only)
+            _ -> Nothing
+        )
+        (OBinary (Binary OpAdd [] (local "a") (local "a")))
     bool b = TypedValue (TInteger 1) (VBoolean b)
     local name = TypedValue (TInteger 32) (VLocal (Name Bare name))
     vector = TypedValue (TVector FixedWidth 4 (TInteger 32)) (VLocal (Name Bare "v"))

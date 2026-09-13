@@ -1,15 +1,17 @@
 -- | Working out what a computation comes to.
 --
 -- Three things can settle that, and the pass asks them in that order.  Every
--- operand may be a constant, and then the answer is a number.  One operand may
--- be the number that makes the operation do nothing — @x + 0@, @x * 1@,
--- @x & -1@ — or the two operands may be the same value, and then the answer is
--- an operand or a constant that has nothing to do with what the operand holds.
--- Or what produced an operand may be known, and then a conversion of a
--- conversion is one conversion or none at all, a conversion cut back and
--- masked is the mask by itself, an aggregate taken apart and put back together
--- is the aggregate it came from, and two operands that are copies of one local
--- are the same value however differently they are spelled.
+-- operand may be a constant, and then the answer is a number — or one number
+-- for each lane, an operation on vectors being the same operation done lane by
+-- lane.  One operand may be the number that makes the operation do nothing —
+-- @x + 0@, @x * 1@, @x & -1@ — or the two operands may be the same value, and
+-- then the answer is an operand or a constant that has nothing to do with what
+-- the operand holds.  Or what produced an operand may be known, and then a
+-- conversion of a conversion is one conversion or none at all, a conversion cut
+-- back and masked is the mask by itself, an aggregate taken apart and put back
+-- together is the aggregate it came from, a sum of two multiples of one value
+-- is one multiple of it, and two operands that are copies of one local are the
+-- same value however differently they are spelled.
 --
 -- A folded instruction becomes an assignment of the value it computes.  The
 -- core has assignment and LLVM does not, which is what makes that possible;
@@ -79,12 +81,13 @@ module Olivine.Core.Pass.Fold
   ) where
 
 import Control.Applicative ((<|>))
-import Control.Monad (guard)
+import Control.Monad (guard, zipWithM)
 import Data.Bits (complement, shiftL, shiftR, (.&.), (.|.))
 import Data.List (isPrefixOf, mapAccumL)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, listToMaybe)
+import Numeric.Natural (Natural)
 
 import Olivine.Core.Blocks (predecessorsOf, reversePostorder)
 import Olivine.Core.Instruction
@@ -100,7 +103,7 @@ import Olivine.Syntax.Instruction
   , IntPredicate (..)
   , Select (..)
   )
-import Olivine.Syntax.Type (Type (..))
+import Olivine.Syntax.Type (Scalability (..), Type (..))
 import Olivine.Syntax.Value
 
 foldOperations :: Program -> Program
@@ -312,14 +315,84 @@ foldOperation operation = case operation of
     zero (TypedValue _ (VInteger 0)) = True
     zero _ = False
 
-constantBinary :: Binary (TypedValue local) -> Maybe (TypedValue local)
-constantBinary b = do
-  let t = typedValueType (binaryLeft b)
-  left <- integerOf t (typedValue (binaryLeft b))
-  right <- integerOf t (typedValue (binaryRight b))
-  width <- widthOf t
-  result <- binary (binaryOp b) (binaryFlags b) width left right
-  pure (TypedValue t (valueOf t result))
+-- | What an operation on two constants comes to.
+--
+-- __A vector is done a lane at a time.__  An operation on vectors is the same
+-- operation on each pair of lanes, so this is that said once: the operands are
+-- written out lane by lane, 'binary' answers each pair, and the answers are a
+-- vector again.  Nothing is different about the arithmetic — the width is the
+-- element's and a flag is checked where it stands, which is on every lane —
+-- and nothing is different about declining, one lane that would be poison
+-- being enough to leave the whole operation standing.
+constantBinary :: Eq local => Binary (TypedValue local) -> Maybe (TypedValue local)
+constantBinary b = case t of
+  TVector scalability count element -> elementwise scalability count element
+  _ -> scalar
+  where
+    t = typedValueType (binaryLeft b)
+
+    scalar = do
+      left <- integerOf t (typedValue (binaryLeft b))
+      right <- integerOf t (typedValue (binaryRight b))
+      width <- widthOf t
+      result <- binary (binaryOp b) (binaryFlags b) width left right
+      pure (TypedValue t (valueOf t result))
+
+    elementwise scalability count element = case (splatOf left, splatOf right) of
+      -- One value in every lane on both sides is one answer in every lane,
+      -- which is the only shape that settles a vector whose length is not
+      -- written down.
+      (Just l, Just r) -> whole . VSplat . TypedValue element <$> lane element l r
+      _ -> do
+        FixedWidth <- Just scalability
+        ls <- lanesOf count left
+        rs <- lanesOf count right
+        answers <- zipWithM (lane element) ls rs
+        pure (whole (vectorOf element answers))
+      where
+        left = typedValue (binaryLeft b)
+        right = typedValue (binaryRight b)
+
+    whole = TypedValue t
+
+    lane element l r = do
+      width <- widthOf element
+      left <- integerOf element l
+      right <- integerOf element r
+      valueOf element <$> binary (binaryOp b) (binaryFlags b) width left right
+
+-- | A constant vector written out lane by lane.
+--
+-- The three spellings of one: the lanes themselves, one lane repeated, and
+-- @zeroinitializer@, which is the same repetition said of zero.
+lanesOf :: Natural -> Value local -> Maybe [Value local]
+lanesOf count value = case value of
+  VVector elements
+    | length elements == fromIntegral count -> Just (map typedValue elements)
+  _ -> replicate (fromIntegral count) <$> splatOf value
+
+-- | The one value a constant vector holds in every lane, where it holds one.
+splatOf :: Value local -> Maybe (Value local)
+splatOf (VSplat (TypedValue _ x)) = Just x
+splatOf VZeroInitializer = Just (VInteger 0)
+splatOf _ = Nothing
+
+-- | The lanes of a vector as the constant they make up.
+--
+-- Written the way LLVM writes it, which is three ways: @zeroinitializer@ where
+-- every lane is zero, a splat where every lane is the same, and the lanes
+-- themselves otherwise.  LLVM prints @\<i32 4, i32 4\>@ back as
+-- @splat (i32 4)@ and @splat (i32 0)@ back as @zeroinitializer@, so any other
+-- choice here would be text that does not survive a round trip through LLVM
+-- unchanged.
+vectorOf :: Eq local => Type -> [Value local] -> Value local
+vectorOf element answers = case answers of
+  first : rest
+    | all (== first) rest ->
+        if first == valueOf element 0
+          then VZeroInitializer
+          else VSplat (TypedValue element first)
+  _ -> VVector [TypedValue element answer | answer <- answers]
 
 constantCompare :: Compare IntPredicate (TypedValue local) -> Maybe (TypedValue local)
 constantCompare c = do
@@ -465,7 +538,8 @@ producing produced = go
 -- passes through a type on its way to another — @i1@ through @i8@ back to @i1@
 -- is what a C @_Bool@ costs — and a narrowing with a mask on it and a widening
 -- back is what reading a bit field comes to once the slot holding it is
--- promoted.
+-- promoted.  And a sum of two multiples of one value, which is one multiple of
+-- it.
 foldThrough ::
   Eq local =>
   Producer local ->
@@ -475,7 +549,75 @@ foldThrough produced operation =
   throughConversion produced operation
     <|> throughMask produced operation
     <|> throughAggregate produced operation
+    <|> throughDistribution produced operation
     <|> throughCopies produced operation
+
+-- | A sum of two multiples of one value, which is one multiple of it.
+--
+-- @x * 3 + x * 5@ is @x * 8@, and the sum of the two constants is worked out
+-- here rather than left for the next sweep, because @x * 3 + x * 5@ is one
+-- instruction fewer only if the multiplication that replaces it is by a number.
+--
+-- __The arithmetic wraps, so the rule is exact.__  Nothing here asks how wide
+-- the type is or whether anything overflowed: @(x * c1) + (x * c2)@ and
+-- @x * (c1 + c2)@ are the same bits at every width, the three operations being
+-- the ring's and the ring being the integers modulo two to the width.  What
+-- the flags promised is a different matter and is not carried over — a sum of
+-- two multiplications that do not overflow may itself overflow, so the
+-- multiplication that comes out promises nothing, which is a thing LLVM allows
+-- said of an operation it allowed more of.
+--
+-- Where the two multiples are one instruction read twice — @x * 3 + x * 3@ —
+-- this is where the doubling comes from, the operands being one local and the
+-- rule reading it as both multiples.
+--
+-- What makes the rule worth having is not the source: nobody writes that.  It
+-- is a loop that was unrolled and then had its stores forwarded to its loads,
+-- which leaves the sum of what each turn of the loop computed — sixteen
+-- multiples of one number added up, where the program had written an array.
+throughDistribution ::
+  Eq local =>
+  Producer local ->
+  Operation (TypedValue local) ->
+  Maybe (Operation (TypedValue local))
+throughDistribution produced operation = do
+  OBinary b <- Just operation
+  OpAdd <- Just (binaryOp b)
+  (x, c1) <- multiple (binaryLeft b)
+  (y, c2) <- multiple (binaryRight b)
+  guard (alike x y)
+  total <- constantBinary (Binary OpAdd [] c1 c2)
+  pure (OBinary (Binary OpMul [] x total))
+  where
+    -- An operand a multiplication by a constant produced, as what it
+    -- multiplied and what it multiplied it by.  Either way round: a constant
+    -- stands on the right of what LLVM writes, and nothing here has put it
+    -- there.
+    multiple operand = do
+      VLocal name <- Just (typedValue operand)
+      OBinary b <- producing produced name
+      OpMul <- Just (binaryOp b)
+      let ends = [(binaryLeft b, binaryRight b), (binaryRight b, binaryLeft b)]
+      listToMaybe [pair | pair@(_, c) <- ends, isConstant (typedValue c)]
+
+    -- Whether two operands are the one value.  Two names for it are two names
+    -- for it, which is why this is not equality: after promotion the same
+    -- value reaches two instructions as two copies of one local.
+    alike l r = case (typedValue l, typedValue r) of
+      (VLocal a, VLocal b) -> origin produced a == origin produced b
+      (a, b) -> a == b
+
+-- | What a local ultimately names: a copy is what it copies.
+--
+-- The walk terminates because a copy is recorded under a local assigned after
+-- the one it names, and recording an assignment to a local drops every
+-- definition that reads it, so nothing can point forwards.
+origin :: Producer local -> local -> local
+origin produced = go
+  where
+    go name = case produced name of
+      Just (OAssign (TypedValue _ (VLocal copied))) -> go copied
+      _ -> name
 
 -- | An operation on two operands that are copies of one local, which the rules
 -- for two operands that are the same value then answer.
@@ -512,14 +654,7 @@ throughCopies produced operation = do
     agreed left right = do
       VLocal l <- Just (typedValue left)
       VLocal r <- Just (typedValue right)
-      if l /= r && origin l == origin r then Just left else Nothing
-
-    -- What a local ultimately names: a copy is what it copies.  The walk
-    -- terminates for the reason 'producing''s does, being the same walk read
-    -- for the name it ends at rather than the operation.
-    origin name = case produced name of
-      Just (OAssign (TypedValue _ (VLocal copied))) -> origin copied
-      _ -> name
+      if l /= r && origin produced l == origin produced r then Just left else Nothing
 
 -- | A conversion of a conversion, which is one conversion in whichever
 -- direction the two widths ask for, or the original value where they cancel.
