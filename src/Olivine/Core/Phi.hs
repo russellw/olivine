@@ -248,17 +248,20 @@ removeForwarding pinned = settle
       ]
 
     -- A phi in the target names the block a value arrives from.  Removing the
-    -- detour means naming what came before it instead, which only works when
-    -- there is one such block, and when it is not already named by that phi:
-    -- two entries for one predecessor would have to agree, and nothing here
-    -- knows that they would.
+    -- detour means naming the blocks that came before it instead — one entry
+    -- for each, since what arrived by one edge now arrives by each of theirs.
+    --
+    -- What that cannot do is name a block the phi names already: the block
+    -- would then have two entries, which LLVM allows only for two edges and
+    -- only where they agree, and nothing here knows that they would.  A block
+    -- branching to the target on one arm and to the detour on the other is
+    -- exactly that, and is left as it stands.
     relabellable blocks name target =
       all fits [p | b <- blocks, joinedLabel b == target, p <- joinedPhis b]
       where
-        fits p = case (name `elem` map snd (phiIncoming p), predecessorsOf blocks name) of
-          (False, _) -> True
-          (True, [before]) -> before `notElem` map snd (phiIncoming p)
-          (True, _) -> False
+        fits p =
+          name `notElem` map snd (phiIncoming p)
+            || all (`notElem` map snd (phiIncoming p)) (predecessorsOf blocks name)
 
     remove blocks block target =
       [ redirect b
@@ -267,34 +270,31 @@ removeForwarding pinned = settle
       ]
       where
         gone = joinedLabel block
-        before = case predecessorsOf blocks gone of
-          [only] -> only
-          _ -> gone
         redirect b =
           b
             { joinedPhis = map relabel (joinedPhis b)
             , joinedTerminator =
                 retarget (\l -> if l == gone then target else l) (joinedTerminator b)
             }
-        -- The entry naming the detour comes to name the block above it, and
-        -- comes to name it once for each way that block reached the detour.
-        -- A @switch@ with four cases to one detour is four edges arriving
-        -- where there was one, and LLVM asks a phi for an operand per edge —
-        -- one for four is what its verifier calls a phi without an entry for
-        -- each predecessor.
-        ways =
-          length
-            [ ()
-            | b <- blocks
-            , joinedLabel b == before
-            , going <- targetsOf (joinedTerminator b)
-            , going == gone
-            ]
+        -- The blocks control reached the detour from, one for each edge that
+        -- reached it rather than one for each block.  A @switch@ with four
+        -- cases to one detour is four edges arriving where there was one, and
+        -- LLVM asks a phi for an operand per edge — one for four is what its
+        -- verifier calls a phi without an entry for each predecessor.
+        arrivals =
+          [ joinedLabel b
+          | b <- blocks
+          , going <- targetsOf (joinedTerminator b)
+          , going == gone
+          ]
+        -- The entry naming the detour comes to name each of them.  What the
+        -- detour carried is what every way into it carried, there being
+        -- nothing in it to change the value.
         relabel p =
           p
             { phiIncoming =
                 concat
-                  [ if l == gone then replicate ways (v, before) else [(v, l)]
+                  [ if l == gone then [(v, arrival) | arrival <- arrivals] else [(v, l)]
                   | (v, l) <- phiIncoming p
                   ]
             }

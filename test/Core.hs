@@ -424,6 +424,31 @@ reconstructionTests =
         assertBool
           ("expected poison in " <> T.unpack text)
           ("ret i32 poison" `T.isInfixOf` text)
+    , -- A block that does nothing but branch on is taken out even where the
+      -- block below it has a phi and more than one way leads into the detour:
+      -- what arrived by the one edge now arrives by each of theirs, so the phi
+      -- gets an entry apiece.  Until this, such a block stayed — and the core
+      -- is what makes them, an assignment on the way to a merge being a block
+      -- with something in it that is empty again only once the assignment has
+      -- become a phi operand.
+      testCase "a detour with two ways into it" $ do
+        text <- raised twoWays
+        assertEqual
+          ("one entry per way in " <> T.unpack text)
+          2
+          (T.count "[ -1, " text)
+    , -- Both blocks above it go too: one was a detour to the detour, and the
+      -- block above that is left branching on a condition to one place, which
+      -- is a branch for "Olivine.Core.Pass.ControlFlow" rather than for this.
+      testCase "and the blocks that only reached it go with it" $ do
+        text <- raised twoWays
+        assertEqual ("the branches left in " <> T.unpack text) 2 (T.count "br " text)
+    , -- The same shape with one of the ways into the detour also going
+      -- straight to the block below: that block would come to name it twice,
+      -- which LLVM allows only for two edges that agree, and nothing here
+      -- knows that they would.
+      testCase "a detour whose way in already reaches the block below" $
+        wellFormed shared
     , -- Where an instruction stands is a position and not the instruction
       -- itself.  Two in one block can be written identically — one naming a
       -- result is told apart by the local it names, but a store names none —
@@ -531,6 +556,47 @@ reconstructionTests =
         , "  ret i32 %x"
         , "}"
         ]
+
+-- | A block reached two ways that does nothing but branch to a block with a
+-- phi in it.
+twoWays :: Text
+twoWays =
+  T.unlines
+    [ "define i32 @f(i32 %a, i1 %c, i1 %d) {"
+    , "entry:"
+    , "  br i1 %c, label %one, label %three"
+    , "one:"
+    , "  br i1 %d, label %two, label %detour"
+    , "two:"
+    , "  br label %detour"
+    , "three:"
+    , "  br label %out"
+    , "detour:"
+    , "  br label %out"
+    , "out:"
+    , "  %r = phi i32 [ -1, %detour ], [ %a, %three ]"
+    , "  ret i32 %r"
+    , "}"
+    ]
+
+-- | The same, with one way into the detour reaching the block below as well.
+shared :: Text
+shared =
+  T.unlines
+    [ "define i32 @f(i32 %a, i1 %c, i1 %d) {"
+    , "entry:"
+    , "  br i1 %c, label %one, label %two"
+    , "one:"
+    , "  br i1 %d, label %out, label %detour"
+    , "two:"
+    , "  br label %detour"
+    , "detour:"
+    , "  br label %out"
+    , "out:"
+    , "  %r = phi i32 [ -1, %detour ], [ %a, %one ]"
+    , "  ret i32 %r"
+    , "}"
+    ]
 
 -- | Raising leaves a module with nothing wrong with it — in particular, with
 -- no local read that nothing assigns.
