@@ -13,7 +13,7 @@ import Test.Tasty.HUnit
 
 import Corpus (expectParse)
 import Olivine.Core.Instruction
-import Olivine.Core.Layout (endiannessOf)
+import Olivine.Core.Layout (endiannessOf, layoutOf)
 import Olivine.Core.Lower (lower)
 import Olivine.Core.Pass.Promote (promotableIn, promoteMemory)
 import Olivine.Core.Program
@@ -182,22 +182,17 @@ promotionTests =
           testCase "a read of a slot written as a pointer" $
             slots (punning little "ptr" "i64") @?>= 0
         , -- Two stores at two widths: the narrower leaves the bits it did not
-          -- write, so there is no one value for the local to hold.
+          -- write, which the local says by reading itself back and masking.
           testCase "two stores of different widths" $
-            slots
-              ( T.unlines
-                  [ little
-                  , "define i32 @f(i32 %v) {"
-                  , "entry:"
-                  , "  %a = alloca i32, align 4"
-                  , "  store i32 %v, ptr %a, align 4"
-                  , "  store i16 1, ptr %a, align 4"
-                  , "  %r = load i32, ptr %a, align 4"
-                  , "  ret i32 %r"
-                  , "}"
-                  ]
-              )
-              @?>= 0
+            slots (widths "i32" "i16") @?>= 1
+        , -- Which of them is written first decides nothing: what the local
+          -- holds is the widest of them wherever it stands.
+          testCase "the narrower store first" $
+            slots (widths "i16" "i32") @?>= 1
+        , -- Which end of the value the narrower store lands in is the byte
+          -- order, and a module that does not say declines.
+          testCase "a narrower store on a big endian target" $
+            slots (T.replace little big (widths "i32" "i16")) @?>= 0
         , -- Two stores at one width and two types: the local holds the first,
           -- and the other store is a conversion into it.
           testCase "two stores of one width" $
@@ -288,6 +283,47 @@ promotionTests =
         , testCase "a slot that may not go is left alone" $
             shapes (escaping "call void @g(ptr %a)")
               @?>= ["alloca", "store", "load", "other"]
+        ]
+    , testGroup
+        "a byte copy that covers a slot"
+        [ -- A @memcpy@ is a call, and a call naming an address is what stops a
+          -- slot being promoted at all — but one that moves exactly the bytes
+          -- the slot holds reads or writes the whole of it and nothing else,
+          -- which is what a load or a store does.  This is how a struct
+          -- returned by value reaches the local it was built in.
+          testCase "a copy out of a slot is a read of it" $
+            slots (copying little "i32" 4 "%p" "%a") @?>= 1
+        , testCase "a copy into a slot is a write of it" $
+            slots (copying little "i32" 4 "%a" "%p") @?>= 1
+        , -- Fewer bytes than the slot holds is a write to part of it, and more
+          -- is a write past its end.
+          testCase "a copy of fewer bytes than the slot holds" $
+            slots (copying little "i32" 2 "%p" "%a") @?>= 0
+        , testCase "a copy of more" $
+            slots (copying little "i64" 4 "%p" "%a") @?>= 0
+        , -- How many bytes the slot holds is the one question the layout is
+          -- asked, so a module that states none declines.
+          testCase "a copy in a module with no layout" $
+            slots (copying "" "i32" 4 "%p" "%a") @?>= 0
+        , -- Three bytes is an @i24@ and a kilobyte an @i8192@; neither is
+          -- something a machine moves, and the point of this is to stop moving
+          -- bytes.
+          testCase "a copy of a width no machine has" $
+            slots (copying little "i24" 3 "%p" "%a") @?>= 0
+        , -- The point of a volatile access is that it happens.
+          testCase "a volatile copy" $
+            slots (T.replace "i1 false" "i1 true" (copying little "i32" 4 "%p" "%a")) @?>= 0
+        , -- The rewrite: a copy out of the slot is a store of what the local
+          -- holds, and the allocation, the store and the load around it are the
+          -- assignments they always were.
+          testCase "what a copy out of the slot becomes" $
+            shapes (copying little "i32" 4 "%p" "%a")
+              @?>= ["assign", "assign", "store", "assign"]
+        , -- And a copy into it is a load of the bits at the other end, left in
+          -- a name of its own, and then the assignment to the local.
+          testCase "and what a copy into it becomes" $
+            shapes (copying little "i32" 4 "%a" "%p")
+              @?>= ["assign", "assign", "load", "assign", "assign"]
         ]
     , testGroup
         "what comes out"
@@ -381,6 +417,39 @@ promotionTests =
         , "}"
         ]
 
+    -- One slot written twice at two widths and read at the wider of them,
+    -- which is what a bit field assignment comes to once the struct holding
+    -- it is one word.
+    widths first second =
+      T.unlines
+        [ little
+        , "define " <> first <> " @f(" <> first <> " %v, " <> second <> " %w) {"
+        , "entry:"
+        , "  %a = alloca i64, align 8"
+        , "  store " <> first <> " %v, ptr %a, align 8"
+        , "  store " <> second <> " %w, ptr %a, align 8"
+        , "  %r = load " <> first <> ", ptr %a, align 8"
+        , "  ret " <> first <> " %r"
+        , "}"
+        ]
+
+    -- A slot the program only loads and stores, with a copy of @bytes@ bytes
+    -- between it and a pointer handed in.  Which way the copy goes is which of
+    -- the two addresses is written first.
+    copying layout held bytes into from =
+      T.unlines
+        [ layout
+        , "define " <> held <> " @f(ptr %p) {"
+        , "entry:"
+        , "  %a = alloca " <> held <> ", align 8"
+        , "  store " <> held <> " 7, ptr %a, align 8"
+        , "  call void @llvm.memcpy.p0.p0.i64(ptr align 8 " <> into <> ", ptr align 8 " <> from <> ", i64 " <> T.pack (show (bytes :: Int)) <> ", i1 false)"
+        , "  %r = load " <> held <> ", ptr %a, align 8"
+        , "  ret " <> held <> " %r"
+        , "}"
+        , "declare void @llvm.memcpy.p0.p0.i64(ptr captures(none), ptr captures(none), i64, i1)"
+        ]
+
     little = "target datalayout = \"e-m:e-p:64:64-i64:64\""
     big = "target datalayout = \"E-m:e-p:64:64-i64:64\""
 
@@ -440,7 +509,7 @@ got @?>= expected = got >>= (@?= expected)
 slots :: Text -> IO Int
 slots source = do
   program <- lowered source
-  pure (sum [length (promotableIn (endiannessOf program) f) | f <- functionsIn program])
+  pure (sum [length (promotableIn (endiannessOf program) (layoutOf program) f) | f <- functionsIn program])
 
 -- | What each instruction of the one function is, after promotion, named
 -- coarsely enough that a test can state the whole list.

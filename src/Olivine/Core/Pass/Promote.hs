@@ -50,11 +50,33 @@
 -- instead: it would be a shift and a truncation rather than a truncation, and
 -- nothing here has ever been run against such a target.
 --
--- What it still declines is a store narrower than the slot's widest, which is
--- not an assignment to the local but an assignment to some of its bits — read,
--- mask, or, and write back.  That is expressible and is not obviously worth
--- it: it turns one instruction into three, and buys the surrounding stores and
--- loads only where the slot becomes promotable because of it.
+-- __A store narrower than the slot writes some of its bits.__  That is not an
+-- assignment to the local, so it is written as what it does: read the local
+-- back, mask off where the store lands, and put the two together.  One
+-- instruction becomes three, which pays only because the slot becomes a local
+-- at all — a bit field assignment is a load, a mask and a store of the word
+-- holding it, and until this the word stayed in memory for the sake of the one
+-- store.  The slot then begins as @undef@ rather than @poison@: what the store
+-- leaves alone is what the storage held, and @and poison, m@ is poison where
+-- @and undef, m@ is the zeroes the mask asks for, so poison would spread out of
+-- the bits nobody wrote into the ones somebody did.
+--
+-- __A byte copy that covers a slot exactly is an access to it.__  A @memcpy@ is
+-- a call, and a call naming an address is the one thing that stops a slot being
+-- promoted at all; but a copy of exactly the bytes the slot holds reads or
+-- writes the whole of it and nothing else, which is what a load or a store
+-- does.  So it counts as one, at an integer of the width it moved — a copy says
+-- nothing about what the bytes mean and an integer says the same — and the call
+-- becomes the load, the store or the plain assignment that moves the value.
+-- This is how a struct returned or passed by value reaches the local it was
+-- built in, and it is the one question this pass asks
+-- "Olivine.Core.Layout": how big what the slot holds is.  See 'wholeCopy'.
+--
+-- What it still declines is a store or a load at an offset into the slot.
+-- Holding the slot as its bits and writing each access into its own is a larger
+-- change than either of the two above, since it needs every access placed as
+-- well as measured; "Olivine.Core.Pass.Split" takes the slots whose parts the
+-- program named instead.
 --
 -- __A function that calls @setjmp@ is promoted like any other.__  It looks as
 -- though it should not be: control arrives at the call a second time with the
@@ -79,14 +101,35 @@ import Data.Foldable (toList)
 import Data.List (delete, mapAccumL)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (isJust, listToMaybe)
+import Data.Maybe (fromMaybe, isJust, listToMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 
+import Data.Text qualified as T
+import Numeric.Natural (Natural)
+
 import Olivine.Core.Instruction
-import Olivine.Core.Layout (Endianness (..), endiannessOf, scalarBits)
+import Olivine.Core.Layout
+  ( Endianness (..)
+  , Layout
+  , allocSize
+  , endiannessOf
+  , layoutOf
+  , scalarBits
+  )
 import Olivine.Core.Program
-import Olivine.Syntax.Instruction (Alloca (..), Convert (..), Load (..), Store (..))
+import Olivine.Syntax.Attribute (ParamAttribute (..))
+import Olivine.Syntax.Instruction
+  ( Alloca (..)
+  , Argument (..)
+  , Binary (..)
+  , BinaryOp (..)
+  , Call (..)
+  , Convert (..)
+  , Load (..)
+  , Store (..)
+  )
+import Olivine.Syntax.Name (nameText)
 import Olivine.Syntax.Type (Type (..))
 import Olivine.Syntax.Value
 
@@ -99,19 +142,47 @@ promoteMemory program =
     -- module is compiled for the same one.
     order = endiannessOf program
 
-    entry (EFunction f) = EFunction (promoteIn order f)
+    -- And how big what a slot holds is, which is the one question a byte count
+    -- has to be answered against.
+    layout = layoutOf program
+
+    entry (EFunction f) = EFunction (promoteIn order layout f)
     entry retained = retained
 
-promoteIn :: Maybe Endianness -> Function -> Function
-promoteIn order f
+promoteIn :: Maybe Endianness -> Maybe Layout -> Function -> Function
+promoteIn order layout f
   | Map.null promoted = f
   | otherwise = f {functionBlocks = snd (mapAccumL block next (functionBlocks f))}
   where
-    promoted = promotableIn order f
+    promoted = promotableIn order layout f
+
+    -- What each slot was allocated as, which is what a byte count is measured
+    -- against.  Asked through 'rooted', so that a copy naming a step of zero
+    -- names the slot it steps from.
+    holding n = Map.lookup (rooted n) (allocatedIn f)
 
     -- What each local that is a step of zero names, which is how an access
     -- written through one is seen to be an access to the slot.
     rooted = rootOf (zeroSteps f)
+
+    -- The slots some store writes only some of the bits of.
+    --
+    -- Such a slot starts as @undef@ rather than @poison@, which is the one
+    -- place the two differ here.  What a narrow store leaves alone is what the
+    -- storage held, and 'inserting' says that by masking the old value: @and
+    -- undef, m@ is the zeroes the mask asks for, and @and poison, m@ is poison,
+    -- which would then spread from the bits nobody ever wrote into the ones
+    -- somebody just did.  Fresh storage read before anything is written is
+    -- undefined either way, which is all the allocation ever claimed.
+    partly =
+      Set.fromList
+        [ slot
+        | i <- [x | b <- functionBlocks f, x <- blockInstructions b]
+        , (named, Stored t) <- reaching layout holding i
+        , let slot = rooted named
+        , Just held <- [Map.lookup slot promoted]
+        , scalarBits t /= scalarBits held
+        ]
 
     -- Where the names the conversions assign to start.  A conversion cannot
     -- write to the local the load named, since that local is what the rest of
@@ -135,16 +206,26 @@ promoteIn order f
       OAlloca _
         | Just slot <- instructionResult i
         , Just t <- Map.lookup slot promoted ->
-            (n, [assigning slot (TypedValue t VPoison)])
+            (n, [assigning slot (TypedValue t (nothingYet slot))])
       OStore s
         | Just slot <- slotOf (storePointer s)
         , Just t <- Map.lookup slot promoted ->
-            reinterpreting n (storeValue s) t (assigning slot)
+            if scalarBits (typedValueType (storeValue s)) == scalarBits t
+              then reinterpreting n (storeValue s) t (assigning slot)
+              else inserting n (storeValue s) slot t
       OLoad l
         | Just slot <- slotOf (loadPointer l)
         , Just t <- Map.lookup slot promoted
         , Just result <- instructionResult i ->
             reinterpreting n (TypedValue t (VLocal slot)) (loadType l) (assigning result)
+      -- A copy that covers a slot at either end, where that end became a
+      -- local: what the copy moved is what the local holds, so the read is the
+      -- local or a load of the bits, and the write is an assignment or a store
+      -- of them.  Both ends being slots makes the whole call one assignment.
+      OCall _
+        | Just c <- wholeCopy layout holding (instructionOperation i)
+        , isJust (slotOf (copyInto c)) || isJust (slotOf (copyFrom c)) ->
+            copying n c
       operation
         | Just result <- instructionResult i
         , _ : _ <- steppingFrom operation
@@ -168,6 +249,111 @@ promoteIn order f
         -- this has to set as well as the operation.
         assigning name value =
           i {instructionResult = Just name, instructionOperation = OAssign value}
+
+        -- What an allocation leaves in the local until something writes it.
+        nothingYet slot
+          | Set.member slot partly = VUndef
+          | otherwise = VPoison
+
+        -- A store of fewer bits than the local holds, which is an assignment
+        -- to some of its bits and not to the local: what it does not write is
+        -- what the storage held, so the old value is read back, masked where
+        -- the store lands, and the two are put together.
+        --
+        -- The bits it lands in are the low ones, which is the little endian
+        -- assumption 'heldType' checked — and the same one 'reinterpretation'
+        -- makes for a load of fewer bits than are there.  Floating point costs
+        -- a bitcast at each end and nothing else: the masking is arithmetic on
+        -- bits, and which bits a float has is not in question.
+        inserting m value slot held = fromMaybe (m, [i]) $ do
+          narrow <- scalarBits (typedValueType value)
+          wide <- scalarBits held
+          let wideBits = TInteger wide
+              (m1, saidNarrow, asBits) = saying m value (TInteger narrow)
+              (m2, widening, widened) =
+                one m1 wideBits (OConvert (Convert CastZExt [] asBits wideBits))
+              (m3, saidWide, old) = saying m2 (TypedValue held (VLocal slot)) wideBits
+              (m4, masking, kept) =
+                one
+                  m3
+                  wideBits
+                  ( OBinary
+                      (Binary OpAnd [] old (TypedValue wideBits (VInteger (negate (2 ^ narrow)))))
+                  )
+              (m5, joining, joined) = one m4 wideBits (OBinary (Binary OpOr [] kept widened))
+              (m6, saidBack, final) = saying m5 joined held
+          pure
+            ( m6
+            , saidNarrow
+                <> [widening]
+                <> saidWide
+                <> [masking, joining]
+                <> saidBack
+                <> [assigning slot final]
+            )
+
+        -- The same value said at another type of the same width, which is a
+        -- bitcast or nothing at all.
+        saying m value target =
+          converting m value (fromMaybe [] (reinterpretation order (typedValueType value) target))
+
+        -- One instruction computing something, and the value it leaves.
+        one m t operation =
+          ( m + 1
+          , Instruction (Just (Local m)) operation []
+          , TypedValue t (VLocal (Local m))
+          )
+
+        -- The two halves of a copy, each written as what its end now is.
+        --
+        -- The instructions are made rather than taken from the call, which is
+        -- where this differs from the other rewrites: what a copy carried was
+        -- @!tbaa.struct@, which describes a struct being moved and says nothing
+        -- a load or a store could carry, so it is dropped.  Dropping metadata
+        -- is always allowed.
+        copying m c = (m2, loaded <> written)
+          where
+            bits = TInteger (copyBits c)
+
+            (m1, loaded, value) = case slotOf (copyFrom c) of
+              Just from -> (m, [], TypedValue (held from) (VLocal from))
+              Nothing ->
+                ( m + 1
+                , [ Instruction
+                      (Just (Local m))
+                      ( OLoad
+                          Load
+                            { loadVolatile = False
+                            , loadType = bits
+                            , loadPointer = copyFrom c
+                            , loadAlignment = Just (copyFromAlign c)
+                            }
+                      )
+                      []
+                  ]
+                , TypedValue bits (VLocal (Local m))
+                )
+
+            (m2, written) = case slotOf (copyInto c) of
+              Just into -> reinterpreting m1 value (held into) (assigned into)
+              Nothing -> reinterpreting m1 value bits stored
+
+            assigned into v = Instruction (Just into) (OAssign v) []
+
+            stored v =
+              Instruction
+                Nothing
+                ( OStore
+                    Store
+                      { storeVolatile = False
+                      , storeValue = v
+                      , storePointer = copyInto c
+                      , storeAlignment = Just (copyIntoAlign c)
+                      }
+                )
+                []
+
+            held slot = Map.findWithDefault (TInteger (copyBits c)) slot promoted
 
         -- The value the access moves, said at the type the other end wants,
         -- and then whatever the caller does with it.  The conversions come
@@ -257,8 +443,8 @@ reinterpretation order from to
 --   converted between, with every store at the widest of them.  Storing an
 --   @i8@ into an @i32@ slot writes part of it, and part of a local is not
 --   something an assignment can name.
-promotableIn :: Maybe Endianness -> Function -> Map Local Type
-promotableIn order f =
+promotableIn :: Maybe Endianness -> Maybe Layout -> Function -> Map Local Type
+promotableIn order layout f =
   Map.fromList
     [ (slot, t)
     | Instruction (Just slot) (OAlloca a) _ <- instructions
@@ -272,6 +458,8 @@ promotableIn order f =
     instructions = [i | b <- functionBlocks f, i <- blockInstructions b]
 
     rooted = rootOf (zeroSteps f)
+
+    holding n = Map.lookup (rooted n) (allocatedIn f)
 
     single a =
       not (allocaInalloca a) && case allocaElementCount a of
@@ -316,7 +504,7 @@ promotableIn order f =
       foldr
         delete
         (localsUsedBy (instructionOperation i))
-        ( addressedBy i
+        ( map fst (reaching layout holding i)
             <> steppingFrom (instructionOperation i)
             <> toList (lifetimeMarked (instructionOperation i))
         )
@@ -334,14 +522,8 @@ promotableIn order f =
         (<>)
         [ (rooted slot, [access])
         | i <- instructions
-        , slot <- addressedBy i
-        , access <- accessOf (instructionOperation i)
+        , (slot, access) <- reaching layout holding i
         ]
-
-    accessOf operation = case operation of
-      OLoad l -> [Loaded (loadType l)]
-      OStore s -> [Stored (typedValueType (storeValue s))]
-      _ -> []
 
 -- | An access to a slot, at the type it is made at.
 --
@@ -364,40 +546,137 @@ accessType (Stored t) = t
 -- where every access is at the allocated type, that type is what the local
 -- holds and nothing is converted anywhere.
 --
--- Otherwise the local holds what the stores put there, which the loads then
--- read some or all of.  That needs every store at one width — a narrower one
--- would leave the bits it did not write, which an assignment cannot do — and
--- every load at a type 'reinterpretation' can reach from it.  The type is the
--- first store's rather than the allocated one: the allocation is a @union@ or
--- a struct whose size nothing here knows, and what the stores agree on is a
--- scalar whose width is its own.
+-- Otherwise the local holds what the widest store puts there, which the loads
+-- then read some or all of, and which a narrower store writes some of the bits
+-- of.  That needs every access at a width this knows and none wider than the
+-- widest store: a load of more bits than were put there would be reading what
+-- the storage held, and a value has no such thing.  The type is a store's
+-- rather than the allocated one: the allocation is a @union@ or a struct whose
+-- size nothing here knows, and what the stores agree on is a scalar whose width
+-- is its own.
 heldType :: Maybe Endianness -> Type -> [Access] -> Maybe Type
 heldType order allocated as
   | all ((== allocated) . accessType) as = Just allocated
   | otherwise = do
-      held <- listToMaybe [t | Stored t <- as]
-      width <- scalarBits held
-      guard (all ((== Just width) . scalarBits) [t | Stored t <- as])
+      width <- widest [t | Stored t <- as]
+      held <- listToMaybe [t | Stored t <- as, scalarBits t == Just width]
+      guard (all (fits width) [t | Stored t <- as])
       guard (all (isJust . reinterpretation order held) [t | Loaded t <- as])
+      -- A store of all of them needs no byte order; one of some of them takes
+      -- the ones the order puts first, which is 'inserting''s mask and the
+      -- same little endian assumption 'reinterpretation' makes the other way.
+      guard (all ((== Just width) . scalarBits) [t | Stored t <- as] || order == Just LittleEndian)
       pure held
+  where
+    widest ts = case [n | Just n <- map scalarBits ts] of
+      [] -> Nothing
+      ns | length ns == length ts -> Just (maximum ns)
+      _ -> Nothing
 
--- | The slot an instruction reaches by nothing but its address.
+    fits width t = maybe False (<= width) (scalarBits t)
+
+-- | The slots an instruction reaches by nothing but their address, and what
+-- each access does to the one it reaches.
 --
 -- The pointer operand of a plain load or store, when it is a local, and
 -- nothing in any other position of any other instruction.  A load assigning
 -- to nothing is not one of these: the rewrite has no name to give what it
 -- read, so the load has to stay, and a slot it reads has to stay a slot.
-addressedBy :: Instruction -> [Local]
-addressedBy i = case instructionOperation i of
+--
+-- __And both ends of a byte copy that covers a slot exactly.__  A @memcpy@ is
+-- a call, and a call naming an address is what stops a slot being promoted at
+-- all; but one that moves exactly the bytes a slot holds reads or writes the
+-- whole of it and nothing else, which is what a load or a store of the slot
+-- does.  So it is counted as one, at an integer of the width it moved — the
+-- copy says nothing about what the bytes mean, and an integer is the type that
+-- says the same.
+reaching :: Maybe Layout -> (Local -> Maybe Type) -> Instruction -> [(Local, Access)]
+reaching layout holding i = case instructionOperation i of
   OLoad l
     | not (loadVolatile l)
     , Just _ <- instructionResult i ->
-        pointer (loadPointer l)
-  OStore s | not (storeVolatile s) -> pointer (storePointer s)
+        [(n, Loaded (loadType l)) | n <- pointer (loadPointer l)]
+  OStore s
+    | not (storeVolatile s) ->
+        [(n, Stored (typedValueType (storeValue s))) | n <- pointer (storePointer s)]
+  operation
+    | Just c <- wholeCopy layout holding operation ->
+        [(n, Stored (TInteger (copyBits c))) | n <- covered (copyInto c)]
+          <> [(n, Loaded (TInteger (copyBits c))) | n <- covered (copyFrom c)]
   _ -> []
   where
     pointer (TypedValue _ (VLocal n)) = [n]
     pointer _ = []
+
+    -- Only the ends that are slots of this function: the other end is a
+    -- pointer like any other, and what it points at is nobody's business
+    -- here.
+    covered end = [n | n <- pointer end, isJust (holding n)]
+
+-- | A byte copy that moves exactly what a slot holds, at whichever end names
+-- one.
+data Copy = Copy
+  { copyInto :: TypedValue Local
+  , copyFrom :: TypedValue Local
+  , -- | How wide the integer that says what moved is.
+    copyBits :: Natural
+  , copyIntoAlign :: Natural
+  , copyFromAlign :: Natural
+  }
+
+-- | Whether an operation is such a copy.
+--
+-- __The count has to cover a slot exactly.__  Fewer bytes than the slot holds
+-- is a write to part of it, which is not something an assignment can say, and
+-- more is a write past its end.  So the count is measured against what the
+-- slot was allocated as, which is the one question this asks
+-- "Olivine.Core.Layout" — a module with no layout string promotes everything
+-- else exactly as before and declines these.
+--
+-- __And be a width a target has.__  One, two, four or eight bytes, which is
+-- where @opt -passes=instcombine@ draws the same line when it turns a small
+-- copy into a load and a store.  A copy of three bytes could be said as an
+-- @i24@ and a copy of a kilobyte as an @i8192@; neither is a value a machine
+-- moves, and the point of this is to stop moving bytes.
+--
+-- The two ends must be different slots, or the same slot would be counted both
+-- ways and the escape accounting, which works by subtraction, would lose one
+-- of the two mentions.  A copy from a slot to itself is undefined anyway: the
+-- promise @memcpy@ makes is that the two do not overlap.
+--
+-- What the alignments say is what each end promised, and a copy promises
+-- nothing beyond @align 1@ unless the argument says otherwise.  The load and
+-- the store that replace it therefore say what it said, rather than leaving
+-- the alignment out and claiming the type's own.
+wholeCopy :: Maybe Layout -> (Local -> Maybe Type) -> Operation (TypedValue Local) -> Maybe Copy
+wholeCopy layout holding operation = do
+  OCall call <- Just operation
+  VGlobal name <- Just (typedValue (callCallee call))
+  guard (nameText name == "llvm.memcpy" || T.isPrefixOf "llvm.memcpy." (nameText name))
+  [into, from, size, plain] <- Just (callArguments call)
+  VInteger bytes <- Just (typedValue (argumentValue size))
+  guard (typedValue (argumentValue plain) == VBoolean False)
+  guard (bytes `elem` [1, 2, 4, 8])
+  guard (any (covers (fromIntegral bytes)) [argumentValue into, argumentValue from])
+  guard (distinct (argumentValue into) (argumentValue from))
+  pure
+    Copy
+      { copyInto = argumentValue into
+      , copyFrom = argumentValue from
+      , copyBits = 8 * fromIntegral bytes
+      , copyIntoAlign = promised into
+      , copyFromAlign = promised from
+      }
+  where
+    covers bytes (TypedValue _ (VLocal n)) =
+      Just bytes == ((\known -> allocSize known =<< holding n) =<< layout)
+    covers _ _ = False
+
+    distinct (TypedValue _ (VLocal a)) (TypedValue _ (VLocal b)) = a /= b
+    distinct _ _ = True
+
+    promised argument =
+      maximum (1 : [n | PAAlign n <- argumentAttributes argument])
 
 -- | The pointer a step of zero steps from, which is the address the step
 -- names.
@@ -423,6 +702,15 @@ steppingFrom operation = case operation of
   where
     pointer (TypedValue _ (VLocal n)) = [n]
     pointer _ = []
+
+-- | What each of a function's allocations was allocated as.
+allocatedIn :: Function -> Map Local Type
+allocatedIn f =
+  Map.fromList
+    [ (slot, allocaType a)
+    | b <- functionBlocks f
+    , Instruction (Just slot) (OAlloca a) _ <- blockInstructions b
+    ]
 
 -- | Which local each local that is a step of zero names the address of.
 --
