@@ -68,6 +68,78 @@ deadCodeTests =
         assertBool
           ("expected the counter kept in " <> show results)
           (length results > 1)
+    , -- What the dead store pass leaves on the heap: a buffer written and
+      -- never read, so the allocation is as dead as an @alloca@ nothing names
+      -- and the deallocation is all that is left holding it.
+      testCase "an allocation nothing reads goes, and its free with it" $ do
+        results <- resultsOf (allocating "  call void @free(ptr %p)")
+        assertEqual "nothing is left" [] results
+    , -- The one part of this that is a choice: an allocation that is not made
+      -- cannot fail, so the test of whether it succeeded is answered rather
+      -- than kept.
+      testCase "the test of whether it succeeded is answered" $ do
+        operations <-
+          operationsOf
+            ( allocating
+                ( T.unlines
+                    [ "  %c = icmp eq ptr %p, null"
+                    , "  %w = zext i1 %c to i32"
+                    , "  store volatile i32 %w, ptr %q"
+                    , "  call void @free(ptr %p)"
+                    ]
+                )
+            )
+        assertEqual
+          "the pointer is not null"
+          [OAssign (TypedValue (TInteger 1) (VBoolean False))]
+          [o | o@(OAssign _) <- operations]
+    , testCase "and the other way round" $ do
+        operations <- operationsOf (allocating "  %c = icmp ne ptr %p, null\n  store volatile i1 %c, ptr %q")
+        assertEqual
+          "the pointer is not null"
+          [OAssign (TypedValue (TInteger 1) (VBoolean True))]
+          [o | o@(OAssign _) <- operations]
+    , -- A fact stated about the pointer is not a use of the storage, which is
+      -- the same line 'Olivine.Core.Instruction.assumedAbout' draws for what
+      -- gets out of sight.
+      testCase "an assumption about the pointer is not a use" $ do
+        results <-
+          resultsOf
+            (allocating "  call void @llvm.assume(i1 true) [ \"align\"(ptr %p, i64 16) ]\n  call void @free(ptr %p)")
+        assertEqual "nothing is left" [] results
+    , testCase "storage something reads stays" $ do
+        results <- resultsOf (allocating "  %v = load i32, ptr %p\n  store volatile i32 %v, ptr %q\n  call void @free(ptr %p)")
+        assertBool ("expected the allocation kept in " <> show results) (length results == 4)
+    , -- Where the pointer goes is not known, so neither is what is done with
+      -- the storage.
+      testCase "a pointer handed to something else stays" $ do
+        results <- resultsOf (allocating "  call void @sink(ptr %p)\n  call void @free(ptr %p)")
+        assertBool ("expected the allocation kept in " <> show results) (length results == 3)
+    , -- Not every pointer a function frees is one it made: this one was handed
+      -- in, and the caller is entitled to have it released.
+      testCase "a pointer the function was handed is not one it allocated" $ do
+        results <-
+          resultsOf
+            ( T.unlines
+                [ prelude
+                , "define void @f(ptr %p) {"
+                , "entry:"
+                , "  call void @free(ptr %p)"
+                , "  ret void"
+                , "}"
+                ]
+            )
+        assertEqual "the deallocation stays" [Nothing] results
+    , -- @operator new@ throws where it cannot allocate, and a way out of the
+      -- function is not something an unread result makes removable.
+      testCase "an allocation that may throw stays" $ do
+        results <- resultsOf (throwing "  call void @free(ptr %p)")
+        assertBool ("expected the allocation kept in " <> show results) (length results == 2)
+    , -- Which of two allocations this is, is a question about where the
+      -- storage is, and an allocation that never happened has no answer to it.
+      testCase "a comparison with something other than null stays" $ do
+        results <- resultsOf (allocating "  %c = icmp eq ptr %p, %q\n  store volatile i1 %c, ptr %q\n  call void @free(ptr %p)")
+        assertBool ("expected the allocation kept in " <> show results) (length results == 4)
     , testCase "a slot something else names keeps its markers" $ do
         results <- resultsOf held
         assertEqual
@@ -238,6 +310,21 @@ deadCodeTests =
         , "  ret i32 %v"
         , "}"
         ]
+    -- A function that allocates, does whatever is written in the middle, and
+    -- returns.  The volatile stores are what keep a value read.
+    allocating middle = body "@malloc" middle
+    throwing middle = body "@risky" middle
+    body allocator middle =
+      T.unlines
+        [ prelude
+        , "define void @f(ptr %q) {"
+        , "entry:"
+        , "  %p = call noalias ptr " <> allocator <> "(i64 64)"
+        , T.stripEnd middle
+        , "  ret void"
+        , "}"
+        ]
+
     live =
       T.unlines
         [ "define i32 @f(i32 %a, i32 %b) {"
@@ -294,6 +381,39 @@ promotedResultsOf source = do
   let program = eliminateDeadCode (promoteMemory (lower parsed))
   pure
     [ instructionResult i
+    | f <- functionsIn program
+    , b <- functionBlocks f
+    , i <- blockInstructions b
+    ]
+
+-- | The declarations an allocation is read against.
+--
+-- Written as clang writes them at @-O1@ and above, which is the only place the
+-- attributes that decide any of this appear: @allockind@ says what the call
+-- does with storage, @allocptr@ which argument is the storage, and the
+-- @memory@ clause that the allocator's own writing lands where nothing here
+-- can name.  @\@risky@ is the same allocator without the promise not to
+-- throw.
+prelude :: Text
+prelude =
+  T.unlines
+    [ "declare noalias ptr @malloc(i64) #0"
+    , "declare noalias ptr @risky(i64) #2"
+    , "declare void @free(ptr allocptr captures(none)) #1"
+    , "declare void @sink(ptr)"
+    , "declare void @llvm.assume(i1)"
+    , "attributes #0 = { nounwind willreturn allockind(\"alloc,uninitialized\") memory(inaccessiblemem: readwrite) }"
+    , "attributes #1 = { nounwind willreturn allockind(\"free\") memory(argmem: readwrite, inaccessiblemem: readwrite) }"
+    , "attributes #2 = { willreturn allockind(\"alloc,uninitialized\") memory(inaccessiblemem: readwrite) }"
+    ]
+
+-- | What each surviving instruction does, in order.
+operationsOf :: Text -> IO [Operation (TypedValue Local)]
+operationsOf source = do
+  parsed <- expectParse "<inline>" source
+  let program = eliminateDeadCode (lower parsed)
+  pure
+    [ instructionOperation i
     | f <- functionsIn program
     , b <- functionBlocks f
     , i <- blockInstructions b

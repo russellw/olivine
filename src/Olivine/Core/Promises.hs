@@ -26,6 +26,7 @@ module Olivine.Core.Promises
   , returnsTwiceIn
   , keepsArgument
   , freedBy
+  , allocatedBy
   , interposable
   , copied
   ) where
@@ -218,10 +219,6 @@ keepsArgument promises call n = not (any released (atSite <> atCallee))
 -- the parameter attribute alone would have this call a buffer dead at the
 -- moment its contents are about to be moved.
 --
--- The kind is a comma-separated list, @allockind(\"alloc,uninitialized\")@
--- being one attribute and not two, so it is split before @free@ is looked for
--- rather than compared whole.
---
 -- Asked of the callee only, unlike 'returnsTwiceIn'.  @allocptr@ is a
 -- parameter attribute, and what a call site writes in that position is the
 -- attributes of the argument rather than of the parameter; the one place the
@@ -229,9 +226,8 @@ keepsArgument promises call n = not (any released (atSite <> atCallee))
 -- therefore no deallocation here, which is the cautious answer.
 freedBy :: Promises -> Call (TypedValue Local) -> Maybe (TypedValue Local)
 freedBy promises call = do
-  VGlobal name <- Just (typedValue (callCallee call))
-  signature <- Map.lookup (nameText name) (promiseSignatures promises)
-  True <- Just (any deallocating (resolve promises (signatureAttributes signature)))
+  signature <- calleeOf promises call
+  True <- Just ("free" `elem` allocationKinds promises signature)
   (argument, _) <-
     listToMaybe
       [ pair
@@ -239,9 +235,39 @@ freedBy promises call = do
       , PAAllocPtr `elem` parameterAttributes parameter
       ]
   pure (argumentValue argument)
-  where
-    deallocating (FAAllocKind kinds) = "free" `elem` map T.strip (T.splitOn "," kinds)
-    deallocating _ = False
+
+-- | Whether a call hands back storage it has just made.
+--
+-- @allockind(\"alloc\")@ says so, and is the same attribute 'freedBy' reads for
+-- the other direction; the kinds it is not are what tell the two apart, since
+-- @realloc@ is written @allockind(\"realloc\")@ and is neither.  The rest of
+-- the list says what the storage is like — @uninitialized@, @zeroed@,
+-- @aligned@ — and none of that decides anything here.
+--
+-- Asked of the callee only, for the reason 'freedBy' is: a call site writes
+-- the attributes of its arguments, and the promise is the function's.
+allocatedBy :: Promises -> Call (TypedValue Local) -> Bool
+allocatedBy promises call = case calleeOf promises call of
+  Just signature -> "alloc" `elem` allocationKinds promises signature
+  Nothing -> False
+
+-- | The signature of the symbol a call names, where it names one.
+calleeOf :: Promises -> Call (TypedValue Local) -> Maybe Signature
+calleeOf promises call = do
+  VGlobal name <- Just (typedValue (callCallee call))
+  Map.lookup (nameText name) (promiseSignatures promises)
+
+-- | What an @allockind@ attribute lists, as the words it is written from.
+--
+-- The kind is a comma-separated list, @allockind(\"alloc,uninitialized\")@
+-- being one attribute and not two, so it is split before anything is looked
+-- for rather than compared whole.
+allocationKinds :: Promises -> Signature -> [Text]
+allocationKinds promises signature =
+  [ T.strip kind
+  | FAAllocKind kinds <- resolve promises (signatureAttributes signature)
+  , kind <- T.splitOn "," kinds
+  ]
 
 -- | Every call a body makes, the ones standing where a branch stands
 -- included.

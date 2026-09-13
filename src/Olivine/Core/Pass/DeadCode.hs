@@ -39,6 +39,26 @@
 -- @opt -passes=dce@ was given the same call with each of the three promises
 -- missing in turn and keeps it every time.
 --
+-- __An allocation nothing reads goes, and takes the questions about it with
+-- it.__  Storage a call made and handed back is storage this function is the
+-- first to know about, so if nothing here reads it, nothing anywhere does:
+-- what the dead store pass leaves — a buffer written and never read — is a
+-- buffer whose allocation is as dead as an @alloca@ whose slot nothing names.
+-- Three things may still name it and none of them is a use of the storage: the
+-- deallocation that hands it back, an @llvm.assume@ stating a fact about the
+-- pointer, and a test of whether the allocation succeeded.  The first two go
+-- with it.  The third is answered: an allocation that is not made cannot fail,
+-- so the test is given the answer it would have had if it had succeeded, which
+-- is what @opt -passes=instcombine@ does with the same three.
+--
+-- That answer is the one part of this that is a choice rather than a
+-- deduction, and it is LLVM's: a program that never reads the storage cannot
+-- tell an allocation that succeeded from one that never happened, and taking
+-- the allocation away takes the failure it might have had away with it.  What
+-- makes it a rule about allocations and not about calls at large is
+-- @allockind(\"alloc\")@, which is the callee saying that what it hands back is
+-- new storage and nothing else — see 'Olivine.Core.Promises.allocatedBy'.
+--
 -- __A lifetime marker is not a reader.__  It says where storage begins and
 -- ends, so a pair of them around a slot nothing else in the function names is
 -- a pair of them around nothing: the allocation they bracket is unread, and
@@ -56,14 +76,17 @@ module Olivine.Core.Pass.DeadCode
 
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
+import Data.Maybe (isJust, mapMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 
-import Olivine.Core.Effects (Behaviour (..), Effects, behaviourOf, effectsOf)
+import Olivine.Core.Effects (Behaviour (..), Effects, Reach (..), behaviourOf, effectsOf)
 import Olivine.Core.Instruction
 import Olivine.Core.Program
-import Olivine.Syntax.Instruction (Call (..), Load (..))
-import Olivine.Syntax.Value (TypedValue)
+import Olivine.Core.Promises (Promises, allocatedBy, freedBy, promisesOf)
+import Olivine.Syntax.Instruction (Call (..), Compare (..), IntPredicate (..), Load (..))
+import Olivine.Syntax.Type (Type (..))
+import Olivine.Syntax.Value (TypedValue (..), Value (..))
 
 eliminateDeadCode :: Program -> Program
 eliminateDeadCode program =
@@ -73,17 +96,151 @@ eliminateDeadCode program =
     -- every function is asked about every call it makes, and what a callee
     -- does is not a fact about the caller being looked at.
     effects = effectsOf program
-    entry (EFunction f) = EFunction (settle effects f)
+    promises = promisesOf program
+    entry (EFunction f) = EFunction (settle effects promises f)
     entry retained = retained
 
 -- | Removing one instruction can leave another with nothing reading it, so
 -- this runs until a sweep finds nothing.
-settle :: Effects -> Function -> Function
-settle effects f
+--
+-- The allocations are looked at before each sweep rather than once, for the
+-- same reason: what makes an allocation unread is often the sweep before, and
+-- taking one away leaves the arithmetic that stepped through it unread in
+-- turn.
+settle :: Effects -> Promises -> Function -> Function
+settle effects promises f
   | swept == f = f
-  | otherwise = settle effects swept
+  | otherwise = settle effects promises swept
   where
-    swept = sweep effects f
+    swept = sweep effects (elideAllocations effects promises f)
+
+-- | An allocation whose storage nothing reads, taken away with everything that
+-- only names the pointer: the deallocation that hands the storage back, the
+-- assumptions stated about the pointer, and the tests of whether the
+-- allocation succeeded, which are answered rather than dropped.
+--
+-- See the module header for why the answer is the one where it succeeded.
+elideAllocations :: Effects -> Promises -> Function -> Function
+elideAllocations effects promises f
+  | Set.null unused = f
+  | otherwise = f {functionBlocks = map over (functionBlocks f)}
+  where
+    unused = unusedStorage effects promises f
+
+    over b = b {blockInstructions = mapMaybe rewrite (blockInstructions b)}
+
+    -- Everything naming one of these pointers has been accounted for already,
+    -- so an instruction that names one either asks a question — and is left
+    -- assigning the answer — or is one of the two that go.
+    rewrite i
+      | Just p <- instructionResult i, Set.member p unused = Nothing
+      | otherwise = case [p | p <- localsUsedBy (instructionOperation i), Set.member p unused] of
+          [] -> Just i
+          p : _ -> case instructionOperation i of
+            OICmp c | Just answer <- answeredBy c p -> Just i {instructionOperation = OAssign answer}
+            _ -> Nothing
+
+-- | The locals holding storage this function allocated and nothing reads.
+unusedStorage :: Effects -> Promises -> Function -> Set Local
+unusedStorage effects promises f =
+  Set.fromList
+    [ p
+    | b <- functionBlocks f
+    , Instruction (Just p) (OCall call) _ <- blockInstructions b
+    , allocatedBy promises call
+    , onlyMakesStorage (behaviourOf effects call)
+    , assignedOnce p
+    , -- A terminator naming the pointer is refused rather than accounted for.
+      -- An @invoke@ of the deallocation is the case that arises, and taking a
+      -- terminator away is rewriting the control flow, which is a different
+      -- pass's work.
+      not (Set.member p namedByTerminators)
+    , all (accountedFor promises p) instructions
+    ]
+  where
+    instructions = [i | b <- functionBlocks f, i <- blockInstructions b]
+
+    namedByTerminators =
+      Set.fromList
+        [ n
+        | b <- functionBlocks f
+        , n <- localsUsedBy (terminatorTransfer (blockTerminator b))
+        ]
+
+    -- Assigned in one place, so that taking that place away takes the whole of
+    -- what the local holds.  Promotion assigns a local twice over and the
+    -- second assignment would be left naming storage that is no longer made.
+    assignedOnce p =
+      length
+        ( [() | i <- instructions, instructionResult i == Just p]
+            <> [() | b <- functionBlocks f, resultOf (blockTerminator b) == Just p]
+        )
+        == 1
+
+-- | Whether a call does nothing but make the storage it hands back.
+--
+-- @allockind(\"alloc\")@ says what the result is; this is the rest of what has
+-- to hold for the call to be one that can simply not happen.  An allocator
+-- writes memory — its own bookkeeping — and the promise that makes that
+-- harmless is @memory(inaccessiblemem: ...)@, which says the writing lands
+-- where nothing this module can name is: storage that goes when the allocation
+-- goes.  Anything wider is a write somebody may be able to see, and is kept.
+--
+-- The other two are the ones 'removableWhenUnused' asks of any call at all: a
+-- call that throws is a way out of the function, and one that may not come
+-- back is what the rest of the function stands behind.
+onlyMakesStorage :: Behaviour -> Bool
+onlyMakesStorage behaviour =
+  behaviourReach behaviour == Unaddressable
+    && not (mayUnwind behaviour)
+    && not (mayNotReturn behaviour)
+
+-- | Whether an instruction does anything with the pointer but let the storage
+-- go, state a fact about it, or ask whether the allocation succeeded.
+--
+-- Each rule has to account for every mention: an instruction naming the
+-- pointer twice has a second naming that the rule says nothing about, and
+-- @free(p)@ is not @foo(p, p)@.
+accountedFor :: Promises -> Local -> Instruction -> Bool
+accountedFor promises p i = mentions == 0 || released || stated || asked
+  where
+    operation = instructionOperation i
+    mentions = length [() | n <- localsUsedBy operation, n == p]
+
+    released = case operation of
+      OCall call
+        | Just given <- freedBy promises call ->
+            typedValue given == VLocal p && mentions == 1
+      _ -> False
+
+    stated = length [() | n <- assumedAbout operation, n == p] == mentions
+
+    asked = case operation of
+      OICmp c -> isJust (answeredBy c p) && mentions == 1
+      _ -> False
+
+-- | The answer a comparison gets, where it is a question the allocation going
+-- away settles.
+--
+-- Only against @null@, and only for equality: whether the pointer is null is
+-- the question \"did the allocation succeed\", and the answer is that it did.
+-- Anything else compared with it is a question about where the storage is,
+-- which is not a question an allocation that never happened has an answer to.
+answeredBy :: Compare IntPredicate (TypedValue Local) -> Local -> Maybe (TypedValue Local)
+answeredBy c p
+  | not tested = Nothing
+  | otherwise = case comparePredicate c of
+      IEq -> answer False
+      INe -> answer True
+      _ -> Nothing
+  where
+    tested = case (typedValue (compareLeft c), typedValue (compareRight c)) of
+      (VLocal n, VNull) -> n == p
+      (VNull, VLocal n) -> n == p
+      _ -> False
+
+    -- The allocation succeeded, so the pointer is not null.
+    answer held = Just (TypedValue (TInteger 1) (VBoolean held))
 
 sweep :: Effects -> Function -> Function
 sweep effects f = f {functionBlocks = map prune (functionBlocks f)}
