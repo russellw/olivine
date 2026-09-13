@@ -10,9 +10,10 @@
 --
 -- __It answers by object, and then by the bytes touched.__  The pointer is
 -- followed back through the steps and copies that derived it until something
--- says what storage it points into: an @alloca@, or a symbol.  Two pointers
--- into different objects cannot overlap however they were computed, and that
--- settles most of the questions asked here.
+-- says what storage it points into: an @alloca@, a symbol, or a call that
+-- promised what it returned was fresh.  Two pointers into different objects
+-- cannot overlap however they were computed, and that settles most of the
+-- questions asked here.
 --
 -- Where both are measured from the /same/ thing the walk has also added up
 -- what it stepped over on the way, so each access is a byte at which it starts
@@ -95,23 +96,44 @@ import Olivine.Core.Layout (Layout, allocSize, fieldOffset, storeSize)
 import Olivine.Core.Program
 import Olivine.Syntax.Attribute (ParamAttribute (..))
 import Olivine.Syntax.Function qualified as Syntax
-import Olivine.Syntax.Instruction (Alloca (..), Convert (..), Load (..), Store (..))
+import Olivine.Syntax.Instruction (Alloca (..), Call (..), Convert (..), Load (..), Store (..))
 import Olivine.Syntax.Name (Name)
 import Olivine.Syntax.Type (Type)
 import Olivine.Syntax.Value (CastOp (..), TypedValue (..), Value (..))
 
 -- | The storage a pointer points into.
 --
--- Only the two kinds whose identity is written in the program.  Storage a
--- function was handed — through a parameter, out of a call, read back from
--- memory — is no object here but the absence of one, which is what makes
--- 'objectOf' partial.
+-- Only the kinds whose identity is written in the program.  Storage a function
+-- was handed — through a parameter, or read back from memory — is no object
+-- here but the absence of one, which is what makes 'objectOf' partial.
 data Object
   = -- | What an @alloca@ made, named by the local the allocation assigns to.
     --
     -- The local rather than the instruction, since that is what the allocation
     -- is identified by everywhere else, and two allocations never share one.
     OnStack Local
+  | -- | What a call promised was fresh storage, named by the local it assigns
+    -- to.
+    --
+    -- The promise is @noalias@ on the /return/, which is what a front end puts
+    -- on @malloc@ and what LLVM infers for anything that behaves like one.  It
+    -- says the pointer coming back reaches nothing the caller can reach any
+    -- other way, and that is the whole of what an object is here: a thing to
+    -- tell apart from other things.  So this is not a heap-specific case and
+    -- nothing below reads an @allockind@ — a function returning a pointer into
+    -- storage it made for the caller earns the same answer on the same promise.
+    --
+    -- Named by the local for the same reason 'OnStack' is, with one difference
+    -- worth knowing: two @alloca@s are two objects because they are two
+    -- allocations, whereas two calls are two objects because each promised
+    -- separately, and the /same/ call going round a loop twice is one local
+    -- naming two allocations.  Nothing here has to know that.  A base is only
+    -- ever asked about within one pass of a function, and no fact built on one
+    -- crosses a back edge: 'Olivine.Core.Pass.Redundancies' kills everything
+    -- naming a local where the local is assigned, and
+    -- 'Olivine.Core.Pass.DeadStores' starts each round from nothing.  That is
+    -- the argument already written for an @alloca@ in a loop, unchanged.
+    OnHeap Local
   | -- | What a symbol names.
     InGlobal Name
   deriving (Eq, Show)
@@ -422,6 +444,14 @@ regionOf objects = go Set.empty (Just 0)
         | Set.member n seen -> Nothing
         | otherwise -> case Map.lookup n (definedBy objects) of
             Just (OAlloca _) -> Just (Region (InObject (OnStack n)) at)
+            -- A call that promised what it returned was fresh.  This stands
+            -- above the walk rather than beside the case below it because it
+            -- is the same local either way: without the promise a call result
+            -- is where the walk stops and measures from ('AtLocal'), and with
+            -- it the same local says where it points as well as how far.
+            Just (OCall c)
+              | PANoAlias `elem` callReturnAttributes c ->
+                  Just (Region (InObject (OnHeap n)) at)
             Just operation -> case derivedFrom operation of
               Just (from, step) ->
                 go (Set.insert n seen) ((+) <$> at <*> distance step) (typedValue from)
@@ -518,6 +548,15 @@ mayAlias objects p q =
     -- No symbol names stack storage and nothing on the stack is a symbol.
     distinct (OnStack _) (InGlobal _) = True
     distinct (InGlobal _) (OnStack _) = True
+    -- Two promises of freshness are two objects, since each says the pointer
+    -- it came back with reaches nothing reachable otherwise, and the other
+    -- call's result is reachable at the point the second promise is made.
+    distinct (OnHeap x) (OnHeap y) = x /= y
+    -- And one promise is enough against anything the function could already
+    -- name: a slot of this frame and a symbol are both storage the caller
+    -- reaches without the call, which is exactly what the promise excludes.
+    distinct (OnHeap _) _ = True
+    distinct _ (OnHeap _) = True
     -- Two names, possibly one object, and possibly at an offset from each
     -- other: an alias is a second name for storage that already had one, and
     -- what it names may be part way into it.  So this is where the offsets say
@@ -596,6 +635,13 @@ handedIn objects parameter object = case object of
     Just (OAlloca a) -> allocaInalloca a
     -- Not something this can look at, so not something to claim about.
     _ -> True
+  -- The promise answers this one outright, and more cheaply than the reasoning
+  -- above it: a parameter is a pointer the caller holds, and what the call
+  -- returned is promised to reach nothing the caller holds.  No argument about
+  -- when the argument was computed is needed, which is as well, since a callee
+  -- is free to hand back storage that outlives the frame and the argument for
+  -- an @alloca@ would not carry.
+  OnHeap _ -> False
   InGlobal _ -> not (Set.member parameter (apart objects))
 
 -- | Whether two parameters are promised to point into different storage.
@@ -650,5 +696,12 @@ reachableByArguments objects arguments address = case objectOf objects address o
 escaped :: Objects -> Object -> Bool
 escaped objects object = case object of
   OnStack slot -> Set.member slot (leaking objects)
+  -- Asked the same way as a slot and answered for a different reason.  A slot
+  -- starts unreachable because the frame is this function's own; storage a
+  -- call returned starts unreachable because the call promised it was, the
+  -- allocator having kept no pointer that aliases what it handed back.  From
+  -- there the question is the same one: whether the address went anywhere the
+  -- walk cannot follow it to.
+  OnHeap slot -> Set.member slot (leaking objects)
   -- The program's interface to everything outside it is exactly its symbols.
   InGlobal _ -> True

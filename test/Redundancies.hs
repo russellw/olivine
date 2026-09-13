@@ -434,6 +434,49 @@ redundancyTests =
               True
               (mayAlias objects (reading (VLocal b)) (reading (VLocal (Local 0))))
         ]
+    , -- The same four questions of the same function with @noalias@ on the
+      -- return, which is the call saying the pointer it handed back reaches
+      -- nothing the caller reaches any other way.  Three of the answers above
+      -- turn over, and the fourth was already as sharp as it goes.
+      testGroup
+        "what the callee promised"
+        [ testCase "two buffers two promises handed back" $ do
+            (objects, _) <- aliasingIn promisedBuffers
+            (_, [b, c]) <- acquiredIn promisedBuffers
+            assertEqual
+              "each promise excluding what the other returned"
+              False
+              (mayAlias objects (reading (VLocal b)) (reading (VLocal c)))
+        , -- The slot whose address was handed over, which without the promise
+          -- is a slot the callee could have read back and returned.  The
+          -- promise is what says it did not.
+          testCase "a buffer and a slot whose address was handed over" $ do
+            (objects, [_, y]) <- aliasingIn promisedBuffers
+            (_, [b, _]) <- acquiredIn promisedBuffers
+            assertEqual
+              "the promise being about every pointer the caller holds"
+              False
+              (mayAlias objects (reading (VLocal b)) (reading (VLocal y)))
+        , -- And a parameter, which the caller held before the call began.
+          testCase "a buffer and a parameter" $ do
+            (objects, _) <- aliasingIn promisedBuffers
+            (_, [b, _]) <- acquiredIn promisedBuffers
+            assertEqual
+              "which the promise excludes as well"
+              False
+              (mayAlias objects (reading (VLocal b)) (reading (VLocal (Local 0))))
+        , -- Unchanged: two accesses stepped from one buffer were already told
+          -- apart by their offsets, the promise having nothing to add about
+          -- two places in one object.
+          testCase "two elements of one promised buffer" $ do
+            (objects, _) <- aliasingIn promisedBuffers
+            (_, [b, _]) <- acquiredIn promisedBuffers
+            (_, [n]) <- steppingIn promisedBuffers
+            assertEqual
+              "one object and two offsets"
+              False
+              (mayAlias objects (reading (VLocal b)) (reading (VLocal n)))
+        ]
     , testGroup
         "what the caller promised"
         [ -- Two parameters and one promise, which is enough: what is reached
@@ -1359,6 +1402,29 @@ acquiredBuffers =
     , "  store ptr %y, ptr %p, align 8"
     , "  %b = call ptr @acquire()"
     , "  %c = call ptr @acquire()"
+    , "  %n = getelementptr i32, ptr %b, i64 1"
+    , "  %a = load i32, ptr %b, align 4"
+    , "  ret i32 %a"
+    , "}"
+    ]
+
+-- | The same function with the promise on it, which is the one thing between
+-- the two.
+--
+-- Written out again rather than patched, so that what the promise changes is
+-- read off two whole functions side by side rather than off a substitution.
+promisedBuffers :: Text
+promisedBuffers =
+  T.unlines
+    [ "target datalayout = \"e-m:e-i64:64-n8:16:32:64-S128\""
+    , "declare noalias ptr @acquire()"
+    , "define i32 @f(ptr %p) {"
+    , "entry:"
+    , "  %x = alloca i32, align 4"
+    , "  %y = alloca i32, align 4"
+    , "  store ptr %y, ptr %p, align 8"
+    , "  %b = call noalias ptr @acquire()"
+    , "  %c = call noalias ptr @acquire()"
     , "  %n = getelementptr i32, ptr %b, i64 1"
     , "  %a = load i32, ptr %b, align 4"
     , "  ret i32 %a"
