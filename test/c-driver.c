@@ -88,11 +88,19 @@ extern int weak_count; extern int tentative;
    really can write what a pointer handed to that function reads. */
 struct pair { int a; int b; };
 struct pair *watched;
-void sink(void){ if(watched) watched->b += 100; }
+/* heap.c hands over a buffer through watched_heap and calls the same sink(),
+   the two sources wanting the same thing of it: a call in the middle that
+   really does write what the function is about to read. */
+int *watched_heap;
+void sink(void){ if(watched) watched->b += 100; if(watched_heap) watched_heap[0] += 100; }
 int square_b(const struct pair*); int written_then_read(struct pair*,int);
 int separate_slots(int); int both_ways(struct pair*); int around_call(struct pair*);
 int confined_across_call(int); int through_the_store(struct pair*,struct pair*);
 int repeated(const struct pair*,int); int accumulated(const struct pair*,int*,int);
+/* heap.c */
+int filled_then_read(int); int other_element(int); int somewhere_in_it(int,int);
+int two_buffers(int); int through_a_parameter(int*,int); int around_a_call(int);
+int allocated_each_turn(int); int carried_along(int);
 /* fields.c -- add_into() is defined here so that the address of one field
    really does reach code this module cannot see. */
 struct corner { int x, y; };
@@ -475,6 +483,24 @@ int main(void){
     for(int a=0;a<=4;a++) { announce(a); printf("%d ", beacon); }
     printf("\n");
     for(int n=0;n<=4;n++) { each_turn(&cell,n); printf("%d %d ", cell, last_seen(n)); }
+    printf("\n"); }
+#endif
+#ifdef HEAP
+  /* Every one of these returns what it read back out of the buffer, so a load
+     answered from a store that did not write that address is a different
+     number rather than a shorter file.  around_a_call() is the one the call in
+     the middle writes, and it is 100 more than the argument. */
+  { int cell = 0;
+    for(int n=0;n<=4;n++)
+      printf("%d %d %d ", filled_then_read(n), other_element(n), two_buffers(n));
+    printf("\n");
+    for(int n=0;n<=4;n++)
+      for(int i=0;i<=4;i++) printf("%d ", somewhere_in_it(n,i));
+    printf("\n");
+    for(int n=0;n<=4;n++)
+      printf("%d %d %d ", through_a_parameter(&cell,n), around_a_call(n), cell);
+    printf("\n");
+    for(int n=-1;n<=6;n++) printf("%d %d ", allocated_each_turn(n), carried_along(n));
     printf("\n"); }
 #endif
 #ifdef LINKAGE

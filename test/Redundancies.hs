@@ -249,6 +249,22 @@ redundancyTests =
               "the second load reads the first"
               [(Local 2, VLocal (Local 1))]
               answered
+        , -- A buffer a call handed back, written and read at one element with
+          -- the element above it written in between.  Which element a step
+          -- reaches is what the layout measures, and it measures it from a
+          -- local this cannot place the same way it measures it from one it
+          -- can.
+          testCase "across a store to another element of a buffer" $ do
+            answered <- assignmentsIn acquiredThenRead
+            assertEqual
+              "the load reads what was stored"
+              [(Local 3, VLocal (Local 0))]
+              answered
+        , -- And the same buffer with the store in between made through a
+          -- pointer this cannot place at all, which may be pointing at it.
+          testCase "across a store through a pointer this cannot place" $ do
+            answered <- assignmentsIn acquiredThenClobbered
+            assertEqual "nothing is answered" [] answered
         , -- Two pointers this cannot tell apart, so the store between the loads
           -- has to be taken for a store to the one being read.
           testCase "across a store through another pointer" $ do
@@ -367,6 +383,56 @@ redundancyTests =
               "which the caller names already"
               True
               (mayAlias objects (reading (VLocal x)) (reading (VLocal (Local 0))))
+        , -- A local a call left a pointer in is assigned in one place, so it
+          -- holds one address wherever it is read and two accesses stepped
+          -- from it are that far apart.  Where the buffer is is still not
+          -- known, and this asks nothing about that.
+          testCase "two elements of a buffer a call handed back" $ do
+            (objects, _) <- aliasingIn acquiredBuffers
+            (_, [b, _]) <- acquiredIn acquiredBuffers
+            (_, [n]) <- steppingIn acquiredBuffers
+            assertEqual
+              "one base and two offsets"
+              False
+              (mayAlias objects (reading (VLocal b)) (reading (VLocal n)))
+        , -- Two calls, and nothing here tells their answers apart: that two
+          -- allocations are two objects is a fact about where each points, and
+          -- where either points is what the walk stopped without finding.
+          -- LLVM answers otherwise, from the @noalias@ on the return.
+          testCase "two buffers two calls handed back" $ do
+            (objects, _) <- aliasingIn acquiredBuffers
+            (_, [b, c]) <- acquiredIn acquiredBuffers
+            assertEqual
+              "which is the cautious answer"
+              True
+              (mayAlias objects (reading (VLocal b)) (reading (VLocal c)))
+        , testCase "a buffer and a slot whose address stayed put" $ do
+            (objects, [x, _]) <- aliasingIn acquiredBuffers
+            (_, [b, _]) <- acquiredIn acquiredBuffers
+            assertEqual
+              "no call having a way to name it"
+              False
+              (mayAlias objects (reading (VLocal b)) (reading (VLocal x)))
+        , -- And the slot next to it, whose address a callee could have read
+          -- back and handed straight over.  This is why what a call left in a
+          -- local is not asked the questions a parameter is asked: an argument
+          -- was computed before the call began and cannot point into storage
+          -- the call went on to allocate, and a returned pointer is the other
+          -- way round.
+          testCase "a buffer and a slot whose address was handed over" $ do
+            (objects, [_, y]) <- aliasingIn acquiredBuffers
+            (_, [b, _]) <- acquiredIn acquiredBuffers
+            assertEqual
+              "the call being free to hand it back"
+              True
+              (mayAlias objects (reading (VLocal b)) (reading (VLocal y)))
+        , testCase "a buffer and a parameter" $ do
+            (objects, _) <- aliasingIn acquiredBuffers
+            (_, [b, _]) <- acquiredIn acquiredBuffers
+            assertEqual
+              "which may be one pointer"
+              True
+              (mayAlias objects (reading (VLocal b)) (reading (VLocal (Local 0))))
         ]
     , testGroup
         "what the caller promised"
@@ -588,11 +654,11 @@ aliasingIn source = do
 -- | What a function says about its pointers, and the locals its loads of
 -- pointers assign to, in the order written.
 --
--- A pointer read out of memory is what a stranger is: 'regionOf' stops at it
--- and reports having stopped, which is the case the answers about strangers
--- are answers about.  A parameter used to serve for one in these tests and no
--- longer can, where an argument may point being something the analysis now
--- says something about.
+-- A pointer read out of memory is what a stranger is: the walk stops at the
+-- local the load assigns and has found nothing that says where it points,
+-- which is the case the answers about strangers are answers about.  A
+-- parameter used to serve for one in these tests and no longer can, where an
+-- argument may point being something the analysis now says something about.
 strangersIn :: Text -> IO (Objects, [Local])
 strangersIn source = do
   parsed <- expectParse "test" source
@@ -606,6 +672,29 @@ strangersIn source = do
           | b <- functionBlocks f
           , Instruction (Just result) (OLoad l) _ <- blockInstructions b
           , TPointer _ <- [loadType l]
+          ]
+        )
+
+-- | What a function says about its pointers, and the locals its calls assign
+-- to, in the order written.
+--
+-- Storage a call handed back is a base with no syntax of its own: an
+-- allocation is written @alloca@ and a parameter stands in the signature, and
+-- this is an ordinary local whose one assignment happens to say nothing about
+-- where it points.  So the fixtures using this name their calls' results by
+-- looking for them, as the ones about steps do.
+acquiredIn :: Text -> IO (Objects, [Local])
+acquiredIn source = do
+  parsed <- expectParse "test" source
+  let program = lower parsed
+  case functionsIn program of
+    [] -> assertFailure "no function lowered"
+    f : _ ->
+      pure
+        ( objectsIn (layoutOf program) f
+        , [ result
+          | b <- functionBlocks f
+          , Instruction (Just result) (OCall _) _ <- blockInstructions b
           ]
         )
 
@@ -1248,6 +1337,65 @@ handedOver =
     , "  store ptr %x, ptr %p, align 8"
     , "  %q = load ptr, ptr %p, align 8"
     , "  %a = load i32, ptr %x, align 4"
+    , "  ret i32 %a"
+    , "}"
+    ]
+
+-- | Two buffers a call handed back, a slot whose address stayed put, and a
+-- slot whose address did not.
+--
+-- The step is written as a @getelementptr@ rather than at a second call so
+-- that the two accesses through the first buffer are one base and two offsets,
+-- which is the whole of what measuring from such a local buys.
+acquiredBuffers :: Text
+acquiredBuffers =
+  T.unlines
+    [ "target datalayout = \"e-m:e-i64:64-n8:16:32:64-S128\""
+    , "declare ptr @acquire()"
+    , "define i32 @f(ptr %p) {"
+    , "entry:"
+    , "  %x = alloca i32, align 4"
+    , "  %y = alloca i32, align 4"
+    , "  store ptr %y, ptr %p, align 8"
+    , "  %b = call ptr @acquire()"
+    , "  %c = call ptr @acquire()"
+    , "  %n = getelementptr i32, ptr %b, i64 1"
+    , "  %a = load i32, ptr %b, align 4"
+    , "  ret i32 %a"
+    , "}"
+    ]
+
+-- | A buffer a call handed back, read either side of a store to the element
+-- above the one being read.
+acquiredThenRead :: Text
+acquiredThenRead =
+  T.unlines
+    [ "target datalayout = \"e-m:e-i64:64-n8:16:32:64-S128\""
+    , "declare ptr @acquire()"
+    , "define i32 @f(i32 %v) {"
+    , "entry:"
+    , "  %b = call ptr @acquire()"
+    , "  store i32 %v, ptr %b, align 4"
+    , "  %n = getelementptr i32, ptr %b, i64 1"
+    , "  store i32 7, ptr %n, align 4"
+    , "  %a = load i32, ptr %b, align 4"
+    , "  ret i32 %a"
+    , "}"
+    ]
+
+-- | And the same with the store between them made through a pointer this
+-- cannot place.
+acquiredThenClobbered :: Text
+acquiredThenClobbered =
+  T.unlines
+    [ "target datalayout = \"e-m:e-i64:64-n8:16:32:64-S128\""
+    , "declare ptr @acquire()"
+    , "define i32 @f(ptr %p, i32 %v) {"
+    , "entry:"
+    , "  %b = call ptr @acquire()"
+    , "  store i32 %v, ptr %b, align 4"
+    , "  store i32 7, ptr %p, align 4"
+    , "  %a = load i32, ptr %b, align 4"
     , "  ret i32 %a"
     , "}"
     ]

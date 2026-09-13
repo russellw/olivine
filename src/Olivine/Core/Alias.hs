@@ -28,8 +28,11 @@
 -- made, and where the pointer came from is then a question about the caller.
 -- But both accesses are still so many bytes past one parameter, and a
 -- parameter the function never assigns to holds one value throughout it, so
--- the distance between them is known although the address is not.  That is
--- what 'Base' is: an object, or a local to measure from.
+-- the distance between them is known although the address is not.  A local a
+-- call left a pointer in is the same case one step further on — a buffer the
+-- function allocated for itself is written field by field exactly as a
+-- handed-in one is — and it holds one value the same way, being assigned in
+-- one place.  That is what 'Base' is: an object, or a local to measure from.
 --
 -- An offset is known or it is not.  A step by an index nothing settles, a
 -- pointer arriving as a constant expression, a type with no size: any of them
@@ -131,15 +134,33 @@ data Region = Region
 -- one field of a handed-in struct from another, which is the shape a front end
 -- writes far more often than it writes two fields of a local one.
 --
--- Only a parameter the function never assigns to can be one of these.  A local
+-- __A local it can measure from is one holding a single value.__  A local
 -- assigned in more than one place is a different value at different points, so
--- two pointers measured from it are two distances from two addresses; and a
--- local assigned once is one the walk went through rather than stopped at,
--- unless what assigned it was not a derivation at all — a call, a load — in
--- which case the walk gives up entirely rather than stopping here.
+-- two pointers measured from it are two distances from two addresses, and it is
+-- no base at all.  Everything else is: a parameter, which holds what the caller
+-- passed for the whole of the call, and a local assigned exactly once, which
+-- holds what its one assignment left there at every point that assignment
+-- reaches.  A local assigned once by a derivation is one the walk goes
+-- /through/ rather than stopping at; what stops it is an assignment that says
+-- nothing about where the pointer points — a call, a load, a @select@ between
+-- two pointers — and the local is then the far end of the walk.
+--
+-- __The two are one fact for the offsets and two for everything else.__  Both
+-- say the same thing about two pointers measured from one of them, which is why
+-- 'overlapping' asks only whether the bases are equal.  They part company over
+-- what such a pointer may /meet/: what a parameter can point at is the caller's
+-- business and is answered from the signature and from when the argument was
+-- computed, and none of that reasoning holds for a pointer this function made.
+-- A callee handed a slot's address can hand it straight back, so the value a
+-- call left in a local may well point into this frame, where an argument to
+-- that same call cannot.  Keeping them apart here is what stops 'handedIn'
+-- being asked about a local that never came from a caller.
 data Base
   = InObject Object
-  | AtLocal Local
+  | -- | A parameter the function never assigns to.
+    AtParameter Local
+  | -- | A local assigned once by something the walk cannot see through.
+    AtLocal Local
   deriving (Eq)
 
 -- | One access to memory: where it is and how much of it there is.
@@ -401,14 +422,21 @@ regionOf objects = go Set.empty (Just 0)
         | Set.member n seen -> Nothing
         | otherwise -> case Map.lookup n (definedBy objects) of
             Just (OAlloca _) -> Just (Region (InObject (OnStack n)) at)
-            Just operation -> do
-              (from, step) <- derivedFrom operation
-              go (Set.insert n seen) ((+) <$> at <*> distance step) (typedValue from)
+            Just operation -> case derivedFrom operation of
+              Just (from, step) ->
+                go (Set.insert n seen) ((+) <$> at <*> distance step) (typedValue from)
+              -- Assigned once by something that is no derivation, so this is as
+              -- far back as the pointer can be followed.  Where it points is not
+              -- said here and nothing below claims it is; what the walk stopping
+              -- here buys over its giving up is the one answer a base gives,
+              -- that two pointers measured from this local stand a known
+              -- distance apart.  See 'Base'.
+              Nothing -> Just (Region (AtLocal n) at)
             -- Not something the function assigned once: a parameter, or a local
             -- written in more than one place.  The first is a base to measure
             -- from and the second is nothing at all.
             Nothing
-              | Set.member n (fixed objects) -> Just (Region (AtLocal n) at)
+              | Set.member n (fixed objects) -> Just (Region (AtParameter n) at)
               | otherwise -> Nothing
       VCast op operand _
         | op `elem` [CastBitcast, CastAddrSpaceCast] -> go seen at (typedValue operand)
@@ -457,12 +485,18 @@ mayAlias objects p q =
       -- One base, whatever it is, so how far along it each stands is the whole
       -- question.
       (x, y) | x == y -> overlapping a b
+      -- A local this function computed and cannot place says nothing about
+      -- where it points, which is what a pointer the walk gave up on says, so
+      -- it meets what such a pointer meets.  The line above is the whole of
+      -- what measuring from it buys.
+      (AtLocal _, _) -> strange b
+      (_, AtLocal _) -> strange a
       (InObject x, InObject y) -> not (distinct x y)
       -- A parameter points at what the caller had, and what that can be is
       -- decided by when it was computed and by what the caller promised.
-      (InObject x, AtLocal n) -> handedIn objects n x
-      (AtLocal n, InObject y) -> handedIn objects n y
-      (AtLocal n, AtLocal m) -> not (promisedApart objects n m)
+      (InObject x, AtParameter n) -> handedIn objects n x
+      (AtParameter n, InObject y) -> handedIn objects n y
+      (AtParameter n, AtParameter m) -> not (promisedApart objects n m)
 
     -- What a region measured from a pointer this could not follow can be:
     -- anything, unless the other one is storage nothing outside these accesses
@@ -477,6 +511,7 @@ mayAlias objects p q =
     -- to say why it stopped, which it cannot.
     strange a = case regionBase a of
       InObject object -> escaped objects object
+      AtParameter _ -> True
       AtLocal _ -> True
 
     distinct (OnStack x) (OnStack y) = x /= y
@@ -512,8 +547,8 @@ mayAlias objects p q =
 -- the whole of what the earlier one wrote — writing some of it leaves the rest
 -- readable, and the earlier store has to stay for it.
 --
--- One base and one offset make the addresses the same, whether the base is an
--- object or a parameter this function measures from.  The extent is the other
+-- One base and one offset make the addresses the same, whatever the base is:
+-- an object, or a local this function measures from.  The extent is the other
 -- half, and where the two are accessed at the same type it is settled without
 -- a layout to measure with, which is the case a front end writes: a slot
 -- written twice is written at its own type twice.
